@@ -1,0 +1,3 @@
+[submodule ".codex/skills/analogue-openfpga"]
+	path = .codex/skills/analogue-openfpga
+	url = https://github.com/alsterium/analogue-openfpga-skill.git

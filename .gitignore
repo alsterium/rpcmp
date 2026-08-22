@@ -1,0 +1,22 @@
+# Operating-system files
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Editors and IDEs
+.idea/
+.vscode/
+*.user
+
+# Build and test output
+build/
+out/
+dist/
+coverage/
+cmake-build-*/
+
+# Local caches and environments
+.cache/
+.venv/
+venv/
+node_modules/
