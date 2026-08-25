@@ -7,7 +7,7 @@
       "description": "M0 register-boundary target spike.",
       "author": "alsterium",
       "url": "https://github.com/alsterium/rpcmp",
-      "version": "0.0.0-m0.1",
+      "version": "0.0.0-m0.2",
       "date_release": "2026-08-25"
     },
     "framework": {

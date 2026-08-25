@@ -92,11 +92,13 @@ ADR-0004 records a successful zero-error compile of official template v1.3.0 com
 
 The project-owned register spike is now integrated under the pinned official `core_top` in ignored build output. Quartus completed synthesis, fitting, assembly, and timing analysis with zero errors and the same 192-warning baseline as the clean template; `pocket-template-integration.md` records the overlay, resources, slack, and artifact hashes. This proves tool-level integration but not BRIDGE behavior.
 
-Questa Altera Starter 2025.2 completed the standalone RTL self-checking test at 187 ns with zero errors and warnings. It proves reset behavior, command-independent local liveness, accepted/duplicate/unsupported commands, atomic snapshot-equivalent publication, and the fake-device event at the proposed register boundary. It does not simulate the official APF shell or Analogue OS BRIDGE controller.
+Questa Altera Starter 2025.2 completed the expanded standalone RTL self-checking test at 266 ns with zero errors and warnings. It proves reset behavior, command-independent local liveness, staged and one-write Interact commands, duplicate/unsupported rejection, atomic snapshot-equivalent publication, and the fake-device event at the proposed register boundary. It does not simulate the official APF shell or Analogue OS BRIDGE controller.
 
 The integrated RBF has also been converted by byte-local bit reversal into an equal-length `.rbf_r`. Project-owned APF JSON and the generated ZIP passed root/magic, bound, register-address, round-trip, and exact SD-layout checks. Details and artifact hashes are recorded in `pocket-package.md`.
 
 On 2026-08-25, the package was installed and executed on Pocket. The first command-ID-1 action advanced the visible value to 1000, the same first action worked after a core relaunch, and a duplicate command-ID-1 action caused no change. This is partial evidence for Pocket execution, the Interact/BRIDGE path, reset/relaunch behavior, and duplicate rejection. It does not yet prove the command-ID-2 transition or every snapshot/event readout.
+
+The follow-up `0.0.0-m0.1` UI did not provide usable additional evidence: all readout labels except `Counter` were truncated, and its two-step ID/advance controls produced no apparent displayed changes. The `0.0.0-m0.2` experiment therefore uses five-character labels and distinct one-write action registers so the next hardware run can distinguish UI presentation from BRIDGE command ordering.
 
 JTAG enumeration, complete APF boot/status and continuous-heartbeat behavior, data-slot access, RPCMP video/audio, remaining integrated BRIDGE behavior, proposed-runtime resources/licenses, and all remaining evidence items are still open.
 

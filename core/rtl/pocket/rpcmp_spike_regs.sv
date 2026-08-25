@@ -25,6 +25,8 @@ module rpcmp_spike_regs #(
     localparam logic [31:0] EVENT_SEQUENCE_ADDR = BASE_ADDR + 32'h1c;
     localparam logic [31:0] EVENT_VALUE_LO_ADDR = BASE_ADDR + 32'h20;
     localparam logic [31:0] EVENT_VALUE_HI_ADDR = BASE_ADDR + 32'h24;
+    localparam logic [31:0] RUN_ID_1_ADDR = BASE_ADDR + 32'h28;
+    localparam logic [31:0] RUN_ID_2_ADDR = BASE_ADDR + 32'h2c;
 
     localparam logic [31:0] COMMAND_ADVANCE = 32'd1;
 
@@ -35,11 +37,25 @@ module rpcmp_spike_regs #(
     logic [63:0] injected_tick;
 
     logic advance_accepted;
+    logic staged_advance_accepted;
+    logic run_id_1_accepted;
+    logic run_id_2_accepted;
+    logic [31:0] accepted_command_id;
     logic [63:0] advanced_tick;
 
-    assign advance_accepted = bridge_wr && (bridge_addr == COMMAND_ADDR) &&
-                              (bridge_wr_data == COMMAND_ADVANCE) &&
-                              (staged_command_id > last_command_id);
+    assign staged_advance_accepted = bridge_wr && (bridge_addr == COMMAND_ADDR) &&
+                                     (bridge_wr_data == COMMAND_ADVANCE) &&
+                                     (staged_command_id > last_command_id);
+    assign run_id_1_accepted = bridge_wr && (bridge_addr == RUN_ID_1_ADDR) &&
+                               (bridge_wr_data == COMMAND_ADVANCE) &&
+                               (32'd1 > last_command_id);
+    assign run_id_2_accepted = bridge_wr && (bridge_addr == RUN_ID_2_ADDR) &&
+                               (bridge_wr_data == COMMAND_ADVANCE) &&
+                               (32'd2 > last_command_id);
+    assign advance_accepted = staged_advance_accepted || run_id_1_accepted ||
+                              run_id_2_accepted;
+    assign accepted_command_id = run_id_2_accepted ? 32'd2 :
+                                 run_id_1_accepted ? 32'd1 : staged_command_id;
     assign advanced_tick = injected_tick + STEP_TICKS;
     assign liveness = liveness_counter[LIVENESS_BIT];
     assign device_event_value = injected_tick;
@@ -61,7 +77,8 @@ module rpcmp_spike_regs #(
             end
 
             if (advance_accepted) begin
-                last_command_id <= staged_command_id;
+                staged_command_id <= accepted_command_id;
+                last_command_id <= accepted_command_id;
                 snapshot_sequence <= snapshot_sequence + 1'b1;
                 injected_tick <= advanced_tick;
                 device_event_valid <= 1'b1;

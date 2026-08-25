@@ -3,66 +3,51 @@
     "magic": "APF_VER_1",
     "variables": [
       {
-        "name": "Set ID 1",
+        "name": "Run 1",
         "id": 8,
         "type": "action",
         "enabled": true,
-        "address": "0x10000004",
+        "address": "0x10000028",
         "value": 1
       },
       {
-        "name": "Set ID 2",
+        "name": "Run 2",
         "id": 9,
         "type": "action",
         "enabled": true,
-        "address": "0x10000004",
-        "value": 2
-      },
-      {
-        "name": "Staged ID",
-        "id": 1,
-        "type": "number_u32",
-        "enabled": false,
-        "address": "0x10000004"
-      },
-      {
-        "name": "Advance +1000",
-        "id": 2,
-        "type": "action",
-        "enabled": true,
-        "address": "0x10000008",
+        "address": "0x1000002C",
         "value": 1
       },
       {
-        "name": "Snap Seq",
+        "name": "Seq",
         "id": 3,
         "type": "number_u32",
         "enabled": false,
         "address": "0x1000000C"
       },
       {
-        "name": "Counter",
+        "name": "Count",
         "id": 4,
         "type": "number_u32",
         "enabled": false,
         "address": "0x10000010"
       },
       {
-        "name": "Last Cmd",
+        "name": "Last",
         "id": 5,
         "type": "number_u32",
         "enabled": false,
         "address": "0x10000018"
       },
       {
-        "name": "Event Seq",
+        "name": "ESeq",
         "id": 6,
         "type": "number_u32",
         "enabled": false,
         "address": "0x1000001C"
       },
       {
-        "name": "Event Val",
+        "name": "EVal",
         "id": 7,
         "type": "number_u32",
         "enabled": false,

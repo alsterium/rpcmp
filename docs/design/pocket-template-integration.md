@@ -41,15 +41,15 @@ A successful build proves that the module elaborates, synthesizes, fits, and ass
 
 ## 5. Evidence captured on 2026-08-25
 
-The clean generated integration completed in 6 minutes 8 seconds with zero errors and the accepted 192-warning baseline. Quartus elaborated `rpcmp_spike_regs` below the official `core_top`, then completed synthesis, fitting, assembly, and timing analysis for `5CEBA4F23C8`.
+The current `0.0.0-m0.2` generated integration completed in 6 minutes 43 seconds with zero errors and the accepted 192-warning baseline. Quartus elaborated `rpcmp_spike_regs` below the official `core_top`, then completed synthesis, fitting, assembly, and timing analysis for `5CEBA4F23C8`.
 
-Final fit used 656 of 18,480 ALMs (4%), 975 registers, 8,192 block-memory bits in two RAM blocks, one of four PLLs, and all 224 pins. Compared with the clean template evidence in ADR-0004, the whole-design delta is 243 ALMs and 249 fitted registers; RAM, PLL, DSP, and pin counts are unchanged. Analysis & Synthesis reported 834 registers versus the template's 660, matching the 174 project-owned state bits before fitter retiming and duplication. These deltas are integration evidence, not an isolated production area estimate.
+Final fit used 686 of 18,480 ALMs (4%), 1,068 registers, 8,192 block-memory bits in two RAM blocks, one of four PLLs, and all 224 pins. Compared with the clean template evidence in ADR-0004, the whole-design delta is 273 ALMs and 342 fitted registers; RAM, PLL, DSP, and pin counts are unchanged. Analysis & Synthesis still reported 834 registers versus the template's 660, matching the 174 project-owned state bits before fitter retiming and duplication; the new one-write address decoders add no architectural state. These deltas are integration evidence, not an isolated production area estimate.
 
-All reported slack values were positive, with worst setup slack 4.429 ns, hold slack 0.167 ns, and minimum-pulse-width slack 0.830 ns across the analyzed corners. The template still reports that setup and hold are not fully constrained, including its known derived audio-clock and unmatched clock-group warnings, so the positive values do not establish timing closure for a production core.
+All reported slack values were positive, with worst setup slack 3.061 ns, hold slack 0.121 ns, and minimum-pulse-width slack 0.830 ns across the analyzed corners. The template still reports that setup and hold are not fully constrained, including its known derived audio-clock and unmatched clock-group warnings, so the positive values do not establish timing closure for a production core.
 
 Generated artifacts were:
 
-- `ap_core.sof`: 2,441,493 bytes, SHA-256 `E667786AD501D21D9AD7A2EDA8775DEAB2BBA7F3F4A4C8008ACDBBC14544B2F1`;
-- `ap_core.rbf`: 794,760 bytes, SHA-256 `CAEB5E867AD27E416227BB4967EB0EDEED9D0AADA8B942FB416A2490BF527DEB`.
+- `ap_core.sof`: 2,441,493 bytes, SHA-256 `15FB05734A6DDC88EB00AFB21F40A1B0D0560002EA44F7C3C7870972FF19AC13`;
+- `ap_core.rbf`: 794,412 bytes, SHA-256 `E2E1112EB24AA46B7E003ABDF89482C54101D2F16F25E8DEF47D5E0C2F5177A9`.
 
 The official build-ID generator embeds compile time, so these hashes identify this evidence run and are not expected to be reproducible across later successful builds.

@@ -11,7 +11,7 @@ It is not the production Core-to-RTL protocol, an APF boot implementation, or ev
 - The interface uses one 32-bit address, read-data, and write-data word per access.
 - All registers are naturally aligned 32-bit words. Unmapped or misaligned reads return zero; unmapped or misaligned writes have no effect.
 - Register values are unsigned little-endian words at the future byte-addressed adapter boundary. This M0 module has no byte enables, so partial writes are unsupported.
-- RPCMP owns `0x1000_0000` through `0x1000_0024` for this experiment. This range is outside the APF-reserved `0xF8xxxxxx` region.
+- RPCMP owns `0x1000_0000` through `0x1000_002C` for this experiment. This range is outside the APF-reserved `0xF8xxxxxx` region.
 - `reset_n` is asynchronous and active low. Reset clears all mutable register state.
 
 ## 3. Register map
@@ -28,10 +28,14 @@ It is not the production Core-to-RTL protocol, an APF boot implementation, or ev
 | `0x1000_001C` | `EVENT_SEQUENCE` | R | 0 | increments once per emitted fake device event |
 | `0x1000_0020` | `EVENT_VALUE_LO` | R | 0 | low word of the last emitted counter value |
 | `0x1000_0024` | `EVENT_VALUE_HI` | R | 0 | high word of the last emitted counter value |
+| `0x1000_0028` | `RUN_ID_1` | W | — | opcode `1` atomically stages command ID 1 and advances if it is newer |
+| `0x1000_002C` | `RUN_ID_2` | W | — | opcode `1` atomically stages command ID 2 and advances if it is newer |
 
 The first accepted command ID is 1. An advance command is accepted only when its staged ID is greater than `LAST_COMMAND_ID`. Duplicate and stale IDs do not mutate snapshot, counter, or event state. An unsupported opcode is ignored and does not consume its staged ID. ID wraparound is deliberately outside this bounded M0 experiment.
 
 Each accepted advance adds 1,000 ticks, updates the snapshot and event records atomically on the rising clock edge, and asserts `device_event_valid` for one clock. `device_event_value` exposes the same 64-bit value retained by the event registers.
+
+`RUN_ID_1` and `RUN_ID_2` are M0 Interact-test conveniences. Each converts one APF action write into the same state transition as a staged ID followed by `COMMAND=1`, avoiding assumptions about ordering between separate UI writes. They preserve duplicate/stale rejection and are not a proposed production command transport.
 
 Because every M0 fake event corresponds exactly to one accepted snapshot advance, `EVENT_SEQUENCE` aliases `SNAPSHOT_SEQUENCE` and the event value aliases the injected counter. The logical records remain distinct at the register boundary without duplicating 96 flip-flops. A future event queue must introduce independent storage only when its ordering and backpressure contract is approved.
 
@@ -49,9 +53,9 @@ Run the simulation with:
 pwsh -File tools/rtl-verify.ps1
 ```
 
-The test must prove reset values, command-independent liveness, one accepted advance, atomic snapshot/event publication, duplicate rejection, unsupported-opcode rejection, and a later accepted advance.
+The test must prove reset values, command-independent liveness, staged and one-write Interact advances, atomic snapshot/event publication, duplicate rejection, unsupported-opcode rejection, and a later accepted advance.
 
-On 2026-08-25, Questa Altera Starter 2025.2 completed the self-checking test at 187 ns with the `pocket_spike_tb: PASS` marker and zero errors or warnings. This is behavioral evidence for the standalone project-owned register boundary. It is not evidence that Analogue OS can access the generated integration on Pocket.
+On 2026-08-25, Questa Altera Starter 2025.2 completed the expanded self-checking test at 266 ns with the `pocket_spike_tb: PASS` marker and zero errors or warnings. This is behavioral evidence for the standalone project-owned register boundary, including both one-write Interact actions. It is not evidence that Analogue OS can access the generated integration on Pocket.
 
 Still required before ADR-0004 can be superseded:
 
