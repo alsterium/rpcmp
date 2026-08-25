@@ -29,15 +29,18 @@ core/
   ui/include/rpcmp/ui/
   ui/src/
   platform/host/
-  rtl/                         # placeholder only
+  rtl/pocket/                  # ADR-0004 register spike only
 tests/
   architecture/
   contracts/
+  rtl/                         # self-checking register-spike test
   runtime/
   ui/
   fixtures/m0/
 tools/
 ```
+
+The Pocket RTL exception is limited to the project-owned feasibility experiment in `pocket-spike-registers.md`. Sound synthesis, production queues, APF shell ownership, and any other target implementation remain outside M0. The architecture check permits only the named spike source beneath `core/rtl` and continues to reject any speculative RTL implementation.
 
 Target responsibilities:
 

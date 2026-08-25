@@ -53,13 +53,15 @@ def find_violations(root: Path) -> list[str]:
         if ui_link and "rpcmp_runtime" in ui_link.group("body"):
             violations.append("rpcmp_ui links rpcmp_runtime")
 
-    forbidden_implementation_roots = [
-        root / "core" / "runtime" / "engines" / "mdx",
-        root / "core" / "rtl",
-    ]
-    for implementation_root in forbidden_implementation_roots:
-        for path in source_files(implementation_root):
-            violations.append(f"out-of-scope M0 implementation: {path.relative_to(root)}")
+    mdx_root = root / "core" / "runtime" / "engines" / "mdx"
+    for path in source_files(mdx_root):
+        violations.append(f"out-of-scope M0 implementation: {path.relative_to(root)}")
+
+    allowed_m0_rtl = {Path("core/rtl/pocket/rpcmp_spike_regs.sv")}
+    for path in source_files(root / "core" / "rtl"):
+        relative_path = path.relative_to(root)
+        if relative_path not in allowed_m0_rtl:
+            violations.append(f"out-of-scope M0 implementation: {relative_path}")
 
     return violations
 

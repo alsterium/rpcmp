@@ -16,4 +16,14 @@ cmake --build --preset host-msvc --target format-check
 cmake --build --preset host-msvc --target tidy-check
 ```
 
-Linux/GCC CI is currently deferred. RTL simulation, format parsers, and real container tests remain outside M0.
+Run the standalone M0 Pocket register-spike simulation with Questa Altera Starter 2025.2:
+
+```powershell
+pwsh -File tools/rtl-verify.ps1
+```
+
+The script accepts `RPCMP_QUESTA_ROOT` as the directory containing `vsim.exe`; otherwise it checks the documented Quartus Lite installation path. Questa Starter requires a free, 12-month `SW-QUESTA` license. Generate it in Altera's Self Service Licensing Center and set `SALT_LICENSE_SERVER` to the downloaded license-file path before running the script. See the official [Questa Starter licensing instructions](https://docs.altera.com/r/docs/683472/25.3/altera-fpga-software-installation-and-licensing/questa-altera-fpga-edition-and-questa-altera-fpga-starter-edition-software-license).
+
+The HDL compiler can validate the source without that environment variable, but the self-checking simulation cannot run. The simulation also does not validate the APF shell, timing closure, JTAG, or execution on Pocket.
+
+Linux/GCC CI is currently deferred. Format parsers and real container tests remain outside M0.
