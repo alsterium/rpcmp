@@ -6,6 +6,7 @@
 *.bin binary
 *.bit binary
 *.rbf binary
+*.rbf_r binary
 *.jpg binary
 *.jpeg binary
 *.png binary

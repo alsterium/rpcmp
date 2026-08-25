@@ -34,4 +34,12 @@ pwsh -File tools/pocket-spike-build.ps1
 
 This synthesis/fitting gate does not require the Questa license and does not replace behavioral simulation or on-device testing.
 
+After that build, generate and validate the ignored M0 Pocket SD tree and ZIP with:
+
+```powershell
+pwsh -File tools/pocket-package.ps1
+```
+
+The package gate validates APF JSON roots and bounds, Interact addresses, byte-level RBF reversal, exact file/ZIP layout, and artifact lengths/hashes. It does not install anything on an SD card or access Pocket hardware.
+
 Linux/GCC CI is currently deferred. Format parsers and real container tests remain outside M0.

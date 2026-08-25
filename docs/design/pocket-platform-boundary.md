@@ -94,7 +94,9 @@ The project-owned register spike is now integrated under the pinned official `co
 
 Questa Altera Starter 2025.2 completed the standalone RTL self-checking test at 187 ns with zero errors and warnings. It proves reset behavior, command-independent local liveness, accepted/duplicate/unsupported commands, atomic snapshot-equivalent publication, and the fake-device event at the proposed register boundary. It does not simulate the official APF shell or Analogue OS BRIDGE controller.
 
-JTAG/Pocket execution, APF boot/heartbeat behavior, data-slot access, RPCMP video/audio, integrated BRIDGE behavior, `.rbf_r` packaging, proposed-runtime resources/licenses, and all remaining evidence items are still open.
+The integrated RBF has also been converted by byte-local bit reversal into an equal-length `.rbf_r`. Project-owned APF JSON and the generated ZIP passed root/magic, bound, register-address, round-trip, and exact SD-layout checks. Details and artifact hashes are recorded in `pocket-package.md`.
+
+JTAG/Pocket execution, APF boot/heartbeat behavior, data-slot access, RPCMP video/audio, integrated BRIDGE behavior, package installation on Pocket, proposed-runtime resources/licenses, and all remaining evidence items are still open.
 
 ## 7. Sources
 
