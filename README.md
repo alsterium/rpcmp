@@ -22,6 +22,9 @@ The defining rule is `Core -> UI = State` and `UI -> Core = Command`. Playback m
 - Architecture and dependency rules: `docs/ARCHITECTURE.md`
 - Public contracts: `specs/`
 - First implementation task: `docs/milestones/M0-architecture.md`
+- M0 executable design: `docs/design/m0-executable-design.md`
+- Pocket platform boundary: `docs/design/pocket-platform-boundary.md`
+- Architecture decisions: `docs/adr/`
 - Copy-ready Codex prompt: `prompts/implement-M0.md`
 
 ## Intended repository layout
@@ -35,7 +38,7 @@ tests/                   cross-module fixtures and integration tests
 third_party/             vendored dependencies and notices
 ```
 
-This package deliberately does not select C++, Rust, a build system, or a concrete YM2151 core. M0 must record those choices in an ADR after checking the target toolchain and licenses.
+M0 selects C++17 and CMake for the host architecture skeleton. Pocket execution and a concrete YM2151 core remain gated by target-toolchain and license evidence; see the M0 ADRs.
 
 ## Recommended execution
 
@@ -43,6 +46,22 @@ This package deliberately does not select C++, Rust, a build system, or a concre
 2. Ask Codex to read `AGENTS.md` and implement M0 only.
 3. Review the public contracts and architecture tests before accepting implementation.
 4. Continue milestone-by-milestone; do not jump directly to full MDX playback.
+
+## M0 host verification
+
+On Windows, install Visual Studio C++ Build Tools, CMake, and the pinned LLVM development tools:
+
+```powershell
+scoop install llvm
+```
+
+The `host-msvc` preset requires LLVM 22.1.8. Run the complete build, format, static-analysis, architecture, and test workflow with:
+
+```powershell
+pwsh -File tools/host-verify.ps1
+```
+
+After configuring the preset, the developer checks are also available individually as `format`, `format-check`, and `tidy-check` CMake targets. Linux/GCC CI is currently deferred and is not part of the reported host coverage.
 
 ## Local Codex Skill
 

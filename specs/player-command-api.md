@@ -61,3 +61,9 @@ Rejection examples: invalid state, unknown track/channel, unsupported capability
 - Duplicate IDs, unknown IDs, stale sequence, and queue-full behavior are tested.
 - No command type references Pocket buttons, views, MDX opcodes, YM2151 registers, or `.rpcmlib` offsets.
 - The same command trace produces byte/value-equivalent snapshots in repeated deterministic runs.
+
+## 7. M0 host profile
+
+The concrete M0 admission, ordering, queue, state-transition, and reason-code rules are defined in `docs/adr/0002-m0-state-and-command-transport.md` and `docs/design/m0-executable-design.md`.
+
+This profile makes the previously open `Play` choice explicit: `Play` from `paused` resumes, while `Play` from `playing` is an accepted no-op. Command IDs are non-zero and strictly increasing within an M0 Core session; retained repeats return `duplicate`, and older IDs are rejected without application. These are M0 profile rules, not a serialized representation or a promise that a future inter-process transport will use the same replay window.

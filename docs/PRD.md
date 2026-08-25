@@ -106,8 +106,9 @@ The owner of input mapping, navigation, layout, rendering, widgets, and visualiz
 
 ## 9. Open decisions
 
+- Pocket execution substrate: project-owned soft CPU/firmware, a reviewed third-party runtime, a hardware-oriented implementation, or another proven APF-compatible design.
 - Runtime language/build system supported by the Pocket toolchain.
 - Licensed YM2151 implementation (for example, whether JT51 is suitable after license/toolchain review).
-- Exact audio sample rate and resampling topology; 48 kHz is the working integration target, not yet a frozen contract.
+- Pocket AUDIO output is fixed at 48 kHz by APF; internal device/scheduler clock rates and the resampling topology remain open.
 - Snapshot transport and memory ownership on the final platform.
 - Fidelity oracle and redistribution-safe MDX fixtures.

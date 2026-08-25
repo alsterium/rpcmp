@@ -1,5 +1,13 @@
 # M0 — Architecture Skeleton
 
+## Design baseline
+
+The executable M0 design is recorded in `docs/design/m0-executable-design.md` and ADR-0001 through ADR-0004. The host skeleton now implements the public contract values, deterministic Mock Core, mock-only text UI, independent link targets, and architecture checks. Run it with `pwsh -File tools/host-verify.ps1`.
+
+Windows host verification pins LLVM 22.1.8 and treats `clang-format` and `clang-tidy` findings as failures. Linux/GCC CI is deferred and remains an explicit completion-gap item.
+
+Pocket execution remains an explicit feasibility gate. The official openFPGA template does not by itself establish a general-purpose runtime for RPCMP, so a host-green M0 must not be reported as Pocket-compatible until ADR-0004 is superseded by target-spike evidence.
+
 ## Objective
 
 Prove the Core/UI boundary before implementing music formats, synthesis, or final graphics.

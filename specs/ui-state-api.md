@@ -78,3 +78,7 @@ The generic UI must function when it does not understand an extension. A future 
 - UI test target does not link runtime or MDX code.
 - Unknown extensions and unavailable optional fields do not break rendering.
 - A contract test verifies snapshots contain no platform control names or container offsets.
+
+## 7. M0 host profile
+
+Concrete M0 field representations, admission bounds, the 60,000-tick synthetic clock, the 60 Hz publication cadence, and the eight-channel fixture pattern are defined in `docs/design/m0-executable-design.md`. Those limits are in-memory M0 limits; they do not freeze a C++ object ABI, a wire encoding, Pocket memory budgets, or `.rpcmlib` bytes.
