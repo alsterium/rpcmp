@@ -70,7 +70,7 @@ $metadata = $core.metadata
 Assert-True (@($metadata.platform_ids).Count -eq 0) 'The M0 spike must remain standalone without platform assets.'
 Assert-True ($metadata.shortname -ceq 'RPCMP') 'core.metadata.shortname must be RPCMP.'
 Assert-True ($metadata.author -ceq 'alsterium') 'core.metadata.author must be alsterium.'
-Assert-True ($metadata.version -ceq '0.0.0-m0.3') 'core.metadata.version must match the current M0.3 package.'
+Assert-True ($metadata.version -ceq '0.0.0-m0.3.1') 'core.metadata.version must match the current M0.3.1 package.'
 Assert-True ($metadata.shortname.Length -le 31) 'core.metadata.shortname exceeds 31 characters.'
 Assert-True ($metadata.description.Length -le 63) 'core.metadata.description exceeds 63 characters.'
 Assert-True ($metadata.author.Length -le 31) 'core.metadata.author exceeds 31 characters.'
@@ -80,7 +80,8 @@ Assert-True ($metadata.date_release -match '^\d{4}-\d{2}-\d{2}$') 'core.metadata
 Assert-True ($core.framework.target_product -ceq 'Analogue Pocket') 'framework.target_product must be Analogue Pocket.'
 Assert-True (@($core.cores).Count -eq 1) 'The M0 package must contain exactly one core entry.'
 Assert-True ([uint32]$core.cores[0].id -eq 0) 'The M0 bitstream ID must be zero.'
-Assert-True ($core.cores[0].filename -ceq 'bitstream.rbf_r') 'The core entry must reference bitstream.rbf_r.'
+Assert-True ($core.cores[0].filename -ceq 'm003.rbf_r') 'The core entry must reference the m0.3-specific bitstream filename.'
+$bitstreamFilename = $core.cores[0].filename
 
 Assert-True (@($definitions.data.data_slots).Count -eq 0) 'M0 must not package data slots.'
 Assert-True (@($definitions.input.controllers).Count -eq 0) 'M0 must not package controller mappings.'
@@ -172,7 +173,7 @@ $reversedBytes = [byte[]]::new($sourceBytes.Length)
 for ($index = 0; $index -lt $sourceBytes.Length; $index++) {
     $reversedBytes[$index] = $reverseTable[$sourceBytes[$index]]
 }
-$reversedPath = Join-Path $coreOutput 'bitstream.rbf_r'
+$reversedPath = Join-Path $coreOutput $bitstreamFilename
 [IO.File]::WriteAllBytes($reversedPath, $reversedBytes)
 Assert-True ((Get-Item -LiteralPath $reversedPath).Length -eq $sourceBytes.Length) 'RBF_R length differs from the source RBF.'
 for ($index = 0; $index -lt $sourceBytes.Length; $index++) {
@@ -181,7 +182,7 @@ for ($index = 0; $index -lt $sourceBytes.Length; $index++) {
     }
 }
 
-$expectedFiles = @($definitionRoots.Keys) + 'bitstream.rbf_r' | Sort-Object
+$expectedFiles = @($definitionRoots.Keys) + $bitstreamFilename | Sort-Object
 $actualFiles = @(Get-ChildItem -LiteralPath $coreOutput -File | Select-Object -ExpandProperty Name | Sort-Object)
 $fileDifference = @(Compare-Object -ReferenceObject $expectedFiles -DifferenceObject $actualFiles)
 Assert-True ($fileDifference.Count -eq 0) 'Generated core folder contains missing or unexpected files.'
@@ -211,7 +212,7 @@ try {
     }
     $entryDifference = @(Compare-Object -ReferenceObject $expectedEntries -DifferenceObject $archiveEntries)
     Assert-True ($entryDifference.Count -eq 0) 'ZIP layout differs from the validated SD tree.'
-    $bitstreamEntry = $archive.Entries | Where-Object { $_.FullName.Replace('\', '/') -ceq "Cores/$coreFolderName/bitstream.rbf_r" }
+    $bitstreamEntry = $archive.Entries | Where-Object { $_.FullName.Replace('\', '/') -ceq "Cores/$coreFolderName/$bitstreamFilename" }
     Assert-True ($bitstreamEntry.Length -eq $sourceBytes.Length) 'ZIP bitstream length differs from the source RBF.'
 } finally {
     $archive.Dispose()
