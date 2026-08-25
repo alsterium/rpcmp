@@ -92,7 +92,9 @@ ADR-0004 records a successful zero-error compile of official template v1.3.0 com
 
 The project-owned register spike is now integrated under the pinned official `core_top` in ignored build output. Quartus completed synthesis, fitting, assembly, and timing analysis with zero errors and the same 192-warning baseline as the clean template; `pocket-template-integration.md` records the overlay, resources, slack, and artifact hashes. This proves tool-level integration but not BRIDGE behavior.
 
-The RTL and its self-checking testbench also compile with Questa Altera Starter 2025.2, but simulation execution is blocked until a valid `SW-QUESTA` license is exposed through `SALT_LICENSE_SERVER`. JTAG/Pocket execution, APF boot/heartbeat behavior, data-slot access, RPCMP video/audio, the behavioral fake-device crossing, `.rbf_r` packaging, proposed-runtime resources/licenses, and all remaining evidence items are still open.
+Questa Altera Starter 2025.2 completed the standalone RTL self-checking test at 187 ns with zero errors and warnings. It proves reset behavior, command-independent local liveness, accepted/duplicate/unsupported commands, atomic snapshot-equivalent publication, and the fake-device event at the proposed register boundary. It does not simulate the official APF shell or Analogue OS BRIDGE controller.
+
+JTAG/Pocket execution, APF boot/heartbeat behavior, data-slot access, RPCMP video/audio, integrated BRIDGE behavior, `.rbf_r` packaging, proposed-runtime resources/licenses, and all remaining evidence items are still open.
 
 ## 7. Sources
 

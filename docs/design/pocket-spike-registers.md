@@ -51,10 +51,12 @@ pwsh -File tools/rtl-verify.ps1
 
 The test must prove reset values, command-independent liveness, one accepted advance, atomic snapshot/event publication, duplicate rejection, unsupported-opcode rejection, and a later accepted advance.
 
+On 2026-08-25, Questa Altera Starter 2025.2 completed the self-checking test at 187 ns with the `pocket_spike_tb: PASS` marker and zero errors or warnings. This is behavioral evidence for the standalone project-owned register boundary. It is not evidence that Analogue OS can access the generated integration on Pocket.
+
 Still required before ADR-0004 can be superseded:
 
-- integration under the exact official openFPGA template ports;
-- Quartus synthesis, fitting, timing, and CDC/reset review of the integrated block;
+- behavioral or physical validation of the integrated APF-to-register path;
+- complete timing constraints and CDC/reset review beyond the successful Quartus integration build;
 - real APF boot, reset, Host/Target commands, and heartbeat on Pocket;
 - a bounded asynchronous queue or handshake if Core and device logic use different clocks;
 - measured register/data-slot latency and the remaining evidence listed in `pocket-platform-boundary.md`.

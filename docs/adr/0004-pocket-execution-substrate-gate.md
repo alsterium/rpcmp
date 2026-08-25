@@ -50,7 +50,7 @@ The compile produced 192 warnings, including the template's unused/stuck signals
 
 The template declares `APF_VER_1`, framework requirement 1.1, top-level `apf_top`, and user module `core_top`. A subsequent clean integration overlay connected the project-owned register spike to `clk_74a`, APF `reset_n`, and BRIDGE address range `0x10xxxxxx`. Quartus completed the integrated flow with zero errors and the same 192-warning baseline, using 656 ALMs and 975 fitted registers; full evidence is recorded in `docs/design/pocket-template-integration.md`.
 
-Questa Altera Starter FPGA Edition 2025.2 is installed. The register spike and self-checking testbench compile successfully, but simulation cannot execute until the free `SW-QUESTA` license is generated and exposed through `SALT_LICENSE_SERVER`; synthesis is not behavioral evidence for the template or RPCMP logic. JTAG enumeration, `.rbf_r` conversion, package validation, and execution on Pocket have not been performed.
+Questa Altera Starter FPGA Edition 2025.2 completed the project-owned self-checking test at 187 ns with zero errors and warnings. This proves the standalone register-spike semantics, including one fake-device event, but does not simulate the official APF shell or Analogue OS BRIDGE controller. JTAG enumeration, `.rbf_r` conversion, package validation, and execution on Pocket have not been performed.
 
 ## Alternatives considered
 
