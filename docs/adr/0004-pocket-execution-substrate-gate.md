@@ -48,7 +48,9 @@ All reported setup, hold, and minimum-pulse-width slacks were positive. The wors
 
 The compile produced 192 warnings, including the template's unused/stuck signals, PLL reset warning, unmatched generated-clock groups, and unconstrained audio divider clocks. Timing Analyzer explicitly reported that the design was not fully constrained. RPCMP must establish its own warning baseline and complete clock/reset/CDC constraints; a zero-error template build is not sufficient for RTL acceptance.
 
-The template declares `APF_VER_1`, framework requirement 1.1, top-level `apf_top`, and user module `core_top`. Questa Altera Starter FPGA Edition 2025.2 is installed. A later project-owned register spike and self-checking testbench compile successfully, but the simulation cannot execute until the free `SW-QUESTA` license is generated and exposed through `SALT_LICENSE_SERVER`; this is not behavioral evidence for the template or RPCMP logic. JTAG enumeration, `.rbf_r` conversion of this new output, package validation, and execution on Pocket were not part of this smoke test.
+The template declares `APF_VER_1`, framework requirement 1.1, top-level `apf_top`, and user module `core_top`. A subsequent clean integration overlay connected the project-owned register spike to `clk_74a`, APF `reset_n`, and BRIDGE address range `0x10xxxxxx`. Quartus completed the integrated flow with zero errors and the same 192-warning baseline, using 656 ALMs and 975 fitted registers; full evidence is recorded in `docs/design/pocket-template-integration.md`.
+
+Questa Altera Starter FPGA Edition 2025.2 is installed. The register spike and self-checking testbench compile successfully, but simulation cannot execute until the free `SW-QUESTA` license is generated and exposed through `SALT_LICENSE_SERVER`; synthesis is not behavioral evidence for the template or RPCMP logic. JTAG enumeration, `.rbf_r` conversion, package validation, and execution on Pocket have not been performed.
 
 ## Alternatives considered
 

@@ -12,7 +12,7 @@ module rpcmp_spike_regs #(
     output logic [31:0] bridge_rd_data,
     output logic        liveness,
     output logic        device_event_valid,
-    output logic [63:0] device_event_value
+    output wire  [63:0] device_event_value
 );
 
     localparam logic [31:0] STATUS_ADDR = BASE_ADDR + 32'h00;
@@ -33,7 +33,6 @@ module rpcmp_spike_regs #(
     logic [31:0] last_command_id;
     logic [31:0] snapshot_sequence;
     logic [63:0] injected_tick;
-    logic [31:0] event_sequence;
 
     logic advance_accepted;
     logic [63:0] advanced_tick;
@@ -43,6 +42,7 @@ module rpcmp_spike_regs #(
                               (staged_command_id > last_command_id);
     assign advanced_tick = injected_tick + STEP_TICKS;
     assign liveness = liveness_counter[LIVENESS_BIT];
+    assign device_event_value = injected_tick;
 
     always_ff @(posedge clk or negedge reset_n) begin
         if (!reset_n) begin
@@ -51,9 +51,7 @@ module rpcmp_spike_regs #(
             last_command_id <= 32'd0;
             snapshot_sequence <= 32'd0;
             injected_tick <= 64'd0;
-            event_sequence <= 32'd0;
             device_event_valid <= 1'b0;
-            device_event_value <= 64'd0;
         end else begin
             liveness_counter <= liveness_counter + 1'b1;
             device_event_valid <= 1'b0;
@@ -66,9 +64,7 @@ module rpcmp_spike_regs #(
                 last_command_id <= staged_command_id;
                 snapshot_sequence <= snapshot_sequence + 1'b1;
                 injected_tick <= advanced_tick;
-                event_sequence <= event_sequence + 1'b1;
                 device_event_valid <= 1'b1;
-                device_event_value <= advanced_tick;
             end
         end
     end
@@ -76,19 +72,24 @@ module rpcmp_spike_regs #(
     always_comb begin
         bridge_rd_data = 32'd0;
 
-        if (bridge_rd) begin
-            case (bridge_addr)
-                STATUS_ADDR: bridge_rd_data = {29'd0, device_event_valid, liveness, 1'b1};
-                COMMAND_ID_ADDR: bridge_rd_data = staged_command_id;
-                SNAPSHOT_SEQUENCE_ADDR: bridge_rd_data = snapshot_sequence;
-                COUNTER_LO_ADDR: bridge_rd_data = injected_tick[31:0];
-                COUNTER_HI_ADDR: bridge_rd_data = injected_tick[63:32];
-                LAST_COMMAND_ID_ADDR: bridge_rd_data = last_command_id;
-                EVENT_SEQUENCE_ADDR: bridge_rd_data = event_sequence;
-                EVENT_VALUE_LO_ADDR: bridge_rd_data = device_event_value[31:0];
-                EVENT_VALUE_HI_ADDR: bridge_rd_data = device_event_value[63:32];
-                default: bridge_rd_data = 32'd0;
-            endcase
+        if (bridge_rd && (bridge_addr == STATUS_ADDR)) begin
+            bridge_rd_data = {29'd0, device_event_valid, liveness, 1'b1};
+        end else if (bridge_rd && (bridge_addr == COMMAND_ID_ADDR)) begin
+            bridge_rd_data = staged_command_id;
+        end else if (bridge_rd && (bridge_addr == SNAPSHOT_SEQUENCE_ADDR)) begin
+            bridge_rd_data = snapshot_sequence;
+        end else if (bridge_rd && (bridge_addr == COUNTER_LO_ADDR)) begin
+            bridge_rd_data = injected_tick[31:0];
+        end else if (bridge_rd && (bridge_addr == COUNTER_HI_ADDR)) begin
+            bridge_rd_data = injected_tick[63:32];
+        end else if (bridge_rd && (bridge_addr == LAST_COMMAND_ID_ADDR)) begin
+            bridge_rd_data = last_command_id;
+        end else if (bridge_rd && (bridge_addr == EVENT_SEQUENCE_ADDR)) begin
+            bridge_rd_data = snapshot_sequence;
+        end else if (bridge_rd && (bridge_addr == EVENT_VALUE_LO_ADDR)) begin
+            bridge_rd_data = injected_tick[31:0];
+        end else if (bridge_rd && (bridge_addr == EVENT_VALUE_HI_ADDR)) begin
+            bridge_rd_data = injected_tick[63:32];
         end
     end
 

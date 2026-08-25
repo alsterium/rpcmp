@@ -33,6 +33,8 @@ The first accepted command ID is 1. An advance command is accepted only when its
 
 Each accepted advance adds 1,000 ticks, updates the snapshot and event records atomically on the rising clock edge, and asserts `device_event_valid` for one clock. `device_event_value` exposes the same 64-bit value retained by the event registers.
 
+Because every M0 fake event corresponds exactly to one accepted snapshot advance, `EVENT_SEQUENCE` aliases `SNAPSHOT_SEQUENCE` and the event value aliases the injected counter. The logical records remain distinct at the register boundary without duplicating 96 flip-flops. A future event queue must introduce independent storage only when its ordering and backpressure contract is approved.
+
 ## 4. Timing boundary
 
 The local liveness bit is driven solely by the RTL clock and continues to toggle when no command is received. It is a simulation observation point, not the mandatory APF heartbeat. The real heartbeat remains owned by the Pocket platform shell and must run independently of this block, Core sequencing, and UI rendering.

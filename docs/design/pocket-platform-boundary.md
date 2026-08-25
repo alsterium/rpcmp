@@ -90,7 +90,9 @@ Until this evidence exists, host M0 tests may prove RPCMP contract semantics but
 
 ADR-0004 records a successful zero-error compile of official template v1.3.0 commit `da3a021b1eaf742604d86d8dc9b33a6666263e6a` with Quartus Prime Lite 25.1 for `5CEBA4F23C8`, including generated SOF/RBF hashes and resource/timing reports. This satisfies only the tool availability and baseline template-compile portion of the first evidence item.
 
-The baseline template is not fully timing constrained and produced 192 warnings. The project-owned register-spike RTL and a self-checking testbench now compile with Questa Altera Starter 2025.2, but simulation execution is blocked until a valid `SW-QUESTA` license is exposed through `SALT_LICENSE_SERVER`. This source compile is not behavioral evidence. JTAG/Pocket execution, APF boot/heartbeat behavior, data-slot access, RPCMP video/audio, the fake-device crossing, `.rbf_r` packaging, proposed-runtime resources/licenses, and all remaining evidence items are still open.
+The project-owned register spike is now integrated under the pinned official `core_top` in ignored build output. Quartus completed synthesis, fitting, assembly, and timing analysis with zero errors and the same 192-warning baseline as the clean template; `pocket-template-integration.md` records the overlay, resources, slack, and artifact hashes. This proves tool-level integration but not BRIDGE behavior.
+
+The RTL and its self-checking testbench also compile with Questa Altera Starter 2025.2, but simulation execution is blocked until a valid `SW-QUESTA` license is exposed through `SALT_LICENSE_SERVER`. JTAG/Pocket execution, APF boot/heartbeat behavior, data-slot access, RPCMP video/audio, the behavioral fake-device crossing, `.rbf_r` packaging, proposed-runtime resources/licenses, and all remaining evidence items are still open.
 
 ## 7. Sources
 

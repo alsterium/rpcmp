@@ -26,4 +26,12 @@ The script accepts `RPCMP_QUESTA_ROOT` as the directory containing `vsim.exe`; o
 
 The HDL compiler can validate the source without that environment variable, but the self-checking simulation cannot run. The simulation also does not validate the APF shell, timing closure, JTAG, or execution on Pocket.
 
+Run the reproducible Quartus template-integration build separately with:
+
+```powershell
+pwsh -File tools/pocket-spike-build.ps1
+```
+
+This synthesis/fitting gate does not require the Questa license and does not replace behavioral simulation or on-device testing.
+
 Linux/GCC CI is currently deferred. Format parsers and real container tests remain outside M0.
