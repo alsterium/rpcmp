@@ -70,7 +70,7 @@ $metadata = $core.metadata
 Assert-True (@($metadata.platform_ids).Count -eq 0) 'The M0 spike must remain standalone without platform assets.'
 Assert-True ($metadata.shortname -ceq 'RPCMP') 'core.metadata.shortname must be RPCMP.'
 Assert-True ($metadata.author -ceq 'alsterium') 'core.metadata.author must be alsterium.'
-Assert-True ($metadata.version -ceq '0.0.0-m0.2') 'core.metadata.version must match the current M0.2 package.'
+Assert-True ($metadata.version -ceq '0.0.0-m0.3') 'core.metadata.version must match the current M0.3 package.'
 Assert-True ($metadata.shortname.Length -le 31) 'core.metadata.shortname exceeds 31 characters.'
 Assert-True ($metadata.description.Length -le 63) 'core.metadata.description exceeds 63 characters.'
 Assert-True ($metadata.author.Length -le 31) 'core.metadata.author exceeds 31 characters.'
@@ -96,8 +96,12 @@ $expectedInteract = @{
     5 = @{ Name = 'Last'; Type = 'number_u32'; Address = [uint32]0x10000018; Enabled = $false }
     6 = @{ Name = 'ESeq'; Type = 'number_u32'; Address = [uint32]0x1000001C; Enabled = $false }
     7 = @{ Name = 'EVal'; Type = 'number_u32'; Address = [uint32]0x10000020; Enabled = $false }
-    8 = @{ Name = 'Run 1'; Type = 'action'; Address = [uint32]0x10000028; Enabled = $true }
-    9 = @{ Name = 'Run 2'; Type = 'action'; Address = [uint32]0x1000002C; Enabled = $true }
+    8 = @{ Name = 'Run 1'; Type = 'action'; Address = [uint32]0x00F00010; Enabled = $true }
+    9 = @{ Name = 'Run 2'; Type = 'action'; Address = [uint32]0x00F00018; Enabled = $true }
+    10 = @{ Name = 'Build'; Type = 'number_u32'; Address = [uint32]0x10000030; Enabled = $false }
+    11 = @{ Name = 'WCnt'; Type = 'number_u32'; Address = [uint32]0x10000034; Enabled = $false }
+    12 = @{ Name = 'WAdr'; Type = 'number_u32'; Address = [uint32]0x10000038; Enabled = $false }
+    13 = @{ Name = 'WDat'; Type = 'number_u32'; Address = [uint32]0x1000003C; Enabled = $false }
 }
 $interactVariables = @($definitions.interact.variables)
 Assert-True ($interactVariables.Count -eq $expectedInteract.Count) 'Unexpected M0 Interact variable count.'
@@ -105,7 +109,7 @@ $seenIds = [Collections.Generic.HashSet[uint16]]::new()
 foreach ($variable in $interactVariables) {
     $variableId = [uint16]$variable.id
     Assert-True ($seenIds.Add($variableId)) "Duplicate Interact ID: $variableId"
-    Assert-True ($variable.name.Length -le 5) "M0.2 Interact name exceeds the observed five-character display budget: $($variable.name)"
+    Assert-True ($variable.name.Length -le 5) "M0.3 Interact name exceeds the observed five-character display budget: $($variable.name)"
     Assert-True ($expectedInteract.ContainsKey([int]$variableId)) "Unexpected Interact ID: $variableId"
     $expected = $expectedInteract[[int]$variableId]
     $address = Convert-ToBridgeAddress $variable.address
@@ -117,8 +121,8 @@ foreach ($variable in $interactVariables) {
 }
 $runId1 = $interactVariables | Where-Object { $_.id -eq 8 }
 $runId2 = $interactVariables | Where-Object { $_.id -eq 9 }
-Assert-True ($runId1.value -eq 1) 'Run ID 1 must write opcode one.'
-Assert-True ($runId2.value -eq 1) 'Run ID 2 must write opcode one.'
+Assert-True ($runId1.value -eq 64) 'Run ID 1 must match the official Reset Square action value.'
+Assert-True ($runId2.value -eq 0) 'Run ID 2 must match the official Increment Frame action value.'
 
 $reverseTable = [byte[]]::new(256)
 for ($byteValue = 0; $byteValue -lt 256; $byteValue++) {

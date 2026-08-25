@@ -15,6 +15,13 @@ module pocket_spike_tb;
     localparam logic [31:0] EVENT_VALUE_HI_ADDR = BASE_ADDR + 32'h24;
     localparam logic [31:0] RUN_ID_1_ADDR = BASE_ADDR + 32'h28;
     localparam logic [31:0] RUN_ID_2_ADDR = BASE_ADDR + 32'h2c;
+    localparam logic [31:0] BUILD_SIGNATURE_ADDR = BASE_ADDR + 32'h30;
+    localparam logic [31:0] WRITE_SEQUENCE_ADDR = BASE_ADDR + 32'h34;
+    localparam logic [31:0] LAST_WRITE_ADDR_ADDR = BASE_ADDR + 32'h38;
+    localparam logic [31:0] LAST_WRITE_DATA_ADDR = BASE_ADDR + 32'h3c;
+    localparam logic [31:0] INTERACT_RUN_ID_1_ADDR = 32'h00f0_0010;
+    localparam logic [31:0] INTERACT_RUN_ID_2_ADDR = 32'h00f0_0018;
+    localparam logic [31:0] BUILD_SIGNATURE = 32'h4d30_3033;
 
     logic clk = 1'b0;
     logic reset_n = 1'b0;
@@ -103,6 +110,10 @@ module pocket_spike_tb;
         read_expect(SNAPSHOT_SEQUENCE_ADDR, 32'd0, "reset snapshot sequence");
         read_expect(COUNTER_LO_ADDR, 32'd0, "reset counter low");
         read_expect(COUNTER_HI_ADDR, 32'd0, "reset counter high");
+        read_expect(BUILD_SIGNATURE_ADDR, BUILD_SIGNATURE, "build signature during reset");
+        read_expect(WRITE_SEQUENCE_ADDR, 32'd0, "reset write sequence");
+        read_expect(LAST_WRITE_ADDR_ADDR, 32'd0, "reset last write address");
+        read_expect(LAST_WRITE_DATA_ADDR, 32'd0, "reset last write data");
 
         reset_n = 1'b1;
         repeat (4) @(posedge clk);
@@ -141,10 +152,13 @@ module pocket_spike_tb;
         read_expect(LAST_COMMAND_ID_ADDR, 32'd2, "second command ID");
         read_expect(EVENT_SEQUENCE_ADDR, 32'd2, "second event sequence");
         read_expect(EVENT_VALUE_LO_ADDR, 32'd2000, "second event value low");
+        read_expect(WRITE_SEQUENCE_ADDR, 32'd6, "staged command write sequence");
+        read_expect(LAST_WRITE_ADDR_ADDR, COMMAND_ADDR, "staged command last write address");
+        read_expect(LAST_WRITE_DATA_ADDR, 32'd1, "staged command last write data");
 
         read_expect(RUN_ID_1_ADDR, 32'd0, "write-only run ID 1 read");
         read_expect(RUN_ID_2_ADDR, 32'd0, "write-only run ID 2 read");
-        read_expect(BASE_ADDR + 32'h30, 32'd0, "unmapped read");
+        read_expect(BASE_ADDR + 32'h40, 32'd0, "unmapped read");
         read_expect(BASE_ADDR + 32'h01, 32'd0, "misaligned read");
 
         @(negedge clk);
@@ -153,28 +167,49 @@ module pocket_spike_tb;
         read_expect(SNAPSHOT_SEQUENCE_ADDR, 32'd0, "interact reset snapshot sequence");
         read_expect(COUNTER_LO_ADDR, 32'd0, "interact reset counter");
         read_expect(LAST_COMMAND_ID_ADDR, 32'd0, "interact reset last command ID");
+        read_expect(BUILD_SIGNATURE_ADDR, BUILD_SIGNATURE, "interact build signature");
+        read_expect(WRITE_SEQUENCE_ADDR, 32'd0, "interact reset write sequence");
         reset_n = 1'b1;
         repeat (2) @(posedge clk);
 
-        write_word(RUN_ID_1_ADDR, 32'd1, 1'b1);
+        write_word(INTERACT_RUN_ID_1_ADDR, 32'd64, 1'b1);
         read_expect(COMMAND_ID_ADDR, 32'd1, "run ID 1 stages command ID atomically");
         read_expect(SNAPSHOT_SEQUENCE_ADDR, 32'd1, "run ID 1 snapshot sequence");
         read_expect(COUNTER_LO_ADDR, 32'd1000, "run ID 1 counter");
         read_expect(LAST_COMMAND_ID_ADDR, 32'd1, "run ID 1 last command ID");
         read_expect(EVENT_SEQUENCE_ADDR, 32'd1, "run ID 1 event sequence");
         read_expect(EVENT_VALUE_LO_ADDR, 32'd1000, "run ID 1 event value");
+        read_expect(WRITE_SEQUENCE_ADDR, 32'd1, "run ID 1 write sequence");
+        read_expect(LAST_WRITE_ADDR_ADDR, INTERACT_RUN_ID_1_ADDR, "run ID 1 write address");
+        read_expect(LAST_WRITE_DATA_ADDR, 32'd64, "run ID 1 write data");
 
-        write_word(RUN_ID_1_ADDR, 32'd1, 1'b0);
+        write_word(INTERACT_RUN_ID_1_ADDR, 32'hdead_beef, 1'b0);
         read_expect(SNAPSHOT_SEQUENCE_ADDR, 32'd1, "duplicate run ID 1 snapshot sequence");
         read_expect(COUNTER_LO_ADDR, 32'd1000, "duplicate run ID 1 counter");
+        read_expect(WRITE_SEQUENCE_ADDR, 32'd2, "duplicate action is still observed");
+        read_expect(LAST_WRITE_DATA_ADDR, 32'hdead_beef, "action trigger ignores write data");
 
-        write_word(RUN_ID_2_ADDR, 32'd1, 1'b1);
+        write_word(INTERACT_RUN_ID_2_ADDR, 32'd0, 1'b1);
         read_expect(COMMAND_ID_ADDR, 32'd2, "run ID 2 stages command ID atomically");
         read_expect(SNAPSHOT_SEQUENCE_ADDR, 32'd2, "run ID 2 snapshot sequence");
         read_expect(COUNTER_LO_ADDR, 32'd2000, "run ID 2 counter");
         read_expect(LAST_COMMAND_ID_ADDR, 32'd2, "run ID 2 last command ID");
         read_expect(EVENT_SEQUENCE_ADDR, 32'd2, "run ID 2 event sequence");
         read_expect(EVENT_VALUE_LO_ADDR, 32'd2000, "run ID 2 event value");
+        read_expect(WRITE_SEQUENCE_ADDR, 32'd3, "run ID 2 write sequence");
+        read_expect(LAST_WRITE_ADDR_ADDR, INTERACT_RUN_ID_2_ADDR, "run ID 2 write address");
+        read_expect(LAST_WRITE_DATA_ADDR, 32'd0, "run ID 2 write data");
+
+        @(negedge clk);
+        reset_n = 1'b0;
+        #1;
+        reset_n = 1'b1;
+        repeat (2) @(posedge clk);
+
+        write_word(RUN_ID_1_ADDR, 32'd1, 1'b1);
+        write_word(RUN_ID_2_ADDR, 32'd1, 1'b1);
+        read_expect(SNAPSHOT_SEQUENCE_ADDR, 32'd2, "legacy one-write aliases remain compatible");
+        read_expect(COUNTER_LO_ADDR, 32'd2000, "legacy aliases preserve counter behavior");
 
         $display("pocket_spike_tb: PASS");
         $finish;

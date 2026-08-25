@@ -3,20 +3,27 @@
     "magic": "APF_VER_1",
     "variables": [
       {
+        "name": "Build",
+        "id": 10,
+        "type": "number_u32",
+        "enabled": false,
+        "address": "0x10000030"
+      },
+      {
         "name": "Run 1",
         "id": 8,
         "type": "action",
         "enabled": true,
-        "address": "0x10000028",
-        "value": 1
+        "address": "0x00F00010",
+        "value": 64
       },
       {
         "name": "Run 2",
         "id": 9,
         "type": "action",
         "enabled": true,
-        "address": "0x1000002C",
-        "value": 1
+        "address": "0x00F00018",
+        "value": 0
       },
       {
         "name": "Seq",
@@ -38,6 +45,27 @@
         "type": "number_u32",
         "enabled": false,
         "address": "0x10000018"
+      },
+      {
+        "name": "WCnt",
+        "id": 11,
+        "type": "number_u32",
+        "enabled": false,
+        "address": "0x10000034"
+      },
+      {
+        "name": "WAdr",
+        "id": 12,
+        "type": "number_u32",
+        "enabled": false,
+        "address": "0x10000038"
+      },
+      {
+        "name": "WDat",
+        "id": 13,
+        "type": "number_u32",
+        "enabled": false,
+        "address": "0x1000003C"
       },
       {
         "name": "ESeq",
