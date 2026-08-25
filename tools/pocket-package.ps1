@@ -90,13 +90,15 @@ Assert-True ($scalerMode.width -eq 320 -and $scalerMode.height -eq 240) 'The tem
 Assert-True ($scalerMode.aspect_w -eq 4 -and $scalerMode.aspect_h -eq 3) 'The template video aspect must remain 4:3.'
 
 $expectedInteract = @{
-    1 = @{ Type = 'slider_u32'; Address = [uint32]0x10000004; Enabled = $true }
-    2 = @{ Type = 'action'; Address = [uint32]0x10000008; Enabled = $true }
-    3 = @{ Type = 'number_u32'; Address = [uint32]0x1000000C; Enabled = $false }
-    4 = @{ Type = 'number_u32'; Address = [uint32]0x10000010; Enabled = $false }
-    5 = @{ Type = 'number_u32'; Address = [uint32]0x10000018; Enabled = $false }
-    6 = @{ Type = 'number_u32'; Address = [uint32]0x1000001C; Enabled = $false }
-    7 = @{ Type = 'number_u32'; Address = [uint32]0x10000020; Enabled = $false }
+    1 = @{ Name = 'Staged ID'; Type = 'number_u32'; Address = [uint32]0x10000004; Enabled = $false }
+    2 = @{ Name = 'Advance +1000'; Type = 'action'; Address = [uint32]0x10000008; Enabled = $true }
+    3 = @{ Name = 'Snap Seq'; Type = 'number_u32'; Address = [uint32]0x1000000C; Enabled = $false }
+    4 = @{ Name = 'Counter'; Type = 'number_u32'; Address = [uint32]0x10000010; Enabled = $false }
+    5 = @{ Name = 'Last Cmd'; Type = 'number_u32'; Address = [uint32]0x10000018; Enabled = $false }
+    6 = @{ Name = 'Event Seq'; Type = 'number_u32'; Address = [uint32]0x1000001C; Enabled = $false }
+    7 = @{ Name = 'Event Val'; Type = 'number_u32'; Address = [uint32]0x10000020; Enabled = $false }
+    8 = @{ Name = 'Set ID 1'; Type = 'action'; Address = [uint32]0x10000004; Enabled = $true }
+    9 = @{ Name = 'Set ID 2'; Type = 'action'; Address = [uint32]0x10000004; Enabled = $true }
 }
 $interactVariables = @($definitions.interact.variables)
 Assert-True ($interactVariables.Count -eq $expectedInteract.Count) 'Unexpected M0 Interact variable count.'
@@ -109,13 +111,17 @@ foreach ($variable in $interactVariables) {
     $expected = $expectedInteract[[int]$variableId]
     $address = Convert-ToBridgeAddress $variable.address
     Assert-True (($address -shr 24) -ne 0xF8) "Interact ID $variableId enters the APF-reserved region."
+    Assert-True ($variable.name -ceq $expected.Name) "Unexpected Interact name for ID $variableId."
     Assert-True ($variable.type -ceq $expected.Type) "Unexpected Interact type for ID $variableId."
     Assert-True ($address -eq $expected.Address) "Unexpected Interact address for ID $variableId."
     Assert-True ([bool]$variable.enabled -eq $expected.Enabled) "Unexpected Interact enabled state for ID $variableId."
 }
-Assert-True ($definitions.interact.variables[0].defaultval -eq 1) 'Command ID must default to one.'
-Assert-True ($definitions.interact.variables[0].graphical.min -eq 1) 'Command ID must not expose zero.'
-Assert-True ($definitions.interact.variables[1].value -eq 1) 'Advance action must write opcode one.'
+$setId1 = $interactVariables | Where-Object { $_.id -eq 8 }
+$setId2 = $interactVariables | Where-Object { $_.id -eq 9 }
+$advance = $interactVariables | Where-Object { $_.id -eq 2 }
+Assert-True ($setId1.value -eq 1) 'Set ID 1 must write command ID one.'
+Assert-True ($setId2.value -eq 2) 'Set ID 2 must write command ID two.'
+Assert-True ($advance.value -eq 1) 'Advance action must write opcode one.'
 
 $reverseTable = [byte[]]::new(256)
 for ($byteValue = 0; $byteValue -lt 256; $byteValue++) {

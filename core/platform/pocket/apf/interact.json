@@ -3,22 +3,30 @@
     "magic": "APF_VER_1",
     "variables": [
       {
-        "name": "Command ID",
-        "id": 1,
-        "type": "slider_u32",
+        "name": "Set ID 1",
+        "id": 8,
+        "type": "action",
         "enabled": true,
         "address": "0x10000004",
-        "defaultval": 1,
-        "graphical": {
-          "signed": false,
-          "min": 1,
-          "max": 65535,
-          "adjust_small": 1,
-          "adjust_large": 16
-        }
+        "value": 1
       },
       {
-        "name": "Advance 1000",
+        "name": "Set ID 2",
+        "id": 9,
+        "type": "action",
+        "enabled": true,
+        "address": "0x10000004",
+        "value": 2
+      },
+      {
+        "name": "Staged ID",
+        "id": 1,
+        "type": "number_u32",
+        "enabled": false,
+        "address": "0x10000004"
+      },
+      {
+        "name": "Advance +1000",
         "id": 2,
         "type": "action",
         "enabled": true,
@@ -26,35 +34,35 @@
         "value": 1
       },
       {
-        "name": "Snapshot Sequence",
+        "name": "Snap Seq",
         "id": 3,
         "type": "number_u32",
         "enabled": false,
         "address": "0x1000000C"
       },
       {
-        "name": "Counter Low",
+        "name": "Counter",
         "id": 4,
         "type": "number_u32",
         "enabled": false,
         "address": "0x10000010"
       },
       {
-        "name": "Last Command ID",
+        "name": "Last Cmd",
         "id": 5,
         "type": "number_u32",
         "enabled": false,
         "address": "0x10000018"
       },
       {
-        "name": "Event Sequence",
+        "name": "Event Seq",
         "id": 6,
         "type": "number_u32",
         "enabled": false,
         "address": "0x1000001C"
       },
       {
-        "name": "Event Value Low",
+        "name": "Event Val",
         "id": 7,
         "type": "number_u32",
         "enabled": false,
