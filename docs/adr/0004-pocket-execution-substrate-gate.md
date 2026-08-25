@@ -52,7 +52,7 @@ The template declares `APF_VER_1`, framework requirement 1.1, top-level `apf_top
 
 Questa Altera Starter FPGA Edition 2025.2 completed the project-owned self-checking test at 187 ns with zero errors and warnings. This proves the standalone register-spike semantics, including one fake-device event, but does not simulate the official APF shell or Analogue OS BRIDGE controller.
 
-The integrated RBF was converted to equal-length `.rbf_r` output and packaged with project-owned `APF_VER_1` definitions. Automated checks passed for JSON roots and bounds, Interact/register mapping, byte-reversal round trip, exact SD tree, and ZIP base folders. JTAG enumeration, package installation, and execution on Pocket have not been performed.
+The integrated RBF was converted to equal-length `.rbf_r` output and packaged with project-owned `APF_VER_1` definitions. Automated checks passed for JSON roots and bounds, Interact/register mapping, byte-reversal round trip, exact SD tree, and ZIP base folders. On 2026-08-25, the package was installed and executed on Pocket: the Interact action advanced the visible value to 1000, relaunching the core restored the first-command behavior, and repeating the action with the same command ID caused no change. This is partial hardware evidence for the integrated BRIDGE path and duplicate rejection; JTAG enumeration, the command-ID-2 case, complete snapshot/event readouts, and continuous-heartbeat behavior remain unverified.
 
 ## Alternatives considered
 

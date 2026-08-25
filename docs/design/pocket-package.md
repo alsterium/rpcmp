@@ -64,11 +64,17 @@ After a successful boot on Pocket:
 4. select `Advance 1000` again without changing the ID and confirm the values do not change;
 5. change `Command ID` to 2, select the action, and confirm sequences read 2 and values read 2000.
 
-This sequence would prove actual APF Interact/BRIDGE access, reset release, duplicate rejection, snapshot publication, and the fake-device event on Pocket. Until it is executed and recorded, packaging remains host-validated evidence only.
+On 2026-08-25, the package was installed and executed on Pocket and the following partial result was reported:
+
+- the first `Advance 1000` with command ID 1 made the visible value 1000;
+- after exiting and relaunching the core, the first action again made the value 1000;
+- repeating the action without changing command ID 1 caused no change.
+
+This confirms that the packaged core reaches its Interact control, the integrated BRIDGE path can update observable state, relaunch returns the spike to its initial command state, and duplicate command ID 1 is rejected. The command-ID-2 case and the exact snapshot, last-command, event-sequence, and event-value readouts have not yet been reported, so the complete experiment remains open.
 
 ## 5. Remaining release gaps
 
-- Pocket boot, heartbeat survival, and the Interact experiment are untested.
+- Pocket package launch and the command-ID-1 Interact path are partially verified as recorded above. Continuous heartbeat survival, command ID 2, and the complete snapshot/event readouts remain unverified.
 - The package contains the official template's gray video and silence audio, not an RPCMP UI or player.
 - Timing remains incompletely constrained as recorded in `pocket-template-integration.md`.
 - There are no data slots, `.rpcmlib` assets, save files, platform metadata, or production input mapping.

@@ -38,7 +38,7 @@ Known constraints:
 | AUDIO | Signed 16-bit stereo I2S-compatible output at exactly 48 kHz with 12.288 MHz MCLK. Internal device rates must convert explicitly to this boundary. |
 | Interact UI | Intended for bounded Core Settings controls, normally up to 16 entries. It is not assumed to be RPCMP's track browser or visualization surface. |
 
-The last Interact conclusion is an architectural inference from the documented control types and limits. The Pocket spike must confirm the intended UI path on current firmware.
+The bounded Interact test-control path has now been exercised on Pocket with command ID 1. This does not change the architectural conclusion that Core Settings is not RPCMP's production track browser or visualization surface.
 
 ## 3. RPCMP ownership mapping
 
@@ -96,7 +96,9 @@ Questa Altera Starter 2025.2 completed the standalone RTL self-checking test at 
 
 The integrated RBF has also been converted by byte-local bit reversal into an equal-length `.rbf_r`. Project-owned APF JSON and the generated ZIP passed root/magic, bound, register-address, round-trip, and exact SD-layout checks. Details and artifact hashes are recorded in `pocket-package.md`.
 
-JTAG/Pocket execution, APF boot/heartbeat behavior, data-slot access, RPCMP video/audio, integrated BRIDGE behavior, package installation on Pocket, proposed-runtime resources/licenses, and all remaining evidence items are still open.
+On 2026-08-25, the package was installed and executed on Pocket. The first command-ID-1 action advanced the visible value to 1000, the same first action worked after a core relaunch, and a duplicate command-ID-1 action caused no change. This is partial evidence for Pocket execution, the Interact/BRIDGE path, reset/relaunch behavior, and duplicate rejection. It does not yet prove the command-ID-2 transition or every snapshot/event readout.
+
+JTAG enumeration, complete APF boot/status and continuous-heartbeat behavior, data-slot access, RPCMP video/audio, remaining integrated BRIDGE behavior, proposed-runtime resources/licenses, and all remaining evidence items are still open.
 
 ## 7. Sources
 
