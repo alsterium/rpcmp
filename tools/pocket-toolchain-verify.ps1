@@ -43,4 +43,15 @@ if ($LASTEXITCODE -ne 0) {
 & $rpcmpDocker run --rm --mount $rpcmpMount `
     --workdir /workspace/rpcmp/out/build/pocket-openfpgaos-desktop $rpcmpImage `
     make --file /workspace/rpcmp/spikes/pocket/openfpgaos/desktop.mk verify
+if ($LASTEXITCODE -ne 0) {
+    exit $LASTEXITCODE
+}
+
+& $rpcmpDocker run --rm --mount $rpcmpMount --workdir /workspace/rpcmp $rpcmpImage `
+    python3 tools/pocket_package.py `
+    --repo /workspace/rpcmp `
+    --sdk /workspace/rpcmp/out/research/openfpgaSDK-a408ddc `
+    --elf /workspace/rpcmp/out/build/pocket-openfpgaos/rpcmp-probe.elf `
+    --output /workspace/rpcmp/out/build/pocket-openfpgaos-package `
+    --zip /workspace/rpcmp/out/build/rpcmp-openfpgaos-probe.zip
 exit $LASTEXITCODE

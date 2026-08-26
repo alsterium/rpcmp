@@ -1,0 +1,62 @@
+import importlib.util
+import json
+import sys
+import tempfile
+import unittest
+from pathlib import Path, PurePosixPath
+
+ROOT = Path(__file__).resolve().parents[2]
+sys.dont_write_bytecode = True
+SPEC = importlib.util.spec_from_file_location("pocket_package", ROOT / "tools" / "pocket_package.py")
+assert SPEC is not None and SPEC.loader is not None
+PACKAGE = importlib.util.module_from_spec(SPEC)
+SPEC.loader.exec_module(PACKAGE)
+
+
+class PackageBuilderTests(unittest.TestCase):
+    def make_valid_tree(self, root: Path) -> None:
+        for relative in PACKAGE.expected_paths():
+            destination = root.joinpath(*relative.parts)
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            if destination.suffix == ".json":
+                if destination.name == f"{PACKAGE.PLATFORM_ID}.json":
+                    value = {"platform": {}}
+                elif destination.name == "data.json":
+                    value = PACKAGE.definitions()["data.json"]
+                elif destination.name in PACKAGE.definitions():
+                    value = PACKAGE.definitions()[destination.name]
+                else:
+                    value = {"instance": {"magic": PACKAGE.MAGIC}}
+                destination.write_bytes(PACKAGE.json_bytes(value))
+            else:
+                destination.write_bytes(b"fixture")
+
+    def test_valid_allowlisted_tree_passes(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            self.make_valid_tree(root)
+            self.assertEqual(len(PACKAGE.verify_tree(root)), len(PACKAGE.expected_paths()))
+
+    def test_prohibited_media_is_rejected_as_unexpected(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            self.make_valid_tree(root)
+            prohibited = root.joinpath(*PurePosixPath("Assets/rpcmp_probe/common/bank.ofsf").parts)
+            prohibited.write_bytes(b"prohibited")
+            with self.assertRaisesRegex(ValueError, "allowlist mismatch"):
+                PACKAGE.verify_tree(root)
+
+    def test_slot_seven_is_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            self.make_valid_tree(root)
+            data_path = root / "Cores" / PACKAGE.CORE_ID / "data.json"
+            value = json.loads(data_path.read_text(encoding="ascii"))
+            value["data"]["data_slots"].append({"id": 7})
+            data_path.write_bytes(PACKAGE.json_bytes(value))
+            with self.assertRaisesRegex(ValueError, "only slots 0 through 4"):
+                PACKAGE.verify_tree(root)
+
+
+if __name__ == "__main__":
+    unittest.main()

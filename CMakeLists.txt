@@ -160,6 +160,9 @@ if(BUILD_TESTING)
     COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/architecture/check_dependencies.py
             --root ${CMAKE_SOURCE_DIR}/tests/architecture/fixtures/runtime_depends_spike
             --expect-violation)
+  add_test(
+    NAME pocket_package_builder
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/pocket/package_builder_tests.py)
 
   if(RPCMP_ENABLE_CLANG_TOOLS)
     add_test(NAME format

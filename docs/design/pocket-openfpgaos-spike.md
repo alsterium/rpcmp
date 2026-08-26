@@ -144,12 +144,13 @@ The current Windows host uses Docker Desktop 4.88.1, Engine 29.7.2, and the WSL 
   `f574415b63f12b09bdd3475223ab492a465d23810646c90c13a4c3b676c83503`.
 - Container packages observed: `ca-certificates 20260601~24.04.1`,
   `curl 8.5.0-2ubuntu10.13`, `g++ 4:13.2.0-7ubuntu1` (using
-  `g++-13 13.3.0-6ubuntu2~24.04.1`), `libsdl2-dev
+  `g++-13 13.3.0-6ubuntu2~24.04.1`), `git 1:2.43.0-1ubuntu7.3`, `libsdl2-dev
   2.30.0+dfsg-1ubuntu3.1`, `make 4.3-4.1build2`, and `pkg-config
-  1.8.1-2build1`. These APT package versions are evidence from this build,
-  not an additional floating contract. G++ and pkg-config are build tools;
-  SDL2 is used only by the SDK desktop shim. Their package notices remain in
-  the build image and none are RPCMP release artifacts.
+  1.8.1-2build1`, and `python3 3.12.3-0ubuntu2.1`. These APT package versions
+  are evidence from this build, not an additional floating contract. G++,
+  Git, pkg-config, and Python are build tools; SDL2 is used only by the SDK
+  desktop shim. Their package notices remain in the build image and none are
+  RPCMP release artifacts.
 - The xPack archive retained notices for GCC 14.2.0, Binutils 2.43.1,
   Newlib 4.4.0.20231231, GDB 15.1, Python 3.12.2, and their bundled support
   libraries under `/opt/xpack/distro-info/licenses`. The tool image is not an
@@ -171,6 +172,25 @@ The current Windows host uses Docker Desktop 4.88.1, Engine 29.7.2, and the WSL 
   SDK-backed file operations used the same entry points as the target adapter.
 - This closes the compile/link and desktop-shim portions of the openfpgaOS C++
   gate. The target ELF has not run on Pocket.
+
+### Package gate record — 2026-08-26
+
+- The generator accepts only SDK revision
+  `a408ddc12aed0dfaa4aa22c06af82f829db77126` and runtime manifest source
+  `618a3eb`; it verifies the manifest MD5 values for `loader.bin`, `os.bin`,
+  and `os25.rbf_r` before copying them.
+- The exact output allowlist contains 15 files. Its data definition contains
+  only slots 0 through 4, with a 4,096-byte project-generated slot 4 fixture;
+  nonvolatile slots and `.ofsf`, `.mod`, and `.mid` files are rejected.
+- Every APF JSON file has the expected root and `APF_VER_1` magic where the
+  definition requires it. The generated evidence JSON records each file's
+  byte count and SHA-256 separately from the Pocket tree.
+- Two consecutive builds produced ZIP SHA-256
+  `8fa4580bd3c1e3d513e6e3ea46a09dfa0643a1d4f761cdf673aaa56287ca2c19`
+  (1,134,397 bytes).
+- The ZIP is a local experiment only. This gate mechanically excludes the
+  proprietary sound bank and demo media, but it does not approve
+  redistribution of the prebuilt bitstream or other upstream runtime files.
 
 ## 7. Acceptance record
 

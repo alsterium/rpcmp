@@ -62,6 +62,9 @@ The outputs are:
   artifact;
 - `out/build/pocket-openfpgaos-desktop/app_pc`, which reads synthetic slot 4
   through the SDK PC backend and must reproduce every host golden digest.
+- `out/build/pocket-openfpgaos-package`, the exact allowlisted Pocket tree;
+- `out/build/rpcmp-openfpgaos-probe.zip` and its adjacent evidence JSON.
 
 The target ELF itself has not run until the same semantic record is observed
-on Pocket.
+on Pocket. The package is a local experiment only: its prebuilt bitstream is
+not approved for RPCMP redistribution.
