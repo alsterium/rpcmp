@@ -25,6 +25,7 @@ The defining rule is `Core -> UI = State` and `UI -> Core = Command`. Playback m
 - M0 executable design: `docs/design/m0-executable-design.md`
 - Pocket platform boundary: `docs/design/pocket-platform-boundary.md`
 - Pocket execution candidates: `docs/design/pocket-execution-candidates.md`
+- Pocket openfpgaOS spike: `docs/design/pocket-openfpgaos-spike.md`
 - Architecture decisions: `docs/adr/`
 - Copy-ready Codex prompt: `prompts/implement-M0.md`
 

@@ -31,7 +31,7 @@ At the reviewed revision, openfpgaOS documents a VexiiRiscv RV32IMAFC CPU, a 64 
 Important constraints remain:
 
 - the firmware is single-process with no MMU or scheduler, so RPCMP must own deterministic sequencing and explicitly isolate rendering work;
-- SDK C++ support excludes exceptions and RTTI, so the current C++17 sources and standard-library usage require an actual cross-build rather than an ABI assumption;
+- the default SDK C++ ABI excludes exceptions, RTTI, and the C++ standard library. RPCMP's current contract types depend on string, vector, optional, and variant, so compatibility requires a separately reviewed runtime configuration or target facade rather than a plain SDK build;
 - the documented Pocket variants already use 87–89% of the 18.5K-ALM device; this is upstream-reported utilization, not an RPCMP measurement;
 - the variant/addon mechanism can remove features and add custom RTL, but a stripped RPCMP variant must be built and fitted before assuming that a YM2151 core, command queue, and audio adapter fit;
 - the standard 32-voice PCM mixer is not a substitute for the required YM2151-compatible RTL interface;
@@ -46,6 +46,8 @@ No surveyed source is added to RPCMP by this document.
 - openfpgaCore and openfpgaSDK use Apache-2.0 for project-authored code, but their REUSE manifests identify separately licensed content. The reviewed core includes Analogue APF files, GPL-licensed optional target code, Intel-generated IP, and a proprietary sample-data asset. A candidate spike must inventory the exact files and generated artifacts it distributes, exclude unrelated proprietary sample data, retain required notices, and resolve every included component rather than relying on the repository-level license alone.
 - JTCORES and JT51 identify GPL-3.0 licensing. Reusing JTFRAME or synthesizing JT51 into a distributed bitstream therefore requires a deliberate source/distribution policy and notices before either becomes a dependency.
 - The private JTFRAME Pocket target cannot be the basis of a reproducible open-source RPCMP build even if other JTFRAME patterns are adopted independently.
+
+The exact openfpgaOS file/package blockers and the proposed compatibility gates are recorded in `pocket-openfpgaos-spike.md`.
 
 ## 5. Next bounded spike
 
