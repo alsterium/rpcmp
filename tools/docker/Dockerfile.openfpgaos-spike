@@ -1,0 +1,48 @@
+# RPCMP M0 openfpgaOS C++ compatibility toolchain.
+#
+# The xPack release and Ubuntu base are pinned because this image is evidence
+# for a target feasibility decision, not a floating developer convenience.
+FROM ubuntu:24.04@sha256:33ceb71981b602c1a7443a53469e4dba065f7503eab3078a2d7a57a2ab987517
+
+ARG TARGETARCH
+ARG XPACK_VERSION=14.2.0-3
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends \
+      ca-certificates \
+      curl \
+      make \
+ && apt-get clean \
+ && rm -rf /var/lib/apt/lists/*
+
+# Checksums are published with the pinned xPack release. The archive retains
+# its component notices under /opt/xpack/distro-info/licenses.
+RUN set -eux; \
+    case "${TARGETARCH:-amd64}" in \
+      amd64) \
+        xpack_arch=linux-x64; \
+        xpack_sha=f574415b63f12b09bdd3475223ab492a465d23810646c90c13a4c3b676c83503 \
+        ;; \
+      arm64) \
+        xpack_arch=linux-arm64; \
+        xpack_sha=0c0551986e30174af55f245e1c3a86c45233fc793bf36586567f266ada6fdd98 \
+        ;; \
+      *) echo "unsupported TARGETARCH=${TARGETARCH}" >&2; exit 1 ;; \
+    esac; \
+    archive="xpack-riscv-none-elf-gcc-${XPACK_VERSION}-${xpack_arch}.tar.gz"; \
+    url="https://github.com/xpack-dev-tools/riscv-none-elf-gcc-xpack/releases/download/v${XPACK_VERSION}/${archive}"; \
+    curl -fsSL -o "/tmp/${archive}" "${url}"; \
+    echo "${xpack_sha}  /tmp/${archive}" | sha256sum --check --strict; \
+    mkdir -p /opt/xpack; \
+    tar -xzf "/tmp/${archive}" -C /opt/xpack --strip-components=1; \
+    rm "/tmp/${archive}"; \
+    test -d /opt/xpack/distro-info/licenses; \
+    /opt/xpack/bin/riscv-none-elf-g++ --version
+
+ENV PATH=/opt/xpack/bin:$PATH
+
+LABEL org.opencontainers.image.title="RPCMP openfpgaOS M0 toolchain" \
+      org.opencontainers.image.source="https://github.com/xpack-dev-tools/riscv-none-elf-gcc-xpack" \
+      org.opencontainers.image.version="14.2.0-3"

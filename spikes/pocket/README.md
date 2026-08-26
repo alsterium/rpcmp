@@ -44,3 +44,18 @@ The synthetic byte at offset `n` is `(n * 37 + 11) mod 256`. The probe checks th
 The host executable uses `iostream` only for reporting. A target wrapper may report the returned `ProbeRunResult` through its platform console or framebuffer without linking the host executable. The common library itself remains the C++ compatibility input.
 
 See `docs/design/pocket-openfpgaos-spike.md` for the openfpgaOS and minimal-SoC gates, package rules, resource evidence, and selection criteria.
+
+## Docker toolchain gate
+
+Docker Desktop with its Linux engine is the supported Windows path for the
+openfpgaOS C++ compatibility gate. The script checks the pinned SDK revision,
+builds the checksum-verified xPack 14.2.0-3 image, and links the unchanged
+common probe against the SDK's musl runtime:
+
+```powershell
+pwsh -File tools/pocket-toolchain-verify.ps1
+```
+
+The output is `out/build/pocket-openfpgaos/rpcmp-probe.elf`. This is a
+compile/link artifact only: it has not run until the same semantic record is
+observed through the desktop shim or on Pocket.

@@ -107,14 +107,14 @@ Both runs must yield value-identical command outcomes, snapshots, fake-device ev
 
 1. **Host gate:** build and run the common probe under the existing M0 verification workflow, including observed and renderer-free traces.
 2. **Dependency gate:** pin all candidate/reference revisions and record file-level licenses before importing any target source into ignored research output.
-3. **Toolchain gate:** obtain explicit approval for a WSL2 Linux and container environment as the leading openfpgaOS experiment. Record WSL distribution, container runtime, xPack 14.2.0-3, and all relevant licenses before installation or first use.
+3. **Toolchain gate:** use Docker Desktop's WSL 2 Linux engine as the leading openfpgaOS experiment. Record the container runtime, pinned base image, xPack 14.2.0-3, and all relevant licenses before first image use.
 4. **openfpgaOS C++ gate:** compile/link the unchanged common probe. Stop if the candidate requires a public contract change or an unreviewed C++ runtime.
 5. **openfpgaOS host/package gate:** run through the desktop shim and generate only the minimal tree above, mechanically rejecting proprietary media, unknown files, mixed runtime revisions, and invalid APF definitions.
 6. **minimal-SoC build gate:** construct the allowed profile from the pinned official template and independently reviewed source patterns, then compile the common probe or a documented semantic facade.
 7. **Pocket gate:** on both candidates, verify build identity, input-to-command, immutable snapshot display, repeated Target commands, and beginning/middle/end reads from `synthetic.bin`.
 8. **resource gate:** capture equivalent fit/timing and runtime measurements, then compare remaining resources before evaluating JT51.
 
-The current Windows host is ready for the host gate but not the target-toolchain gates: `make`, `bash`, Docker, and both checked RISC-V GCC command names are absent; `wsl.exe` reports no installed Linux environment. Linux/GCC CI remains separately deferred and must not be reported as restored merely because a local target toolchain is later installed.
+The current Windows host uses Docker Desktop 4.88.1, Engine 29.7.2, and the WSL 2 `docker-desktop` environment. The spike image pins the Ubuntu 24.04 OCI index to `sha256:33ceb71981b602c1a7443a53469e4dba065f7503eab3078a2d7a57a2ab987517` and verifies the architecture-specific xPack archive before extraction. Linux/GCC CI remains separately deferred and must not be reported as restored merely because this local target toolchain is available.
 
 ## 6. Dependency screen
 
@@ -122,7 +122,8 @@ The current Windows host is ready for the host gate but not the target-toolchain
 |---|---|---|---|
 | openfpgaSDK authored sources/config | App ABI, headers, packaging, desktop shim | Apache-2.0 with REUSE annotations | Inspected, not added |
 | Bundled musl 1.2.5 | C library and static startup | MIT | Inspected, not added |
-| xPack RISC-V GCC 14.2.0-3 C++ runtime | Contract/runtime compatibility probe | GCC and bundled runtime licenses require a recorded tool/distribution review | Upstream recipe identified, not installed |
+| xPack RISC-V GCC 14.2.0-3 C++ runtime | Contract/runtime compatibility probe | xPack packaging is MIT; the archive retains component notices under `distro-info/licenses`, including GCC/libstdc++ runtime exception and the licenses for Binutils, Newlib, and GDB/Python payloads | Approved for build tooling only; archive SHA-256 is pinned and checked, redistribution in an RPCMP release is not required |
+| Ubuntu 24.04 container base and APT tools | Reproducible Linux build environment | Ubuntu package metadata/notices remain in the image; base OCI index is digest-pinned | Approved for local/CI build tooling only; installed package versions must be captured with the evidence record |
 | openfpgaCore authored RTL/firmware | RISC-V runtime and APF services | Apache-2.0 with REUSE annotations | Inspected, not added |
 | Analogue APF source | Pocket shell integration | `LicenseRef-Analogue-Pocket-Framework` | Terms must be retained and reviewed |
 | Intel/Altera generated IP | PLL/memory integration | Intel FPGA IP terms | Generated/distribution terms must be reviewed |
@@ -132,6 +133,35 @@ The current Windows host is ready for the host gate but not the target-toolchain
 | ModPlayer_openfpgaos | API and application-shape evidence only | No root license file found at reviewed revision; bundled runtime provenance requires separate review | Reference only; no import |
 | HarpMudd project-authored source | Minimal-SoC and APF command patterns | MIT root, with separately licensed bundled components | Reference only; no wholesale import |
 | VexRiscv configuration | Candidate soft CPU | MIT in the reviewed HarpMudd credits/upstream source; exact generated revision must be pinned | Not added |
+
+### Toolchain gate record — 2026-08-26
+
+- Runtime: Docker Desktop 4.88.1, Engine 29.7.2, Linux `amd64` through WSL 2.
+- Base: Ubuntu 24.04 OCI index
+  `sha256:33ceb71981b602c1a7443a53469e4dba065f7503eab3078a2d7a57a2ab987517`.
+- Cross compiler: xPack GNU RISC-V Embedded GCC 14.2.0-3; Linux x64
+  archive SHA-256
+  `f574415b63f12b09bdd3475223ab492a465d23810646c90c13a4c3b676c83503`.
+- Container packages observed: `ca-certificates 20260601~24.04.1`,
+  `curl 8.5.0-2ubuntu10.13`, and `make 4.3-4.1build2`. These APT package
+  versions are evidence from this build, not an additional floating contract.
+- The xPack archive retained notices for GCC 14.2.0, Binutils 2.43.1,
+  Newlib 4.4.0.20231231, GDB 15.1, Python 3.12.2, and their bundled support
+  libraries under `/opt/xpack/distro-info/licenses`. The tool image is not an
+  RPCMP release artifact.
+- The unchanged RPCMP contract, Mock Core, and common probe sources compiled
+  and statically linked with the pinned SDK musl at
+  `a408ddc12aed0dfaa4aa22c06af82f829db77126`.
+- Result: ELF32 RISC-V, RVC, single-float ABI; text 152,367 bytes, data 136
+  bytes, BSS 2,600 bytes, total 155,103 bytes; artifact SHA-256
+  `16106536a5c3011f727d5d9396513dcf8d48a62b9cce616fd7f418985951c0bf`.
+- Compatibility note: the SDK's nine-byte `libm.a` is an empty archive with a
+  CRLF marker that xPack `ld` rejects. The probe references no math symbols,
+  so its focused link recipe omits `-lm`; production code requiring libm must
+  resolve this separately.
+- This closes only the compile/link portion of the openfpgaOS C++ gate. The
+  ELF has not yet produced the golden semantic record in the desktop shim or
+  on Pocket.
 
 ## 7. Acceptance record
 
