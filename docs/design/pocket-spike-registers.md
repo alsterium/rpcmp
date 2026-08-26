@@ -12,6 +12,7 @@ It is not the production Core-to-RTL protocol, an APF boot implementation, or ev
 - All registers are naturally aligned 32-bit words. Unmapped or misaligned reads return zero. Writes in the diagnostic observation window may update only the write-observation registers even when they do not affect command, snapshot, counter, or event state.
 - Register values are unsigned little-endian words at the future byte-addressed adapter boundary. This M0 module has no byte enables, so partial writes are unsupported.
 - RPCMP owns `0x1000_0000` through `0x1000_003C` for this experiment. It also recognizes `0x00F0_0010` and `0x00F0_0018` as diagnostic Interact-action aliases. These addresses are outside the APF-reserved `0xF8xxxxxx` region.
+- Read data is selected continuously from `bridge_addr`; `bridge_rd` is not a read-data enable. The official APF bridge buffers the current data before it later pulses the read strobe, so gating output with that strobe returns zero to Pocket.
 - `reset_n` is asynchronous and active low. Reset clears all mutable register state.
 
 ## 3. Register map
@@ -30,7 +31,7 @@ It is not the production Core-to-RTL protocol, an APF boot implementation, or ev
 | `0x1000_0024` | `EVENT_VALUE_HI` | R | 0 | high word of the last emitted counter value |
 | `0x1000_0028` | `RUN_ID_1` | W | — | opcode `1` atomically stages command ID 1 and advances if it is newer |
 | `0x1000_002C` | `RUN_ID_2` | W | — | opcode `1` atomically stages command ID 2 and advances if it is newer |
-| `0x1000_0030` | `BUILD_SIGNATURE` | R | `0x4D303033` | ASCII-like signature `M003`, proving that the m0.3 bitstream is loaded |
+| `0x1000_0030` | `BUILD_SIGNATURE` | R | `0x4D303034` | ASCII-like signature `M004`, proving that the m0.4 bitstream is loaded |
 | `0x1000_0034` | `WRITE_SEQUENCE` | R | 0 | increments on each observed write to this spike or either diagnostic action alias |
 | `0x1000_0038` | `LAST_WRITE_ADDR` | R | 0 | address of the last observed spike/action write |
 | `0x1000_003C` | `LAST_WRITE_DATA` | R | 0 | raw data of the last observed spike/action write |
@@ -63,9 +64,9 @@ Run the simulation with:
 pwsh -File tools/rtl-verify.ps1
 ```
 
-The test must prove reset values, the build signature, write observations, command-independent liveness, staged and one-write Interact advances, action-data independence on the official aliases, atomic snapshot/event publication, duplicate rejection, unsupported-opcode rejection, and a later accepted advance.
+The test must prove reset values, the build signature, address-decoded data both before and during the read strobe, write observations, command-independent liveness, staged and one-write Interact advances, action-data independence on the official aliases, atomic snapshot/event publication, duplicate rejection, unsupported-opcode rejection, and a later accepted advance.
 
-On 2026-08-25, Questa Altera Starter 2025.2 completed the m0.3 self-checking test at 352 ns with the `pocket_spike_tb: PASS` marker and zero errors or warnings. This is behavioral evidence for the standalone project-owned register boundary, including both official-pattern Interact aliases and retained compatibility aliases. It is not evidence that Analogue OS can access the generated integration on Pocket.
+On 2026-08-26, Questa Altera Starter 2025.2 completed the m0.4 self-checking test at 394 ns with the `pocket_spike_tb: PASS` marker and zero errors or warnings. This is behavioral evidence for the standalone project-owned register boundary, including APF's pre-strobe read sample, both official-pattern Interact aliases, and retained compatibility aliases. It is not evidence that Analogue OS can access the generated integration on Pocket.
 
 Still required before ADR-0004 can be superseded:
 

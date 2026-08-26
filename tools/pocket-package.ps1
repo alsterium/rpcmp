@@ -70,7 +70,7 @@ $metadata = $core.metadata
 Assert-True (@($metadata.platform_ids).Count -eq 0) 'The M0 spike must remain standalone without platform assets.'
 Assert-True ($metadata.shortname -ceq 'RPCMP') 'core.metadata.shortname must be RPCMP.'
 Assert-True ($metadata.author -ceq 'alsterium') 'core.metadata.author must be alsterium.'
-Assert-True ($metadata.version -ceq '0.0.0-m0.3.1') 'core.metadata.version must match the current M0.3.1 package.'
+Assert-True ($metadata.version -ceq '0.0.0-m0.4') 'core.metadata.version must match the current M0.4 package.'
 Assert-True ($metadata.shortname.Length -le 31) 'core.metadata.shortname exceeds 31 characters.'
 Assert-True ($metadata.description.Length -le 63) 'core.metadata.description exceeds 63 characters.'
 Assert-True ($metadata.author.Length -le 31) 'core.metadata.author exceeds 31 characters.'
@@ -80,7 +80,7 @@ Assert-True ($metadata.date_release -match '^\d{4}-\d{2}-\d{2}$') 'core.metadata
 Assert-True ($core.framework.target_product -ceq 'Analogue Pocket') 'framework.target_product must be Analogue Pocket.'
 Assert-True (@($core.cores).Count -eq 1) 'The M0 package must contain exactly one core entry.'
 Assert-True ([uint32]$core.cores[0].id -eq 0) 'The M0 bitstream ID must be zero.'
-Assert-True ($core.cores[0].filename -ceq 'm003.rbf_r') 'The core entry must reference the m0.3-specific bitstream filename.'
+Assert-True ($core.cores[0].filename -ceq 'm004.rbf_r') 'The core entry must reference the m0.4-specific bitstream filename.'
 $bitstreamFilename = $core.cores[0].filename
 
 Assert-True (@($definitions.data.data_slots).Count -eq 0) 'M0 must not package data slots.'

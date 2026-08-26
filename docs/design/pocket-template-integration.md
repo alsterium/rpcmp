@@ -39,17 +39,17 @@ The pinned warning baseline is 159 Analysis & Synthesis, 16 Fitter, 2 Assembler,
 
 A successful build proves that the module elaborates, synthesizes, fits, and assembles under the pinned shell and device. It does not prove BRIDGE transactions from Analogue OS, behavioral test assertions, JTAG programming, heartbeat survival, timing completeness, bit reversal, APF JSON/package validity, or hardware execution.
 
-## 5. Evidence captured on 2026-08-25
+## 5. Evidence captured on 2026-08-26
 
-The current `0.0.0-m0.3` generated integration completed in 7 minutes 56 seconds with zero errors and the accepted 192-warning baseline. Quartus elaborated `rpcmp_spike_regs` below the official `core_top`, then completed synthesis, fitting, assembly, and timing analysis for `5CEBA4F23C8`.
+The current `0.0.0-m0.4` generated integration completed in 7 minutes 45 seconds with zero errors and the accepted 192-warning baseline. Quartus elaborated `rpcmp_spike_regs` below the official `core_top`, then completed synthesis, fitting, assembly, and timing analysis for `5CEBA4F23C8`.
 
-Final fit used 789 of 18,480 ALMs (4%), 1,260 registers, 8,192 block-memory bits in two RAM blocks, one of four PLLs, and all 224 pins. Compared with the clean template evidence in ADR-0004, the whole-design delta is 376 ALMs and 534 fitted registers; RAM, PLL, DSP, and pin counts are unchanged. Analysis & Synthesis reported 928 registers versus the template's 660. The m0.3 write diagnostics add 96 project-owned state bits before fitter retiming and duplication, while the additional address decoders are combinational. These deltas are integration evidence, not an isolated production area estimate.
+Final fit used 766 of 18,480 ALMs (4%), 1,153 registers, 8,192 block-memory bits in two RAM blocks, one of four PLLs, and all 224 pins. Compared with the clean template evidence in ADR-0004, the whole-design delta is 353 ALMs and 427 fitted registers; RAM, PLL, DSP, and pin counts are unchanged. Analysis & Synthesis reported 928 registers versus the template's 660. The m0.4 change removes only read-strobe gating from the existing combinational decoder and adds no architectural state. These deltas are integration evidence, not an isolated production area estimate.
 
-All reported slack values were positive, with worst setup slack 3.773 ns, hold slack 0.169 ns, and minimum-pulse-width slack 0.830 ns across the analyzed corners. The template still reports that setup and hold are not fully constrained, including its known derived audio-clock and unmatched clock-group warnings, so the positive values do not establish timing closure for a production core.
+All reported slack values were positive, with worst setup slack 4.273 ns, hold slack 0.171 ns, and minimum-pulse-width slack 0.830 ns across the analyzed corners. The template still reports that setup and hold are not fully constrained, including its known derived audio-clock and unmatched clock-group warnings, so the positive values do not establish timing closure for a production core.
 
 Generated artifacts were:
 
-- `ap_core.sof`: 2,441,493 bytes, SHA-256 `EE4737831E14962A7BE0A776C3DD248EBE7C52C989BB5C3402CFF8BA30B0199F`;
-- `ap_core.rbf`: 798,200 bytes, SHA-256 `F3174D2F5EB6F48492DB467745004D2CA9BE1627FB6E86596F8C6E842757491D`.
+- `ap_core.sof`: 2,441,493 bytes, SHA-256 `5529ADA6032CC516CFD9680469B3AD57040468549934976E1431824D545D7268`;
+- `ap_core.rbf`: 798,412 bytes, SHA-256 `BBBC7C81313101D76E223D61BA4E9849A34FA91A007C811CA9A18E6814C11F5E`.
 
 The official build-ID generator embeds compile time, so these hashes identify this evidence run and are not expected to be reproducible across later successful builds.

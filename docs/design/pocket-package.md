@@ -2,7 +2,7 @@
 
 ## 1. Purpose and status
 
-This document defines the installable APF package for the M0 register-boundary target experiment. It is deliberately identified as version `0.0.0-m0.3.1` with description `M0 register-boundary target spike.` It is not an RPCMP music-player release and does not supersede ADR-0004.
+This document defines the installable APF package for the M0 register-boundary target experiment. It is deliberately identified as version `0.0.0-m0.4` with description `M0 register-boundary target spike.` It is not an RPCMP music-player release and does not supersede ADR-0004.
 
 The definitions in `core/platform/pocket/apf` are project-owned rather than copied from the official template. They follow the current official definition roots and `APF_VER_1` magic while retaining the template's proven 320x240 video and framework requirement 1.1.
 
@@ -18,14 +18,14 @@ Cores/
     data.json
     input.json
     interact.json
-    m003.rbf_r
+    m004.rbf_r
     variants.json
     video.json
 ```
 
-The spike has an empty `platform_ids` list, so it does not add `Platforms`, `Assets`, or `Saves`. The optional core icon is also omitted. The ZIP filename is `alsterium.RPCMP_0.0.0-m0.3.1_2026-08-25.zip` and has no extra wrapper directory.
+The spike has an empty `platform_ids` list, so it does not add `Platforms`, `Assets`, or `Saves`. The optional core icon is also omitted. The ZIP filename is `alsterium.RPCMP_0.0.0-m0.4_2026-08-26.zip` and has no extra wrapper directory.
 
-The m0.3.1 package deliberately names its bitstream `m003.rbf_r` instead of reusing the earlier `bitstream.rbf_r`. This makes `core.json` select the m0.3 RTL even if an installer leaves an older same-named bitstream in the core directory or Pocket retains a filename-based cached artifact.
+The package uses a version-specific bitstream filename. Version m0.4 points to `m004.rbf_r`, so an older same-named artifact cannot be silently selected from the core directory or a filename-based cache.
 
 ## 3. Generation and validation
 
@@ -46,11 +46,11 @@ The script:
 
 Generated files live below ignored `out/package`. The official build ID embeds compile time, and ZIP metadata also carries timestamps, so package hashes identify an evidence run rather than a reproducible release artifact.
 
-On 2026-08-25, package validation passed for the integrated `0.0.0-m0.3.1` package using the unchanged 798,200-byte m0.3 RBF:
+On 2026-08-26, package validation passed for the integrated `0.0.0-m0.4` 798,412-byte RBF:
 
-- source RBF SHA-256: `F3174D2F5EB6F48492DB467745004D2CA9BE1627FB6E86596F8C6E842757491D`;
-- reversed RBF_R SHA-256: `AE919C780F1D17EB04FCA11ADDCBFCE276DB3C952CEE5D3E3C7FE6F89F8C467D`;
-- evidence ZIP SHA-256: `E286D4CB3E17AD6B76FF1BF19DC630A9E745B9510965A938EEAC120ACDAD58A1`.
+- source RBF SHA-256: `BBBC7C81313101D76E223D61BA4E9849A34FA91A007C811CA9A18E6814C11F5E`;
+- reversed RBF_R SHA-256: `61CF85973FBC9BF201A9196DEFD732319E5CCBB51A83655EA2A328F05691D761`;
+- evidence ZIP SHA-256: `34CE0DCA58A4B2B2F22491D54DBDA737699E5CBF8B6967EBA0E90AFCB3642E19`.
 
 The ZIP hash is expected to change when regenerated; the source/reversed pair identifies the byte-level conversion that passed the exact round-trip check.
 
@@ -60,14 +60,14 @@ The package uses APF's generic Core Settings UI only as a hardware-spike adapter
 
 After a successful boot on Pocket:
 
-1. open Core Settings and confirm `Build` reads `0x4D303033`; this is the m0.3 bitstream signature;
+1. open Core Settings and confirm `Build` reads `0x4D303034`; this is the m0.4 bitstream signature;
 2. confirm `Seq`, `Count`, `Last`, `ESeq`, `EVal`, `WCnt`, `WAdr`, and `WDat` initially read hexadecimal value `0x00000000`;
 3. select `Run 1` once and confirm `WCnt=1`, `WAdr=0x00F00010`, and `WDat=0x00000040`;
 4. confirm `Seq`, `Last`, and `ESeq` read `1`, while `Count` and `EVal` read `0x000003E8`;
 5. select `Run 1` again and confirm `WCnt=2` while the command/event values remain unchanged because command ID 1 is a duplicate;
 6. select `Run 2` and confirm `WCnt=3`, `WAdr=0x00F00018`, and `WDat=0`, then confirm the three sequence/ID readouts are `2` and the two value readouts are `0x000007D0`.
 
-`number_u32` is a hexadecimal readout in APF. Thus decimal 1000 is `0x000003E8`, and decimal 2000 is `0x000007D0`; the firmware may omit the prefix or leading zeroes when rendering them. Every `0.0.0-m0.3.1` label is at most five characters. `Run 1` and `Run 2` mirror the official Interact sample's action addresses and values; the RTL accepts their address write strobes regardless of data. The write diagnostics make the APF transaction visible even if the command is later rejected as duplicate or stale.
+`number_u32` is a hexadecimal readout in APF. Thus decimal 1000 is `0x000003E8`, and decimal 2000 is `0x000007D0`; the firmware may omit the prefix or leading zeroes when rendering them. Every `0.0.0-m0.4` label is at most five characters. `Run 1` and `Run 2` mirror the official Interact sample's action addresses and values; the RTL accepts their address write strobes regardless of data. The write diagnostics make the APF transaction visible even if the command is later rejected as duplicate or stale.
 
 On 2026-08-25, package version `0.0.0-m0` was installed and executed on Pocket and the following partial result was reported:
 
@@ -81,11 +81,13 @@ Version `0.0.0-m0.1` was then rejected by on-device testing: every readout label
 
 Version `0.0.0-m0.2` used five-character labels and one-write `Run` actions. On-device testing confirmed that selecting and confirming both actions left `Seq`, `Count`, and the other readouts unchanged, so m0.2 is rejected. Its project-specific addresses and strict `bridge_wr_data == 1` comparison deviated from the official action example and provided no transaction-level observation.
 
-Version `0.0.0-m0.3` mirrored two official action entries and added the build/write diagnostics above. On-device testing displayed the new `Build` entry but read `0`, whereas the m0.3 RTL returns `0x4D303033` independently of mutable state. This is consistent with new JSON being installed alongside an older same-named bitstream, although the SD contents were not inspected to prove that cause. Version `0.0.0-m0.3.1` retains the verified m0.3 RBF bytes but points `core.json` at the unique `m003.rbf_r` filename to eliminate that silent mixed-install case; it remains unverified on Pocket.
+Version `0.0.0-m0.3` mirrored two official action entries and added the build/write diagnostics above. On-device testing displayed the new `Build` entry but read `0`, whereas the m0.3 RTL returns `0x4D303033` independently of mutable state. Version `0.0.0-m0.3.1` then forced selection through unique filename `m003.rbf_r`, but `Build` still read zero. That result rejects the mixed-install hypothesis.
+
+Inspection of the pinned official `io_bridge_peripheral` established the direct cause: APF buffers `bridge_rd_data` first and pulses `bridge_rd` afterward, while the m0.3 RTL emitted nonzero data only while `bridge_rd` was asserted. Version `0.0.0-m0.4` follows the official core pattern by decoding read data continuously from `bridge_addr`, and its RTL test explicitly samples every read once before the strobe and once during it. It remains unverified on Pocket.
 
 ## 5. Remaining release gaps
 
-- Pocket package `0.0.0-m0` launch and the command-ID-1 Interact path are partially verified as recorded above. Versions m0.1 and m0.2 are rejected, and m0.3 produced a zero build signature consistent with a mixed installation. The revised `0.0.0-m0.3.1` package, official-pattern controls and diagnostics, continuous heartbeat survival, command ID 2, and the complete snapshot/event readouts remain unverified.
+- Pocket package `0.0.0-m0` launch and the command-ID-1 Interact path are partially verified as recorded above. Versions m0.1 and m0.2 are rejected; m0.3 and m0.3.1 exposed the BRIDGE read-timing defect. The revised `0.0.0-m0.4` package, official-pattern controls and diagnostics, continuous heartbeat survival, command ID 2, and the complete snapshot/event readouts remain unverified.
 - The package contains the official template's gray video and silence audio, not an RPCMP UI or player.
 - Timing remains incompletely constrained as recorded in `pocket-template-integration.md`.
 - There are no data slots, `.rpcmlib` assets, save files, platform metadata, or production input mapping.

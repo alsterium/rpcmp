@@ -21,7 +21,7 @@ module pocket_spike_tb;
     localparam logic [31:0] LAST_WRITE_DATA_ADDR = BASE_ADDR + 32'h3c;
     localparam logic [31:0] INTERACT_RUN_ID_1_ADDR = 32'h00f0_0010;
     localparam logic [31:0] INTERACT_RUN_ID_2_ADDR = 32'h00f0_0018;
-    localparam logic [31:0] BUILD_SIGNATURE = 32'h4d30_3033;
+    localparam logic [31:0] BUILD_SIGNATURE = 32'h4d30_3034;
 
     logic clk = 1'b0;
     logic reset_n = 1'b0;
@@ -77,6 +77,9 @@ module pocket_spike_tb;
         input string label_text
     );
         bridge_addr = address;
+        bridge_rd = 1'b0;
+        #1;
+        expect_word({label_text, " before read strobe"}, bridge_rd_data, expected);
         bridge_rd = 1'b1;
         #1;
         expect_word(label_text, bridge_rd_data, expected);
