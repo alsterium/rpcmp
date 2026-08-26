@@ -58,6 +58,8 @@ Version m0.4 continuously decodes the read address and exposes signature `M004`.
 
 A source-level candidate survey is recorded in `docs/design/pocket-execution-candidates.md`, with exact compatibility gates in `docs/design/pocket-openfpgaos-spike.md`. It identifies openfpgaOS as the leading subject for the next bounded spike because it exposes a RISC-V app runtime and APF-backed platform services. No dependency or substrate is selected: the default SDK C++ profile lacks the standard library required by RPCMP's current types, stock packaging automatically includes prohibited proprietary sample data, upstream-reported Pocket utilization is already 87–89%, the RPCMP/JT51 fit is unmeasured, and the Windows build path and mixed-license distribution posture remain unresolved. JTFRAME is retained as an HDL/build-organization reference rather than a runtime candidate because its Pocket target is not public.
 
+Subsequent review of ModPlayer_openfpgaos and HarpMudd.mp3player added working-player evidence without changing this decision. ModPlayer corroborates that openfpgaOS can host an application-shaped C music player, but it does not prove RPCMP's C++ contracts or architectural boundaries. HarpMudd demonstrates an independent VexRiscv/firmware/APF path and useful Target-command, CDC, audio-queue, and rendering-isolation patterns, but its integrated firmware is not snapshot/command separated and its completed player is block-RAM constrained. The next spike therefore uses one host-first RPCMP probe to compare openfpgaOS with a stripped project-owned minimal SoC before selecting either substrate.
+
 ## Alternatives considered
 
 - **Assume C++ runs directly under openFPGA:** unsupported by the official template evidence reviewed.

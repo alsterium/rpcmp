@@ -1,8 +1,10 @@
-# Pocket openfpgaOS Compatibility Spike
+# Pocket Execution-Substrate Comparison Spike
 
 ## 1. Status and scope
 
-This document refines the next evidence step from `pocket-execution-candidates.md`. It does not adopt openfpgaOS, add upstream code to RPCMP, approve redistribution, or authorize installation of a new toolchain.
+This document refines the next evidence step from `pocket-execution-candidates.md`. It compares openfpgaOS with a project-owned minimal soft-CPU shell using one common RPCMP probe. It does not adopt either substrate, add upstream code to RPCMP, approve redistribution, or authorize installation of a new toolchain.
+
+The common probe is non-production feasibility code under `spikes/pocket`. It may link the real contracts and Mock Core, but it must not become a dependency of `core/runtime`, `core/ui`, or either public contract. `core/platform/pocket` remains a compile-free production placeholder until a superseding ADR selects a substrate.
 
 The file-level inspection used openfpgaSDK commit `a408ddc12aed0dfaa4aa22c06af82f829db77126`. Its bundled `runtime/MANIFEST` identifies openfpgaCore commit `618a3eb985759a4154115109c2c8036271252888` as the producer of the prebuilt runtime. The current core candidate revision `453a28350dab333b3afd520f8f8ac4508641bb3a` is newer. These inputs must not be mixed: an experiment either uses the SDK's internally matched prebuilt runtime or publishes a complete new runtime set from one pinned core revision.
 
@@ -43,6 +45,19 @@ The stock SDK packaging path also cannot be used unchanged for an RPCMP experime
 
 The proprietary sound bank and all demo music/assets are prohibited from the RPCMP spike. The package generator must omit slot 7, refuse `.ofsf`, `.mod`, and `.mid` files, and check the exact output tree before any archive reaches Pocket. This restriction does not resolve the remaining bitstream licenses; those still require a reviewed notice set and an explicit project distribution policy.
 
+### 2.3 Project-owned minimal SoC profile
+
+The comparison profile is informed by HarpMudd.mp3player but does not fork or copy that player. Its allowed functional surface is:
+
+- one reviewed RV32 CPU configuration and the smallest measured instruction/data memory that runs the common probe;
+- APF baseline boot/reset/heartbeat handling inherited from the pinned official template;
+- PAD input translated into a probe command outside Core;
+- Target dataslot read support and only the data-table/parameter RAM needed by the documented command structs;
+- a bounded fake-device queue with explicit full/overflow behavior;
+- the minimum video path needed to display the observation record, with rendering skippable.
+
+MP3/FLAC decoders, PCM playback, EQ, album art, playlists, existing player firmware/UI, and copied release media are outside the comparison. HarpMudd's empirically observed stale-completion and data-table-collision hazards become focused tests, not undocumented protocol requirements.
+
 ## 3. Minimal experiment package
 
 The first on-device compatibility package should contain only:
@@ -73,18 +88,35 @@ The provisional slots are 1 for `os.bin`, 2 for the app configuration, 3 for the
 
 Every runtime artifact must be matched to one manifest/source revision. The package evidence must record SHA-256 for the bitstream, loader, OS binary, ELF, synthetic file, and ZIP; validate JSON roots and paths; and reject unexpected files.
 
-## 4. Bounded execution plan
+The project-owned minimal-SoC package uses the same logical slot purposes and synthetic payload. It may omit `os.bin` and the app configuration when firmware is loaded directly as its reviewed design specifies, but the resulting difference must be recorded rather than hidden in a nominally identical tree.
 
-1. **Toolchain gate:** obtain explicit approval for a WSL2 Linux and container environment as the leading Windows experiment. Upstream documents Linux and macOS container hosts, so WSL2 compatibility must itself be verified. Record WSL distribution, container runtime, xPack 14.2.0-3, and all relevant licenses before installation or first use.
-2. **C++ gate:** compile/link a header-level contract probe using string, vector, optional, variant, and deterministic fixed-width values. Stop if the candidate requires a public contract change or an unreviewed C++ runtime.
-3. **Host gate:** run the candidate's desktop shim with a generated snapshot and one command while retaining RPCMP's existing headless and architecture tests.
-4. **Package gate:** generate only the minimal tree above and mechanically reject the proprietary bank, demo media, unknown files, mixed runtime revisions, and invalid APF definitions.
-5. **Pocket gate:** verify build identity, input-to-command, immutable snapshot display, and beginning/middle/end reads from `synthetic.bin`.
-6. **Custom-RTL gate:** only after the software path passes, build a stripped variant with a fake device queue and record fit/timing. Measure remaining resources before evaluating JT51.
+## 4. Common probe contract
 
-The current Windows host is not ready for gate 1: `make`, `bash`, Docker, and both checked RISC-V GCC command names are absent; `wsl.exe` reports no installed Linux environment. Linux/GCC CI remains separately deferred and must not be reported as restored merely because a local target toolchain is later installed.
+The host-first probe uses the real `PlayerCommand`, `PlayerSnapshot`, and deterministic Mock Core. Its result is a spike-local value record, not a public wire format or C ABI. A run must cover:
 
-## 5. Dependency screen
+1. generated synthetic bytes whose value at offset `n` is `(n * 37 + 11) mod 256`;
+2. bounded reads at the beginning, a middle offset, and the final readable range, plus rejection of an out-of-range read;
+3. open-library, load-track, play, pause, resume, and stop commands with strictly increasing IDs;
+4. a recent duplicate, a stale ID, and a full command queue with one rejected overflow;
+5. at least 120 published snapshots and the complete fake-device event trace;
+6. a second run that omits or delays all rendering observation while applying the identical clock/command trace.
+
+Both runs must yield value-identical command outcomes, snapshots, fake-device events, and storage-read checks. Target adapters may change how bytes, input, and observations are transported, but they may not change the contract values or transitions.
+
+## 5. Bounded execution plan
+
+1. **Host gate:** build and run the common probe under the existing M0 verification workflow, including observed and renderer-free traces.
+2. **Dependency gate:** pin all candidate/reference revisions and record file-level licenses before importing any target source into ignored research output.
+3. **Toolchain gate:** obtain explicit approval for a WSL2 Linux and container environment as the leading openfpgaOS experiment. Record WSL distribution, container runtime, xPack 14.2.0-3, and all relevant licenses before installation or first use.
+4. **openfpgaOS C++ gate:** compile/link the unchanged common probe. Stop if the candidate requires a public contract change or an unreviewed C++ runtime.
+5. **openfpgaOS host/package gate:** run through the desktop shim and generate only the minimal tree above, mechanically rejecting proprietary media, unknown files, mixed runtime revisions, and invalid APF definitions.
+6. **minimal-SoC build gate:** construct the allowed profile from the pinned official template and independently reviewed source patterns, then compile the common probe or a documented semantic facade.
+7. **Pocket gate:** on both candidates, verify build identity, input-to-command, immutable snapshot display, repeated Target commands, and beginning/middle/end reads from `synthetic.bin`.
+8. **resource gate:** capture equivalent fit/timing and runtime measurements, then compare remaining resources before evaluating JT51.
+
+The current Windows host is ready for the host gate but not the target-toolchain gates: `make`, `bash`, Docker, and both checked RISC-V GCC command names are absent; `wsl.exe` reports no installed Linux environment. Linux/GCC CI remains separately deferred and must not be reported as restored merely because a local target toolchain is later installed.
+
+## 6. Dependency screen
 
 | Component | Candidate purpose | Upstream license evidence | Spike status |
 |---|---|---|---|
@@ -97,8 +129,24 @@ The current Windows host is not ready for gate 1: `make`, `bash`, Docker, and bo
 | Analogizer/MiSTer-derived RTL | Optional video/output functions in the prebuilt bitstream | GPL-2.0-or-later in the reviewed manifest | Project license policy unresolved |
 | `bank.ofsf` and demo music | Unneeded MIDI/demo media | Proprietary or unverified third-party media | Must be excluded |
 | JT51 | Later YM2151-compatible RTL candidate | GPL-3.0 | Not part of this spike; separate license/resource gate |
+| ModPlayer_openfpgaos | API and application-shape evidence only | No root license file found at reviewed revision; bundled runtime provenance requires separate review | Reference only; no import |
+| HarpMudd project-authored source | Minimal-SoC and APF command patterns | MIT root, with separately licensed bundled components | Reference only; no wholesale import |
+| VexRiscv configuration | Candidate soft CPU | MIT in the reviewed HarpMudd credits/upstream source; exact generated revision must be pinned | Not added |
 
-## 6. Evidence sources
+## 7. Acceptance record
+
+Each candidate must produce one reviewable record containing:
+
+- exact source/tool revisions and license inventory;
+- hashes and byte sizes of firmware, bitstream, loader/runtime, synthetic asset, and package;
+- ALMs, registers, block-memory bits/blocks, DSPs, PLLs, warnings, all declared clocks, and worst setup/hold/pulse-width slack;
+- probe result values, storage-read offsets/checks, command outcomes, snapshot/event counts, queue-overflow result, reset/relaunch result, and renderer-free trace comparison;
+- measured Target-command and data-read latency, including repeated reads;
+- unavailable or failed checks with exact reason.
+
+Selection requires a superseding ADR. A candidate does not pass merely because it boots or plays audio.
+
+## 8. Evidence sources
 
 - [SDK build rules](https://github.com/openfpgaOS/openfpgaSDK/blob/a408ddc12aed0dfaa4aa22c06af82f829db77126/src/sdk/sdk.mk)
 - [SDK minimal C++ ABI](https://github.com/openfpgaOS/openfpgaSDK/blob/a408ddc12aed0dfaa4aa22c06af82f829db77126/src/sdk/of_cxxabi.cpp)
@@ -108,3 +156,7 @@ The current Windows host is not ready for gate 1: `make`, `bash`, Docker, and bo
 - [Pinned xPack firmware container](https://github.com/openfpgaOS/openfpgaCore/blob/453a28350dab333b3afd520f8f8ac4508641bb3a/tools/docker/Dockerfile.firmware)
 - [Runtime-producing core licensing annotations](https://github.com/openfpgaOS/openfpgaCore/blob/618a3eb985759a4154115109c2c8036271252888/REUSE.toml)
 - [Diablo C++/musl link recipe](https://github.com/openfpgaOS/Diablo/blob/c4f1d24ad9db011dcfd5f3b1d90423ceb28cfd17/src/diablo/Makefile)
+- [ModPlayer openfpgaOS application](https://github.com/RndMnkIII/ModPlayer_openfpgaos/tree/544e7fb569eeffc38525ed409464f59bcd932108)
+- [HarpMudd architecture notes](https://github.com/harpmudd/HarpMudd.mp3player/blob/011077b6a1bb210ea14ea81ff7bca7974e200f79/docs/HOW_IT_WORKS.md)
+- [HarpMudd feasibility measurements](https://github.com/harpmudd/HarpMudd.mp3player/blob/011077b6a1bb210ea14ea81ff7bca7974e200f79/STAGE0_RESULTS.md)
+- [HarpMudd APF Target-command crossing](https://github.com/harpmudd/HarpMudd.mp3player/blob/011077b6a1bb210ea14ea81ff7bca7974e200f79/src/fpga/core/tgt_cmd.v)
