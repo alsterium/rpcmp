@@ -83,11 +83,20 @@ Version `0.0.0-m0.2` used five-character labels and one-write `Run` actions. On-
 
 Version `0.0.0-m0.3` mirrored two official action entries and added the build/write diagnostics above. On-device testing displayed the new `Build` entry but read `0`, whereas the m0.3 RTL returns `0x4D303033` independently of mutable state. Version `0.0.0-m0.3.1` then forced selection through unique filename `m003.rbf_r`, but `Build` still read zero. That result rejects the mixed-install hypothesis.
 
-Inspection of the pinned official `io_bridge_peripheral` established the direct cause: APF buffers `bridge_rd_data` first and pulses `bridge_rd` afterward, while the m0.3 RTL emitted nonzero data only while `bridge_rd` was asserted. Version `0.0.0-m0.4` follows the official core pattern by decoding read data continuously from `bridge_addr`, and its RTL test explicitly samples every read once before the strobe and once during it. It remains unverified on Pocket.
+Inspection of the pinned official `io_bridge_peripheral` established the direct cause: APF buffers `bridge_rd_data` first and pulses `bridge_rd` afterward, while the m0.3 RTL emitted nonzero data only while `bridge_rd` was asserted. Version `0.0.0-m0.4` follows the official core pattern by decoding read data continuously from `bridge_addr`, and its RTL test explicitly samples every read once before the strobe and once during it.
+
+On 2026-08-26, the m0.4 package was installed and exercised on Pocket. `Build` read `0x4D303034`, confirming that the uniquely named m0.4 bitstream was active. A direct `Run 1` then `Run 2` sequence produced:
+
+| Action | `Seq` | `Count` | `Last` | `WCnt` | `WAdr` | `WDat` | `ESeq` | `EVal` |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| `Run 1` | `0x1` | `0x3E8` | `0x1` | `0x1` | `0x00F00010` | `0x40` | `0x1` | `0x3E8` |
+| `Run 2` | `0x2` | `0x7D0` | `0x2` | `0x2` | `0x00F00018` | `0x0` | `0x2` | `0x7D0` |
+
+This verifies on Pocket that the corrected pre-strobe read path exposes the expected m0.4 signature, both official-pattern writes reach their exact addresses and data values, command IDs 1 and 2 are accepted in order, and the snapshot-equivalent and fake-event readouts advance atomically to 1,000 and 2,000. The m0.4 run did not repeat `Run 1`, so duplicate rejection for this exact package remains covered by RTL simulation rather than this hardware observation.
 
 ## 5. Remaining release gaps
 
-- Pocket package `0.0.0-m0` launch and the command-ID-1 Interact path are partially verified as recorded above. Versions m0.1 and m0.2 are rejected; m0.3 and m0.3.1 exposed the BRIDGE read-timing defect. The revised `0.0.0-m0.4` package, official-pattern controls and diagnostics, continuous heartbeat survival, command ID 2, and the complete snapshot/event readouts remain unverified.
+- Pocket package `0.0.0-m0` supplied the initial partial command-ID-1 evidence. Versions m0.1 and m0.2 are rejected, and m0.3 and m0.3.1 exposed the BRIDGE read-timing defect. The revised `0.0.0-m0.4` package, corrected read path, official-pattern controls and diagnostics, command IDs 1 and 2, and complete snapshot-equivalent/event readouts are verified as recorded above. Duplicate rejection on m0.4 and extended continuous-heartbeat observation remain unverified on hardware.
 - The package contains the official template's gray video and silence audio, not an RPCMP UI or player.
 - Timing remains incompletely constrained as recorded in `pocket-template-integration.md`.
 - There are no data slots, `.rpcmlib` assets, save files, platform metadata, or production input mapping.

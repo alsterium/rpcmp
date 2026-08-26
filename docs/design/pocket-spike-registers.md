@@ -4,7 +4,7 @@
 
 This M0 contract defines the smallest project-owned RTL experiment required by ADR-0004. It is a simulation boundary for proving that a 32-bit host-facing register interface can advance an injected counter, accept one command, publish a snapshot-equivalent record, and emit a fake device event without any UI or rendering clock.
 
-It is not the production Core-to-RTL protocol, an APF boot implementation, or evidence of execution on Pocket. A later target-spike step must connect this block through the official `core_top` boundary and validate the real Host/Target command and heartbeat behavior.
+It is not the production Core-to-RTL protocol or an APF boot implementation. The standalone block alone is not evidence of execution on Pocket; the integrated m0.4 package evidence is recorded separately in section 5.
 
 ## 2. Bus and ownership
 
@@ -68,9 +68,10 @@ The test must prove reset values, the build signature, address-decoded data both
 
 On 2026-08-26, Questa Altera Starter 2025.2 completed the m0.4 self-checking test at 394 ns with the `pocket_spike_tb: PASS` marker and zero errors or warnings. This is behavioral evidence for the standalone project-owned register boundary, including APF's pre-strobe read sample, both official-pattern Interact aliases, and retained compatibility aliases. It is not evidence that Analogue OS can access the generated integration on Pocket.
 
+On the same date, the integrated m0.4 package was exercised on Pocket. The visible `M004` build signature proved bitstream identity. `Run 1` exposed write `0x00F00010=0x40` and advanced the snapshot-equivalent sequence, last command, and event sequence to 1 with counter/event value 1,000. `Run 2` exposed write `0x00F00018=0` and advanced the same records to 2 with value 2,000. This supplies physical evidence that Analogue OS can read and write the bounded integrated register path. It does not validate a production queue, data-slot transport, or detailed APF lifecycle behavior.
+
 Still required before ADR-0004 can be superseded:
 
-- behavioral or physical validation of the integrated APF-to-register path;
 - complete timing constraints and CDC/reset review beyond the successful Quartus integration build;
 - real APF boot, reset, Host/Target commands, and heartbeat on Pocket;
 - a bounded asynchronous queue or handshake if Core and device logic use different clocks;

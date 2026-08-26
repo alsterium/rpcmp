@@ -38,7 +38,7 @@ Known constraints:
 | AUDIO | Signed 16-bit stereo I2S-compatible output at exactly 48 kHz with 12.288 MHz MCLK. Internal device rates must convert explicitly to this boundary. |
 | Interact UI | Intended for bounded Core Settings controls, normally up to 16 entries. It is not assumed to be RPCMP's track browser or visualization surface. |
 
-The bounded Interact test-control path has now been exercised on Pocket with command ID 1. This does not change the architectural conclusion that Core Settings is not RPCMP's production track browser or visualization surface.
+The bounded Interact test-control path has now been exercised on Pocket with command IDs 1 and 2, including snapshot-equivalent and fake-event readback. This does not change the architectural conclusion that Core Settings is not RPCMP's production track browser or visualization surface.
 
 ## 3. RPCMP ownership mapping
 
@@ -100,7 +100,9 @@ On 2026-08-25, the package was installed and executed on Pocket. The first comma
 
 The follow-up `0.0.0-m0.1` UI did not provide usable additional evidence: all readout labels except `Counter` were truncated, and its two-step ID/advance controls produced no apparent displayed changes. Version `0.0.0-m0.2` used five-character labels and distinct one-write action registers, but confirming either action still left every readout unchanged. Version m0.3 mirrored two exact official-example action entries and added `Build`, write-count, last-address, and last-data readouts; its new `Build` entry appeared on Pocket but read zero. The m0.3.1 package forced a unique bitstream filename and still read zero, rejecting the mixed-install hypothesis. Inspection then showed that the official APF bridge samples read data before pulsing `bridge_rd`, while RPCMP had gated all data with that later strobe. Version m0.4 continuously decodes `bridge_addr` like the official core and retains a unique `m004.rbf_r` filename.
 
-JTAG enumeration, complete APF boot/status and continuous-heartbeat behavior, data-slot access, RPCMP video/audio, remaining integrated BRIDGE behavior, proposed-runtime resources/licenses, and all remaining evidence items are still open.
+On 2026-08-26, the m0.4 package returned build signature `0x4D303034` on Pocket. `Run 1` produced sequence/last-command/event sequence 1, counter/event value 1,000, and observed write `0x00F00010=0x40`. A following `Run 2` produced the corresponding sequence values 2, counter/event value 2,000, and observed write `0x00F00018=0`. This physically validates the integrated APF-to-register read/write path for the bounded experiment, both command IDs, and observation of its snapshot-equivalent record and fake-device event. Independence from the UI clock remains established by the standalone RTL test rather than by a hardware timing measurement.
+
+JTAG enumeration, detailed APF boot/status observation, extended continuous-heartbeat behavior, data-slot access and performance, RPCMP video/audio, proposed-runtime resources/licenses, and the other uncaptured evidence items are still open.
 
 ## 7. Sources
 
