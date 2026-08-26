@@ -1,0 +1,359 @@
+#include "rpcmp/spike/comparison_probe.hpp"
+
+#include <array>
+#include <cstddef>
+#include <optional>
+#include <string>
+#include <type_traits>
+#include <utility>
+
+namespace rpcmp::spike {
+namespace {
+
+class SemanticHash {
+public:
+  void add_byte(const std::uint8_t value) noexcept {
+    value_ ^= value;
+    value_ *= 1'099'511'628'211ULL;
+  }
+
+  template <typename Value> void add_integer(const Value value) noexcept {
+    using Unsigned = std::make_unsigned_t<Value>;
+    auto remaining = static_cast<Unsigned>(value);
+    for (std::size_t index = 0; index < sizeof(Value); ++index) {
+      add_byte(static_cast<std::uint8_t>(remaining & static_cast<Unsigned>(0xFFU)));
+      remaining >>= 8U;
+    }
+  }
+
+  template <typename Enum> void add_enum(const Enum value) noexcept {
+    add_integer(static_cast<std::underlying_type_t<Enum>>(value));
+  }
+
+  void add_bool(const bool value) noexcept { add_byte(value ? 1U : 0U); }
+
+  void add_string(const std::string& value) noexcept {
+    add_integer(static_cast<std::uint64_t>(value.size()));
+    for (const auto character : value) {
+      add_byte(static_cast<std::uint8_t>(character));
+    }
+  }
+
+  std::uint64_t value() const noexcept { return value_; }
+
+private:
+  std::uint64_t value_{14'695'981'039'346'656'037ULL};
+};
+
+template <typename Value, typename AddValue>
+void add_optional(SemanticHash& hash, const std::optional<Value>& value,
+                  AddValue add_value) noexcept {
+  hash.add_bool(value.has_value());
+  if (value.has_value()) {
+    add_value(*value);
+  }
+}
+
+void add_snapshot(SemanticHash& hash, const contracts::PlayerSnapshot& snapshot) noexcept {
+  hash.add_integer(snapshot.schema_version);
+  hash.add_integer(snapshot.sequence);
+  hash.add_integer(snapshot.published_at_tick);
+  hash.add_integer(snapshot.capabilities.bits);
+  hash.add_enum(snapshot.transport);
+
+  add_optional(hash, snapshot.track, [&hash](const contracts::TrackSummary& track) {
+    hash.add_integer(track.track_id.value);
+    hash.add_string(track.title);
+    hash.add_string(track.artist);
+    add_optional(hash, track.album, [&hash](const std::string& value) { hash.add_string(value); });
+    add_optional(hash, track.composer,
+                 [&hash](const std::string& value) { hash.add_string(value); });
+  });
+
+  hash.add_integer(snapshot.position.position_ticks);
+  hash.add_integer(snapshot.position.tick_rate);
+  add_optional(hash, snapshot.position.duration_ticks,
+               [&hash](const std::uint64_t value) { hash.add_integer(value); });
+  add_optional(hash, snapshot.position.loop_start_ticks,
+               [&hash](const std::uint64_t value) { hash.add_integer(value); });
+  add_optional(hash, snapshot.position.loop_count,
+               [&hash](const std::uint32_t value) { hash.add_integer(value); });
+  hash.add_bool(snapshot.position.seekable);
+
+  hash.add_integer(static_cast<std::uint64_t>(snapshot.channels.size()));
+  for (const auto& channel : snapshot.channels) {
+    hash.add_integer(channel.channel_id.value);
+    hash.add_string(channel.label);
+    hash.add_enum(channel.kind);
+    hash.add_bool(channel.enabled);
+    hash.add_bool(channel.mute_capable);
+    hash.add_bool(channel.muted);
+    hash.add_bool(channel.solo_capable);
+    hash.add_bool(channel.solo);
+    hash.add_bool(channel.key_on);
+    add_optional(hash, channel.note,
+                 [&hash](const std::uint8_t value) { hash.add_integer(value); });
+    add_optional(hash, channel.fine_pitch_cents,
+                 [&hash](const std::int16_t value) { hash.add_integer(value); });
+    hash.add_integer(channel.level);
+    hash.add_integer(channel.activity);
+    add_optional(hash, channel.pan, [&hash](const std::int8_t value) { hash.add_integer(value); });
+    add_optional(hash, channel.instrument_label,
+                 [&hash](const std::string& value) { hash.add_string(value); });
+    hash.add_integer(channel.device_id.value);
+    hash.add_integer(channel.device_channel);
+  }
+
+  hash.add_integer(static_cast<std::uint64_t>(snapshot.devices.size()));
+  for (const auto& device : snapshot.devices) {
+    hash.add_integer(device.device_id.value);
+    hash.add_enum(device.type);
+    hash.add_integer(device.first_channel);
+    hash.add_integer(device.channel_count);
+    hash.add_enum(device.operational_state);
+    hash.add_integer(device.capabilities.bits);
+  }
+
+  hash.add_integer(static_cast<std::uint64_t>(snapshot.visualization.recent_activity.size()));
+  for (const auto activity : snapshot.visualization.recent_activity) {
+    hash.add_integer(activity);
+  }
+
+  add_optional(hash, snapshot.error, [&hash](const contracts::PlayerError& error) {
+    hash.add_enum(error.domain);
+    hash.add_integer(error.code);
+    hash.add_enum(error.severity);
+    hash.add_bool(error.recoverable);
+    add_optional(hash, error.detail, [&hash](const std::string& value) { hash.add_string(value); });
+  });
+
+  hash.add_integer(static_cast<std::uint64_t>(snapshot.extensions.size()));
+  for (const auto& extension : snapshot.extensions) {
+    hash.add_integer(extension.type_id);
+    hash.add_integer(extension.version);
+    hash.add_integer(static_cast<std::uint64_t>(extension.payload.size()));
+    for (const auto byte : extension.payload) {
+      hash.add_integer(byte);
+    }
+  }
+}
+
+void add_command_result(SemanticHash& hash, const contracts::CommandResult& result) noexcept {
+  hash.add_integer(result.command_id);
+  hash.add_enum(result.outcome);
+  hash.add_enum(result.reason);
+  hash.add_integer(result.observed_snapshot_sequence);
+}
+
+void add_event(SemanticHash& hash, const runtime::FakeDeviceEvent& event) noexcept {
+  hash.add_integer(event.at_media_tick);
+  hash.add_integer(event.channel_id.value);
+  hash.add_bool(event.key_on);
+  add_optional(hash, event.note, [&hash](const std::uint8_t value) { hash.add_integer(value); });
+}
+
+class SnapshotRecorder final : public runtime::ISnapshotObserver {
+public:
+  explicit SnapshotRecorder(IProbeRenderer* renderer) : renderer_(renderer) {}
+
+  void published(const contracts::PlayerSnapshot& snapshot) override {
+    ++count_;
+    add_snapshot(hash_, snapshot);
+    if (renderer_ != nullptr) {
+      renderer_->render(snapshot);
+    }
+  }
+
+  std::uint64_t count() const noexcept { return count_; }
+  std::uint64_t digest() const noexcept { return hash_.value(); }
+
+private:
+  IProbeRenderer* renderer_{};
+  SemanticHash hash_;
+  std::uint64_t count_{};
+};
+
+class EventRecorder final : public runtime::IFakeDeviceSink {
+public:
+  void write(const runtime::FakeDeviceEvent& event) override {
+    ++count_;
+    add_event(hash_, event);
+  }
+
+  std::uint64_t count() const noexcept { return count_; }
+  std::uint64_t digest() const noexcept { return hash_.value(); }
+
+private:
+  SemanticHash hash_;
+  std::uint64_t count_{};
+};
+
+contracts::PlayerCommand make_command(const std::uint64_t id, contracts::Command payload,
+                                      const std::optional<std::uint64_t> expected = std::nullopt) {
+  return {contracts::kSchemaVersion, id, expected, std::move(payload)};
+}
+
+std::uint32_t checksum(const std::array<std::uint8_t, kSyntheticReadSize>& bytes) noexcept {
+  std::uint32_t value = 2'166'136'261U;
+  for (const auto byte : bytes) {
+    value ^= byte;
+    value *= 16'777'619U;
+  }
+  return value;
+}
+
+bool check_storage(IProbeBlobReader& reader, ProbeRunResult& result) noexcept {
+  result.blob_size = reader.size();
+  const std::array<std::uint32_t, kStorageCheckCount> offsets{
+      0U, kSyntheticBlobSize / 2U, kSyntheticBlobSize - kSyntheticReadSize,
+      kSyntheticBlobSize - (kSyntheticReadSize / 2U)};
+  bool passed = result.blob_size == kSyntheticBlobSize;
+
+  for (std::size_t index = 0; index < offsets.size(); ++index) {
+    auto& check = result.storage_checks[index];
+    check.offset = offsets[index];
+    check.length = kSyntheticReadSize;
+    check.expected_success = index + 1U < offsets.size();
+
+    std::array<std::uint8_t, kSyntheticReadSize> bytes{};
+    check.read_succeeded = reader.read(check.offset, bytes.data(), check.length);
+    check.checksum = check.read_succeeded ? checksum(bytes) : 0U;
+    check.content_matches = !check.expected_success && !check.read_succeeded;
+    if (check.expected_success && check.read_succeeded) {
+      check.content_matches = true;
+      for (std::uint32_t byte = 0; byte < check.length; ++byte) {
+        check.content_matches =
+            check.content_matches && bytes[byte] == synthetic_byte(check.offset + byte);
+      }
+    }
+    passed = passed && check.read_succeeded == check.expected_success && check.content_matches;
+  }
+  return passed;
+}
+
+bool advance(runtime::MockCore& core, const std::uint64_t tick) {
+  return core.advance_to(tick) == runtime::AdvanceResult::Ok;
+}
+
+bool storage_equal(const StorageCheck& left, const StorageCheck& right) noexcept {
+  return left.offset == right.offset && left.length == right.length &&
+         left.checksum == right.checksum && left.expected_success == right.expected_success &&
+         left.read_succeeded == right.read_succeeded &&
+         left.content_matches == right.content_matches;
+}
+
+} // namespace
+
+bool ProbeRunResult::passed() const noexcept {
+  if (!execution_ok || schema_version != contracts::kSchemaVersion ||
+      blob_size != kSyntheticBlobSize || snapshot_count < kProbeMinimumSnapshots ||
+      event_count == 0U || final_transport != contracts::TransportState::Stopped ||
+      final_position_ticks != 0U || duplicate_outcome != contracts::CommandOutcome::Duplicate ||
+      duplicate_reason != contracts::CommandReason::DuplicateCommandId ||
+      stale_reason != contracts::CommandReason::StaleCommandId ||
+      overflow_reason != contracts::CommandReason::QueueFull) {
+    return false;
+  }
+  for (const auto& check : storage_checks) {
+    if (check.read_succeeded != check.expected_success || !check.content_matches) {
+      return false;
+    }
+  }
+  return true;
+}
+
+ProbeRunResult run_comparison_probe(IProbeBlobReader& blob_reader, IProbeRenderer* renderer) {
+  ProbeRunResult result;
+  result.renderer_enabled = renderer != nullptr;
+  result.execution_ok = check_storage(blob_reader, result);
+
+  EventRecorder events;
+  SnapshotRecorder snapshots(renderer);
+  runtime::MockCore core(&events, &snapshots);
+  SemanticHash commands;
+
+  const auto submit = [&core, &commands, &result](const contracts::PlayerCommand& command) {
+    const auto command_result = core.submit(command);
+    ++result.command_count;
+    add_command_result(commands, command_result);
+    result.execution_ok =
+        result.execution_ok && command_result.outcome == contracts::CommandOutcome::Accepted;
+  };
+
+  submit(make_command(1, contracts::OpenLibrary{"m0:library"}, 0));
+  submit(make_command(2, contracts::LoadTrack{contracts::TrackId{1}}, 0));
+  result.execution_ok = result.execution_ok && advance(core, 1'000);
+  submit(make_command(3, contracts::Play{}, 1));
+  result.execution_ok = result.execution_ok && advance(core, 60'000);
+  submit(make_command(4, contracts::Pause{}, 60));
+  result.execution_ok = result.execution_ok && advance(core, 90'000);
+  submit(make_command(5, contracts::Resume{}, 90));
+  result.execution_ok = result.execution_ok && advance(core, 150'000);
+  submit(make_command(6, contracts::SetChannelMute{contracts::ChannelId{0}, true}, 150));
+  submit(make_command(7, contracts::SetChannelSolo{contracts::ChannelId{1}, true}, 150));
+  submit(make_command(8, contracts::ClearChannelOverrides{}, 150));
+  const auto stop_command = make_command(9, contracts::Stop{}, 150);
+  submit(stop_command);
+
+  const auto duplicate = core.submit(stop_command);
+  result.duplicate_outcome = duplicate.outcome;
+  result.duplicate_reason = duplicate.reason;
+  result.execution_ok = result.execution_ok && advance(core, 151'000);
+  result.command_digest = commands.value();
+  result.snapshot_count = snapshots.count();
+  result.snapshot_digest = snapshots.digest();
+  result.event_count = events.count();
+  result.event_digest = events.digest();
+
+  const auto latest = core.latest();
+  result.final_snapshot_sequence = latest.sequence;
+  result.final_position_ticks = latest.position.position_ticks;
+  result.final_transport = latest.transport;
+
+  runtime::MockCore stale_fixture;
+  for (std::uint64_t id = 1; id <= 70; ++id) {
+    static_cast<void>(stale_fixture.submit(make_command(id, contracts::Stop{})));
+  }
+  result.stale_reason = stale_fixture.submit(make_command(1, contracts::Stop{})).reason;
+
+  runtime::MockCore queue_fixture;
+  static_cast<void>(queue_fixture.submit(make_command(1, contracts::OpenLibrary{"m0:library"})));
+  static_cast<void>(
+      queue_fixture.submit(make_command(2, contracts::LoadTrack{contracts::TrackId{1}})));
+  result.execution_ok = result.execution_ok && advance(queue_fixture, 1'000);
+  for (std::uint64_t index = 0; index < runtime::kCommandQueueCapacity; ++index) {
+    static_cast<void>(queue_fixture.submit(make_command(
+        3U + index, contracts::SetChannelMute{contracts::ChannelId{0}, index % 2U == 0U})));
+  }
+  result.overflow_reason =
+      queue_fixture
+          .submit(make_command(3U + runtime::kCommandQueueCapacity,
+                               contracts::SetChannelMute{contracts::ChannelId{0}, false}))
+          .reason;
+
+  return result;
+}
+
+bool equivalent_semantics(const ProbeRunResult& left, const ProbeRunResult& right) noexcept {
+  if (left.schema_version != right.schema_version || left.blob_size != right.blob_size ||
+      left.command_count != right.command_count || left.command_digest != right.command_digest ||
+      left.snapshot_count != right.snapshot_count ||
+      left.snapshot_digest != right.snapshot_digest || left.event_count != right.event_count ||
+      left.event_digest != right.event_digest ||
+      left.final_snapshot_sequence != right.final_snapshot_sequence ||
+      left.final_position_ticks != right.final_position_ticks ||
+      left.final_transport != right.final_transport ||
+      left.duplicate_outcome != right.duplicate_outcome ||
+      left.duplicate_reason != right.duplicate_reason || left.stale_reason != right.stale_reason ||
+      left.overflow_reason != right.overflow_reason || left.execution_ok != right.execution_ok) {
+    return false;
+  }
+  for (std::size_t index = 0; index < left.storage_checks.size(); ++index) {
+    if (!storage_equal(left.storage_checks[index], right.storage_checks[index])) {
+      return false;
+    }
+  }
+  return true;
+}
+
+} // namespace rpcmp::spike

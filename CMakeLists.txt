@@ -15,6 +15,8 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 file(GLOB_RECURSE RPCMP_CXX_FILES CONFIGURE_DEPENDS
   "${CMAKE_SOURCE_DIR}/core/*.cpp"
   "${CMAKE_SOURCE_DIR}/core/*.hpp"
+  "${CMAKE_SOURCE_DIR}/spikes/*.cpp"
+  "${CMAKE_SOURCE_DIR}/spikes/*.hpp"
   "${CMAKE_SOURCE_DIR}/tests/*.cpp"
   "${CMAKE_SOURCE_DIR}/tests/*.hpp")
 set(RPCMP_TIDY_FILES ${RPCMP_CXX_FILES})
@@ -106,6 +108,17 @@ add_executable(rpcmp_mock_ui_m0 core/platform/host/mock_ui_main.cpp)
 target_link_libraries(rpcmp_mock_ui_m0 PRIVATE rpcmp_ui)
 rpcmp_production_options(rpcmp_mock_ui_m0)
 
+add_library(rpcmp_pocket_comparison_probe STATIC
+  spikes/pocket/common/src/comparison_probe.cpp)
+target_include_directories(rpcmp_pocket_comparison_probe PUBLIC
+  spikes/pocket/common/include)
+target_link_libraries(rpcmp_pocket_comparison_probe PUBLIC rpcmp_runtime)
+rpcmp_production_options(rpcmp_pocket_comparison_probe)
+
+add_executable(rpcmp_pocket_comparison_probe_host spikes/pocket/host/main.cpp)
+target_link_libraries(rpcmp_pocket_comparison_probe_host PRIVATE rpcmp_pocket_comparison_probe)
+rpcmp_production_options(rpcmp_pocket_comparison_probe_host)
+
 if(BUILD_TESTING)
   add_executable(rpcmp_contract_tests tests/contracts/contract_tests.cpp)
   target_include_directories(rpcmp_contract_tests PRIVATE tests/support)
@@ -125,6 +138,14 @@ if(BUILD_TESTING)
   rpcmp_test_options(rpcmp_ui_tests)
   add_test(NAME ui COMMAND rpcmp_ui_tests)
 
+  add_executable(rpcmp_pocket_comparison_probe_tests
+    tests/pocket/comparison_probe_tests.cpp)
+  target_include_directories(rpcmp_pocket_comparison_probe_tests PRIVATE tests/support)
+  target_link_libraries(rpcmp_pocket_comparison_probe_tests PRIVATE
+    rpcmp_pocket_comparison_probe)
+  rpcmp_test_options(rpcmp_pocket_comparison_probe_tests)
+  add_test(NAME pocket_comparison_probe COMMAND rpcmp_pocket_comparison_probe_tests)
+
   add_test(
     NAME architecture_positive
     COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/architecture/check_dependencies.py
@@ -133,6 +154,11 @@ if(BUILD_TESTING)
     NAME architecture_negative
     COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/architecture/check_dependencies.py
             --root ${CMAKE_SOURCE_DIR}/tests/architecture/fixtures/runtime_depends_ui
+            --expect-violation)
+  add_test(
+    NAME architecture_spike_negative
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/architecture/check_dependencies.py
+            --root ${CMAKE_SOURCE_DIR}/tests/architecture/fixtures/runtime_depends_spike
             --expect-violation)
 
   if(RPCMP_ENABLE_CLANG_TOOLS)

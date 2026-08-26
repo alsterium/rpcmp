@@ -28,12 +28,22 @@ def find_violations(root: Path) -> list[str]:
         text = path.read_text(encoding="utf-8")
         if "rpcmp/ui/" in text or "core/ui" in text.replace("\\", "/"):
             violations.append(f"runtime depends on UI: {path.relative_to(root)}")
+        if "rpcmp/spike/" in text or "spikes/" in text.replace("\\", "/"):
+            violations.append(f"runtime depends on feasibility spike: {path.relative_to(root)}")
 
     ui_root = root / "core" / "ui"
     for path in source_files(ui_root):
         text = path.read_text(encoding="utf-8")
         if "rpcmp/runtime/" in text or "core/runtime" in text.replace("\\", "/"):
             violations.append(f"UI depends on runtime: {path.relative_to(root)}")
+        if "rpcmp/spike/" in text or "spikes/" in text.replace("\\", "/"):
+            violations.append(f"UI depends on feasibility spike: {path.relative_to(root)}")
+
+    contracts_root = root / "core" / "contracts"
+    for path in source_files(contracts_root):
+        text = path.read_text(encoding="utf-8")
+        if "rpcmp/spike/" in text or "spikes/" in text.replace("\\", "/"):
+            violations.append(f"contracts depend on feasibility spike: {path.relative_to(root)}")
 
     cmake = root / "CMakeLists.txt"
     if cmake.exists():

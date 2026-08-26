@@ -38,9 +38,13 @@ tests/
   ui/
   fixtures/m0/
 tools/
+spikes/
+  pocket/                     # ADR-0004 non-production comparison probe only
 ```
 
 The Pocket RTL exception is limited to the project-owned feasibility experiment in `pocket-spike-registers.md`. Sound synthesis, production queues, APF shell ownership, and any other target implementation remain outside M0. The architecture check permits only the named spike source beneath `core/rtl` and continues to reject any speculative RTL implementation.
+
+The `spikes/pocket` exception is non-production host-first comparison code for ADR-0004. It may depend on contracts and runtime to prove target compatibility; contracts, runtime, and UI must never depend on it. It does not make `core/platform/pocket` buildable or select a production substrate.
 
 Target responsibilities:
 
