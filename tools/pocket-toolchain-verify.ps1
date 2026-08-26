@@ -30,4 +30,17 @@ if ($LASTEXITCODE -ne 0) {
 $rpcmpMount = "type=bind,source=$rpcmpRoot,target=/workspace/rpcmp"
 & $rpcmpDocker run --rm --mount $rpcmpMount --workdir /workspace/rpcmp $rpcmpImage `
     make --file spikes/pocket/openfpgaos/Makefile clean verify
+if ($LASTEXITCODE -ne 0) {
+    exit $LASTEXITCODE
+}
+
+& $rpcmpDocker run --rm --mount $rpcmpMount --workdir /workspace/rpcmp $rpcmpImage `
+    make --file spikes/pocket/openfpgaos/desktop.mk clean-desktop prepare-desktop
+if ($LASTEXITCODE -ne 0) {
+    exit $LASTEXITCODE
+}
+
+& $rpcmpDocker run --rm --mount $rpcmpMount `
+    --workdir /workspace/rpcmp/out/build/pocket-openfpgaos-desktop $rpcmpImage `
+    make --file /workspace/rpcmp/spikes/pocket/openfpgaos/desktop.mk verify
 exit $LASTEXITCODE

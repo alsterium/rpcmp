@@ -143,8 +143,13 @@ The current Windows host uses Docker Desktop 4.88.1, Engine 29.7.2, and the WSL 
   archive SHA-256
   `f574415b63f12b09bdd3475223ab492a465d23810646c90c13a4c3b676c83503`.
 - Container packages observed: `ca-certificates 20260601~24.04.1`,
-  `curl 8.5.0-2ubuntu10.13`, and `make 4.3-4.1build2`. These APT package
-  versions are evidence from this build, not an additional floating contract.
+  `curl 8.5.0-2ubuntu10.13`, `g++ 4:13.2.0-7ubuntu1` (using
+  `g++-13 13.3.0-6ubuntu2~24.04.1`), `libsdl2-dev
+  2.30.0+dfsg-1ubuntu3.1`, `make 4.3-4.1build2`, and `pkg-config
+  1.8.1-2build1`. These APT package versions are evidence from this build,
+  not an additional floating contract. G++ and pkg-config are build tools;
+  SDL2 is used only by the SDK desktop shim. Their package notices remain in
+  the build image and none are RPCMP release artifacts.
 - The xPack archive retained notices for GCC 14.2.0, Binutils 2.43.1,
   Newlib 4.4.0.20231231, GDB 15.1, Python 3.12.2, and their bundled support
   libraries under `/opt/xpack/distro-info/licenses`. The tool image is not an
@@ -159,9 +164,13 @@ The current Windows host uses Docker Desktop 4.88.1, Engine 29.7.2, and the WSL 
   CRLF marker that xPack `ld` rejects. The probe references no math symbols,
   so its focused link recipe omits `-lm`; production code requiring libm must
   resolve this separately.
-- This closes only the compile/link portion of the openfpgaOS C++ gate. The
-  ELF has not yet produced the golden semantic record in the desktop shim or
-  on Pocket.
+- The SDK PC backend read the generated fixture through provisional data slot
+  4 and reproduced the host golden record: 9 command outcomes, 151 snapshots,
+  and 154 fake-device events with digests `2446879228733133299`,
+  `6832192089657554689`, and `16311210033269188847`, respectively. Its
+  SDK-backed file operations used the same entry points as the target adapter.
+- This closes the compile/link and desktop-shim portions of the openfpgaOS C++
+  gate. The target ELF has not run on Pocket.
 
 ## 7. Acceptance record
 

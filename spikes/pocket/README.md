@@ -56,6 +56,12 @@ common probe against the SDK's musl runtime:
 pwsh -File tools/pocket-toolchain-verify.ps1
 ```
 
-The output is `out/build/pocket-openfpgaos/rpcmp-probe.elf`. This is a
-compile/link artifact only: it has not run until the same semantic record is
-observed through the desktop shim or on Pocket.
+The outputs are:
+
+- `out/build/pocket-openfpgaos/rpcmp-probe.elf`, the target compile/link
+  artifact;
+- `out/build/pocket-openfpgaos-desktop/app_pc`, which reads synthetic slot 4
+  through the SDK PC backend and must reproduce every host golden digest.
+
+The target ELF itself has not run until the same semantic record is observed
+on Pocket.
