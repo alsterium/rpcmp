@@ -27,6 +27,8 @@ Therefore a successful plain C or minimal-class SDK demo is not evidence that RP
 
 The spike must not weaken bounded values, replace immutable snapshots with shared mutable state, or silently change a public v1 field to make the toolchain pass.
 
+There is a concrete upstream route to test rather than inventing one. The reviewed openfpgaCore firmware container pins xPack `riscv-none-elf-gcc` 14.2.0-3 alongside the ordinary firmware compiler. The openfpgaOS Diablo port at commit `c4f1d24ad9db011dcfd5f3b1d90423ceb28cfd17` uses that xPack toolchain's C++ headers, `libstdc++.a`, and `libsupc++.a` with the SDK's musl CRT/library and explicit compatibility glue. This proves that a larger standard-library C++ application has an upstream build recipe; it does not prove that RPCMP's types link cleanly, that the runtime combination is supportable, or that its licenses and memory cost are acceptable.
+
 ### 2.2 Package and license boundary
 
 RPCMP currently has no repository-level `LICENSE`, `NOTICE`, or REUSE manifest, so it has no approved redistribution posture for copyleft or mixed-license bitstreams. No upstream binary may become a release dependency until maintainers make that policy decision.
@@ -73,7 +75,7 @@ Every runtime artifact must be matched to one manifest/source revision. The pack
 
 ## 4. Bounded execution plan
 
-1. **Toolchain gate:** obtain explicit approval for the Windows target-build environment. Record versions and licenses before installation.
+1. **Toolchain gate:** obtain explicit approval for a WSL2 Linux and container environment as the leading Windows experiment. Upstream documents Linux and macOS container hosts, so WSL2 compatibility must itself be verified. Record WSL distribution, container runtime, xPack 14.2.0-3, and all relevant licenses before installation or first use.
 2. **C++ gate:** compile/link a header-level contract probe using string, vector, optional, variant, and deterministic fixed-width values. Stop if the candidate requires a public contract change or an unreviewed C++ runtime.
 3. **Host gate:** run the candidate's desktop shim with a generated snapshot and one command while retaining RPCMP's existing headless and architecture tests.
 4. **Package gate:** generate only the minimal tree above and mechanically reject the proprietary bank, demo media, unknown files, mixed runtime revisions, and invalid APF definitions.
@@ -88,6 +90,7 @@ The current Windows host is not ready for gate 1: `make`, `bash`, Docker, and bo
 |---|---|---|---|
 | openfpgaSDK authored sources/config | App ABI, headers, packaging, desktop shim | Apache-2.0 with REUSE annotations | Inspected, not added |
 | Bundled musl 1.2.5 | C library and static startup | MIT | Inspected, not added |
+| xPack RISC-V GCC 14.2.0-3 C++ runtime | Contract/runtime compatibility probe | GCC and bundled runtime licenses require a recorded tool/distribution review | Upstream recipe identified, not installed |
 | openfpgaCore authored RTL/firmware | RISC-V runtime and APF services | Apache-2.0 with REUSE annotations | Inspected, not added |
 | Analogue APF source | Pocket shell integration | `LicenseRef-Analogue-Pocket-Framework` | Terms must be retained and reviewed |
 | Intel/Altera generated IP | PLL/memory integration | Intel FPGA IP terms | Generated/distribution terms must be reviewed |
@@ -102,4 +105,6 @@ The current Windows host is not ready for gate 1: `make`, `bash`, Docker, and bo
 - [SDK Pocket image assembly](https://github.com/openfpgaOS/openfpgaSDK/blob/a408ddc12aed0dfaa4aa22c06af82f829db77126/src/sdk/platforms/pocket/image.sh)
 - [SDK instance template](https://github.com/openfpgaOS/openfpgaSDK/blob/a408ddc12aed0dfaa4aa22c06af82f829db77126/src/sdk/platforms/pocket/templates/instance.json)
 - [SDK licensing annotations](https://github.com/openfpgaOS/openfpgaSDK/blob/a408ddc12aed0dfaa4aa22c06af82f829db77126/REUSE.toml)
+- [Pinned xPack firmware container](https://github.com/openfpgaOS/openfpgaCore/blob/453a28350dab333b3afd520f8f8ac4508641bb3a/tools/docker/Dockerfile.firmware)
 - [Runtime-producing core licensing annotations](https://github.com/openfpgaOS/openfpgaCore/blob/618a3eb985759a4154115109c2c8036271252888/REUSE.toml)
+- [Diablo C++/musl link recipe](https://github.com/openfpgaOS/Diablo/blob/c4f1d24ad9db011dcfd5f3b1d90423ceb28cfd17/src/diablo/Makefile)
