@@ -56,6 +56,8 @@ The integrated RBF was converted to equal-length `.rbf_r` output and packaged wi
 
 Version m0.4 continuously decodes the read address and exposes signature `M004`. On 2026-08-26, Pocket returned that signature and the expected results for a direct `Run 1` then `Run 2` sequence: exact writes `0x00F00010=0x40` and `0x00F00018=0`, command/snapshot/event sequences 1 then 2, and counter/event values 1,000 then 2,000. This closes the bounded minimum target experiment in decision item 8 at the register-spike level and physically validates its integrated APF read/write path. It does not select the execution substrate or close the broader gate: JTAG enumeration, detailed APF boot/status and extended heartbeat observation, data slots, video/audio, runtime resources, licenses, and production protocol decisions remain open.
 
+A source-level candidate survey is recorded in `docs/design/pocket-execution-candidates.md`. It identifies openfpgaOS as the leading subject for the next bounded compatibility spike because it exposes a RISC-V C/C++ app runtime and APF-backed platform services. No dependency or substrate is selected: upstream-reported Pocket utilization is already 87–89%, the RPCMP/JT51 fit is unmeasured, C++ compatibility and the Windows build path are unverified, and file-level license/distribution review remains mandatory. JTFRAME is retained as an HDL/build-organization reference rather than a runtime candidate because its Pocket target is not public.
+
 ## Alternatives considered
 
 - **Assume C++ runs directly under openFPGA:** unsupported by the official template evidence reviewed.
@@ -75,4 +77,5 @@ Version m0.4 continuously decodes the read address and exposes signature `M004`.
 - Official template v1.3.0 commit `da3a021b1eaf742604d86d8dc9b33a6666263e6a` and local Quartus 25.1 compile reports (reviewed 2026-08-25)
 - Official openFPGA examples organization: <https://github.com/open-fpga> (accessed 2026-08-25)
 - Initialized `analogue-openfpga-skill` snapshot at commit `81da4c1fac028da594cc2a602ce0ef47a45b64e5`
+- Candidate survey revisions and primary-source links recorded in `docs/design/pocket-execution-candidates.md` (reviewed 2026-08-26)
 - Repository and local tool availability (inspected 2026-08-25)
