@@ -15,6 +15,7 @@ from pathlib import Path, PurePosixPath
 SDK_REVISION = "a408ddc12aed0dfaa4aa22c06af82f829db77126"
 RUNTIME_REVISION = "618a3eb"
 CORE_ID = "RPCMP.openfpgaOSProbe"
+CORE_SHORTNAME = "openfpgaOSProbe"
 PLATFORM_ID = "rpcmp_probe"
 VARIANT = "os25"
 MAGIC = "APF_VER_1"
@@ -63,7 +64,7 @@ def definitions() -> dict[str, object]:
             "magic": MAGIC,
             "metadata": {
                 "platform_ids": [PLATFORM_ID],
-                "shortname": "RPCMP Probe",
+                "shortname": CORE_SHORTNAME,
                 "description": "RPCMP M0 openfpgaOS compatibility probe",
                 "author": "RPCMP",
                 "url": "",
@@ -89,10 +90,10 @@ def definitions() -> dict[str, object]:
     }
     slots = [
         {"id": 0, "name": "Probe", "required": True, "parameters": 275, "extensions": ["json"]},
-        {"id": 1, "name": "OS Binary", "required": True, "parameters": 0, "extensions": ["bin"], "deferload": True},
-        {"id": 2, "name": "OS Config", "required": True, "parameters": 0, "extensions": ["ini"]},
-        {"id": 3, "name": "Application", "required": True, "parameters": 0, "extensions": ["elf"], "deferload": True},
-        {"id": 4, "name": "Synthetic Data", "required": True, "parameters": 0, "extensions": ["bin"], "deferload": True},
+        {"id": 1, "name": "OS Binary", "required": False, "parameters": 0, "extensions": ["bin"], "deferload": True},
+        {"id": 2, "name": "OS Config", "required": False, "parameters": 0, "extensions": ["ini"], "deferload": True},
+        {"id": 3, "name": "Application", "required": False, "parameters": 0, "extensions": ["elf"], "deferload": True},
+        {"id": 4, "name": "Synthetic Data", "required": False, "parameters": 0, "extensions": ["bin"], "deferload": True},
     ]
     return {
         "audio.json": {"audio": {"magic": MAGIC}},
@@ -101,7 +102,21 @@ def definitions() -> dict[str, object]:
         "input.json": {
             "input": {
                 "magic": MAGIC,
-                "controllers": [{"type": "default", "mappings": []}],
+                "controllers": [
+                    {
+                        "type": "default",
+                        "mappings": [
+                            {"id": 0, "name": "A", "key": "pad_btn_a"},
+                            {"id": 1, "name": "B", "key": "pad_btn_b"},
+                            {"id": 2, "name": "X", "key": "pad_btn_x"},
+                            {"id": 3, "name": "Y", "key": "pad_btn_y"},
+                            {"id": 10, "name": "L", "key": "pad_trig_l"},
+                            {"id": 11, "name": "R", "key": "pad_trig_r"},
+                            {"id": 20, "name": "Start", "key": "pad_btn_start"},
+                            {"id": 21, "name": "Select", "key": "pad_btn_select"},
+                        ],
+                    }
+                ],
             }
         },
         "interact.json": {"interact": {"magic": MAGIC, "variables": [], "messages": []}},
@@ -141,6 +156,19 @@ def validate_json(path: Path) -> None:
             raise ValueError("data.json must contain only slots 0 through 4")
         if any(slot.get("nonvolatile") for slot in slots):
             raise ValueError("nonvolatile slots are prohibited in this spike")
+        if any(slot.get("required") or not slot.get("deferload") for slot in slots[1:]):
+            raise ValueError("openfpgaOS slots 1 through 4 must be optional and deferred")
+    if path.name == "core.json":
+        metadata = root.get("metadata", {})
+        expected_core_id = f"{metadata.get('author')}.{metadata.get('shortname')}"
+        if path.parent.name != expected_core_id:
+            raise ValueError("core folder must match metadata author and shortname")
+    if path.name == "input.json":
+        controllers = root.get("controllers", [])
+        if not controllers or any(not controller.get("mappings") for controller in controllers):
+            raise ValueError("input.json controllers must contain mappings")
+    if path.name == "rpcmp-probe.json" and "variant_select" in root:
+        raise ValueError("the single-bitstream instance must not use variant_select")
 
 
 def verify_tree(root: Path) -> list[Path]:
@@ -210,7 +238,6 @@ def build(repo: Path, sdk: Path, elf: Path, output: Path, archive: Path) -> None
         instance = {
             "instance": {
                 "magic": MAGIC,
-                "variant_select": {"id": 0, "select": False},
                 "data_slots": [
                     {"id": 1, "filename": "os.bin"},
                     {"id": 2, "filename": "rpcmp-probe.ini"},

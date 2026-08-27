@@ -57,6 +57,28 @@ class PackageBuilderTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "only slots 0 through 4"):
                 PACKAGE.verify_tree(root)
 
+    def test_core_folder_metadata_mismatch_is_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            self.make_valid_tree(root)
+            core_path = root / "Cores" / PACKAGE.CORE_ID / "core.json"
+            value = json.loads(core_path.read_text(encoding="ascii"))
+            value["core"]["metadata"]["shortname"] = "RPCMP Probe"
+            core_path.write_bytes(PACKAGE.json_bytes(value))
+            with self.assertRaisesRegex(ValueError, "core folder must match"):
+                PACKAGE.verify_tree(root)
+
+    def test_non_deferred_os_config_is_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            self.make_valid_tree(root)
+            data_path = root / "Cores" / PACKAGE.CORE_ID / "data.json"
+            value = json.loads(data_path.read_text(encoding="ascii"))
+            del value["data"]["data_slots"][2]["deferload"]
+            data_path.write_bytes(PACKAGE.json_bytes(value))
+            with self.assertRaisesRegex(ValueError, "optional and deferred"):
+                PACKAGE.verify_tree(root)
+
 
 if __name__ == "__main__":
     unittest.main()

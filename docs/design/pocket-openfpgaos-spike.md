@@ -202,11 +202,33 @@ The current Windows host uses Docker Desktop 4.88.1, Engine 29.7.2, and the WSL 
   definition requires it. The generated evidence JSON records each file's
   byte count and SHA-256 separately from the Pocket tree.
 - Two consecutive builds of the target-adapter package produced ZIP SHA-256
-  `27810cfd3fecf50b1fc85f454d71c2dac054e114b3fbec3ec12b6479399d5d7b`
-  (1,138,130 bytes).
+  `6c261468641a4afd00fc5865c9bbd9e80d0f6593a2b66d849f135d4ca7a45fdb`
+  (1,138,231 bytes).
 - The ZIP is a local experiment only. This gate mechanically excludes the
   proprietary sound bank and demo media, but it does not approve
   redistribution of the prebuilt bitstream or other upstream runtime files.
+
+### Pocket core-setup correction record — 2026-08-27
+
+- The first Pocket trial of the earlier package (ZIP SHA-256
+  `27810cfd3fecf50b1fc85f454d71c2dac054e114b3fbec3ec12b6479399d5d7b`)
+  stopped with `Load error in core: General error` and `Error in core setup`.
+  The failure happened during Pocket core setup, before there was evidence that
+  the target ELF ran.
+- The package used `RPCMP.openfpgaOSProbe` as its core folder while declaring
+  `RPCMP Probe` as `metadata.shortname`. This violated the documented
+  `AuthorName.CoreName` folder-to-metadata correspondence and could prevent the
+  core-specific instance path from resolving. This mismatch is confirmed; its
+  responsibility for the observed error remains an inference until Pocket is
+  retested.
+- The corrected package declares `RPCMP.openfpgaOSProbe` consistently, makes
+  openfpgaOS slots 1 through 4 optional and deferred as in the pinned SDK custom
+  core template, supplies the template's non-empty controller mappings, and
+  removes the unused `variant_select` member from the single-bitstream instance.
+- Generator validation and regression tests now reject the folder/metadata
+  mismatch, eager openfpgaOS application slots, empty controller mappings, and
+  `variant_select` in this instance. The corrected package still requires
+  Pocket firmware 2.2 or later and awaits on-device confirmation.
 
 ## 7. Acceptance record
 

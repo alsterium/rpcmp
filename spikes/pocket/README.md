@@ -69,3 +69,21 @@ The outputs are:
 The target ELF itself has not run until the same semantic record is observed
 on Pocket. The package is a local experiment only: its prebuilt bitstream is
 not approved for RPCMP redistribution.
+
+## Pocket installation and retest
+
+Use Pocket firmware 2.2 or later. Replace the earlier experiment by removing
+these exact paths from the SD card, then extract
+`out/build/rpcmp-openfpgaos-probe.zip` at the SD-card root:
+
+```text
+/Cores/RPCMP.openfpgaOSProbe
+/Assets/rpcmp_probe
+/Platforms/rpcmp_probe.json
+```
+
+The corrected ZIP SHA-256 is
+`6c261468641a4afd00fc5865c9bbd9e80d0f6593a2b66d849f135d4ca7a45fdb`.
+After starting `RPCMP Probe`, record whether the terminal reaches `RESULT:
+PASS`. If core setup still fails, record the Pocket firmware version and the
+exact on-screen error before changing the package again.
