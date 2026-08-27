@@ -1,33 +1,37 @@
 #include "rpcmp/spike/comparison_probe.hpp"
 
-#include <array>
 #include <cstdint>
+#include <cstdio>
+
+extern "C" {
+int rpcmp_pocket_slot_size(std::uint32_t slot_id, std::uint32_t* size);
+int rpcmp_pocket_slot_read(std::uint32_t slot_id, std::uint32_t offset, void* destination,
+                           std::uint32_t length);
+void rpcmp_pocket_terminal_init();
+[[noreturn]] void rpcmp_pocket_hold_result();
+}
 
 namespace {
 
-class SyntheticBlob final : public rpcmp::spike::IProbeBlobReader {
-public:
-  SyntheticBlob() {
-    for (std::uint32_t offset = 0; offset < bytes_.size(); ++offset) {
-      bytes_[offset] = rpcmp::spike::synthetic_byte(offset);
-    }
-  }
+constexpr std::uint32_t kSyntheticSlot = 4;
 
-  std::uint32_t size() const noexcept override { return bytes_.size(); }
+class DataSlotBlob final : public rpcmp::spike::IProbeBlobReader {
+public:
+  DataSlotBlob() { valid_ = rpcmp_pocket_slot_size(kSyntheticSlot, &size_) == 0; }
+
+  std::uint32_t size() const noexcept override { return size_; }
 
   bool read(const std::uint32_t offset, std::uint8_t* const destination,
             const std::uint32_t length) noexcept override {
-    if (destination == nullptr || offset > bytes_.size() || length > bytes_.size() - offset) {
+    if (!valid_ || destination == nullptr || offset > size_ || length > size_ - offset) {
       return false;
     }
-    for (std::uint32_t index = 0; index < length; ++index) {
-      destination[index] = bytes_[offset + index];
-    }
-    return true;
+    return rpcmp_pocket_slot_read(kSyntheticSlot, offset, destination, length) == 0;
   }
 
 private:
-  std::array<std::uint8_t, rpcmp::spike::kSyntheticBlobSize> bytes_{};
+  std::uint32_t size_{};
+  bool valid_{};
 };
 
 class SnapshotObserver final : public rpcmp::spike::IProbeRenderer {
@@ -42,15 +46,44 @@ private:
   std::uint64_t last_sequence_{};
 };
 
+void print_result(const rpcmp::spike::ProbeRunResult& result, const bool passed) {
+  std::printf("RPCMP openfpgaOS probe\n\n");
+  std::printf("slot4_bytes=%lu\n", static_cast<unsigned long>(result.blob_size));
+  for (std::size_t index = 0; index < result.storage_checks.size(); ++index) {
+    const auto& check = result.storage_checks[index];
+    std::printf("read%u off=%lu %s sum=%lu\n", static_cast<unsigned>(index),
+                static_cast<unsigned long>(check.offset),
+                check.read_succeeded == check.expected_success && check.content_matches ? "OK"
+                                                                                        : "FAIL",
+                static_cast<unsigned long>(check.checksum));
+  }
+  std::printf("commands=%llu digest=%llu\n", static_cast<unsigned long long>(result.command_count),
+              static_cast<unsigned long long>(result.command_digest));
+  std::printf("snapshots=%llu digest=%llu\n",
+              static_cast<unsigned long long>(result.snapshot_count),
+              static_cast<unsigned long long>(result.snapshot_digest));
+  std::printf("events=%llu digest=%llu\n", static_cast<unsigned long long>(result.event_count),
+              static_cast<unsigned long long>(result.event_digest));
+  std::printf("final_sequence=%llu\n",
+              static_cast<unsigned long long>(result.final_snapshot_sequence));
+  std::printf("\nRESULT: %s\n", passed ? "PASS" : "FAIL");
+  std::printf("Open the Pocket menu to exit.\n");
+}
+
 } // namespace
 
 int main() {
-  SyntheticBlob blob;
+  rpcmp_pocket_terminal_init();
+
+  DataSlotBlob blob;
   SnapshotObserver observer;
   const auto observed = rpcmp::spike::run_comparison_probe(blob, &observer);
   const auto headless = rpcmp::spike::run_comparison_probe(blob);
-  const bool passed = observed.passed() && headless.passed() &&
+  const bool passed = rpcmp::spike::matches_golden(observed) &&
+                      rpcmp::spike::matches_golden(headless) &&
                       rpcmp::spike::equivalent_semantics(observed, headless) &&
                       observer.last_sequence() == observed.final_snapshot_sequence;
-  return passed ? 0 : 1;
+
+  print_result(observed, passed);
+  rpcmp_pocket_hold_result();
 }

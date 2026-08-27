@@ -46,7 +46,8 @@ int main() {
   CountingRenderer renderer;
   const auto observed = rpcmp::spike::run_comparison_probe(blob, &renderer);
   const auto headless = rpcmp::spike::run_comparison_probe(blob);
-  const auto passed = observed.passed() && headless.passed() &&
+  const auto passed = rpcmp::spike::matches_golden(observed) &&
+                      rpcmp::spike::matches_golden(headless) &&
                       rpcmp::spike::equivalent_semantics(observed, headless) &&
                       renderer.count() == observed.snapshot_count;
 

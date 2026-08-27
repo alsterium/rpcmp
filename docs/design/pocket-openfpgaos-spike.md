@@ -158,9 +158,9 @@ The current Windows host uses Docker Desktop 4.88.1, Engine 29.7.2, and the WSL 
 - The unchanged RPCMP contract, Mock Core, and common probe sources compiled
   and statically linked with the pinned SDK musl at
   `a408ddc12aed0dfaa4aa22c06af82f829db77126`.
-- Result: ELF32 RISC-V, RVC, single-float ABI; text 152,367 bytes, data 136
-  bytes, BSS 2,600 bytes, total 155,103 bytes; artifact SHA-256
-  `16106536a5c3011f727d5d9396513dcf8d48a62b9cce616fd7f418985951c0bf`.
+- Result: ELF32 RISC-V, RVC, single-float ABI; text 155,915 bytes, data 304
+  bytes, BSS 3,628 bytes, total 159,847 bytes; artifact SHA-256
+  `8caec346268d5ebe8a85247209819d05f6ebca059119a17fcc8b6263030edf6b`.
 - Compatibility note: the SDK's nine-byte `libm.a` is an empty archive with a
   CRLF marker that xPack `ld` rejects. The probe references no math symbols,
   so its focused link recipe omits `-lm`; production code requiring libm must
@@ -173,7 +173,23 @@ The current Windows host uses Docker Desktop 4.88.1, Engine 29.7.2, and the WSL 
 - This closes the compile/link and desktop-shim portions of the openfpgaOS C++
   gate. The target ELF has not run on Pocket.
 
-### Package gate record — 2026-08-26
+### Target adapter gate record — 2026-08-27
+
+- The target ELF now links the pinned SDK's `of_init.c`, keeping capability
+  and service-table initialization in the SDK-defined constructor path.
+- A spike-local C adapter opens `slot:4` through the SDK-documented stdio
+  path, validates its measured size, and performs bounded offset reads. SDK
+  headers and service-table details remain outside Core and the C++ probe.
+- The adapter selects the 40x30 terminal before the probe starts. After both
+  observed and renderer-free runs finish, it prints all four storage checks,
+  golden counts and digests, final sequence, and `RESULT: PASS` or `RESULT:
+  FAIL`. It then waits on the SDK vblank service so rendering cannot affect
+  the completed trace.
+- Static ELF inspection confirms the slot, terminal, and result-hold adapter
+  symbols and their `slot:%lu`/result strings are linked. This is build
+  evidence only; the stdio slot path and visible output still require Pocket.
+
+### Package gate record — 2026-08-26, updated 2026-08-27
 
 - The generator accepts only SDK revision
   `a408ddc12aed0dfaa4aa22c06af82f829db77126` and runtime manifest source
@@ -185,9 +201,9 @@ The current Windows host uses Docker Desktop 4.88.1, Engine 29.7.2, and the WSL 
 - Every APF JSON file has the expected root and `APF_VER_1` magic where the
   definition requires it. The generated evidence JSON records each file's
   byte count and SHA-256 separately from the Pocket tree.
-- Two consecutive builds produced ZIP SHA-256
-  `8fa4580bd3c1e3d513e6e3ea46a09dfa0643a1d4f761cdf673aaa56287ca2c19`
-  (1,134,397 bytes).
+- Two consecutive builds of the target-adapter package produced ZIP SHA-256
+  `27810cfd3fecf50b1fc85f454d71c2dac054e114b3fbec3ec12b6479399d5d7b`
+  (1,138,130 bytes).
 - The ZIP is a local experiment only. This gate mechanically excludes the
   proprietary sound bank and demo media, but it does not approve
   redistribution of the prebuilt bitstream or other upstream runtime files.

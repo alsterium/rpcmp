@@ -58,8 +58,9 @@ pwsh -File tools/pocket-toolchain-verify.ps1
 
 The outputs are:
 
-- `out/build/pocket-openfpgaos/rpcmp-probe.elf`, the target compile/link
-  artifact;
+- `out/build/pocket-openfpgaos/rpcmp-probe.elf`, which reads synthetic slot 4,
+  compares both traces with the host golden record, and prints the result on
+  the Pocket terminal;
 - `out/build/pocket-openfpgaos-desktop/app_pc`, which reads synthetic slot 4
   through the SDK PC backend and must reproduce every host golden digest.
 - `out/build/pocket-openfpgaos-package`, the exact allowlisted Pocket tree;

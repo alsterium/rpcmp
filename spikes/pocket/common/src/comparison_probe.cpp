@@ -356,4 +356,13 @@ bool equivalent_semantics(const ProbeRunResult& left, const ProbeRunResult& righ
   return true;
 }
 
+bool matches_golden(const ProbeRunResult& result) noexcept {
+  return result.passed() && result.command_count == kGoldenCommandCount &&
+         result.command_digest == kGoldenCommandDigest &&
+         result.snapshot_count == kGoldenSnapshotCount &&
+         result.snapshot_digest == kGoldenSnapshotDigest &&
+         result.event_count == kGoldenEventCount && result.event_digest == kGoldenEventDigest &&
+         result.final_snapshot_sequence == kGoldenFinalSnapshotSequence;
+}
+
 } // namespace rpcmp::spike

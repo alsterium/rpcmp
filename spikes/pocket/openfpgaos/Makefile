@@ -19,7 +19,8 @@ LIBGCC := $(shell $(CXX) $(ARCH) -print-libgcc-file-name)
 INCLUDES := \
   -I$(ROOT)/core/contracts/include \
   -I$(ROOT)/core/runtime/include \
-  -I$(ROOT)/spikes/pocket/common/include
+  -I$(ROOT)/spikes/pocket/common/include \
+  -I$(SDK_DIR)/include
 SYSTEM_INCLUDES := \
   -nostdinc \
   $(CXX_SYSTEM_INCLUDES) \
@@ -36,7 +37,7 @@ COMMON_FLAGS := \
   -fdata-sections \
   -fno-tree-loop-distribute-patterns
 CXXFLAGS := $(COMMON_FLAGS) -std=c++17 -fno-exceptions -fno-rtti $(INCLUDES) $(SYSTEM_INCLUDES)
-CFLAGS := $(COMMON_FLAGS) -std=c11 -I$(SDK_DIR)/musl/include
+CFLAGS := $(COMMON_FLAGS) -std=c11 -I$(SDK_DIR)/musl/include -I$(SDK_DIR)/include
 LDFLAGS := \
   $(ARCH) \
   -nostdlib \
@@ -60,10 +61,13 @@ CXX_SOURCES := \
   $(ROOT)/core/runtime/src/mock_core.cpp \
   $(ROOT)/spikes/pocket/common/src/comparison_probe.cpp \
   $(ROOT)/spikes/pocket/openfpgaos/main.cpp
-C_SOURCES := $(ROOT)/spikes/pocket/openfpgaos/newlib_musl_compat.c
+C_SOURCES := \
+  $(ROOT)/spikes/pocket/openfpgaos/newlib_musl_compat.c \
+  $(ROOT)/spikes/pocket/openfpgaos/pocket_sdk_adapter.c
 CXX_OBJECTS := $(patsubst $(ROOT)/%.cpp,$(OUT_DIR)/%.o,$(CXX_SOURCES))
 C_OBJECTS := $(patsubst $(ROOT)/%.c,$(OUT_DIR)/%.o,$(C_SOURCES))
-OBJECTS := $(CXX_OBJECTS) $(C_OBJECTS)
+SDK_INIT_OBJECT := $(OUT_DIR)/sdk/of_init.o
+OBJECTS := $(CXX_OBJECTS) $(C_OBJECTS) $(SDK_INIT_OBJECT)
 ELF := $(OUT_DIR)/rpcmp-probe.elf
 
 .DEFAULT_GOAL := verify
@@ -73,6 +77,10 @@ $(OUT_DIR)/%.o: $(ROOT)/%.cpp
 	$(CXX) $(CXXFLAGS) -c -o $@ $<
 
 $(OUT_DIR)/%.o: $(ROOT)/%.c
+	@mkdir -p $(dir $@)
+	$(CC) $(CFLAGS) -c -o $@ $<
+
+$(SDK_INIT_OBJECT): $(SDK_DIR)/of_init.c
 	@mkdir -p $(dir $@)
 	$(CC) $(CFLAGS) -c -o $@ $<
 

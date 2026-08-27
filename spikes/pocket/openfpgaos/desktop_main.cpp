@@ -12,10 +12,6 @@ long of_file_size(std::uint32_t slot_id);
 namespace {
 
 constexpr std::uint32_t kSyntheticSlot = 4;
-constexpr std::uint64_t kGoldenCommandDigest = 2'446'879'228'733'133'299ULL;
-constexpr std::uint64_t kGoldenSnapshotDigest = 6'832'192'089'657'554'689ULL;
-constexpr std::uint64_t kGoldenEventDigest = 16'311'210'033'269'188'847ULL;
-
 bool write_synthetic_slot() {
   const char* const data_directory = std::getenv("OF_DATA_DIR");
   if (data_directory == nullptr) {
@@ -79,13 +75,6 @@ private:
   std::uint64_t last_sequence_{};
 };
 
-bool matches_golden(const rpcmp::spike::ProbeRunResult& result) noexcept {
-  return result.passed() && result.command_count == 9 &&
-         result.command_digest == kGoldenCommandDigest && result.snapshot_count == 151 &&
-         result.snapshot_digest == kGoldenSnapshotDigest && result.event_count == 154 &&
-         result.event_digest == kGoldenEventDigest && result.final_snapshot_sequence == 151;
-}
-
 } // namespace
 
 int main() {
@@ -98,7 +87,8 @@ int main() {
   SnapshotObserver observer;
   const auto observed = rpcmp::spike::run_comparison_probe(blob, &observer);
   const auto headless = rpcmp::spike::run_comparison_probe(blob);
-  const bool passed = matches_golden(observed) && matches_golden(headless) &&
+  const bool passed = rpcmp::spike::matches_golden(observed) &&
+                      rpcmp::spike::matches_golden(headless) &&
                       rpcmp::spike::equivalent_semantics(observed, headless) &&
                       observer.last_sequence() == observed.final_snapshot_sequence;
 

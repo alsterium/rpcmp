@@ -12,6 +12,13 @@ inline constexpr std::uint32_t kSyntheticBlobSize = 4'096;
 inline constexpr std::uint32_t kSyntheticReadSize = 16;
 inline constexpr std::size_t kStorageCheckCount = 4;
 inline constexpr std::uint64_t kProbeMinimumSnapshots = 120;
+inline constexpr std::uint64_t kGoldenCommandCount = 9;
+inline constexpr std::uint64_t kGoldenCommandDigest = 2'446'879'228'733'133'299ULL;
+inline constexpr std::uint64_t kGoldenSnapshotCount = 151;
+inline constexpr std::uint64_t kGoldenSnapshotDigest = 6'832'192'089'657'554'689ULL;
+inline constexpr std::uint64_t kGoldenEventCount = 154;
+inline constexpr std::uint64_t kGoldenEventDigest = 16'311'210'033'269'188'847ULL;
+inline constexpr std::uint64_t kGoldenFinalSnapshotSequence = 151;
 
 constexpr std::uint8_t synthetic_byte(const std::uint32_t offset) noexcept {
   return static_cast<std::uint8_t>((offset * 37U + 11U) & 0xFFU);
@@ -66,6 +73,7 @@ struct ProbeRunResult {
 ProbeRunResult run_comparison_probe(IProbeBlobReader& blob_reader,
                                     IProbeRenderer* renderer = nullptr);
 bool equivalent_semantics(const ProbeRunResult& left, const ProbeRunResult& right) noexcept;
+bool matches_golden(const ProbeRunResult& result) noexcept;
 
 } // namespace rpcmp::spike
 
