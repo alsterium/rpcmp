@@ -320,10 +320,18 @@ The current Windows host uses Docker Desktop 4.88.1, Engine 29.7.2, and the WSL 
   `4a99a5f43f5f156879d033c6bb855f3b21b88da61ec7275fbc34cfc6c0e1d15c`
   (1,144,018 bytes). The APF JSON, boot/reset/heartbeat implementation,
   synthetic asset, video, audio, bitstream, and package paths are unchanged.
-- `0.3.0-spike` has not yet been exercised on Pocket. Its `QUEUE: PASS`,
-  `OVERALL: PASS`, and displayed `T` minimum/average/maximum remain required
-  hardware evidence. The `0.2.0-spike` observations above remain historical
-  evidence for that exact earlier package.
+- The user exercised `0.3.0-spike` on Pocket and observed `QUEUE: PASS`,
+  `INPUT: PASS`, and `OVERALL: PASS`. The logical read row was minimum 1,214
+  us, integer average 1,253 us, and maximum 1,300 us. The asynchronous Target
+  dataslot-read row was minimum 354 us, integer average 695 us, and maximum
+  4,665 us. The most recently reported firmware for this Pocket remains 2.6.
+- This closes on-device execution of the bounded software queue and the first
+  32-sample Target-read timing observation. The Target minimum is below the
+  logical-read range, but its 4,665 us maximum shows a substantial tail event.
+  Minimum/average/maximum alone cannot identify its frequency, percentile, or
+  cause, so these values are not yet a scheduling bound or throughput claim.
+  The `0.2.0-spike` observations above remain historical evidence for that
+  exact earlier package.
 
 ## 7. Acceptance record
 

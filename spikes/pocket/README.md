@@ -77,8 +77,11 @@ logical reads measured minimum 1,215 us, integer average 1,254 us, and maximum
 approved for RPCMP redistribution.
 
 The `0.3.0-spike` package adds a fixed-capacity fake device-write queue and a
-zero-copy asynchronous Target dataslot-read measurement. It is locally verified
-but still requires an on-device run.
+zero-copy asynchronous Target dataslot-read measurement. It reached `QUEUE:
+PASS`, `INPUT: PASS`, and `OVERALL: PASS` on Pocket. The logical read row was
+`1214/1253/1300` us and the Target row was `354/695/4665` us for
+minimum/integer-average/maximum. The Target maximum is a tail observation, not
+an approved scheduling bound.
 
 ## Pocket installation and retest
 
