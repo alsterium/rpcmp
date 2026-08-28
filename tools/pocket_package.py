@@ -24,6 +24,11 @@ BOOT_ISOLATION_RBF = Path(
     "bld/rpcmp90/output_files/ap_core.rbf"
 )
 BOOT_ISOLATION_RBF_SHA256 = "f131a5677389e1557de863838c1289e20b8456b57da5a93722d8e69977697d91"
+CLOCK_ISOLATION_RBF = Path(
+    "out/research/openfpgaCore-618a3eb-lf/src/fpga/targets/pocket/"
+    "bld/rpcmp90fc/output_files/ap_core.rbf"
+)
+CLOCK_ISOLATION_RBF_SHA256 = "d8fcc136e09d21c62505330570f9d1d16011024799625aabfa94ac20a2d016f5"
 CORE_ID = "RPCMP.openfpgaOSProbe"
 CORE_SHORTNAME = "openfpgaOSProbe"
 PLATFORM_ID = "rpcmp_probe"
@@ -78,7 +83,7 @@ def definitions() -> dict[str, object]:
                 "description": "RPCMP M0 openfpgaOS runtime workload probe",
                 "author": "RPCMP",
                 "url": "",
-                "version": "0.5.2-spike",
+                "version": "0.5.3-spike",
                 "date_release": "2026-08-29",
             },
             "framework": {
@@ -218,6 +223,7 @@ def build(
     archive: Path,
     integrated_rbf: bool = False,
     boot_isolation_rbf: bool = False,
+    clock_isolation_rbf: bool = False,
 ) -> None:
     revision = subprocess.run(
         ["git", "-C", str(sdk), "rev-parse", "HEAD"],
@@ -259,6 +265,18 @@ def build(
             )
         bitstream_data = reverse_rbf_bits(native_bitstream.read_bytes())
         bitstream_profile = "rpcmp 16KiB/32KiB + boot ROM at 90MHz; no JT51/MMIO overlay"
+    elif clock_isolation_rbf:
+        native_bitstream = (repo / CLOCK_ISOLATION_RBF).resolve()
+        if not native_bitstream.is_file():
+            raise ValueError(f"clock-isolation native RBF does not exist: {native_bitstream}")
+        native_bitstream_sha256 = sha256(native_bitstream)
+        if native_bitstream_sha256 != CLOCK_ISOLATION_RBF_SHA256:
+            raise ValueError(
+                "clock-isolation native RBF checksum mismatch: "
+                f"expected {CLOCK_ISOLATION_RBF_SHA256}, got {native_bitstream_sha256}"
+            )
+        bitstream_data = reverse_rbf_bits(native_bitstream.read_bytes())
+        bitstream_profile = "rpcmp stock 32KiB/128KiB caches + boot ROM at 90MHz; no JT51/MMIO overlay"
     if not elf.is_file():
         raise ValueError(f"probe ELF does not exist: {elf}")
 
@@ -356,6 +374,11 @@ def main() -> int:
         action="store_true",
         help="package the checksum-pinned 90 MHz reduced-cache fit without JT51",
     )
+    profiles.add_argument(
+        "--clock-isolation-rbf",
+        action="store_true",
+        help="package the checksum-pinned 90 MHz stock-cache fit without JT51",
+    )
     args = parser.parse_args()
     build(
         args.repo.resolve(),
@@ -365,6 +388,7 @@ def main() -> int:
         args.archive,
         args.integrated_rbf,
         args.boot_isolation_rbf,
+        args.clock_isolation_rbf,
     )
     return 0
 

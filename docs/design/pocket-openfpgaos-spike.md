@@ -640,6 +640,29 @@ The reversed RBF has SHA-256
 The resulting 1,025,226-byte local-only ZIP has SHA-256
 `381123F797A07A7BC9327146BBE596C37CD6695D0BD31C9B156840414B82E584`.
 
+Pocket firmware 2.6 produced the same `Loading...` then black-screen result
+with this no-JT51/no-MMIO package. The integrated endpoint and sound RTL are
+therefore excluded as the cause. Because the bootloader runs from BRAM and
+the first OS instructions execute from SDRAM, the remaining leading boundary
+is the 90 MHz clock/SDRAM path or the reduced instruction/data-cache netlist.
+
+The `0.5.3-spike` diagnostic keeps the 90 MHz clock and feature-stripped base
+SoC but restores the stock os25 32 KiB instruction cache and 128 KiB data
+cache. It contains no JT51 or RPCMP MMIO overlay. The standard-cache CPU
+netlist is byte-identical to the pinned os25 netlist, with SHA-256
+`29B628B540953F35574F6A67CF0A622A62EDBCBE615BDCF820EB9CAF1E24BFB8`.
+A clean Quartus Prime Lite 25.1std.0 full compile completed with zero errors,
+12,575 ALMs (68%), 18,711 registers, 2,164,953 block-memory bits, 273 M10Ks
+(89%), 12 DSP blocks, and two PLLs. All reported setup and hold totals are
+non-negative; worst setup slack is 0.597 ns and worst hold slack is 0.095 ns.
+The inherited APF external-I/O constraint gap remains. Both `firmware.mif`
+and `apf/build_id.mif` were found and used. The 1,983,580-byte native RBF has
+SHA-256 `D8FCC136E09D21C62505330570F9D1D16011024799625AABFA94AC20A2D016F5`.
+The reversed RBF has SHA-256
+`F90FC325518AAD02999157FD39B7E15E46B68240C6841F9F8EE132D94D609027`.
+The resulting 1,050,908-byte local-only ZIP has SHA-256
+`BB09D649F7E5AEB314C92C6CDF8E4D8075AF081EC02723038EEEA80C6CE9D893`.
+
 ## 7. Acceptance record
 
 Each candidate must produce one reviewable record containing:
