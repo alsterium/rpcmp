@@ -690,6 +690,21 @@ The reversed RBF has SHA-256
 The resulting 1,051,447-byte local-only ZIP has SHA-256
 `00337451821454B66BC76687964975E50D4233A36C153E010B8113A4F88DDFA9`.
 
+Pocket firmware 2.6 produced the same `Loading...` then black-screen result
+with this custom-fit 100 MHz package. This excludes the 90 MHz clock path as
+the sole cause, but does not distinguish the custom feature-pruned fit from
+its setup violation. The next `0.5.5-spike` control therefore returns only the
+bitstream to the SDK-manifest `os25.rbf_r`, which previously completed this
+same workload on Pocket. It keeps the current loader, OS, ELF, synthetic data,
+APF definitions, and SD paths. A successful control run will locate the
+regression in the custom FPGA builds; a failed control run will instead show
+that the currently packaged software or installation state has changed since
+the earlier known-good run. The manifest-verified stock `os25.rbf_r` is
+2,135,596 bytes with SHA-256
+`584885133D6CF45BA35480CE8E8766150F67CA47F9019C6F771B12E89CCA12C1`.
+The resulting 1,147,833-byte local-only ZIP has SHA-256
+`98DB7FE24E36139E24EB39FE9E15E1D2AA61B2E77C0111AF411797D728334060`.
+
 ## 7. Acceptance record
 
 Each candidate must produce one reviewable record containing:

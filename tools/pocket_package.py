@@ -88,7 +88,7 @@ def definitions() -> dict[str, object]:
                 "description": "RPCMP M0 openfpgaOS runtime workload probe",
                 "author": "RPCMP",
                 "url": "",
-                "version": "0.5.4-spike",
+                "version": "0.5.5-spike",
                 "date_release": "2026-08-29",
             },
             "framework": {
