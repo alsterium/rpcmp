@@ -591,6 +591,34 @@ check, workload timings, and physical-input PASS remain unmeasured. The
 smaller-cache application-performance gate therefore remains open until those
 on-device results are recorded.
 
+### Boot-ROM packaging correction — 2026-08-29
+
+Pocket firmware 2.6 did not reach the openfpgaOS boot screen with the
+`0.5.0-spike` package. Inspection of the preserved Quartus report found Critical
+Warning 127003 for both `firmware.mif` and `apf/build_id.mif`; the 8,192-word
+boot BRAM and APF build-ID RAM had therefore been synthesized with zero initial
+contents. Bit reversal was independently reproduced with upstream
+`reverse_bits.c`, so RBF conversion was not the failure.
+
+The pinned openfpgaOS firmware sources were rebuilt for `rv32imafc/ilp32f` in
+the firmware container. The resulting 65,962-byte `firmware.mif` has SHA-256
+`0B33FC685721744F03D886986BFEEC875392FA534EF5A8EF62739CDE1BD46B37`.
+A deterministic 1,024-word build-ID MIF was also supplied. A clean Quartus
+compile, rather than a post-fit MIF update against the zero-initialized database,
+was required to change the RBF.
+
+The repaired JT51-integrated fit completed with zero errors, no MIF-not-found
+warning, 13,774 ALMs (75%), and worst setup slack 0.327 ns at 90 MHz. Its native
+RBF is 1,770,016 bytes with SHA-256
+`F532DFE96F8563A14A0860FCC83A89B67CD03527D82C5A1A71C22A73091CC190`.
+The package builder now rejects the earlier zero-boot-ROM RBF by pinning this
+replacement checksum. On-device boot and workload results for the replacement
+remain required. The resulting local-only `0.5.1-spike` package contains a
+1,770,016-byte reversed bitstream with SHA-256
+`D75CAE4D8F95908C0891D6E758BD91B95F5DF6FF5D84FD94545AA6D975AE86D4`.
+The 1,055,907-byte ZIP has SHA-256
+`FA74096C5A5C01B829E0093DC19FE5C3C5A5EF14334C4C6F680DA26A49B6CC69`.
+
 ## 7. Acceptance record
 
 Each candidate must produce one reviewable record containing:

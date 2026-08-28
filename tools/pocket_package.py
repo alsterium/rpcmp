@@ -18,7 +18,7 @@ INTEGRATED_RBF = Path(
     "out/research/openfpgaCore-618a3eb-lf/src/fpga/targets/pocket/"
     "bld/rpcmpjt/output_files/ap_core.rbf"
 )
-INTEGRATED_RBF_SHA256 = "161750411a11cd7c9b77ee745847190a85fcd2e0b212c02555c9f6d53a861c6c"
+INTEGRATED_RBF_SHA256 = "f532dfe96f8563a14a0860fcc83a89b67cd03527d82c5a1a71c22a73091cc190"
 CORE_ID = "RPCMP.openfpgaOSProbe"
 CORE_SHORTNAME = "openfpgaOSProbe"
 PLATFORM_ID = "rpcmp_probe"
@@ -73,7 +73,7 @@ def definitions() -> dict[str, object]:
                 "description": "RPCMP M0 openfpgaOS runtime workload probe",
                 "author": "RPCMP",
                 "url": "",
-                "version": "0.5.0-spike",
+                "version": "0.5.1-spike",
                 "date_release": "2026-08-29",
             },
             "framework": {
@@ -240,7 +240,7 @@ def build(
                 f"expected {INTEGRATED_RBF_SHA256}, got {native_bitstream_sha256}"
             )
         bitstream_data = reverse_rbf_bits(native_bitstream.read_bytes())
-        bitstream_profile = "rpcmp 16KiB/32KiB + queue + JT51 at 90MHz"
+        bitstream_profile = "rpcmp 16KiB/32KiB + queue + JT51 + boot ROM at 90MHz"
     if not elf.is_file():
         raise ValueError(f"probe ELF does not exist: {elf}")
 
