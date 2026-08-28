@@ -333,6 +333,38 @@ The current Windows host uses Docker Desktop 4.88.1, Engine 29.7.2, and the WSL 
   The `0.2.0-spike` observations above remain historical evidence for that
   exact earlier package.
 
+### Target-read tail distribution package — 2026-08-28
+
+- Package version `0.4.0-spike` preserves the automatic semantic, logical-read,
+  bounded-queue, and physical-input gates. It replaces the 32-sample Target
+  min/average/max display with four distribution profiles: 256 fixed-offset
+  16-byte reads (`F16`), 256 rotating-offset 16-byte reads (`R16`), 64
+  fixed-offset 256-byte reads (`F256`), and 64 fixed-offset 4,096-byte reads
+  (`F4096`). The rotating offset remains `(iteration * 127) mod valid_range`.
+- Each profile validates every returned synthetic byte and reports integer
+  average, nearest-rank p50, p90, p95, p99, maximum, and counts at or above
+  1,000 us and 2,000 us. The fixed sample arrays are bounded at 256 entries;
+  invalid zero, oversized, or out-of-range profiles fail before issuing reads.
+  No percentile or latency value is itself used as a pass threshold.
+- The measurement boundary remains immediately before an accepted
+  `of_file_read_async` call through completion-callback observation. It includes
+  syscall/command issue, APF host service, payload transfer, completion IRQ, and
+  callback observation, while excluding stdio, bounce copying, and bounded
+  inter-command ready retries. Comparing `F16` with `R16` tests offset effects;
+  comparing `F16`, `F256`, and `F4096` tests transfer-size effects.
+- Host tests cover nearest-rank percentile selection, averages, threshold
+  counts, invalid sample counts, content validation, and all prior gates. The
+  fixed Docker build produced ELF SHA-256
+  `e9a3bd68bb6d03761bdf26b01bc09412304c5fdcb6a20e773318ef857b9a709d`
+  (238,116 bytes; loadable sections total 168,267 bytes).
+- Two complete fixed-Docker builds produced ZIP SHA-256
+  `7ea69a01f9ade454102c5795809419010859b5eef6ef4be02ca1ada702739d1f`
+  (1,145,764 bytes). The APF JSON, boot/reset/heartbeat implementation,
+  synthetic asset, video, audio, bitstream, and package paths are unchanged.
+- Pocket execution is pending. Until all four profile rows and the final input
+  result are recorded on firmware 2.6, this package supplies build evidence
+  only and does not close the Target-tail investigation.
+
 ## 7. Acceptance record
 
 Each candidate must produce one reviewable record containing:

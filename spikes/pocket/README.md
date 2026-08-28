@@ -83,6 +83,14 @@ PASS`, `INPUT: PASS`, and `OVERALL: PASS` on Pocket. The logical read row was
 minimum/integer-average/maximum. The Target maximum is a tail observation, not
 an approved scheduling bound.
 
+The unvalidated `0.4.0-spike` package investigates that tail with four Target
+profiles. `F16` and `R16` perform 256 reads of 16 bytes at a fixed and rotating
+offset respectively; `F256` and `F4096` perform 64 fixed-offset reads of 256
+and 4,096 bytes. Each profile reports integer average, nearest-rank p50, p90,
+p95, p99, maximum, and the counts at or above 1 ms and 2 ms. This separates
+offset effects from transfer-size effects; it is still a feasibility probe,
+not a production scheduling benchmark.
+
 ## Pocket installation and retest
 
 Use Pocket firmware 2.2 or later. Replace the earlier experiment by removing
@@ -95,8 +103,8 @@ these exact paths from the SD card, then extract
 /Platforms/rpcmp_probe.json
 ```
 
-The Target/queue `0.3.0-spike` ZIP SHA-256 is
-`4a99a5f43f5f156879d033c6bb855f3b21b88da61ec7275fbc34cfc6c0e1d15c`.
+The Target-tail `0.4.0-spike` ZIP SHA-256 is
+`7ea69a01f9ade454102c5795809419010859b5eef6ef4be02ca1ada702739d1f`.
 Developer Builds displays this package under its metadata shortname
 `openfpgaOSProbe`. Run it and follow the prompts in this order:
 
@@ -106,20 +114,29 @@ Developer Builds displays this package under its metadata shortname
 4. Press START for Stop; confirm `INPUT: 4/4`, `INPUT: PASS`, and
    `OVERALL: PASS`.
 
-Before the input prompts, confirm `QUEUE: PASS`. Also record both displayed
-minimum/average/maximum rows:
+Before the input prompts, confirm `AUTO/QUEUE: PASS`. Record all eight profile
+rows exactly as displayed:
 
 ```text
-L .../.../...
-T .../.../...
+F16 a/50/90=.../.../...
+95/99/M/1k/2k=.../.../.../.../...
+R16 a/50/90=.../.../...
+95/99/M/1k/2k=.../.../.../.../...
+F256 a/50/90=.../.../...
+95/99/M/1k/2k=.../.../.../.../...
+F4096 a/50/90=.../.../...
+95/99/M/1k/2k=.../.../.../.../...
 ```
 
-`L` is the end-to-end logical slot-read path including SDK file open, seek,
-read, and close. `T` is the accepted zero-copy asynchronous Target dataslot
-read from issue through completion callback; it includes the 16-byte transfer
-but excludes stdio and inter-command ready waiting. If a run fails, record the
-Pocket firmware version and exact on-screen state before changing the package.
-The previously validated `0.2.0-spike` ZIP remains identified by SHA-256
+`a/50/90` means integer average, p50, and p90 in microseconds.
+`95/99/M/1k/2k` means p95, p99, maximum in microseconds, then counts at or above
+1 ms and 2 ms. All profiles time an accepted zero-copy asynchronous Target
+dataslot read from issue through completion callback; they exclude stdio and
+inter-command ready waiting. If a run fails, record the Pocket firmware version
+and exact on-screen state before changing the package. The previously validated
+`0.3.0-spike` ZIP remains identified by SHA-256
+`4a99a5f43f5f156879d033c6bb855f3b21b88da61ec7275fbc34cfc6c0e1d15c`;
+the validated `0.2.0-spike` ZIP is
 `ccd6d4ef253861e82d49df2c3bfdd84e04405b073a6d5c4c6c1cf8a57132aa82`;
 the validated `0.1.0-spike` ZIP is
 `6c261468641a4afd00fc5865c9bbd9e80d0f6593a2b66d849f135d4ca7a45fdb`.

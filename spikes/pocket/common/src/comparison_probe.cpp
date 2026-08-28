@@ -273,6 +273,18 @@ bool ReadLatencyStats::passed() const noexcept {
          content_matches && minimum_us <= maximum_us;
 }
 
+std::uint32_t TargetReadProfile::average_us() const noexcept {
+  return iterations == 0U ? 0U : static_cast<std::uint32_t>(total_us / iterations);
+}
+
+bool TargetReadProfile::passed() const noexcept {
+  return iterations > 0U && iterations <= kTargetProfileMaxSamples && length > 0U &&
+         length <= kSyntheticBlobSize && successful_reads == iterations && content_matches &&
+         minimum_us <= percentile_50_us && percentile_50_us <= percentile_90_us &&
+         percentile_90_us <= percentile_95_us && percentile_95_us <= percentile_99_us &&
+         percentile_99_us <= maximum_us && at_or_above_2ms <= at_or_above_1ms;
+}
+
 bool BoundedDeviceQueue::push(const ProbeDeviceWrite& write) noexcept {
   if (size_ == writes_.size()) {
     ++overflow_rejections_;
@@ -494,24 +506,39 @@ ReadLatencyStats measure_read_latency(IProbeBlobReader& blob_reader,
   return result;
 }
 
-ReadLatencyStats measure_target_read_latency(IProbeTimedBlobReader& blob_reader) noexcept {
-  ReadLatencyStats result;
-  result.iterations = kLatencyReadIterations;
+TargetReadProfile measure_target_read_profile(IProbeTimedBlobReader& blob_reader,
+                                              const std::uint32_t iterations,
+                                              const std::uint32_t length,
+                                              const ReadOffsetPattern pattern) noexcept {
+  TargetReadProfile result;
+  result.iterations = iterations;
+  result.length = length;
+  result.pattern = pattern;
+  if (iterations == 0U || iterations > kTargetProfileMaxSamples || length == 0U ||
+      length > kSyntheticBlobSize) {
+    return result;
+  }
+
   result.minimum_us = std::numeric_limits<std::uint32_t>::max();
   result.content_matches = true;
-  constexpr auto kOffsetRange = kSyntheticBlobSize - kLatencyReadSize + 1U;
+  const auto offset_range = kSyntheticBlobSize - length + 1U;
+  std::array<std::uint32_t, kTargetProfileMaxSamples> samples{};
+  std::array<std::uint8_t, kSyntheticBlobSize> bytes{};
 
   for (std::uint32_t iteration = 0; iteration < result.iterations; ++iteration) {
-    const auto offset = (iteration * 127U) % kOffsetRange;
-    std::array<std::uint8_t, kLatencyReadSize> bytes{};
+    const auto offset =
+        pattern == ReadOffsetPattern::Fixed ? 0U : (iteration * 127U) % offset_range;
     std::uint32_t elapsed_us{};
-    const auto read = blob_reader.read_timed(offset, bytes.data(), kLatencyReadSize, elapsed_us);
+    const auto read = blob_reader.read_timed(offset, bytes.data(), length, elapsed_us);
+    samples[iteration] = elapsed_us;
     result.total_us += elapsed_us;
     result.minimum_us = std::min(result.minimum_us, elapsed_us);
     result.maximum_us = std::max(result.maximum_us, elapsed_us);
+    result.at_or_above_1ms += elapsed_us >= 1'000U ? 1U : 0U;
+    result.at_or_above_2ms += elapsed_us >= 2'000U ? 1U : 0U;
     if (read) {
       ++result.successful_reads;
-      for (std::uint32_t index = 0; index < kLatencyReadSize; ++index) {
+      for (std::uint32_t index = 0; index < length; ++index) {
         result.content_matches =
             result.content_matches && bytes[index] == synthetic_byte(offset + index);
       }
@@ -519,6 +546,16 @@ ReadLatencyStats measure_target_read_latency(IProbeTimedBlobReader& blob_reader)
       result.content_matches = false;
     }
   }
+
+  std::sort(samples.begin(), samples.begin() + iterations);
+  const auto percentile = [&samples, iterations](const std::uint32_t percent) {
+    const auto rank = (percent * iterations + 99U) / 100U;
+    return samples[rank - 1U];
+  };
+  result.percentile_50_us = percentile(50U);
+  result.percentile_90_us = percentile(90U);
+  result.percentile_95_us = percentile(95U);
+  result.percentile_99_us = percentile(99U);
   return result;
 }
 

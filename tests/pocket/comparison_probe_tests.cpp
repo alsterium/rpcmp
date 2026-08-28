@@ -98,7 +98,7 @@ public:
     for (std::uint32_t index = 0; index < length; ++index) {
       destination[index] = rpcmp::spike::synthetic_byte(offset + index);
     }
-    elapsed_us = 50U + calls_++;
+    elapsed_us = 20U * ++calls_;
     return true;
   }
 
@@ -166,12 +166,24 @@ int main() {
   RPCMP_CHECK(suite, latency.average_us() == 25U);
 
   TargetTimedBlobReader target_blob;
-  const auto target_latency = rpcmp::spike::measure_target_read_latency(target_blob);
-  RPCMP_CHECK(suite, target_latency.passed());
-  RPCMP_CHECK(suite, target_latency.minimum_us == 50U);
-  RPCMP_CHECK(suite, target_latency.maximum_us == 81U);
-  RPCMP_CHECK(suite, target_latency.total_us == 2'096U);
-  RPCMP_CHECK(suite, target_latency.average_us() == 65U);
+  const auto target_profile = rpcmp::spike::measure_target_read_profile(
+      target_blob, rpcmp::spike::kTargetProfileFullSamples, rpcmp::spike::kLatencyReadSize,
+      rpcmp::spike::ReadOffsetPattern::Rotating);
+  RPCMP_CHECK(suite, target_profile.passed());
+  RPCMP_CHECK(suite, target_profile.minimum_us == 20U);
+  RPCMP_CHECK(suite, target_profile.percentile_50_us == 2'560U);
+  RPCMP_CHECK(suite, target_profile.percentile_90_us == 4'620U);
+  RPCMP_CHECK(suite, target_profile.percentile_95_us == 4'880U);
+  RPCMP_CHECK(suite, target_profile.percentile_99_us == 5'080U);
+  RPCMP_CHECK(suite, target_profile.maximum_us == 5'120U);
+  RPCMP_CHECK(suite, target_profile.total_us == 657'920U);
+  RPCMP_CHECK(suite, target_profile.average_us() == 2'570U);
+  RPCMP_CHECK(suite, target_profile.at_or_above_1ms == 207U);
+  RPCMP_CHECK(suite, target_profile.at_or_above_2ms == 157U);
+  const auto invalid_target_profile = rpcmp::spike::measure_target_read_profile(
+      target_blob, rpcmp::spike::kTargetProfileMaxSamples + 1U, rpcmp::spike::kLatencyReadSize,
+      rpcmp::spike::ReadOffsetPattern::Fixed);
+  RPCMP_CHECK(suite, !invalid_target_profile.passed());
 
   DeviceObserver device_observer;
   const auto observed_queue = rpcmp::spike::run_device_queue_probe(&device_observer);

@@ -65,10 +65,10 @@ def definitions() -> dict[str, object]:
             "metadata": {
                 "platform_ids": [PLATFORM_ID],
                 "shortname": CORE_SHORTNAME,
-                "description": "RPCMP M0 openfpgaOS Target and queue probe",
+                "description": "RPCMP M0 openfpgaOS Target tail probe",
                 "author": "RPCMP",
                 "url": "",
-                "version": "0.3.0-spike",
+                "version": "0.4.0-spike",
                 "date_release": "2026-08-28",
             },
             "framework": {

@@ -22,6 +22,9 @@ inline constexpr std::uint64_t kGoldenFinalSnapshotSequence = 151;
 inline constexpr std::uint32_t kLatencyReadIterations = 32;
 inline constexpr std::uint32_t kLatencyReadSize = 16;
 inline constexpr std::size_t kDeviceQueueCapacity = 8;
+inline constexpr std::uint32_t kTargetProfileMaxSamples = 256;
+inline constexpr std::uint32_t kTargetProfileFullSamples = 256;
+inline constexpr std::uint32_t kTargetProfileScaleSamples = 64;
 
 constexpr std::uint8_t synthetic_byte(const std::uint32_t offset) noexcept {
   return static_cast<std::uint8_t>((offset * 37U + 11U) & 0xFFU);
@@ -60,6 +63,28 @@ struct ReadLatencyStats {
   std::uint32_t minimum_us{};
   std::uint32_t maximum_us{};
   std::uint64_t total_us{};
+  bool content_matches{};
+
+  std::uint32_t average_us() const noexcept;
+  bool passed() const noexcept;
+};
+
+enum class ReadOffsetPattern : std::uint8_t { Fixed, Rotating };
+
+struct TargetReadProfile {
+  std::uint32_t iterations{};
+  std::uint32_t length{};
+  ReadOffsetPattern pattern{ReadOffsetPattern::Fixed};
+  std::uint32_t successful_reads{};
+  std::uint32_t minimum_us{};
+  std::uint32_t percentile_50_us{};
+  std::uint32_t percentile_90_us{};
+  std::uint32_t percentile_95_us{};
+  std::uint32_t percentile_99_us{};
+  std::uint32_t maximum_us{};
+  std::uint64_t total_us{};
+  std::uint32_t at_or_above_1ms{};
+  std::uint32_t at_or_above_2ms{};
   bool content_matches{};
 
   std::uint32_t average_us() const noexcept;
@@ -180,7 +205,9 @@ ProbeRunResult run_comparison_probe(IProbeBlobReader& blob_reader,
                                     IProbeRenderer* renderer = nullptr);
 ReadLatencyStats measure_read_latency(IProbeBlobReader& blob_reader,
                                       IProbeMonotonicClock& clock) noexcept;
-ReadLatencyStats measure_target_read_latency(IProbeTimedBlobReader& blob_reader) noexcept;
+TargetReadProfile measure_target_read_profile(IProbeTimedBlobReader& blob_reader,
+                                              std::uint32_t iterations, std::uint32_t length,
+                                              ReadOffsetPattern pattern) noexcept;
 DeviceQueueProbeResult run_device_queue_probe(IProbeDeviceObserver* observer = nullptr) noexcept;
 bool equivalent_device_queue_semantics(const DeviceQueueProbeResult& left,
                                        const DeviceQueueProbeResult& right) noexcept;

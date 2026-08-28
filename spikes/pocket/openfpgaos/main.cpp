@@ -51,7 +51,7 @@ public:
 class TargetDataSlotBlob final : public rpcmp::spike::IProbeTimedBlobReader {
 public:
   TargetDataSlotBlob() {
-    valid_ = rpcmp_pocket_target_read_prepare(rpcmp::spike::kLatencyReadSize) == 0;
+    valid_ = rpcmp_pocket_target_read_prepare(rpcmp::spike::kSyntheticBlobSize) == 0;
   }
 
   bool read_timed(const std::uint32_t offset, std::uint8_t* const destination,
@@ -134,21 +134,31 @@ const char* action_prompt(const rpcmp::spike::ProbeAction action) noexcept {
   return "";
 }
 
-void print_interactive(const rpcmp::spike::ReadLatencyStats& logical_latency,
-                       const rpcmp::spike::ReadLatencyStats& target_latency,
+void print_profile(const char* const label, const rpcmp::spike::TargetReadProfile& profile) {
+  std::printf("%s a/50/90=%lu/%lu/%lu\n", label, static_cast<unsigned long>(profile.average_us()),
+              static_cast<unsigned long>(profile.percentile_50_us),
+              static_cast<unsigned long>(profile.percentile_90_us));
+  std::printf("95/99/M/1k/2k=%lu/%lu/%lu/%lu/%lu\n",
+              static_cast<unsigned long>(profile.percentile_95_us),
+              static_cast<unsigned long>(profile.percentile_99_us),
+              static_cast<unsigned long>(profile.maximum_us),
+              static_cast<unsigned long>(profile.at_or_above_1ms),
+              static_cast<unsigned long>(profile.at_or_above_2ms));
+}
+
+void print_interactive(const rpcmp::spike::TargetReadProfile& fixed_16,
+                       const rpcmp::spike::TargetReadProfile& rotating_16,
+                       const rpcmp::spike::TargetReadProfile& fixed_256,
+                       const rpcmp::spike::TargetReadProfile& fixed_4096,
                        const rpcmp::spike::InteractiveCommandProbe& probe) {
   std::printf("\033[2J\033[H");
-  std::printf("RPCMP Pocket input probe\n\n");
-  std::printf("AUTO: PASS\n");
-  std::printf("logical16 x%lu us\n", static_cast<unsigned long>(logical_latency.iterations));
-  std::printf("L %lu/%lu/%lu\n", static_cast<unsigned long>(logical_latency.minimum_us),
-              static_cast<unsigned long>(logical_latency.average_us()),
-              static_cast<unsigned long>(logical_latency.maximum_us));
-  std::printf("target16 x%lu us\n", static_cast<unsigned long>(target_latency.iterations));
-  std::printf("T %lu/%lu/%lu\n", static_cast<unsigned long>(target_latency.minimum_us),
-              static_cast<unsigned long>(target_latency.average_us()),
-              static_cast<unsigned long>(target_latency.maximum_us));
-  std::printf("QUEUE: PASS\n\n");
+  std::printf("RPCMP Target tail probe\n");
+  std::printf("AUTO/QUEUE: PASS\n");
+  print_profile("F16", fixed_16);
+  print_profile("R16", rotating_16);
+  print_profile("F256", fixed_256);
+  print_profile("F4096", fixed_4096);
+  std::printf("\n");
   std::printf("INPUT: %u/4\n", static_cast<unsigned>(probe.completed_steps()));
   std::printf("state=%s seq=%llu\n\n", transport_name(probe.latest().transport),
               static_cast<unsigned long long>(probe.latest().sequence));
@@ -197,7 +207,20 @@ int main() {
   PocketClock clock;
   const auto latency = rpcmp::spike::measure_read_latency(blob, clock);
   TargetDataSlotBlob target_blob;
-  const auto target_latency = rpcmp::spike::measure_target_read_latency(target_blob);
+  const auto fixed_16 = rpcmp::spike::measure_target_read_profile(
+      target_blob, rpcmp::spike::kTargetProfileFullSamples, rpcmp::spike::kLatencyReadSize,
+      rpcmp::spike::ReadOffsetPattern::Fixed);
+  const auto rotating_16 = rpcmp::spike::measure_target_read_profile(
+      target_blob, rpcmp::spike::kTargetProfileFullSamples, rpcmp::spike::kLatencyReadSize,
+      rpcmp::spike::ReadOffsetPattern::Rotating);
+  const auto fixed_256 = rpcmp::spike::measure_target_read_profile(
+      target_blob, rpcmp::spike::kTargetProfileScaleSamples, 256U,
+      rpcmp::spike::ReadOffsetPattern::Fixed);
+  const auto fixed_4096 = rpcmp::spike::measure_target_read_profile(
+      target_blob, rpcmp::spike::kTargetProfileScaleSamples, rpcmp::spike::kSyntheticBlobSize,
+      rpcmp::spike::ReadOffsetPattern::Fixed);
+  const bool profiles_passed =
+      fixed_16.passed() && rotating_16.passed() && fixed_256.passed() && fixed_4096.passed();
   DeviceObserver device_observer;
   const auto observed_queue = rpcmp::spike::run_device_queue_probe(&device_observer);
   const auto headless_queue = rpcmp::spike::run_device_queue_probe();
@@ -205,8 +228,8 @@ int main() {
       observed_queue.passed() && headless_queue.passed() &&
       device_observer.count() == rpcmp::spike::kDeviceQueueCapacity &&
       rpcmp::spike::equivalent_device_queue_semantics(observed_queue, headless_queue);
-  print_result(observed, passed && latency.passed() && target_latency.passed() && queue_passed);
-  if (!passed || !latency.passed() || !target_latency.passed() || !queue_passed) {
+  print_result(observed, passed && latency.passed() && profiles_passed && queue_passed);
+  if (!passed || !latency.passed() || !profiles_passed || !queue_passed) {
     rpcmp_pocket_hold_result();
   }
 
@@ -215,13 +238,13 @@ int main() {
     std::printf("INPUT INIT: FAIL\n");
     rpcmp_pocket_hold_result();
   }
-  print_interactive(latency, target_latency, input_probe);
+  print_interactive(fixed_16, rotating_16, fixed_256, fixed_4096, input_probe);
   while (!input_probe.completed() && !input_probe.failed()) {
     rpcmp_pocket_wait_vblank();
     const auto action = pressed_action(rpcmp_pocket_poll_actions());
     if (action.has_value()) {
       static_cast<void>(input_probe.apply(*action));
-      print_interactive(latency, target_latency, input_probe);
+      print_interactive(fixed_16, rotating_16, fixed_256, fixed_4096, input_probe);
     }
   }
   rpcmp_pocket_hold_result();
