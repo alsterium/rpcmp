@@ -291,6 +291,40 @@ The current Windows host uses Docker Desktop 4.88.1, Engine 29.7.2, and the WSL 
   underlying APF command, filesystem, seek, and close components. Raw
   Target-command latency remains open.
 
+### Target dataslot-read and bounded device-queue package — 2026-08-28
+
+- Package version `0.3.0-spike` preserves every earlier automatic and input
+  gate. It adds a spike-local fixed-capacity queue for timestamped fake device
+  register writes. The queue stores eight writes in `std::array`, rejects the
+  ninth without mutation, drains in FIFO order across ring wrap, and produces
+  the same digest with and without an observation callback. It is feasibility
+  code, not the production Core-to-RTL protocol or an RTL FIFO.
+- The Pocket adapter allocates a 64-byte-aligned, 16-byte CRAM staging buffer
+  through the pinned SDK and issues 32 rotating slot 4 reads with
+  `of_file_read_async`. Each accepted trial is timed from immediately before
+  the SDK call until its data-slot completion callback is observed. A bounded
+  pre-trial retry permits the preceding command's bridge state to become idle
+  and is deliberately excluded from the reported duration.
+- The staging buffer uses the runtime's direct CRAM path. The reported Target
+  value therefore includes syscall/command issue, APF host service, the
+  16-byte transfer, completion IRQ, and callback observation. It excludes
+  stdio open/seek/close and the SDK's non-CRAM bounce copy. It is not an
+  isolated command-status handshake latency or a large-transfer throughput
+  result.
+- Host tests cover queue capacity, overflow rejection, FIFO wrap, observer-free
+  equivalence, timed-read aggregation, content validation, and the existing
+  architecture guards. The fixed Docker build produced ELF SHA-256
+  `846b0e0b3652adc3dbd115a6cbf7eb72b0d949c1672c5b89232598f171f50a63`
+  (loadable sections total 166,651 bytes).
+- Two complete fixed-Docker builds produced ZIP SHA-256
+  `4a99a5f43f5f156879d033c6bb855f3b21b88da61ec7275fbc34cfc6c0e1d15c`
+  (1,144,018 bytes). The APF JSON, boot/reset/heartbeat implementation,
+  synthetic asset, video, audio, bitstream, and package paths are unchanged.
+- `0.3.0-spike` has not yet been exercised on Pocket. Its `QUEUE: PASS`,
+  `OVERALL: PASS`, and displayed `T` minimum/average/maximum remain required
+  hardware evidence. The `0.2.0-spike` observations above remain historical
+  evidence for that exact earlier package.
+
 ## 7. Acceptance record
 
 Each candidate must produce one reviewable record containing:

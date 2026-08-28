@@ -273,6 +273,40 @@ bool ReadLatencyStats::passed() const noexcept {
          content_matches && minimum_us <= maximum_us;
 }
 
+bool BoundedDeviceQueue::push(const ProbeDeviceWrite& write) noexcept {
+  if (size_ == writes_.size()) {
+    ++overflow_rejections_;
+    return false;
+  }
+  writes_[tail_] = write;
+  tail_ = (tail_ + 1U) % writes_.size();
+  ++size_;
+  return true;
+}
+
+bool BoundedDeviceQueue::pop(ProbeDeviceWrite& write) noexcept {
+  if (size_ == 0U) {
+    return false;
+  }
+  write = writes_[head_];
+  head_ = (head_ + 1U) % writes_.size();
+  --size_;
+  return true;
+}
+
+std::size_t BoundedDeviceQueue::size() const noexcept { return size_; }
+
+std::size_t BoundedDeviceQueue::capacity() const noexcept { return writes_.size(); }
+
+std::uint32_t BoundedDeviceQueue::overflow_rejections() const noexcept {
+  return overflow_rejections_;
+}
+
+bool DeviceQueueProbeResult::passed() const noexcept {
+  return accepted_writes == kDeviceQueueCapacity && drained_writes == accepted_writes &&
+         overflow_rejections == 1U && fifo_ordered;
+}
+
 InteractiveCommandProbe::InteractiveCommandProbe() {
   const auto open = core_.submit(make_command(
       next_command_id_++, contracts::OpenLibrary{"m0:library"}, core_.latest().sequence));
@@ -458,6 +492,79 @@ ReadLatencyStats measure_read_latency(IProbeBlobReader& blob_reader,
     result.minimum_us = 0U;
   }
   return result;
+}
+
+ReadLatencyStats measure_target_read_latency(IProbeTimedBlobReader& blob_reader) noexcept {
+  ReadLatencyStats result;
+  result.iterations = kLatencyReadIterations;
+  result.minimum_us = std::numeric_limits<std::uint32_t>::max();
+  result.content_matches = true;
+  constexpr auto kOffsetRange = kSyntheticBlobSize - kLatencyReadSize + 1U;
+
+  for (std::uint32_t iteration = 0; iteration < result.iterations; ++iteration) {
+    const auto offset = (iteration * 127U) % kOffsetRange;
+    std::array<std::uint8_t, kLatencyReadSize> bytes{};
+    std::uint32_t elapsed_us{};
+    const auto read = blob_reader.read_timed(offset, bytes.data(), kLatencyReadSize, elapsed_us);
+    result.total_us += elapsed_us;
+    result.minimum_us = std::min(result.minimum_us, elapsed_us);
+    result.maximum_us = std::max(result.maximum_us, elapsed_us);
+    if (read) {
+      ++result.successful_reads;
+      for (std::uint32_t index = 0; index < kLatencyReadSize; ++index) {
+        result.content_matches =
+            result.content_matches && bytes[index] == synthetic_byte(offset + index);
+      }
+    } else {
+      result.content_matches = false;
+    }
+  }
+  return result;
+}
+
+DeviceQueueProbeResult run_device_queue_probe(IProbeDeviceObserver* const observer) noexcept {
+  DeviceQueueProbeResult result;
+  result.observer_enabled = observer != nullptr;
+  result.fifo_ordered = true;
+  BoundedDeviceQueue queue;
+
+  for (std::size_t index = 0; index < queue.capacity(); ++index) {
+    const ProbeDeviceWrite write{1'000U * index, 1U, static_cast<std::uint8_t>(index),
+                                 static_cast<std::uint8_t>(0x80U + index)};
+    if (queue.push(write)) {
+      ++result.accepted_writes;
+    }
+  }
+  const ProbeDeviceWrite overflow{9'000U, 1U, 0x20U, 0xFFU};
+  static_cast<void>(queue.push(overflow));
+  result.overflow_rejections = queue.overflow_rejections();
+
+  SemanticHash digest;
+  ProbeDeviceWrite write;
+  while (queue.pop(write)) {
+    const auto index = result.drained_writes;
+    const ProbeDeviceWrite expected{1'000ULL * index, 1U, static_cast<std::uint8_t>(index),
+                                    static_cast<std::uint8_t>(0x80U + index)};
+    result.fifo_ordered = result.fifo_ordered && write == expected;
+    digest.add_integer(write.at_tick);
+    digest.add_integer(write.device_id);
+    digest.add_integer(write.address);
+    digest.add_integer(write.value);
+    if (observer != nullptr) {
+      observer->observe(write);
+    }
+    ++result.drained_writes;
+  }
+  result.write_digest = digest.value();
+  return result;
+}
+
+bool equivalent_device_queue_semantics(const DeviceQueueProbeResult& left,
+                                       const DeviceQueueProbeResult& right) noexcept {
+  return left.accepted_writes == right.accepted_writes &&
+         left.drained_writes == right.drained_writes &&
+         left.overflow_rejections == right.overflow_rejections &&
+         left.write_digest == right.write_digest && left.fifo_ordered == right.fifo_ordered;
 }
 
 bool equivalent_semantics(const ProbeRunResult& left, const ProbeRunResult& right) noexcept {

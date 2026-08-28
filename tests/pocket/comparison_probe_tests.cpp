@@ -87,6 +87,34 @@ private:
   std::uint32_t calls_{};
 };
 
+class TargetTimedBlobReader final : public rpcmp::spike::IProbeTimedBlobReader {
+public:
+  bool read_timed(const std::uint32_t offset, std::uint8_t* const destination,
+                  const std::uint32_t length, std::uint32_t& elapsed_us) noexcept override {
+    if (destination == nullptr || offset > rpcmp::spike::kSyntheticBlobSize ||
+        length > rpcmp::spike::kSyntheticBlobSize - offset) {
+      return false;
+    }
+    for (std::uint32_t index = 0; index < length; ++index) {
+      destination[index] = rpcmp::spike::synthetic_byte(offset + index);
+    }
+    elapsed_us = 50U + calls_++;
+    return true;
+  }
+
+private:
+  std::uint32_t calls_{};
+};
+
+class DeviceObserver final : public rpcmp::spike::IProbeDeviceObserver {
+public:
+  void observe(const rpcmp::spike::ProbeDeviceWrite&) override { ++count_; }
+  std::uint32_t count() const noexcept { return count_; }
+
+private:
+  std::uint32_t count_{};
+};
+
 } // namespace
 
 int main() {
@@ -136,6 +164,42 @@ int main() {
   RPCMP_CHECK(suite, latency.maximum_us == 41U);
   RPCMP_CHECK(suite, latency.total_us == 816U);
   RPCMP_CHECK(suite, latency.average_us() == 25U);
+
+  TargetTimedBlobReader target_blob;
+  const auto target_latency = rpcmp::spike::measure_target_read_latency(target_blob);
+  RPCMP_CHECK(suite, target_latency.passed());
+  RPCMP_CHECK(suite, target_latency.minimum_us == 50U);
+  RPCMP_CHECK(suite, target_latency.maximum_us == 81U);
+  RPCMP_CHECK(suite, target_latency.total_us == 2'096U);
+  RPCMP_CHECK(suite, target_latency.average_us() == 65U);
+
+  DeviceObserver device_observer;
+  const auto observed_queue = rpcmp::spike::run_device_queue_probe(&device_observer);
+  const auto headless_queue = rpcmp::spike::run_device_queue_probe();
+  RPCMP_CHECK(suite, observed_queue.passed());
+  RPCMP_CHECK(suite, headless_queue.passed());
+  RPCMP_CHECK(suite, device_observer.count() == rpcmp::spike::kDeviceQueueCapacity);
+  RPCMP_CHECK(suite,
+              rpcmp::spike::equivalent_device_queue_semantics(observed_queue, headless_queue));
+
+  rpcmp::spike::BoundedDeviceQueue wrapped_queue;
+  for (std::size_t index = 0; index < wrapped_queue.capacity(); ++index) {
+    RPCMP_CHECK(suite, wrapped_queue.push({index, 1U, static_cast<std::uint8_t>(index), 0U}));
+  }
+  rpcmp::spike::ProbeDeviceWrite wrapped_write;
+  for (std::size_t index = 0; index < wrapped_queue.capacity() / 2U; ++index) {
+    RPCMP_CHECK(suite, wrapped_queue.pop(wrapped_write));
+    RPCMP_CHECK(suite, wrapped_write.at_tick == index);
+    RPCMP_CHECK(suite, wrapped_queue.push(
+                           {wrapped_queue.capacity() + index, 1U,
+                            static_cast<std::uint8_t>(wrapped_queue.capacity() + index), 0U}));
+  }
+  for (std::size_t index = wrapped_queue.capacity() / 2U;
+       index < wrapped_queue.capacity() * 3U / 2U; ++index) {
+    RPCMP_CHECK(suite, wrapped_queue.pop(wrapped_write));
+    RPCMP_CHECK(suite, wrapped_write.at_tick == index);
+  }
+  RPCMP_CHECK(suite, wrapped_queue.size() == 0U);
 
   rpcmp::spike::InteractiveCommandProbe input_probe;
   RPCMP_CHECK(suite, input_probe.ready());

@@ -7,6 +7,9 @@ extern "C" {
 int rpcmp_pocket_slot_size(std::uint32_t slot_id, std::uint32_t* size);
 int rpcmp_pocket_slot_read(std::uint32_t slot_id, std::uint32_t offset, void* destination,
                            std::uint32_t length);
+int rpcmp_pocket_target_read_prepare(std::uint32_t length);
+int rpcmp_pocket_target_read(std::uint32_t slot_id, std::uint32_t offset, void* destination,
+                             std::uint32_t length, std::uint32_t* elapsed_us);
 std::uint32_t rpcmp_pocket_time_us();
 std::uint32_t rpcmp_pocket_poll_actions();
 void rpcmp_pocket_wait_vblank();
@@ -43,6 +46,31 @@ private:
 class PocketClock final : public rpcmp::spike::IProbeMonotonicClock {
 public:
   std::uint32_t now_us() noexcept override { return rpcmp_pocket_time_us(); }
+};
+
+class TargetDataSlotBlob final : public rpcmp::spike::IProbeTimedBlobReader {
+public:
+  TargetDataSlotBlob() {
+    valid_ = rpcmp_pocket_target_read_prepare(rpcmp::spike::kLatencyReadSize) == 0;
+  }
+
+  bool read_timed(const std::uint32_t offset, std::uint8_t* const destination,
+                  const std::uint32_t length, std::uint32_t& elapsed_us) noexcept override {
+    return valid_ &&
+           rpcmp_pocket_target_read(kSyntheticSlot, offset, destination, length, &elapsed_us) == 0;
+  }
+
+private:
+  bool valid_{};
+};
+
+class DeviceObserver final : public rpcmp::spike::IProbeDeviceObserver {
+public:
+  void observe(const rpcmp::spike::ProbeDeviceWrite&) override { ++count_; }
+  std::uint32_t count() const noexcept { return count_; }
+
+private:
+  std::uint32_t count_{};
 };
 
 class SnapshotObserver final : public rpcmp::spike::IProbeRenderer {
@@ -106,15 +134,21 @@ const char* action_prompt(const rpcmp::spike::ProbeAction action) noexcept {
   return "";
 }
 
-void print_interactive(const rpcmp::spike::ReadLatencyStats& latency,
+void print_interactive(const rpcmp::spike::ReadLatencyStats& logical_latency,
+                       const rpcmp::spike::ReadLatencyStats& target_latency,
                        const rpcmp::spike::InteractiveCommandProbe& probe) {
   std::printf("\033[2J\033[H");
   std::printf("RPCMP Pocket input probe\n\n");
   std::printf("AUTO: PASS\n");
-  std::printf("read16 x%lu us\n", static_cast<unsigned long>(latency.iterations));
-  std::printf("min=%lu avg=%lu max=%lu\n\n", static_cast<unsigned long>(latency.minimum_us),
-              static_cast<unsigned long>(latency.average_us()),
-              static_cast<unsigned long>(latency.maximum_us));
+  std::printf("logical16 x%lu us\n", static_cast<unsigned long>(logical_latency.iterations));
+  std::printf("L %lu/%lu/%lu\n", static_cast<unsigned long>(logical_latency.minimum_us),
+              static_cast<unsigned long>(logical_latency.average_us()),
+              static_cast<unsigned long>(logical_latency.maximum_us));
+  std::printf("target16 x%lu us\n", static_cast<unsigned long>(target_latency.iterations));
+  std::printf("T %lu/%lu/%lu\n", static_cast<unsigned long>(target_latency.minimum_us),
+              static_cast<unsigned long>(target_latency.average_us()),
+              static_cast<unsigned long>(target_latency.maximum_us));
+  std::printf("QUEUE: PASS\n\n");
   std::printf("INPUT: %u/4\n", static_cast<unsigned>(probe.completed_steps()));
   std::printf("state=%s seq=%llu\n\n", transport_name(probe.latest().transport),
               static_cast<unsigned long long>(probe.latest().sequence));
@@ -162,8 +196,17 @@ int main() {
 
   PocketClock clock;
   const auto latency = rpcmp::spike::measure_read_latency(blob, clock);
-  print_result(observed, passed && latency.passed());
-  if (!passed || !latency.passed()) {
+  TargetDataSlotBlob target_blob;
+  const auto target_latency = rpcmp::spike::measure_target_read_latency(target_blob);
+  DeviceObserver device_observer;
+  const auto observed_queue = rpcmp::spike::run_device_queue_probe(&device_observer);
+  const auto headless_queue = rpcmp::spike::run_device_queue_probe();
+  const bool queue_passed =
+      observed_queue.passed() && headless_queue.passed() &&
+      device_observer.count() == rpcmp::spike::kDeviceQueueCapacity &&
+      rpcmp::spike::equivalent_device_queue_semantics(observed_queue, headless_queue);
+  print_result(observed, passed && latency.passed() && target_latency.passed() && queue_passed);
+  if (!passed || !latency.passed() || !target_latency.passed() || !queue_passed) {
     rpcmp_pocket_hold_result();
   }
 
@@ -172,13 +215,13 @@ int main() {
     std::printf("INPUT INIT: FAIL\n");
     rpcmp_pocket_hold_result();
   }
-  print_interactive(latency, input_probe);
+  print_interactive(latency, target_latency, input_probe);
   while (!input_probe.completed() && !input_probe.failed()) {
     rpcmp_pocket_wait_vblank();
     const auto action = pressed_action(rpcmp_pocket_poll_actions());
     if (action.has_value()) {
       static_cast<void>(input_probe.apply(*action));
-      print_interactive(latency, input_probe);
+      print_interactive(latency, target_latency, input_probe);
     }
   }
   rpcmp_pocket_hold_result();

@@ -14,10 +14,10 @@ SPEC.loader.exec_module(PACKAGE)
 
 
 class PackageBuilderTests(unittest.TestCase):
-    def test_interactive_probe_metadata_is_versioned(self) -> None:
+    def test_probe_metadata_is_versioned(self) -> None:
         metadata = PACKAGE.definitions()["core.json"]["core"]["metadata"]
         self.assertEqual(metadata["shortname"], PACKAGE.CORE_SHORTNAME)
-        self.assertEqual(metadata["version"], "0.2.0-spike")
+        self.assertEqual(metadata["version"], "0.3.0-spike")
         self.assertEqual(metadata["date_release"], "2026-08-28")
 
     def make_valid_tree(self, root: Path) -> None:

@@ -76,6 +76,10 @@ logical reads measured minimum 1,215 us, integer average 1,254 us, and maximum
 1,310 us. The package is a local experiment only: its prebuilt bitstream is not
 approved for RPCMP redistribution.
 
+The `0.3.0-spike` package adds a fixed-capacity fake device-write queue and a
+zero-copy asynchronous Target dataslot-read measurement. It is locally verified
+but still requires an on-device run.
+
 ## Pocket installation and retest
 
 Use Pocket firmware 2.2 or later. Replace the earlier experiment by removing
@@ -88,8 +92,8 @@ these exact paths from the SD card, then extract
 /Platforms/rpcmp_probe.json
 ```
 
-The interactive `0.2.0-spike` ZIP SHA-256 is
-`ccd6d4ef253861e82d49df2c3bfdd84e04405b073a6d5c4c6c1cf8a57132aa82`.
+The Target/queue `0.3.0-spike` ZIP SHA-256 is
+`4a99a5f43f5f156879d033c6bb855f3b21b88da61ec7275fbc34cfc6c0e1d15c`.
 Developer Builds displays this package under its metadata shortname
 `openfpgaOSProbe`. Run it and follow the prompts in this order:
 
@@ -99,10 +103,20 @@ Developer Builds displays this package under its metadata shortname
 4. Press START for Stop; confirm `INPUT: 4/4`, `INPUT: PASS`, and
    `OVERALL: PASS`.
 
-Also record the displayed `min`, `avg`, and `max` values for `read16 x32 us`.
-These are end-to-end logical slot-read times, including the SDK file open, seek,
-read, and close path; they are not raw APF command latency. If a run fails,
-record the Pocket firmware version and exact on-screen state before changing the
-package again. The previously validated `0.1.0-spike` ZIP remains identified by
-SHA-256
+Before the input prompts, confirm `QUEUE: PASS`. Also record both displayed
+minimum/average/maximum rows:
+
+```text
+L .../.../...
+T .../.../...
+```
+
+`L` is the end-to-end logical slot-read path including SDK file open, seek,
+read, and close. `T` is the accepted zero-copy asynchronous Target dataslot
+read from issue through completion callback; it includes the 16-byte transfer
+but excludes stdio and inter-command ready waiting. If a run fails, record the
+Pocket firmware version and exact on-screen state before changing the package.
+The previously validated `0.2.0-spike` ZIP remains identified by SHA-256
+`ccd6d4ef253861e82d49df2c3bfdd84e04405b073a6d5c4c6c1cf8a57132aa82`;
+the validated `0.1.0-spike` ZIP is
 `6c261468641a4afd00fc5865c9bbd9e80d0f6593a2b66d849f135d4ca7a45fdb`.
