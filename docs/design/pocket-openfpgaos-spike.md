@@ -58,6 +58,49 @@ The comparison profile is informed by HarpMudd.mp3player but does not fork or co
 
 MP3/FLAC decoders, PCM playback, EQ, album art, playlists, existing player firmware/UI, and copied release media are outside the comparison. HarpMudd's empirically observed stale-completion and data-table-collision hazards become focused tests, not undocumented protocol requirements.
 
+The minimal-SoC row is not satisfied by synthesizing a CPU alone. It must use
+the pinned official Pocket shell, run the same target facade and synthetic
+fixture, and account for every byte of executable memory. The linker map must
+record all loadable segments, BSS, stack, bounded heap, queue storage, and
+alignment loss; at least 20% of the selected instruction/data-memory capacity
+must remain after those declared maxima. If code or mutable state is placed in
+SDRAM, the comparison must also implement and test instruction/data arbitration,
+Target-DMA visibility or cache invalidation, and reset/reload behavior. An
+opaque pre-generated CPU without its exact generator revision and configuration
+does not pass the dependency gate.
+
+### 2.4 Comparison pass criteria and provisional decision rule
+
+Each candidate must pass the same semantic, package, reset, input, bounded-read,
+queue-overflow, and renderer-free checks. Its final comparison fit must include
+JT51 and the actual bounded register/FIFO endpoint, not an arithmetic estimate,
+and meet all of these provisional engineering limits:
+
+- no more than 80% of ALMs, M10Ks, or DSP blocks, with at least one PLL free;
+- nonnegative setup, hold, recovery/removal, and minimum-pulse-width slack at
+  every supported corner, with no unconstrained functional clock or path;
+- an accepted warning baseline in which every critical warning is resolved or
+  explicitly proven irrelevant to the supported configuration;
+- a repeatable build from pinned corresponding source and an approved release
+  license/notice plan.
+
+The current leading proposal is the stripped openfpgaOS profile, not stock
+`os25`, because it has already run the unchanged probe and Target reads on
+Pocket and its conservative resource budget including JT51 is below the 80%
+limits. It is not yet selected: its 100 MHz timing fails, JT51 is not integrated,
+the smaller-cache profile has not run the target ELF, and redistribution is not
+approved. The next openfpgaOS experiment should integrate the queue endpoint
+and JT51 under a fully constrained clock profile that actually closes timing;
+90 MHz is a measured starting hypothesis, not an accepted frequency.
+
+The project-owned minimal SoC remains the required control. It should be chosen
+only if it passes the same hardware checks and materially improves at least one
+binding concern—timing margin, resource headroom, redistribution simplicity, or
+maintenance surface—without weakening the public contracts or moving storage
+or rendering into the audio-critical path. If it cannot run the common probe
+within the limits above, the comparison records that failure rather than
+keeping the substrate decision open indefinitely.
+
 ## 3. Minimal experiment package
 
 The first on-device compatibility package should contain only:
@@ -129,7 +172,7 @@ The current Windows host uses Docker Desktop 4.88.1, Engine 29.7.2, and the WSL 
 | Intel/Altera generated IP | PLL/memory integration | Intel FPGA IP terms | Generated/distribution terms must be reviewed |
 | Analogizer/MiSTer-derived RTL | Optional video/output functions in the prebuilt bitstream | GPL-2.0-or-later in the reviewed manifest | Project license policy unresolved |
 | `bank.ofsf` and demo music | Unneeded MIDI/demo media | Proprietary or unverified third-party media | Must be excluded |
-| JT51 | Later YM2151-compatible RTL candidate | GPL-3.0 | Not part of this spike; separate license/resource gate |
+| JT51 | YM2151-compatible RTL candidate | GPL-3.0-or-later in every reviewed HDL header; repository license text is GPL-3.0 | Measured separately at pinned revision; no source imported and release policy unresolved |
 | ModPlayer_openfpgaos | API and application-shape evidence only | No root license file found at reviewed revision; bundled runtime provenance requires separate review | Reference only; no import |
 | HarpMudd project-authored source | Minimal-SoC and APF command patterns | MIT root, with separately licensed bundled components | Reference only; no wholesale import |
 | VexRiscv configuration | Candidate soft CPU | MIT in the reviewed HarpMudd credits/upstream source; exact generated revision must be pinned | Not added |
@@ -386,6 +429,79 @@ The current Windows host uses Docker Desktop 4.88.1, Engine 29.7.2, and the WSL 
   double buffering. Substrate selection still requires the resource/license
   gate and a superseding ADR; this result alone does not select openfpgaOS.
 
+### Runtime resource and license gate — 2026-08-28
+
+The resource comparison used the runtime-producing openfpgaCore revision
+`618a3eb985759a4154115109c2c8036271252888` named by the pinned SDK manifest,
+not the older revision used only to build the probe toolchain image. Its VexiiRiscv
+submodule was fixed at `580b76c3868512c8316bb7a3d3add81cad49a0dc` and nested
+SpinalHDL at `6f8510cdbb8ad7b8bcc0f6d58395669c4c4d7e2d`. CPU Verilog was
+generated in an `amd64` Docker image built from that revision's Vexii Dockerfile
+(image ID `sha256:b3abc03a15e60e2b3e80abfdde7476abda1a420518c1e36d0063c634af1053aa`,
+Docker Engine 29.7.2). Quartus Prime Lite 25.1std.0 Build 1129 then performed a
+full compile for Pocket device `5CEBA4F23C8`.
+
+Three measurements establish the resource boundary:
+
+| Measurement | ALMs | Registers | Block bits | M10K | DSP | PLL | Worst setup | Worst hold | Warnings |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| Stock `os25`, seed 40 | 16,007 (87%) | 24,228 | 2,396,121 (76%) | 301 (98%) | 24 (36%) | 2 (50%) | -0.805 ns | 0.045 ns | 969 |
+| Stripped `rpcmp`, seed 1 | 12,540 (68%) | 18,845 | 1,213,529 (38%) | 163 (53%) | 12 (18%) | 2 (50%) | -0.785 ns | 0.124 ns | 1,061 |
+| Standalone JT51, seed 1 | 1,240 (7%) | 1,034 | 3,019 (<1%) | 9 (3%) | 1 (2%) | 0 | -8.683 ns | 0.101 ns | 22 |
+
+The stock row uses the upstream `os25` feature list and its 32 KiB instruction
+cache, 128 KiB data cache, 1 KiB GShare, and 256-entry BTB. Its generated CPU
+Verilog is 1,720,844 bytes with SHA-256
+`29B628B540953F35574F6A67CF0A622A62EDBCBE615BDCF820EB9CAF1E24BFB8`.
+The resulting RBF is 2,146,496 bytes with SHA-256
+`502B60DE887CC48600275D3516A8ABF633CD77753BE86A844F8900527A6BEF6F`.
+Only seven M10K blocks remain. The separately synthesized JT51 at revision
+`985a573dcfc1ff135553a39f7eae21d18ba57cbe` requires nine, so stock `os25`
+cannot be the RPCMP base even before integration overhead.
+
+The spike-only `rpcmp` profile enables no optional openfpgaOS feature macros,
+leaving the upstream BASE SoC, SDRAM, scanout, and software-audio path. Its
+single-issue CPU keeps the same ISA/FPU and predictor choices but reduces the
+instruction cache to 16 KiB and data cache to 32 KiB. Its generated CPU Verilog
+is 1,720,822 bytes with SHA-256
+`266242A20FB65D91B674920DB869201D100FBC31721E8DF9B4DC383D24CC019B`;
+the RBF is 1,716,968 bytes with SHA-256
+`05D0F642A7611E440B1BB3A45F2A4F28F3E56F60B40EB3A11AE8588D1018E342`.
+A conservative arithmetic budget for stripped openfpgaOS plus the standalone
+JT51 is 13,780 ALMs (about 75%), 172 M10K (about 56%), and 13 DSP blocks
+(about 20%). This passes the provisional capacity gate, but it is not an
+integrated fit and does not include the production FIFO/register endpoint.
+
+Both openfpgaOS fits miss the 100 MHz setup requirement and both reports say
+the design is not fully constrained. Cache and feature removal therefore solve
+the capacity problem, not timing closure. The standalone JT51 test deliberately
+constrained all logic to a 100 MHz top-level clock and also missed timing; its
+real integration requires a documented master clock, clock-enable behavior,
+and valid multicycle constraints before its slack is meaningful. The warning
+totals are recorded observations rather than accepted baselines: `os25` was
+955/12/0/2 and `rpcmp` 1,045/13/0/3 across synthesis, fitter, assembler, and
+timing. No warning class was waived for production.
+
+The reviewed openfpgaCore manifest assigns project-authored work Apache-2.0,
+VexiiRiscv/SpinalHDL MIT, APF files to the Analogue Pocket Framework license,
+Intel-generated IP to its FPGA IP terms, and the optional Analogizer directory
+GPL-2.0-or-later. The APF license text says applicable MIT or GNU GPL terms
+prevail where they conflict with the APF agreement, consistent with Analogue's
+firmware 1.1-beta-2 clarification. The stripped profile does not define
+`INCLUDE_ANALOGIZER`, but a release review must still prove which source and
+notices correspond to the conveyed bitstream rather than inferring that from
+resource pruning alone.
+
+JT51 is GPL-3.0-or-later. A release containing a JT51-derived bitstream must be
+planned as a GPL-covered non-source conveyance with complete corresponding
+source and build material available under GPLv3 section 6; this record is an
+engineering gate, not legal advice. RPCMP still has no repository-level
+`LICENSE`, `NOTICE`, or approved corresponding-source process, so no measured
+bitstream is approved for redistribution. The proprietary sample bank remains
+excluded. Resource feasibility is now positive only for the stripped profile;
+the project-owned minimal-SoC comparison, integrated JT51 timing, application
+performance with smaller caches, and the superseding ADR remain open.
+
 ## 7. Acceptance record
 
 Each candidate must produce one reviewable record containing:
@@ -408,6 +524,11 @@ Selection requires a superseding ADR. A candidate does not pass merely because i
 - [SDK licensing annotations](https://github.com/openfpgaOS/openfpgaSDK/blob/a408ddc12aed0dfaa4aa22c06af82f829db77126/REUSE.toml)
 - [Pinned xPack firmware container](https://github.com/openfpgaOS/openfpgaCore/blob/453a28350dab333b3afd520f8f8ac4508641bb3a/tools/docker/Dockerfile.firmware)
 - [Runtime-producing core licensing annotations](https://github.com/openfpgaOS/openfpgaCore/blob/618a3eb985759a4154115109c2c8036271252888/REUSE.toml)
+- [Runtime-producing core APF license text](https://github.com/openfpgaOS/openfpgaCore/blob/618a3eb985759a4154115109c2c8036271252888/LICENSES/LicenseRef-Analogue-Pocket-Framework.txt)
+- [Analogue firmware 1.1-beta-2 license-compatibility note](https://www.analogue.co/support/pocket/firmware/1.1-beta-2)
+- [GNU GPLv3 section 6](https://www.gnu.org/licenses/gpl-3.0.html#section6)
+- [GNU GPL FAQ on corresponding source for binaries](https://www.gnu.org/licenses/gpl-faq.html#DistributeExtendedBinary)
+- [Pinned JT51 source](https://github.com/jotego/jt51/tree/985a573dcfc1ff135553a39f7eae21d18ba57cbe)
 - [Diablo C++/musl link recipe](https://github.com/openfpgaOS/Diablo/blob/c4f1d24ad9db011dcfd5f3b1d90423ceb28cfd17/src/diablo/Makefile)
 - [ModPlayer openfpgaOS application](https://github.com/RndMnkIII/ModPlayer_openfpgaos/tree/544e7fb569eeffc38525ed409464f59bcd932108)
 - [HarpMudd architecture notes](https://github.com/harpmudd/HarpMudd.mp3player/blob/011077b6a1bb210ea14ea81ff7bca7974e200f79/docs/HOW_IT_WORKS.md)
