@@ -19,6 +19,11 @@ INTEGRATED_RBF = Path(
     "bld/rpcmpjt/output_files/ap_core.rbf"
 )
 INTEGRATED_RBF_SHA256 = "f532dfe96f8563a14a0860fcc83a89b67cd03527d82c5a1a71c22a73091cc190"
+BOOT_ISOLATION_RBF = Path(
+    "out/research/openfpgaCore-618a3eb-lf/src/fpga/targets/pocket/"
+    "bld/rpcmp90/output_files/ap_core.rbf"
+)
+BOOT_ISOLATION_RBF_SHA256 = "f131a5677389e1557de863838c1289e20b8456b57da5a93722d8e69977697d91"
 CORE_ID = "RPCMP.openfpgaOSProbe"
 CORE_SHORTNAME = "openfpgaOSProbe"
 PLATFORM_ID = "rpcmp_probe"
@@ -73,7 +78,7 @@ def definitions() -> dict[str, object]:
                 "description": "RPCMP M0 openfpgaOS runtime workload probe",
                 "author": "RPCMP",
                 "url": "",
-                "version": "0.5.1-spike",
+                "version": "0.5.2-spike",
                 "date_release": "2026-08-29",
             },
             "framework": {
@@ -212,6 +217,7 @@ def build(
     output: Path,
     archive: Path,
     integrated_rbf: bool = False,
+    boot_isolation_rbf: bool = False,
 ) -> None:
     revision = subprocess.run(
         ["git", "-C", str(sdk), "rev-parse", "HEAD"],
@@ -241,6 +247,18 @@ def build(
             )
         bitstream_data = reverse_rbf_bits(native_bitstream.read_bytes())
         bitstream_profile = "rpcmp 16KiB/32KiB + queue + JT51 + boot ROM at 90MHz"
+    elif boot_isolation_rbf:
+        native_bitstream = (repo / BOOT_ISOLATION_RBF).resolve()
+        if not native_bitstream.is_file():
+            raise ValueError(f"boot-isolation native RBF does not exist: {native_bitstream}")
+        native_bitstream_sha256 = sha256(native_bitstream)
+        if native_bitstream_sha256 != BOOT_ISOLATION_RBF_SHA256:
+            raise ValueError(
+                "boot-isolation native RBF checksum mismatch: "
+                f"expected {BOOT_ISOLATION_RBF_SHA256}, got {native_bitstream_sha256}"
+            )
+        bitstream_data = reverse_rbf_bits(native_bitstream.read_bytes())
+        bitstream_profile = "rpcmp 16KiB/32KiB + boot ROM at 90MHz; no JT51/MMIO overlay"
     if not elf.is_file():
         raise ValueError(f"probe ELF does not exist: {elf}")
 
@@ -327,10 +345,16 @@ def main() -> int:
     parser.add_argument("--elf", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--zip", dest="archive", type=Path, required=True)
-    parser.add_argument(
+    profiles = parser.add_mutually_exclusive_group()
+    profiles.add_argument(
         "--integrated-rbf",
         action="store_true",
         help="package the checksum-pinned 90 MHz reduced-cache JT51 research fit",
+    )
+    profiles.add_argument(
+        "--boot-isolation-rbf",
+        action="store_true",
+        help="package the checksum-pinned 90 MHz reduced-cache fit without JT51",
     )
     args = parser.parse_args()
     build(
@@ -340,6 +364,7 @@ def main() -> int:
         args.output,
         args.archive,
         args.integrated_rbf,
+        args.boot_isolation_rbf,
     )
     return 0
 

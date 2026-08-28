@@ -619,6 +619,27 @@ remain required. The resulting local-only `0.5.1-spike` package contains a
 The 1,055,907-byte ZIP has SHA-256
 `FA74096C5A5C01B829E0093DC19FE5C3C5A5EF14334C4C6F680DA26A49B6CC69`.
 
+Pocket firmware 2.6 subsequently displayed the bootloader's `Loading...`
+message with this corrected package, cleared that message, and remained on a
+black screen. In the pinned bootloader this transition occurs only after the
+OS dataslot load, image CRC check, and boot-ABI check have succeeded, immediately
+before control transfers to `os.bin`. This narrows the failure from APF/core
+loading to early OS execution, but does not yet distinguish the reduced-cache
+90 MHz substrate from the JT51/MMIO overlay.
+
+The next `0.5.2-spike` diagnostic therefore uses the already compiled
+`rpcmp90` isolation fit: the same 16 KiB instruction cache, 32 KiB data cache,
+90 MHz clock, boot ROM, and base SoC, but no JT51 or RPCMP MMIO overlay. Its
+native RBF is 1,736,972 bytes with SHA-256
+`F131A5677389E1557DE863838C1289E20B8456B57DA5A93722D8E69977697D91`.
+If this package reaches the workload screen, the integrated overlay is the
+remaining changed block; if it fails at the same transition, investigation
+must stay in the reduced-cache/90 MHz CPU, SDRAM, or early-OS path.
+The reversed RBF has SHA-256
+`CC18C0A05622C80930774F8859E1B1ED7FF0133ED25978B82D0AF11CA4EA1E8A`.
+The resulting 1,025,226-byte local-only ZIP has SHA-256
+`381123F797A07A7BC9327146BBE596C37CD6695D0BD31C9B156840414B82E584`.
+
 ## 7. Acceptance record
 
 Each candidate must produce one reviewable record containing:
