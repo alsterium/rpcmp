@@ -319,6 +319,26 @@ bool DeviceQueueProbeResult::passed() const noexcept {
          overflow_rejections == 1U && fifo_ordered;
 }
 
+bool RuntimeWorkloadResult::passed() const noexcept {
+  return execution_ok && snapshot_count == kRuntimeWorkloadSnapshots && event_count > 0U &&
+         device_writes == kRuntimeWorkloadSnapshots * kRuntimeWorkloadWritesPerSnapshot &&
+         final_snapshot_sequence == kRuntimeWorkloadSnapshots &&
+         final_position_ticks == static_cast<std::uint64_t>(kRuntimeWorkloadSnapshots) *
+                                     runtime::kSnapshotCadenceTicks &&
+         final_transport == contracts::TransportState::Playing;
+}
+
+std::uint32_t RuntimeWorkloadProfile::average_us() const noexcept {
+  return samples == 0U ? 0U : static_cast<std::uint32_t>(total_us / samples);
+}
+
+bool RuntimeWorkloadProfile::passed() const noexcept {
+  return samples > 0U && samples <= kRuntimeWorkloadMaxSamples && successful_samples == samples &&
+         deterministic && reference.passed() && minimum_us <= percentile_50_us &&
+         percentile_50_us <= percentile_90_us && percentile_90_us <= percentile_95_us &&
+         percentile_95_us <= percentile_99_us && percentile_99_us <= maximum_us;
+}
+
 InteractiveCommandProbe::InteractiveCommandProbe() {
   const auto open = core_.submit(make_command(
       next_command_id_++, contracts::OpenLibrary{"m0:library"}, core_.latest().sequence));
@@ -596,12 +616,115 @@ DeviceQueueProbeResult run_device_queue_probe(IProbeDeviceObserver* const observ
   return result;
 }
 
+RuntimeWorkloadResult run_runtime_workload(IProbeRenderer* const renderer) {
+  RuntimeWorkloadResult result;
+  result.renderer_enabled = renderer != nullptr;
+  EventRecorder events;
+  SnapshotRecorder snapshots(renderer);
+  runtime::MockCore core(&events, &snapshots);
+  BoundedDeviceQueue queue;
+  SemanticHash writes;
+
+  const auto accepted = [&core](const contracts::PlayerCommand& command) {
+    const auto command_result = core.submit(command);
+    return command_result.outcome == contracts::CommandOutcome::Accepted &&
+           command_result.reason == contracts::CommandReason::None;
+  };
+  result.execution_ok =
+      accepted(make_command(1U, contracts::OpenLibrary{"m0:library"}, 0U)) &&
+      accepted(make_command(2U, contracts::LoadTrack{contracts::TrackId{1}}, 0U)) &&
+      accepted(make_command(3U, contracts::Play{}, 0U));
+
+  for (std::uint32_t frame = 1U; frame <= kRuntimeWorkloadSnapshots; ++frame) {
+    result.execution_ok = result.execution_ok && advance(core, static_cast<std::uint64_t>(frame) *
+                                                                   runtime::kSnapshotCadenceTicks);
+    for (std::uint32_t channel = 0U; channel < kRuntimeWorkloadWritesPerSnapshot; ++channel) {
+      result.execution_ok =
+          result.execution_ok &&
+          queue.push({static_cast<std::uint64_t>(frame) * runtime::kSnapshotCadenceTicks, 1U,
+                      static_cast<std::uint8_t>(0x20U + channel),
+                      static_cast<std::uint8_t>((frame + channel) & 0xFFU)});
+    }
+    ProbeDeviceWrite write;
+    while (queue.pop(write)) {
+      writes.add_integer(write.at_tick);
+      writes.add_integer(write.device_id);
+      writes.add_integer(write.address);
+      writes.add_integer(write.value);
+      ++result.device_writes;
+    }
+  }
+
+  const auto latest = core.latest();
+  result.snapshot_count = static_cast<std::uint32_t>(snapshots.count());
+  result.event_count = static_cast<std::uint32_t>(events.count());
+  result.snapshot_digest = snapshots.digest();
+  result.event_digest = events.digest();
+  result.write_digest = writes.value();
+  result.final_snapshot_sequence = latest.sequence;
+  result.final_position_ticks = latest.position.position_ticks;
+  result.final_transport = latest.transport;
+  return result;
+}
+
+RuntimeWorkloadProfile measure_runtime_workload_profile(IProbeMonotonicClock& clock,
+                                                        const std::uint32_t samples,
+                                                        IProbeRenderer* const renderer) {
+  RuntimeWorkloadProfile profile;
+  profile.samples = samples;
+  if (samples == 0U || samples > kRuntimeWorkloadMaxSamples) {
+    return profile;
+  }
+
+  std::array<std::uint32_t, kRuntimeWorkloadMaxSamples> durations{};
+  profile.minimum_us = std::numeric_limits<std::uint32_t>::max();
+  profile.deterministic = true;
+  for (std::uint32_t sample = 0U; sample < samples; ++sample) {
+    const auto started = clock.now_us();
+    const auto result = run_runtime_workload(renderer);
+    const auto elapsed = clock.now_us() - started;
+    durations[sample] = elapsed;
+    profile.total_us += elapsed;
+    profile.minimum_us = std::min(profile.minimum_us, elapsed);
+    profile.maximum_us = std::max(profile.maximum_us, elapsed);
+    if (sample == 0U) {
+      profile.reference = result;
+    } else {
+      profile.deterministic =
+          profile.deterministic && equivalent_runtime_workload(profile.reference, result);
+    }
+    profile.successful_samples += result.passed() ? 1U : 0U;
+  }
+
+  std::sort(durations.begin(), durations.begin() + samples);
+  const auto percentile = [&durations, samples](const std::uint32_t percent) {
+    const auto rank = (percent * samples + 99U) / 100U;
+    return durations[rank - 1U];
+  };
+  profile.percentile_50_us = percentile(50U);
+  profile.percentile_90_us = percentile(90U);
+  profile.percentile_95_us = percentile(95U);
+  profile.percentile_99_us = percentile(99U);
+  return profile;
+}
+
 bool equivalent_device_queue_semantics(const DeviceQueueProbeResult& left,
                                        const DeviceQueueProbeResult& right) noexcept {
   return left.accepted_writes == right.accepted_writes &&
          left.drained_writes == right.drained_writes &&
          left.overflow_rejections == right.overflow_rejections &&
          left.write_digest == right.write_digest && left.fifo_ordered == right.fifo_ordered;
+}
+
+bool equivalent_runtime_workload(const RuntimeWorkloadResult& left,
+                                 const RuntimeWorkloadResult& right) noexcept {
+  return left.snapshot_count == right.snapshot_count && left.event_count == right.event_count &&
+         left.device_writes == right.device_writes &&
+         left.snapshot_digest == right.snapshot_digest && left.event_digest == right.event_digest &&
+         left.write_digest == right.write_digest &&
+         left.final_snapshot_sequence == right.final_snapshot_sequence &&
+         left.final_position_ticks == right.final_position_ticks &&
+         left.final_transport == right.final_transport && left.execution_ok == right.execution_ok;
 }
 
 bool equivalent_semantics(const ProbeRunResult& left, const ProbeRunResult& right) noexcept {

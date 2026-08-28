@@ -87,10 +87,11 @@ int main() {
   SnapshotObserver observer;
   const auto observed = rpcmp::spike::run_comparison_probe(blob, &observer);
   const auto headless = rpcmp::spike::run_comparison_probe(blob);
-  const bool passed = rpcmp::spike::matches_golden(observed) &&
-                      rpcmp::spike::matches_golden(headless) &&
-                      rpcmp::spike::equivalent_semantics(observed, headless) &&
-                      observer.last_sequence() == observed.final_snapshot_sequence;
+  const auto workload = rpcmp::spike::run_runtime_workload();
+  const bool passed =
+      rpcmp::spike::matches_golden(observed) && rpcmp::spike::matches_golden(headless) &&
+      rpcmp::spike::equivalent_semantics(observed, headless) &&
+      observer.last_sequence() == observed.final_snapshot_sequence && workload.passed();
 
   std::printf("snapshots=%llu\n", static_cast<unsigned long long>(observed.snapshot_count));
   std::printf("snapshot_digest=%llu\n", static_cast<unsigned long long>(observed.snapshot_digest));
@@ -98,6 +99,12 @@ int main() {
   std::printf("event_digest=%llu\n", static_cast<unsigned long long>(observed.event_digest));
   std::printf("commands=%llu\n", static_cast<unsigned long long>(observed.command_count));
   std::printf("command_digest=%llu\n", static_cast<unsigned long long>(observed.command_digest));
+  std::printf("workload_snapshot_digest=%llu\n",
+              static_cast<unsigned long long>(workload.snapshot_digest));
+  std::printf("workload_event_digest=%llu\n",
+              static_cast<unsigned long long>(workload.event_digest));
+  std::printf("workload_write_digest=%llu\n",
+              static_cast<unsigned long long>(workload.write_digest));
   std::printf("result=%s\n", passed ? "PASS" : "FAIL");
   return passed ? 0 : 1;
 }

@@ -25,6 +25,10 @@ inline constexpr std::size_t kDeviceQueueCapacity = 8;
 inline constexpr std::uint32_t kTargetProfileMaxSamples = 256;
 inline constexpr std::uint32_t kTargetProfileFullSamples = 256;
 inline constexpr std::uint32_t kTargetProfileScaleSamples = 64;
+inline constexpr std::uint32_t kRuntimeWorkloadMaxSamples = 64;
+inline constexpr std::uint32_t kRuntimeWorkloadSamples = 32;
+inline constexpr std::uint32_t kRuntimeWorkloadSnapshots = 120;
+inline constexpr std::uint32_t kRuntimeWorkloadWritesPerSnapshot = 8;
 
 constexpr std::uint8_t synthetic_byte(const std::uint32_t offset) noexcept {
   return static_cast<std::uint8_t>((offset * 37U + 11U) & 0xFFU);
@@ -136,6 +140,39 @@ struct DeviceQueueProbeResult {
   bool passed() const noexcept;
 };
 
+struct RuntimeWorkloadResult {
+  std::uint32_t snapshot_count{};
+  std::uint32_t event_count{};
+  std::uint32_t device_writes{};
+  std::uint64_t snapshot_digest{};
+  std::uint64_t event_digest{};
+  std::uint64_t write_digest{};
+  std::uint64_t final_snapshot_sequence{};
+  std::uint64_t final_position_ticks{};
+  contracts::TransportState final_transport{contracts::TransportState::Empty};
+  bool renderer_enabled{};
+  bool execution_ok{};
+
+  bool passed() const noexcept;
+};
+
+struct RuntimeWorkloadProfile {
+  std::uint32_t samples{};
+  std::uint32_t successful_samples{};
+  std::uint32_t minimum_us{};
+  std::uint32_t percentile_50_us{};
+  std::uint32_t percentile_90_us{};
+  std::uint32_t percentile_95_us{};
+  std::uint32_t percentile_99_us{};
+  std::uint32_t maximum_us{};
+  std::uint64_t total_us{};
+  RuntimeWorkloadResult reference{};
+  bool deterministic{};
+
+  std::uint32_t average_us() const noexcept;
+  bool passed() const noexcept;
+};
+
 enum class ProbeAction : std::uint8_t { Play, TogglePause, Stop };
 
 struct InteractiveStepResult {
@@ -209,8 +246,14 @@ TargetReadProfile measure_target_read_profile(IProbeTimedBlobReader& blob_reader
                                               std::uint32_t iterations, std::uint32_t length,
                                               ReadOffsetPattern pattern) noexcept;
 DeviceQueueProbeResult run_device_queue_probe(IProbeDeviceObserver* observer = nullptr) noexcept;
+RuntimeWorkloadResult run_runtime_workload(IProbeRenderer* renderer = nullptr);
+RuntimeWorkloadProfile measure_runtime_workload_profile(IProbeMonotonicClock& clock,
+                                                        std::uint32_t samples,
+                                                        IProbeRenderer* renderer = nullptr);
 bool equivalent_device_queue_semantics(const DeviceQueueProbeResult& left,
                                        const DeviceQueueProbeResult& right) noexcept;
+bool equivalent_runtime_workload(const RuntimeWorkloadResult& left,
+                                 const RuntimeWorkloadResult& right) noexcept;
 bool equivalent_semantics(const ProbeRunResult& left, const ProbeRunResult& right) noexcept;
 bool matches_golden(const ProbeRunResult& result) noexcept;
 

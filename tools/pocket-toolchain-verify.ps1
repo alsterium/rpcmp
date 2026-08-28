@@ -53,5 +53,6 @@ if ($LASTEXITCODE -ne 0) {
     --sdk /workspace/rpcmp/out/research/openfpgaSDK-a408ddc `
     --elf /workspace/rpcmp/out/build/pocket-openfpgaos/rpcmp-probe.elf `
     --output /workspace/rpcmp/out/build/pocket-openfpgaos-package `
-    --zip /workspace/rpcmp/out/build/rpcmp-openfpgaos-probe.zip
+    --zip /workspace/rpcmp/out/build/rpcmp-openfpgaos-probe.zip `
+    --integrated-rbf
 exit $LASTEXITCODE

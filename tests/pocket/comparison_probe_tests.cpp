@@ -64,6 +64,18 @@ private:
   std::uint32_t now_us_{0xFFFFFFF0U};
 };
 
+class SteppingClock final : public rpcmp::spike::IProbeMonotonicClock {
+public:
+  std::uint32_t now_us() noexcept override {
+    const auto value = now_us_;
+    now_us_ += 100U;
+    return value;
+  }
+
+private:
+  std::uint32_t now_us_{0xFFFFFF00U};
+};
+
 class TimedBlobReader final : public rpcmp::spike::IProbeBlobReader {
 public:
   explicit TimedBlobReader(FakeClock& clock) : clock_(clock) {}
@@ -212,6 +224,28 @@ int main() {
     RPCMP_CHECK(suite, wrapped_write.at_tick == index);
   }
   RPCMP_CHECK(suite, wrapped_queue.size() == 0U);
+
+  const auto headless_workload = rpcmp::spike::run_runtime_workload();
+  ExercisingRenderer workload_renderer;
+  const auto observed_workload = rpcmp::spike::run_runtime_workload(&workload_renderer);
+  RPCMP_CHECK(suite, headless_workload.passed());
+  RPCMP_CHECK(suite, observed_workload.passed());
+  RPCMP_CHECK(suite,
+              rpcmp::spike::equivalent_runtime_workload(headless_workload, observed_workload));
+  RPCMP_CHECK(suite, workload_renderer.count() == rpcmp::spike::kRuntimeWorkloadSnapshots);
+  SteppingClock workload_clock;
+  const auto workload_profile = rpcmp::spike::measure_runtime_workload_profile(
+      workload_clock, rpcmp::spike::kRuntimeWorkloadSamples);
+  RPCMP_CHECK(suite, workload_profile.passed());
+  RPCMP_CHECK(suite, workload_profile.successful_samples == rpcmp::spike::kRuntimeWorkloadSamples);
+  RPCMP_CHECK(suite, workload_profile.minimum_us == 100U);
+  RPCMP_CHECK(suite, workload_profile.average_us() == 100U);
+  RPCMP_CHECK(suite, workload_profile.maximum_us == 100U);
+  RPCMP_CHECK(suite, rpcmp::spike::equivalent_runtime_workload(workload_profile.reference,
+                                                               headless_workload));
+  const auto invalid_workload_profile = rpcmp::spike::measure_runtime_workload_profile(
+      workload_clock, rpcmp::spike::kRuntimeWorkloadMaxSamples + 1U);
+  RPCMP_CHECK(suite, !invalid_workload_profile.passed());
 
   rpcmp::spike::InteractiveCommandProbe input_probe;
   RPCMP_CHECK(suite, input_probe.ready());

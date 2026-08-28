@@ -14,6 +14,11 @@ from pathlib import Path, PurePosixPath
 
 SDK_REVISION = "a408ddc12aed0dfaa4aa22c06af82f829db77126"
 RUNTIME_REVISION = "618a3eb"
+INTEGRATED_RBF = Path(
+    "out/research/openfpgaCore-618a3eb-lf/src/fpga/targets/pocket/"
+    "bld/rpcmpjt/output_files/ap_core.rbf"
+)
+INTEGRATED_RBF_SHA256 = "161750411a11cd7c9b77ee745847190a85fcd2e0b212c02555c9f6d53a861c6c"
 CORE_ID = "RPCMP.openfpgaOSProbe"
 CORE_SHORTNAME = "openfpgaOSProbe"
 PLATFORM_ID = "rpcmp_probe"
@@ -65,11 +70,11 @@ def definitions() -> dict[str, object]:
             "metadata": {
                 "platform_ids": [PLATFORM_ID],
                 "shortname": CORE_SHORTNAME,
-                "description": "RPCMP M0 openfpgaOS Target tail probe",
+                "description": "RPCMP M0 openfpgaOS runtime workload probe",
                 "author": "RPCMP",
                 "url": "",
-                "version": "0.4.0-spike",
-                "date_release": "2026-08-28",
+                "version": "0.5.0-spike",
+                "date_release": "2026-08-29",
             },
             "framework": {
                 "target_product": "Analogue Pocket",
@@ -195,7 +200,19 @@ def write_file(root: Path, relative: PurePosixPath, data: bytes) -> None:
     destination.write_bytes(data)
 
 
-def build(repo: Path, sdk: Path, elf: Path, output: Path, archive: Path) -> None:
+def reverse_rbf_bits(data: bytes) -> bytes:
+    table = bytes(int(f"{value:08b}"[::-1], 2) for value in range(256))
+    return data.translate(table)
+
+
+def build(
+    repo: Path,
+    sdk: Path,
+    elf: Path,
+    output: Path,
+    archive: Path,
+    integrated_rbf: bool = False,
+) -> None:
     revision = subprocess.run(
         ["git", "-C", str(sdk), "rev-parse", "HEAD"],
         check=True,
@@ -208,7 +225,22 @@ def build(repo: Path, sdk: Path, elf: Path, output: Path, archive: Path) -> None
     manifest = parse_manifest(runtime / "MANIFEST")
     loader = verify_runtime_file(runtime, manifest, "pocket/loader.bin")
     os_binary = verify_runtime_file(runtime, manifest, "pocket/os.bin")
-    bitstream = verify_runtime_file(runtime, manifest, f"pocket/{VARIANT}.rbf_r")
+    runtime_bitstream = verify_runtime_file(runtime, manifest, f"pocket/{VARIANT}.rbf_r")
+    bitstream_data = runtime_bitstream.read_bytes()
+    bitstream_profile = "manifest os25"
+    native_bitstream_sha256 = None
+    if integrated_rbf:
+        native_bitstream = (repo / INTEGRATED_RBF).resolve()
+        if not native_bitstream.is_file():
+            raise ValueError(f"integrated native RBF does not exist: {native_bitstream}")
+        native_bitstream_sha256 = sha256(native_bitstream)
+        if native_bitstream_sha256 != INTEGRATED_RBF_SHA256:
+            raise ValueError(
+                "integrated native RBF checksum mismatch: "
+                f"expected {INTEGRATED_RBF_SHA256}, got {native_bitstream_sha256}"
+            )
+        bitstream_data = reverse_rbf_bits(native_bitstream.read_bytes())
+        bitstream_profile = "rpcmp 16KiB/32KiB + queue + JT51 at 90MHz"
     if not elf.is_file():
         raise ValueError(f"probe ELF does not exist: {elf}")
 
@@ -226,7 +258,7 @@ def build(repo: Path, sdk: Path, elf: Path, output: Path, archive: Path) -> None
         for name, value in definitions().items():
             write_file(staging, core_root / name, json_bytes(value))
         write_file(staging, core_root / "loader.bin", loader.read_bytes())
-        write_file(staging, core_root / f"{VARIANT}.rbf_r", bitstream.read_bytes())
+        write_file(staging, core_root / f"{VARIANT}.rbf_r", bitstream_data)
 
         common_root = PurePosixPath("Assets") / PLATFORM_ID / "common"
         write_file(staging, common_root / "os.bin", os_binary.read_bytes())
@@ -272,6 +304,8 @@ def build(repo: Path, sdk: Path, elf: Path, output: Path, archive: Path) -> None
         "distribution_status": "local experiment only; redistribution not approved",
         "sdk_revision": SDK_REVISION,
         "runtime_revision": RUNTIME_REVISION,
+        "bitstream_profile": bitstream_profile,
+        "native_bitstream_sha256": native_bitstream_sha256,
         "artifacts": {
             path.relative_to(output).as_posix(): {"bytes": path.stat().st_size, "sha256": sha256(path)}
             for path in verify_tree(output)
@@ -293,8 +327,20 @@ def main() -> int:
     parser.add_argument("--elf", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--zip", dest="archive", type=Path, required=True)
+    parser.add_argument(
+        "--integrated-rbf",
+        action="store_true",
+        help="package the checksum-pinned 90 MHz reduced-cache JT51 research fit",
+    )
     args = parser.parse_args()
-    build(args.repo.resolve(), args.sdk.resolve(), args.elf.resolve(), args.output, args.archive)
+    build(
+        args.repo.resolve(),
+        args.sdk.resolve(),
+        args.elf.resolve(),
+        args.output,
+        args.archive,
+        args.integrated_rbf,
+    )
     return 0
 
 

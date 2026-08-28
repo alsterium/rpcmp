@@ -46,16 +46,22 @@ int main() {
   CountingRenderer renderer;
   const auto observed = rpcmp::spike::run_comparison_probe(blob, &renderer);
   const auto headless = rpcmp::spike::run_comparison_probe(blob);
+  const auto workload = rpcmp::spike::run_runtime_workload();
   const auto passed = rpcmp::spike::matches_golden(observed) &&
                       rpcmp::spike::matches_golden(headless) &&
                       rpcmp::spike::equivalent_semantics(observed, headless) &&
-                      renderer.count() == observed.snapshot_count;
+                      renderer.count() == observed.snapshot_count && workload.passed();
 
   std::cout << "schema=" << observed.schema_version << " snapshots=" << observed.snapshot_count
             << " snapshot_digest=" << observed.snapshot_digest << " events=" << observed.event_count
             << " event_digest=" << observed.event_digest << " commands=" << observed.command_count
             << " command_digest=" << observed.command_digest << " renderer_work=" << renderer.work()
             << '\n';
+  std::cout << "workload snapshots=" << workload.snapshot_count
+            << " events=" << workload.event_count << " writes=" << workload.device_writes
+            << " snapshot_digest=" << workload.snapshot_digest
+            << " event_digest=" << workload.event_digest
+            << " write_digest=" << workload.write_digest << '\n';
   for (const auto& check : observed.storage_checks) {
     std::cout << "storage offset=" << check.offset << " length=" << check.length
               << " expected=" << check.expected_success << " read=" << check.read_succeeded

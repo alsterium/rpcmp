@@ -106,6 +106,18 @@ rotating offsets increase the upper distribution and observed maximum. Transfer
 size dominates at 4,096 bytes. Target reads therefore must remain outside the
 real-time device scheduling path and use bounded prefetch/cache buffering.
 
+The `0.5.0-spike` package adds the reduced-cache application-performance gate.
+Unlike earlier packages, it contains the checksum-pinned integrated fit with a
+90 MHz CPU, 16 KiB instruction cache, 32 KiB data cache, the eight-entry JT51
+command endpoint, and JT51 itself. One workload sample runs 120 M0 Core snapshot
+updates, hashes immutable eight-channel snapshots and fake device events, and
+pushes/drains 960 timestamped device writes through the bounded queue. `WH`
+measures that workload headlessly and `WO` adds a snapshot observer. Each profile
+contains 32 samples and reports integer average, nearest-rank p50/p90/p95/p99,
+and maximum in microseconds. Passing proves semantic determinism and completion;
+the measured distribution is evidence for judging cache headroom, not a generic
+MDX-performance guarantee.
+
 ## Pocket installation and retest
 
 Use Pocket firmware 2.2 or later. Replace the earlier experiment by removing
@@ -118,8 +130,8 @@ these exact paths from the SD card, then extract
 /Platforms/rpcmp_probe.json
 ```
 
-The Target-tail `0.4.0-spike` ZIP SHA-256 is
-`7ea69a01f9ade454102c5795809419010859b5eef6ef4be02ca1ada702739d1f`.
+The reduced-cache workload `0.5.0-spike` ZIP SHA-256 is
+`6bfd479fa5375cb01abcf1f4b52bb0206db7a7ece9c8249b5d06d935829cb872`.
 Developer Builds displays this package under its metadata shortname
 `openfpgaOSProbe`. Run it and follow the prompts in this order:
 
@@ -129,8 +141,8 @@ Developer Builds displays this package under its metadata shortname
 4. Press START for Stop; confirm `INPUT: 4/4`, `INPUT: PASS`, and
    `OVERALL: PASS`.
 
-Before the input prompts, confirm `AUTO/QUEUE: PASS`. Record all eight profile
-rows exactly as displayed:
+Before the input prompts, confirm `AUTO/QUEUE: PASS`. Record the existing eight
+Target-profile rows and these reduced-cache workload rows exactly as displayed:
 
 ```text
 F16 a/50/90=.../.../...
@@ -141,15 +153,26 @@ F256 a/50/90=.../.../...
 95/99/M/1k/2k=.../.../.../.../...
 F4096 a/50/90=.../.../...
 95/99/M/1k/2k=.../.../.../.../...
+WH a/50/90=.../.../...
+95/99/M=.../.../...
+WO a/50/90=.../.../...
+95/99/M=.../.../...
+WD s=...
+WD e=...
+WD w=...
 ```
 
 `a/50/90` means integer average, p50, and p90 in microseconds.
 `95/99/M/1k/2k` means p95, p99, maximum in microseconds, then counts at or above
-1 ms and 2 ms. All profiles time an accepted zero-copy asynchronous Target
-dataslot read from issue through completion callback; they exclude stdio and
-inter-command ready waiting. If a run fails, record the Pocket firmware version
-and exact on-screen state before changing the package. The previously validated
-`0.3.0-spike` ZIP remains identified by SHA-256
+1 ms and 2 ms. The four `F`/`R` profiles time an accepted zero-copy asynchronous
+Target dataslot read from issue through completion callback; they exclude stdio
+and inter-command ready waiting. If a run fails, record the Pocket firmware version
+and exact on-screen state before changing the package. For `WH` and `WO`, the
+second line contains p95, p99, and maximum; `WD` contains the snapshot, event,
+and write semantic digests. The previously validated `0.4.0-spike` ZIP remains
+identified by SHA-256
+`7ea69a01f9ade454102c5795809419010859b5eef6ef4be02ca1ada702739d1f`;
+the validated `0.3.0-spike` ZIP remains identified by SHA-256
 `4a99a5f43f5f156879d033c6bb855f3b21b88da61ec7275fbc34cfc6c0e1d15c`;
 the validated `0.2.0-spike` ZIP is
 `ccd6d4ef253861e82d49df2c3bfdd84e04405b073a6d5c4c6c1cf8a57132aa82`;

@@ -558,6 +558,39 @@ project-owned minimal-SoC fit, actual 48 kHz audio adaptation and hardware
 playback, external-I/O constraints, GPL corresponding-source process, and a
 superseding ADR are still required.
 
+### Reduced-cache runtime workload package — 2026-08-29
+
+The next local-only `0.5.0-spike` package binds the unchanged SDK OS and loader
+to the integrated 90 MHz `rpcmp` + queue + JT51 RBF above rather than the stock
+`os25` bitstream. The package builder accepts this path only when its native RBF
+matches SHA-256
+`161750411A11CD7C9B77EE745847190A85FCD2E0B212C02555C9F6D53A861C6C`,
+then performs the Pocket bit reversal. The packaged `os25.rbf_r` is 1,778,024
+bytes with SHA-256
+`A7ED6A86977A9848AACBF72B028B939B7182C970544DF5CB9E4EF2B416D1B13E`.
+
+One application-workload sample advances the real M0 Mock Core through 120
+snapshot cadences while hashing the immutable eight-channel snapshots and fake
+device events. At every cadence it also pushes and drains eight timestamped
+writes through the same spike-local bounded queue, for 960 writes per sample.
+The package measures 32 headless samples (`WH`) and 32 samples with a snapshot
+observer (`WO`), reporting average, nearest-rank p50/p90/p95/p99, and maximum.
+Every sample must complete with identical snapshot, event, and write digests;
+the timing values themselves are observations rather than hardcoded pass
+thresholds. This intentionally measures the current C++ contract/state/queue
+shape, including its allocations, but does not claim to measure the future MDX
+parser or a production scheduler.
+
+The pinned RV32 toolchain produced a 241,444-byte ELF with SHA-256
+`7018A1311D24888EB85C600FA61CF56F01E1DEDD14D6FABF02CF1AFABF5A25E4`.
+The SDK PC backend reproduced the host semantic digests and passed. The final
+allowlisted ZIP is 998,041 bytes with SHA-256
+`6BFD479FA5375CB01ABCF1F4B52BB0206DB7A7ECE9C8249B5D06D935829CB872`.
+No removable SD volume was attached at package time, so Pocket boot, memory
+check, workload timings, and physical-input PASS remain unmeasured. The
+smaller-cache application-performance gate therefore remains open until those
+on-device results are recorded.
+
 ## 7. Acceptance record
 
 Each candidate must produce one reviewable record containing:

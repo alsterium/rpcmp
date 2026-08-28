@@ -146,18 +146,38 @@ void print_profile(const char* const label, const rpcmp::spike::TargetReadProfil
               static_cast<unsigned long>(profile.at_or_above_2ms));
 }
 
+void print_workload_profile(const char* const label,
+                            const rpcmp::spike::RuntimeWorkloadProfile& profile) {
+  std::printf("%s a/50/90=%lu/%lu/%lu\n", label, static_cast<unsigned long>(profile.average_us()),
+              static_cast<unsigned long>(profile.percentile_50_us),
+              static_cast<unsigned long>(profile.percentile_90_us));
+  std::printf("95/99/M=%lu/%lu/%lu\n", static_cast<unsigned long>(profile.percentile_95_us),
+              static_cast<unsigned long>(profile.percentile_99_us),
+              static_cast<unsigned long>(profile.maximum_us));
+}
+
 void print_interactive(const rpcmp::spike::TargetReadProfile& fixed_16,
                        const rpcmp::spike::TargetReadProfile& rotating_16,
                        const rpcmp::spike::TargetReadProfile& fixed_256,
                        const rpcmp::spike::TargetReadProfile& fixed_4096,
+                       const rpcmp::spike::RuntimeWorkloadProfile& headless_workload,
+                       const rpcmp::spike::RuntimeWorkloadProfile& observed_workload,
                        const rpcmp::spike::InteractiveCommandProbe& probe) {
   std::printf("\033[2J\033[H");
-  std::printf("RPCMP Target tail probe\n");
+  std::printf("RPCMP runtime workload probe\n");
   std::printf("AUTO/QUEUE: PASS\n");
   print_profile("F16", fixed_16);
   print_profile("R16", rotating_16);
   print_profile("F256", fixed_256);
   print_profile("F4096", fixed_4096);
+  print_workload_profile("WH", headless_workload);
+  print_workload_profile("WO", observed_workload);
+  std::printf("WD s=%016llx\n",
+              static_cast<unsigned long long>(headless_workload.reference.snapshot_digest));
+  std::printf("WD e=%016llx\n",
+              static_cast<unsigned long long>(headless_workload.reference.event_digest));
+  std::printf("WD w=%016llx\n",
+              static_cast<unsigned long long>(headless_workload.reference.write_digest));
   std::printf("\n");
   std::printf("INPUT: %u/4\n", static_cast<unsigned>(probe.completed_steps()));
   std::printf("state=%s seq=%llu\n\n", transport_name(probe.latest().transport),
@@ -228,8 +248,16 @@ int main() {
       observed_queue.passed() && headless_queue.passed() &&
       device_observer.count() == rpcmp::spike::kDeviceQueueCapacity &&
       rpcmp::spike::equivalent_device_queue_semantics(observed_queue, headless_queue);
-  print_result(observed, passed && latency.passed() && profiles_passed && queue_passed);
-  if (!passed || !latency.passed() || !profiles_passed || !queue_passed) {
+  const auto headless_workload =
+      rpcmp::spike::measure_runtime_workload_profile(clock, rpcmp::spike::kRuntimeWorkloadSamples);
+  const auto observed_workload = rpcmp::spike::measure_runtime_workload_profile(
+      clock, rpcmp::spike::kRuntimeWorkloadSamples, &observer);
+  const bool workloads_passed = headless_workload.passed() && observed_workload.passed() &&
+                                rpcmp::spike::equivalent_runtime_workload(
+                                    headless_workload.reference, observed_workload.reference);
+  print_result(observed,
+               passed && latency.passed() && profiles_passed && queue_passed && workloads_passed);
+  if (!passed || !latency.passed() || !profiles_passed || !queue_passed || !workloads_passed) {
     rpcmp_pocket_hold_result();
   }
 
@@ -238,13 +266,15 @@ int main() {
     std::printf("INPUT INIT: FAIL\n");
     rpcmp_pocket_hold_result();
   }
-  print_interactive(fixed_16, rotating_16, fixed_256, fixed_4096, input_probe);
+  print_interactive(fixed_16, rotating_16, fixed_256, fixed_4096, headless_workload,
+                    observed_workload, input_probe);
   while (!input_probe.completed() && !input_probe.failed()) {
     rpcmp_pocket_wait_vblank();
     const auto action = pressed_action(rpcmp_pocket_poll_actions());
     if (action.has_value()) {
       static_cast<void>(input_probe.apply(*action));
-      print_interactive(fixed_16, rotating_16, fixed_256, fixed_4096, input_probe);
+      print_interactive(fixed_16, rotating_16, fixed_256, fixed_4096, headless_workload,
+                        observed_workload, input_probe);
     }
   }
   rpcmp_pocket_hold_result();
