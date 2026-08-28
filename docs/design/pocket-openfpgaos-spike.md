@@ -246,9 +246,12 @@ The current Windows host uses Docker Desktop 4.88.1, Engine 29.7.2, and the WSL 
   versus renderer-free golden digest comparisons succeed. This closes the
   target ELF execution, deferred-slot read, and semantic-equivalence portions
   of the openfpgaOS Pocket gate.
-- The exact installed Pocket firmware version, physical input-to-command path,
-  reset/relaunch repetition, Target-command latency, and data-read latency were
-  not captured by this run and remain open acceptance evidence.
+- On Pocket firmware 2.6, the user then observed PASS on three consecutive core
+  relaunches and once more after a complete power-off/start cycle. Together with
+  the initial run, all five observed executions passed; this closes the
+  reset/relaunch repetition evidence for this package and firmware.
+- The physical input-to-command path, Target-command latency, and data-read
+  latency were not captured by these runs and remain open acceptance evidence.
 
 ## 7. Acceptance record
 

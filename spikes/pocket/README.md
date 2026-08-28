@@ -67,10 +67,11 @@ The outputs are:
 - `out/build/rpcmp-openfpgaos-probe.zip` and its adjacent evidence JSON.
 
 The corrected target ELF produced `RESULT: PASS` on Pocket on 2026-08-28. This
-confirms the target slot reader and both deterministic semantic traces; physical
-input, reset/relaunch repetition, and latency measurements remain separate
-acceptance work. The package is a local experiment only: its prebuilt bitstream
-is not approved for RPCMP redistribution.
+confirms the target slot reader and both deterministic semantic traces. On
+firmware 2.6, three consecutive relaunches and a full power-off/start cycle also
+passed. Physical input and latency measurements remain separate acceptance
+work. The package is a local experiment only: its prebuilt bitstream is not
+approved for RPCMP redistribution.
 
 ## Pocket installation and retest
 
