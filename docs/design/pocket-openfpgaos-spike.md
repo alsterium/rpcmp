@@ -171,7 +171,7 @@ The current Windows host uses Docker Desktop 4.88.1, Engine 29.7.2, and the WSL 
   `6832192089657554689`, and `16311210033269188847`, respectively. Its
   SDK-backed file operations used the same entry points as the target adapter.
 - This closes the compile/link and desktop-shim portions of the openfpgaOS C++
-  gate. The target ELF has not run on Pocket.
+  gate. The target ELF subsequently passed the Pocket execution record below.
 
 ### Target adapter gate record — 2026-08-27
 
@@ -186,8 +186,8 @@ The current Windows host uses Docker Desktop 4.88.1, Engine 29.7.2, and the WSL 
   FAIL`. It then waits on the SDK vblank service so rendering cannot affect
   the completed trace.
 - Static ELF inspection confirms the slot, terminal, and result-hold adapter
-  symbols and their `slot:%lu`/result strings are linked. This is build
-  evidence only; the stdio slot path and visible output still require Pocket.
+  symbols and their `slot:%lu`/result strings are linked. The Pocket execution
+  record below supplies the corresponding on-device evidence.
 
 ### Package gate record — 2026-08-26, updated 2026-08-27
 
@@ -227,8 +227,28 @@ The current Windows host uses Docker Desktop 4.88.1, Engine 29.7.2, and the WSL 
   removes the unused `variant_select` member from the single-bitstream instance.
 - Generator validation and regression tests now reject the folder/metadata
   mismatch, eager openfpgaOS application slots, empty controller mappings, and
-  `variant_select` in this instance. The corrected package still requires
-  Pocket firmware 2.2 or later and awaits on-device confirmation.
+  `variant_select` in this instance. The corrected package requires Pocket
+  firmware 2.2 or later and passed the on-device probe below. Because several
+  setup fields changed together, the original error cannot be attributed to
+  only one field.
+
+### Pocket execution gate record — 2026-08-28
+
+- Before the run, the SD-card core files were read back and matched the local
+  corrected package byte-for-byte by SHA-256. The required Core, Assets, and
+  Platform paths were present and every APF JSON file parsed successfully.
+- The core appears in Developer Builds under its metadata shortname
+  `openfpgaOSProbe`, rather than under `RPCMP`; the initially reported missing
+  entry was a list-position/display-name misunderstanding, not a package loss.
+- The user ran the corrected package on Pocket and observed `RESULT: PASS` on
+  its terminal. The target prints PASS only after all four bounded slot 4 reads,
+  the command outcomes, 151 snapshots, 154 fake-device events, and the observed
+  versus renderer-free golden digest comparisons succeed. This closes the
+  target ELF execution, deferred-slot read, and semantic-equivalence portions
+  of the openfpgaOS Pocket gate.
+- The exact installed Pocket firmware version, physical input-to-command path,
+  reset/relaunch repetition, Target-command latency, and data-read latency were
+  not captured by this run and remain open acceptance evidence.
 
 ## 7. Acceptance record
 

@@ -66,9 +66,11 @@ The outputs are:
 - `out/build/pocket-openfpgaos-package`, the exact allowlisted Pocket tree;
 - `out/build/rpcmp-openfpgaos-probe.zip` and its adjacent evidence JSON.
 
-The target ELF itself has not run until the same semantic record is observed
-on Pocket. The package is a local experiment only: its prebuilt bitstream is
-not approved for RPCMP redistribution.
+The corrected target ELF produced `RESULT: PASS` on Pocket on 2026-08-28. This
+confirms the target slot reader and both deterministic semantic traces; physical
+input, reset/relaunch repetition, and latency measurements remain separate
+acceptance work. The package is a local experiment only: its prebuilt bitstream
+is not approved for RPCMP redistribution.
 
 ## Pocket installation and retest
 
@@ -84,6 +86,7 @@ these exact paths from the SD card, then extract
 
 The corrected ZIP SHA-256 is
 `6c261468641a4afd00fc5865c9bbd9e80d0f6593a2b66d849f135d4ca7a45fdb`.
-After starting `RPCMP Probe`, record whether the terminal reaches `RESULT:
-PASS`. If core setup still fails, record the Pocket firmware version and the
-exact on-screen error before changing the package again.
+Developer Builds displays this package under its metadata shortname
+`openfpgaOSProbe`. The corrected package reached `RESULT: PASS` on Pocket on
+2026-08-28. If a later run fails, record the Pocket firmware version and exact
+on-screen error before changing the package again.
