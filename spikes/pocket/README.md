@@ -69,10 +69,12 @@ The outputs are:
 The corrected `0.1.0-spike` target ELF produced `RESULT: PASS` on Pocket on
 2026-08-28. This confirms the target slot reader and both deterministic semantic
 traces. On firmware 2.6, three consecutive relaunches and a full power-off/start
-cycle also passed. The new `0.2.0-spike` package retains that automatic gate and
+cycle also passed. The `0.2.0-spike` package retains that automatic gate and
 adds a physical input-to-command sequence plus 32 timed logical slot reads. It
-still requires an on-device run. The package is a local experiment only: its
-prebuilt bitstream is not approved for RPCMP redistribution.
+subsequently reached `INPUT: PASS` and `OVERALL: PASS` on Pocket; its 16-byte
+logical reads measured minimum 1,215 us, integer average 1,254 us, and maximum
+1,310 us. The package is a local experiment only: its prebuilt bitstream is not
+approved for RPCMP redistribution.
 
 ## Pocket installation and retest
 

@@ -279,10 +279,17 @@ The current Windows host uses Docker Desktop 4.88.1, Engine 29.7.2, and the WSL 
   `ccd6d4ef253861e82d49df2c3bfdd84e04405b073a6d5c4c6c1cf8a57132aa82`
   (1,142,498 bytes). Cross-environment ZIP compression is not the stated
   reproducibility boundary; the fixed container is.
-- This package has not yet been exercised on Pocket. The prior five PASS
-  observations remain evidence for `0.1.0-spike`, not this interactive build.
-  On-device input states and the three displayed read-latency values remain
-  required evidence. Raw Target-command latency also remains open.
+- The user exercised `0.2.0-spike` on Pocket and observed `INPUT: PASS` and
+  `OVERALL: PASS`. Those terminal results are emitted only after the automatic
+  golden gate passes, all 32 reads return matching content, and the physical
+  Play, Pause, Resume, and Stop sequence produces the expected immutable Core
+  snapshots. The most recently reported firmware for this Pocket is 2.6.
+- The displayed end-to-end logical read times were minimum 1,215 us, integer
+  average 1,254 us, and maximum 1,310 us for 32 reads of 16 bytes. This closes
+  the repeated application-visible data-slot read measurement for the bounded
+  probe. It does not establish throughput for larger transfers or isolate the
+  underlying APF command, filesystem, seek, and close components. Raw
+  Target-command latency remains open.
 
 ## 7. Acceptance record
 
