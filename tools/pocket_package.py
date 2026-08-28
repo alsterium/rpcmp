@@ -34,6 +34,11 @@ FREQUENCY_CONTROL_RBF = Path(
     "bld/rpcmp100fc/output_files/ap_core.rbf"
 )
 FREQUENCY_CONTROL_RBF_SHA256 = "e5728c288c5b013e4c0467f7d6a16cbf9c0a4a989cec2deed443f48d23e6fc8a"
+LOCAL_STOCK_RBF = Path(
+    "out/research/openfpgaCore-618a3eb-lf/src/fpga/targets/pocket/"
+    "bld/os25/output_files/ap_core.rbf"
+)
+LOCAL_STOCK_RBF_SHA256 = "502b60de887cc48600275d3516a8abf633cd77753be86a844f8900527a6bef6f"
 CORE_ID = "RPCMP.openfpgaOSProbe"
 CORE_SHORTNAME = "openfpgaOSProbe"
 PLATFORM_ID = "rpcmp_probe"
@@ -88,7 +93,7 @@ def definitions() -> dict[str, object]:
                 "description": "RPCMP M0 openfpgaOS runtime workload probe",
                 "author": "RPCMP",
                 "url": "",
-                "version": "0.5.5-spike",
+                "version": "0.5.6-spike",
                 "date_release": "2026-08-29",
             },
             "framework": {
@@ -230,6 +235,7 @@ def build(
     boot_isolation_rbf: bool = False,
     clock_isolation_rbf: bool = False,
     frequency_control_rbf: bool = False,
+    local_stock_rbf: bool = False,
 ) -> None:
     revision = subprocess.run(
         ["git", "-C", str(sdk), "rev-parse", "HEAD"],
@@ -295,6 +301,18 @@ def build(
             )
         bitstream_data = reverse_rbf_bits(native_bitstream.read_bytes())
         bitstream_profile = "rpcmp stock 32KiB/128KiB caches + boot ROM at 100MHz; no JT51/MMIO overlay"
+    elif local_stock_rbf:
+        native_bitstream = (repo / LOCAL_STOCK_RBF).resolve()
+        if not native_bitstream.is_file():
+            raise ValueError(f"local-stock native RBF does not exist: {native_bitstream}")
+        native_bitstream_sha256 = sha256(native_bitstream)
+        if native_bitstream_sha256 != LOCAL_STOCK_RBF_SHA256:
+            raise ValueError(
+                "local-stock native RBF checksum mismatch: "
+                f"expected {LOCAL_STOCK_RBF_SHA256}, got {native_bitstream_sha256}"
+            )
+        bitstream_data = reverse_rbf_bits(native_bitstream.read_bytes())
+        bitstream_profile = "locally rebuilt manifest-revision os25 with repaired boot ROM"
     if not elf.is_file():
         raise ValueError(f"probe ELF does not exist: {elf}")
 
@@ -402,6 +420,11 @@ def main() -> int:
         action="store_true",
         help="package the checksum-pinned 100 MHz stock-cache fit without JT51",
     )
+    profiles.add_argument(
+        "--local-stock-rbf",
+        action="store_true",
+        help="package the checksum-pinned local rebuild of the stock os25 fit",
+    )
     args = parser.parse_args()
     build(
         args.repo.resolve(),
@@ -413,6 +436,7 @@ def main() -> int:
         args.boot_isolation_rbf,
         args.clock_isolation_rbf,
         args.frequency_control_rbf,
+        args.local_stock_rbf,
     )
     return 0
 

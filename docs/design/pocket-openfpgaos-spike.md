@@ -705,6 +705,30 @@ the earlier known-good run. The manifest-verified stock `os25.rbf_r` is
 The resulting 1,147,833-byte local-only ZIP has SHA-256
 `98DB7FE24E36139E24EB39FE9E15E1D2AA61B2E77C0111AF411797D728334060`.
 
+Pocket firmware 2.6 reached the workload screen with this stock-runtime
+control. This proves that the current SD layout, APF loading, loader, OS,
+application ELF, and synthetic data are operational. The black-screen
+regression is therefore inside the locally generated FPGA bitstreams shared
+by `0.5.1-spike` through `0.5.4-spike`, not the packaged software.
+
+The next `0.5.6-spike` control uses the locally fitted stock `os25` feature
+profile and its standard-cache CPU netlist. The fit predates the RPCMP JT51
+RTL changes and contains the upstream os25 macros at the default 100 MHz. Its
+original map reported missing `firmware.mif` and `build_id.mif`; both were
+subsequently processed by `quartus_cdb --update_mif` with zero errors and zero
+warnings, and `quartus_asm` regenerated the programming files with zero errors
+and zero warnings. The fit uses 16,007 ALMs, 2,396,121 block-memory bits, 301
+M10Ks, and 24 DSP blocks. Across all reported corners its worst setup slack is
+-0.805 ns and worst hold slack is 0.045 ns. The 2,146,496-byte native RBF has
+SHA-256 `502B60DE887CC48600275D3516A8ABF633CD77753BE86A844F8900527A6BEF6F`.
+The reversed RBF has SHA-256
+`9369E6BC993834291D7B85384E004D1972A4F9169DF9A7F2F0322BA5F88D6661`.
+The resulting 1,094,466-byte local-only ZIP has SHA-256
+`FDE0684BA7939E485020DF3972D08C1C8E1B62D11C1DBC5F81F2FAF45B106A10`.
+If this control boots, feature pruning is the remaining common cause of the
+custom-fit failures; if it blacks out, the local fit/tool/timing path remains
+the fault boundary.
+
 ## 7. Acceptance record
 
 Each candidate must produce one reviewable record containing:
