@@ -1,7 +1,9 @@
 #include "rpcmp/spike/comparison_probe.hpp"
 
+#include <algorithm>
 #include <array>
 #include <cstddef>
+#include <limits>
 #include <optional>
 #include <string>
 #include <type_traits>
@@ -242,7 +244,98 @@ bool storage_equal(const StorageCheck& left, const StorageCheck& right) noexcept
          left.content_matches == right.content_matches;
 }
 
+constexpr std::array<ProbeAction, 4> kInteractiveActions{
+    ProbeAction::Play, ProbeAction::TogglePause, ProbeAction::TogglePause, ProbeAction::Stop};
+constexpr std::array<contracts::TransportState, 4> kInteractiveTransports{
+    contracts::TransportState::Playing, contracts::TransportState::Paused,
+    contracts::TransportState::Playing, contracts::TransportState::Stopped};
+
+contracts::Command action_command(const ProbeAction action) {
+  switch (action) {
+  case ProbeAction::Play:
+    return contracts::Play{};
+  case ProbeAction::TogglePause:
+    return contracts::TogglePause{};
+  case ProbeAction::Stop:
+    return contracts::Stop{};
+  }
+  return contracts::Stop{};
+}
+
 } // namespace
+
+std::uint32_t ReadLatencyStats::average_us() const noexcept {
+  return iterations == 0U ? 0U : static_cast<std::uint32_t>(total_us / iterations);
+}
+
+bool ReadLatencyStats::passed() const noexcept {
+  return iterations == kLatencyReadIterations && successful_reads == iterations &&
+         content_matches && minimum_us <= maximum_us;
+}
+
+InteractiveCommandProbe::InteractiveCommandProbe() {
+  const auto open = core_.submit(make_command(
+      next_command_id_++, contracts::OpenLibrary{"m0:library"}, core_.latest().sequence));
+  const auto load = core_.submit(make_command(
+      next_command_id_++, contracts::LoadTrack{contracts::TrackId{1}}, core_.latest().sequence));
+  clock_tick_ = runtime::kSnapshotCadenceTicks;
+  const auto advanced = core_.advance_to(clock_tick_);
+  const auto snapshot = core_.latest();
+  ready_ = open.outcome == contracts::CommandOutcome::Accepted &&
+           load.outcome == contracts::CommandOutcome::Accepted &&
+           advanced == runtime::AdvanceResult::Ok &&
+           snapshot.transport == contracts::TransportState::Stopped;
+}
+
+bool InteractiveCommandProbe::ready() const noexcept { return ready_; }
+
+bool InteractiveCommandProbe::completed() const noexcept {
+  return ready_ && !failed_ && completed_steps_ == kInteractiveActions.size();
+}
+
+bool InteractiveCommandProbe::failed() const noexcept { return failed_; }
+
+std::size_t InteractiveCommandProbe::completed_steps() const noexcept { return completed_steps_; }
+
+std::optional<ProbeAction> InteractiveCommandProbe::expected_action() const noexcept {
+  if (!ready_ || failed_ || completed_steps_ >= kInteractiveActions.size()) {
+    return std::nullopt;
+  }
+  return kInteractiveActions[completed_steps_];
+}
+
+contracts::PlayerSnapshot InteractiveCommandProbe::latest() const { return core_.latest(); }
+
+InteractiveStepResult InteractiveCommandProbe::apply(const ProbeAction action) {
+  InteractiveStepResult result;
+  result.action = action;
+  result.snapshot = core_.latest();
+  const auto expected = expected_action();
+  if (!expected.has_value()) {
+    return result;
+  }
+  result.expected_action = *expected;
+  result.expected = action == *expected;
+  if (!result.expected) {
+    return result;
+  }
+
+  result.command_result = core_.submit(
+      make_command(next_command_id_++, action_command(action), result.snapshot.sequence));
+  clock_tick_ += runtime::kSnapshotCadenceTicks;
+  result.advance_result = core_.advance_to(clock_tick_);
+  result.snapshot = core_.latest();
+  result.passed = result.command_result.outcome == contracts::CommandOutcome::Accepted &&
+                  result.command_result.reason == contracts::CommandReason::None &&
+                  result.advance_result == runtime::AdvanceResult::Ok &&
+                  result.snapshot.transport == kInteractiveTransports[completed_steps_];
+  if (result.passed) {
+    ++completed_steps_;
+  } else {
+    failed_ = true;
+  }
+  return result;
+}
 
 bool ProbeRunResult::passed() const noexcept {
   if (!execution_ok || schema_version != contracts::kSchemaVersion ||
@@ -331,6 +424,39 @@ ProbeRunResult run_comparison_probe(IProbeBlobReader& blob_reader, IProbeRendere
                                contracts::SetChannelMute{contracts::ChannelId{0}, false}))
           .reason;
 
+  return result;
+}
+
+ReadLatencyStats measure_read_latency(IProbeBlobReader& blob_reader,
+                                      IProbeMonotonicClock& clock) noexcept {
+  ReadLatencyStats result;
+  result.iterations = kLatencyReadIterations;
+  result.minimum_us = std::numeric_limits<std::uint32_t>::max();
+  result.content_matches = blob_reader.size() == kSyntheticBlobSize;
+  constexpr auto kOffsetRange = kSyntheticBlobSize - kLatencyReadSize + 1U;
+
+  for (std::uint32_t iteration = 0; iteration < result.iterations; ++iteration) {
+    const auto offset = (iteration * 127U) % kOffsetRange;
+    std::array<std::uint8_t, kLatencyReadSize> bytes{};
+    const auto started = clock.now_us();
+    const auto read = blob_reader.read(offset, bytes.data(), kLatencyReadSize);
+    const auto elapsed = clock.now_us() - started;
+    result.total_us += elapsed;
+    result.minimum_us = std::min(result.minimum_us, elapsed);
+    result.maximum_us = std::max(result.maximum_us, elapsed);
+    if (read) {
+      ++result.successful_reads;
+      for (std::uint32_t index = 0; index < kLatencyReadSize; ++index) {
+        result.content_matches =
+            result.content_matches && bytes[index] == synthetic_byte(offset + index);
+      }
+    } else {
+      result.content_matches = false;
+    }
+  }
+  if (result.iterations == 0U) {
+    result.minimum_us = 0U;
+  }
   return result;
 }
 

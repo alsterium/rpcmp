@@ -253,6 +253,37 @@ The current Windows host uses Docker Desktop 4.88.1, Engine 29.7.2, and the WSL 
 - The physical input-to-command path, Target-command latency, and data-read
   latency were not captured by these runs and remain open acceptance evidence.
 
+### Interactive input and read-latency package — 2026-08-28
+
+- Package version `0.2.0-spike` retains the automatic golden comparison and
+  adds a platform adapter that maps Pocket A, B, and START press edges to the
+  abstract Play, TogglePause, and Stop probe actions. Pocket button names and
+  SDK types do not enter Core, its contracts, or the common probe.
+- The interactive sequence is Play, TogglePause, TogglePause, Stop. Each action
+  is submitted as a `PlayerCommand`, Core advances independently of rendering,
+  and the immutable snapshots must report playing, paused, playing, and stopped
+  before the terminal prints `INPUT: PASS` and `OVERALL: PASS`.
+- Before accepting input, the target performs 32 rotating 16-byte reads from
+  synthetic slot 4, verifies every byte, and reports minimum, integer-average,
+  and maximum microseconds. Unsigned 32-bit subtraction makes each duration
+  valid across the SDK timer's approximately 71-minute wrap. This is the
+  application-visible `fopen`/`fseek`/`fread`/`fclose` logical read path, not a
+  raw APF Target-command measurement.
+- Host tests cover the exact command/snapshot sequence, unexpected-action
+  rejection, all latency aggregates, synthetic content, and timer wrap. The
+  fixed Docker build produced ELF SHA-256
+  `d90e211ea252274473ccabc1319be30048a166336a94bab293c86bc26a79b150`
+  (232,536 bytes; loadable sections total 164,831 bytes).
+- Two complete builds in the fixed Docker environment produced the same ZIP
+  SHA-256
+  `ccd6d4ef253861e82d49df2c3bfdd84e04405b073a6d5c4c6c1cf8a57132aa82`
+  (1,142,498 bytes). Cross-environment ZIP compression is not the stated
+  reproducibility boundary; the fixed container is.
+- This package has not yet been exercised on Pocket. The prior five PASS
+  observations remain evidence for `0.1.0-spike`, not this interactive build.
+  On-device input states and the three displayed read-latency values remain
+  required evidence. Raw Target-command latency also remains open.
+
 ## 7. Acceptance record
 
 Each candidate must produce one reviewable record containing:

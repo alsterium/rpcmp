@@ -66,12 +66,13 @@ The outputs are:
 - `out/build/pocket-openfpgaos-package`, the exact allowlisted Pocket tree;
 - `out/build/rpcmp-openfpgaos-probe.zip` and its adjacent evidence JSON.
 
-The corrected target ELF produced `RESULT: PASS` on Pocket on 2026-08-28. This
-confirms the target slot reader and both deterministic semantic traces. On
-firmware 2.6, three consecutive relaunches and a full power-off/start cycle also
-passed. Physical input and latency measurements remain separate acceptance
-work. The package is a local experiment only: its prebuilt bitstream is not
-approved for RPCMP redistribution.
+The corrected `0.1.0-spike` target ELF produced `RESULT: PASS` on Pocket on
+2026-08-28. This confirms the target slot reader and both deterministic semantic
+traces. On firmware 2.6, three consecutive relaunches and a full power-off/start
+cycle also passed. The new `0.2.0-spike` package retains that automatic gate and
+adds a physical input-to-command sequence plus 32 timed logical slot reads. It
+still requires an on-device run. The package is a local experiment only: its
+prebuilt bitstream is not approved for RPCMP redistribution.
 
 ## Pocket installation and retest
 
@@ -85,9 +86,21 @@ these exact paths from the SD card, then extract
 /Platforms/rpcmp_probe.json
 ```
 
-The corrected ZIP SHA-256 is
-`6c261468641a4afd00fc5865c9bbd9e80d0f6593a2b66d849f135d4ca7a45fdb`.
+The interactive `0.2.0-spike` ZIP SHA-256 is
+`ccd6d4ef253861e82d49df2c3bfdd84e04405b073a6d5c4c6c1cf8a57132aa82`.
 Developer Builds displays this package under its metadata shortname
-`openfpgaOSProbe`. The corrected package reached `RESULT: PASS` on Pocket on
-2026-08-28. If a later run fails, record the Pocket firmware version and exact
-on-screen error before changing the package again.
+`openfpgaOSProbe`. Run it and follow the prompts in this order:
+
+1. Press A for Play; confirm `INPUT: 1/4` and `state=playing`.
+2. Press B for Pause; confirm `INPUT: 2/4` and `state=paused`.
+3. Press B for Resume; confirm `INPUT: 3/4` and `state=playing`.
+4. Press START for Stop; confirm `INPUT: 4/4`, `INPUT: PASS`, and
+   `OVERALL: PASS`.
+
+Also record the displayed `min`, `avg`, and `max` values for `read16 x32 us`.
+These are end-to-end logical slot-read times, including the SDK file open, seek,
+read, and close path; they are not raw APF command latency. If a run fails,
+record the Pocket firmware version and exact on-screen state before changing the
+package again. The previously validated `0.1.0-spike` ZIP remains identified by
+SHA-256
+`6c261468641a4afd00fc5865c9bbd9e80d0f6593a2b66d849f135d4ca7a45fdb`.

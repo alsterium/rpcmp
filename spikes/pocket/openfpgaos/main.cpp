@@ -7,6 +7,9 @@ extern "C" {
 int rpcmp_pocket_slot_size(std::uint32_t slot_id, std::uint32_t* size);
 int rpcmp_pocket_slot_read(std::uint32_t slot_id, std::uint32_t offset, void* destination,
                            std::uint32_t length);
+std::uint32_t rpcmp_pocket_time_us();
+std::uint32_t rpcmp_pocket_poll_actions();
+void rpcmp_pocket_wait_vblank();
 void rpcmp_pocket_terminal_init();
 [[noreturn]] void rpcmp_pocket_hold_result();
 }
@@ -14,6 +17,9 @@ void rpcmp_pocket_terminal_init();
 namespace {
 
 constexpr std::uint32_t kSyntheticSlot = 4;
+constexpr std::uint32_t kActionPlay = 1U << 0;
+constexpr std::uint32_t kActionTogglePause = 1U << 1;
+constexpr std::uint32_t kActionStop = 1U << 2;
 
 class DataSlotBlob final : public rpcmp::spike::IProbeBlobReader {
 public:
@@ -32,6 +38,11 @@ public:
 private:
   std::uint32_t size_{};
   bool valid_{};
+};
+
+class PocketClock final : public rpcmp::spike::IProbeMonotonicClock {
+public:
+  std::uint32_t now_us() noexcept override { return rpcmp_pocket_time_us(); }
 };
 
 class SnapshotObserver final : public rpcmp::spike::IProbeRenderer {
@@ -70,6 +81,71 @@ void print_result(const rpcmp::spike::ProbeRunResult& result, const bool passed)
   std::printf("Open the Pocket menu to exit.\n");
 }
 
+const char* transport_name(const rpcmp::contracts::TransportState transport) noexcept {
+  switch (transport) {
+  case rpcmp::contracts::TransportState::Stopped:
+    return "stopped";
+  case rpcmp::contracts::TransportState::Playing:
+    return "playing";
+  case rpcmp::contracts::TransportState::Paused:
+    return "paused";
+  default:
+    return "other";
+  }
+}
+
+const char* action_prompt(const rpcmp::spike::ProbeAction action) noexcept {
+  switch (action) {
+  case rpcmp::spike::ProbeAction::Play:
+    return "Press A: Play";
+  case rpcmp::spike::ProbeAction::TogglePause:
+    return "Press B: Pause/Resume";
+  case rpcmp::spike::ProbeAction::Stop:
+    return "Press START: Stop";
+  }
+  return "";
+}
+
+void print_interactive(const rpcmp::spike::ReadLatencyStats& latency,
+                       const rpcmp::spike::InteractiveCommandProbe& probe) {
+  std::printf("\033[2J\033[H");
+  std::printf("RPCMP Pocket input probe\n\n");
+  std::printf("AUTO: PASS\n");
+  std::printf("read16 x%lu us\n", static_cast<unsigned long>(latency.iterations));
+  std::printf("min=%lu avg=%lu max=%lu\n\n", static_cast<unsigned long>(latency.minimum_us),
+              static_cast<unsigned long>(latency.average_us()),
+              static_cast<unsigned long>(latency.maximum_us));
+  std::printf("INPUT: %u/4\n", static_cast<unsigned>(probe.completed_steps()));
+  std::printf("state=%s seq=%llu\n\n", transport_name(probe.latest().transport),
+              static_cast<unsigned long long>(probe.latest().sequence));
+  if (probe.completed()) {
+    std::printf("INPUT: PASS\nOVERALL: PASS\n");
+    std::printf("Open Pocket menu to exit.\n");
+    return;
+  }
+  if (probe.failed()) {
+    std::printf("INPUT: FAIL\nOVERALL: FAIL\n");
+    return;
+  }
+  const auto expected = probe.expected_action();
+  if (expected.has_value()) {
+    std::printf("%s\n", action_prompt(*expected));
+  }
+}
+
+std::optional<rpcmp::spike::ProbeAction> pressed_action(const std::uint32_t actions) noexcept {
+  if ((actions & kActionPlay) != 0U) {
+    return rpcmp::spike::ProbeAction::Play;
+  }
+  if ((actions & kActionTogglePause) != 0U) {
+    return rpcmp::spike::ProbeAction::TogglePause;
+  }
+  if ((actions & kActionStop) != 0U) {
+    return rpcmp::spike::ProbeAction::Stop;
+  }
+  return std::nullopt;
+}
+
 } // namespace
 
 int main() {
@@ -84,6 +160,26 @@ int main() {
                       rpcmp::spike::equivalent_semantics(observed, headless) &&
                       observer.last_sequence() == observed.final_snapshot_sequence;
 
-  print_result(observed, passed);
+  PocketClock clock;
+  const auto latency = rpcmp::spike::measure_read_latency(blob, clock);
+  print_result(observed, passed && latency.passed());
+  if (!passed || !latency.passed()) {
+    rpcmp_pocket_hold_result();
+  }
+
+  rpcmp::spike::InteractiveCommandProbe input_probe;
+  if (!input_probe.ready()) {
+    std::printf("INPUT INIT: FAIL\n");
+    rpcmp_pocket_hold_result();
+  }
+  print_interactive(latency, input_probe);
+  while (!input_probe.completed() && !input_probe.failed()) {
+    rpcmp_pocket_wait_vblank();
+    const auto action = pressed_action(rpcmp_pocket_poll_actions());
+    if (action.has_value()) {
+      static_cast<void>(input_probe.apply(*action));
+      print_interactive(latency, input_probe);
+    }
+  }
   rpcmp_pocket_hold_result();
 }

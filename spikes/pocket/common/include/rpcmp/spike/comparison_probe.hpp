@@ -19,6 +19,8 @@ inline constexpr std::uint64_t kGoldenSnapshotDigest = 6'832'192'089'657'554'689
 inline constexpr std::uint64_t kGoldenEventCount = 154;
 inline constexpr std::uint64_t kGoldenEventDigest = 16'311'210'033'269'188'847ULL;
 inline constexpr std::uint64_t kGoldenFinalSnapshotSequence = 151;
+inline constexpr std::uint32_t kLatencyReadIterations = 32;
+inline constexpr std::uint32_t kLatencyReadSize = 16;
 
 constexpr std::uint8_t synthetic_byte(const std::uint32_t offset) noexcept {
   return static_cast<std::uint8_t>((offset * 37U + 11U) & 0xFFU);
@@ -36,6 +38,57 @@ class IProbeRenderer {
 public:
   virtual ~IProbeRenderer() = default;
   virtual void render(const contracts::PlayerSnapshot& snapshot) = 0;
+};
+
+class IProbeMonotonicClock {
+public:
+  virtual ~IProbeMonotonicClock() = default;
+  virtual std::uint32_t now_us() noexcept = 0;
+};
+
+struct ReadLatencyStats {
+  std::uint32_t iterations{};
+  std::uint32_t successful_reads{};
+  std::uint32_t minimum_us{};
+  std::uint32_t maximum_us{};
+  std::uint64_t total_us{};
+  bool content_matches{};
+
+  std::uint32_t average_us() const noexcept;
+  bool passed() const noexcept;
+};
+
+enum class ProbeAction : std::uint8_t { Play, TogglePause, Stop };
+
+struct InteractiveStepResult {
+  ProbeAction action{ProbeAction::Stop};
+  ProbeAction expected_action{ProbeAction::Play};
+  contracts::CommandResult command_result{};
+  runtime::AdvanceResult advance_result{runtime::AdvanceResult::Ok};
+  contracts::PlayerSnapshot snapshot{};
+  bool expected{};
+  bool passed{};
+};
+
+class InteractiveCommandProbe final {
+public:
+  InteractiveCommandProbe();
+
+  bool ready() const noexcept;
+  bool completed() const noexcept;
+  bool failed() const noexcept;
+  std::size_t completed_steps() const noexcept;
+  std::optional<ProbeAction> expected_action() const noexcept;
+  contracts::PlayerSnapshot latest() const;
+  InteractiveStepResult apply(ProbeAction action);
+
+private:
+  runtime::MockCore core_;
+  std::uint64_t clock_tick_{};
+  std::uint64_t next_command_id_{1};
+  std::size_t completed_steps_{};
+  bool ready_{};
+  bool failed_{};
 };
 
 struct StorageCheck {
@@ -72,6 +125,8 @@ struct ProbeRunResult {
 
 ProbeRunResult run_comparison_probe(IProbeBlobReader& blob_reader,
                                     IProbeRenderer* renderer = nullptr);
+ReadLatencyStats measure_read_latency(IProbeBlobReader& blob_reader,
+                                      IProbeMonotonicClock& clock) noexcept;
 bool equivalent_semantics(const ProbeRunResult& left, const ProbeRunResult& right) noexcept;
 bool matches_golden(const ProbeRunResult& result) noexcept;
 

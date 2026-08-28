@@ -45,6 +45,29 @@ int rpcmp_pocket_slot_read(uint32_t slot_id, uint32_t offset, void* destination,
   return read_count == length && close_result == 0 ? 0 : -1;
 }
 
+uint32_t rpcmp_pocket_time_us(void) {
+  return of_time_us();
+}
+
+uint32_t rpcmp_pocket_poll_actions(void) {
+  uint32_t actions = 0;
+  of_input_poll_p0();
+  if (of_btn_pressed(OF_BTN_A)) {
+    actions |= 1U << 0;
+  }
+  if (of_btn_pressed(OF_BTN_B)) {
+    actions |= 1U << 1;
+  }
+  if (of_btn_pressed(OF_BTN_START)) {
+    actions |= 1U << 2;
+  }
+  return actions;
+}
+
+void rpcmp_pocket_wait_vblank(void) {
+  OF_SVC->video_vsync();
+}
+
 void rpcmp_pocket_terminal_init(void) {
   of_video_init();
   of_video_set_display_mode(OF_DISPLAY_TERMINAL);
@@ -53,6 +76,6 @@ void rpcmp_pocket_terminal_init(void) {
 
 _Noreturn void rpcmp_pocket_hold_result(void) {
   for (;;) {
-    OF_SVC->video_vsync();
+    rpcmp_pocket_wait_vblank();
   }
 }

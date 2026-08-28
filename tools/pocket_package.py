@@ -65,11 +65,11 @@ def definitions() -> dict[str, object]:
             "metadata": {
                 "platform_ids": [PLATFORM_ID],
                 "shortname": CORE_SHORTNAME,
-                "description": "RPCMP M0 openfpgaOS compatibility probe",
+                "description": "RPCMP M0 openfpgaOS input and latency probe",
                 "author": "RPCMP",
                 "url": "",
-                "version": "0.1.0-spike",
-                "date_release": "2026-08-26",
+                "version": "0.2.0-spike",
+                "date_release": "2026-08-28",
             },
             "framework": {
                 "target_product": "Analogue Pocket",
