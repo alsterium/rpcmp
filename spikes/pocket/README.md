@@ -83,13 +83,28 @@ PASS`, `INPUT: PASS`, and `OVERALL: PASS` on Pocket. The logical read row was
 minimum/integer-average/maximum. The Target maximum is a tail observation, not
 an approved scheduling bound.
 
-The unvalidated `0.4.0-spike` package investigates that tail with four Target
+The validated `0.4.0-spike` package investigates that tail with four Target
 profiles. `F16` and `R16` perform 256 reads of 16 bytes at a fixed and rotating
 offset respectively; `F256` and `F4096` perform 64 fixed-offset reads of 256
 and 4,096 bytes. Each profile reports integer average, nearest-rank p50, p90,
 p95, p99, maximum, and the counts at or above 1 ms and 2 ms. This separates
 offset effects from transfer-size effects; it is still a feasibility probe,
 not a production scheduling benchmark.
+
+On Pocket, all automatic, queue, input, and overall gates passed. The measured
+Target profiles, in microseconds except for the final two count columns, were:
+
+| Profile | Average | p50 | p90 | p95 | p99 | Maximum | >=1 ms | >=2 ms |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| `F16` | 450 | 359 | 365 | 366 | 3,206 | 6,182 | 7/256 | 7/256 |
+| `R16` | 675 | 362 | 974 | 982 | 3,920 | 10,754 | 11/256 | 11/256 |
+| `F256` | 638 | 498 | 504 | 1,083 | 3,447 | 3,447 | 4/64 | 3/64 |
+| `F4096` | 4,728 | 3,943 | 5,846 | 5,915 | 8,901 | 8,901 | 64/64 | 64/64 |
+
+The similar `F16`/`R16` medians show a roughly 360 us small-read baseline, but
+rotating offsets increase the upper distribution and observed maximum. Transfer
+size dominates at 4,096 bytes. Target reads therefore must remain outside the
+real-time device scheduling path and use bounded prefetch/cache buffering.
 
 ## Pocket installation and retest
 

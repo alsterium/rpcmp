@@ -361,9 +361,30 @@ The current Windows host uses Docker Desktop 4.88.1, Engine 29.7.2, and the WSL 
   `7ea69a01f9ade454102c5795809419010859b5eef6ef4be02ca1ada702739d1f`
   (1,145,764 bytes). The APF JSON, boot/reset/heartbeat implementation,
   synthetic asset, video, audio, bitstream, and package paths are unchanged.
-- Pocket execution is pending. Until all four profile rows and the final input
-  result are recorded on firmware 2.6, this package supplies build evidence
-  only and does not close the Target-tail investigation.
+- The user exercised `0.4.0-spike` on Pocket and observed `INPUT: PASS` and
+  `OVERALL: PASS`; those results follow the automatic semantic, read-content,
+  and bounded-queue gates. Firmware was not repeated with this run; the most
+  recently reported Pocket firmware remains 2.6.
+- `F16` reported average/p50/p90 `450/359/365` us and p95/p99/maximum
+  `366/3206/6182` us, with 7 of 256 samples at or above both 1 ms and 2 ms.
+  `R16` reported `675/362/974` us and `982/3920/10754` us, with 11 of 256
+  samples at or above both thresholds.
+- `F256` reported average/p50/p90 `638/498/504` us and p95/p99/maximum
+  `1083/3447/3447` us, with 4 of 64 samples at or above 1 ms and 3 at or above
+  2 ms. `F4096` reported `4728/3943/5846` us and `5915/8901/8901` us, with all
+  64 samples at or above both thresholds.
+- The similar 16-byte medians establish a roughly 360 us small-read baseline
+  for this bounded run. Rotating offsets increase the upper distribution and
+  observed maximum, while the 4,096-byte profile shows that payload size is the
+  dominant sustained cost. The rare small-read tail is real rather than a
+  single unexplained maximum: 7/256 fixed and 11/256 rotating reads exceeded
+  2 ms.
+- This closes the bounded Target-tail distribution experiment, but does not
+  establish a hard worst-case latency or approve synchronous storage access in
+  playback timing. A production openfpgaOS design must keep Target reads outside
+  the device-scheduling/audio-critical path and use bounded prefetch, cache, or
+  double buffering. Substrate selection still requires the resource/license
+  gate and a superseding ADR; this result alone does not select openfpgaOS.
 
 ## 7. Acceptance record
 
