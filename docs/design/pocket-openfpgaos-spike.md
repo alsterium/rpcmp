@@ -663,6 +663,33 @@ The reversed RBF has SHA-256
 The resulting 1,050,908-byte local-only ZIP has SHA-256
 `BB09D649F7E5AEB314C92C6CDF8E4D8075AF081EC02723038EEEA80C6CE9D893`.
 
+Pocket firmware 2.6 produced the same `Loading...` then black-screen result
+with this standard-cache 90 MHz package. The reduced cache geometry is
+therefore excluded alongside the JT51/MMIO overlay. Relative to the earlier
+known-good stock-runtime probe, the leading remaining hardware difference is
+the custom CPU/SDRAM clock path; a custom-fit or feature-pruning difference is
+also still possible.
+
+The `0.5.4-spike` frequency control keeps the same standard-cache CPU netlist,
+feature-stripped base SoC, repaired boot ROM, build ID, OS, and application,
+but removes `INCLUDE_CLK90` and returns the CPU/SDRAM domain, clock-frequency
+register, SDRAM refresh interval, and UART divisor to the upstream 100 MHz
+defaults. A clean Quartus Prime Lite 25.1std.0 full compile completed with zero
+errors, 12,591 ALMs (68%), 18,794 registers, 2,164,953 block-memory bits, 273
+M10Ks (89%), 12 DSP blocks, and two PLLs. Both MIFs were found and used. Across
+all reported corners the worst setup slack is -0.745 ns, worst hold slack is
+0.053 ns, and minimum pulse-width slack is 0.500 ns; the inherited external-I/O
+constraint gap remains. The setup miss is comparable to the earlier stock
+`os25` fit (-0.805 ns), which passed the prior hardware probe, but it makes a
+black-screen result non-conclusive: successful boot identifies the 90 MHz path,
+whereas failure still permits either a custom-fit/feature difference or the
+100 MHz setup violation. The 1,975,140-byte native RBF has SHA-256
+`E5728C288C5B013E4C0467F7D6A16CBF9C0A4A989CEC2DEED443F48D23E6FC8A`.
+The reversed RBF has SHA-256
+`79CF0A53681D9F6A33447D5B5199FA85ECE85B1DB860B33D981F00779681C9A7`.
+The resulting 1,051,447-byte local-only ZIP has SHA-256
+`00337451821454B66BC76687964975E50D4233A36C153E010B8113A4F88DDFA9`.
+
 ## 7. Acceptance record
 
 Each candidate must produce one reviewable record containing:
