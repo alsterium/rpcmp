@@ -62,6 +62,22 @@ Subsequent review of ModPlayer_openfpgaos and HarpMudd.mp3player added working-p
 
 On 2026-08-28, a full Quartus 25.1 fit of the SDK-manifest runtime revision established that stock openfpgaOS `os25` uses 16,007 ALMs and 301/308 M10K blocks and misses 100 MHz setup by 0.805 ns. A separately synthesized pinned JT51 uses 1,240 ALMs, nine M10K blocks, and one DSP, so it cannot fit in the seven remaining stock M10Ks. A spike-only openfpgaOS profile with no optional feature macros and 16 KiB/32 KiB instruction/data caches fit at 12,540 ALMs and 163 M10Ks. The conservative stripped-plus-JT51 arithmetic budget is about 75% ALM and 56% M10K, so capacity is feasible only after stripping; timing closure, integrated fit, smaller-cache application performance, redistribution policy, and the project-owned minimal-SoC comparison remain open. Detailed revisions, hashes, warnings, timing caveats, and license findings are recorded in `docs/design/pocket-openfpgaos-spike.md`. This evidence narrows the gate but does not supersede this ADR or select a substrate.
 
+On 2026-08-29, a research-only integrated fit added an eight-entry timestamped
+register queue and the pinned JT51 to that stripped profile. Running the CPU at
+90 MHz and JT51 from the constrained 12.288 MHz audio clock with fractional
+enables produced 13,774 ALMs, 172/308 M10Ks, 13/66 DSPs, setup slack +0.327 ns,
+and hold slack at least +0.110 ns across reported corners. A self-checking RTL
+test passed full/reject/overflow-clear, due-time, ordering, wrap/reuse, YM2151
+address/data, and sample-diagnostic CDC cases. Thus integrated capacity and
+internal clock timing are no longer open for this bounded profile. The APF
+shell retains the same unconstrained external-I/O counts as the stripped
+baseline, and the spike does not implement 48 kHz audio output or exercise
+hardware playback. Smaller-cache application performance, external-I/O
+constraints, redistribution policy, the project-owned minimal-SoC comparison,
+and a superseding ADR remain open; this result still does not select a
+substrate. Full evidence is recorded in
+`docs/design/pocket-openfpgaos-spike.md`.
+
 ## Alternatives considered
 
 - **Assume C++ runs directly under openFPGA:** unsupported by the official template evidence reviewed.

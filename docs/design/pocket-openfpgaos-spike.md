@@ -502,6 +502,62 @@ excluded. Resource feasibility is now positive only for the stripped profile;
 the project-owned minimal-SoC comparison, integrated JT51 timing, application
 performance with smaller caches, and the superseding ADR remain open.
 
+### Integrated JT51 queue and 90 MHz timing gate — 2026-08-29
+
+A research-only overlay on the same pinned openfpgaCore, VexiiRiscv, SpinalHDL,
+and JT51 revisions integrated the stripped `rpcmp` profile with JT51 and a
+bounded register endpoint. It is not production RTL and does not change the M0
+hardware contract. The CPU runs from the existing 90 MHz PLL profile. JT51 runs
+on the existing constrained 12.288 MHz audio PLL output and receives fractional
+clock enables averaging 3.579545 MHz and half that rate. No generated fabric
+clock or multicycle exception was added.
+
+The endpoint stores eight absolute 32-bit CPU timestamps plus YM2151 address and
+data bytes, preserves FIFO order across pointer wrap, rejects a ninth resident
+write, latches overflow until explicit clear, and transfers one stable command
+at a time across a toggle handshake. A spike-only MMIO window at
+`0x40000184-0x40000194` stages timestamps and commands and reports queue state,
+the CPU cycle counter, and sample diagnostics. JT51 audio is deliberately not
+connected to the Pocket output: native-rate samples cross back only as a count
+and rolling hash so synthesis cannot discard the sound path. A 48 kHz output
+adapter/resampler remains a separate gate.
+
+Questa Altera Starter FPGA Edition 2025.2 compiled the endpoint testbench with
+zero errors and warnings. Its self-check completed with `PASS commands=16
+writes=32 samples=5 hash=8f5d7bfe`, covering future-timestamp hold, eight-entry
+full state, ninth-write rejection, sticky overflow clear, two bus writes per
+YM2151 command, FIFO order, complete pointer wrap/reuse, and bundled sample CDC.
+Quartus Prime Lite 25.1std.0 Build 1129 then completed synthesis, fit, assembly,
+and timing for `5CEBA4F23C8` with seed 1:
+
+| Measurement | ALMs | Registers | Block bits | M10K | DSP | PLL | Worst setup | Worst hold | Warnings |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| Integrated `rpcmp` + queue + JT51, 90 MHz | 13,774 (75%) | 20,735 | 1,216,297 (39%) | 172 (56%) | 13 (20%) | 2 (50%) | 0.327 ns | 0.110 ns | 1,072 |
+
+Relative to the stripped baseline, integration adds 1,234 ALMs, 1,890
+registers, 2,768 block-memory bits, nine M10Ks, and one DSP. The resulting ALM,
+M10K, and DSP totals differ from the earlier arithmetic estimate by only six
+ALMs, zero M10Ks, and zero DSPs. The RBF is 1,778,024 bytes with SHA-256
+`161750411A11CD7C9B77EE745847190A85FCD2E0B212C02555C9F6D53A861C6C`.
+
+All analyzed clock-domain setup and hold totals are non-negative. At the slow
+1.1 V 85 C corner, the 90 MHz domain has setup slack 0.327 ns and the overall
+hold minimum is 0.296 ns; across reported corners, the overall minimum hold is
+0.110 ns. Minimum pulse-width slack is at least 0.555 ns. Timing Analyzer found
+zero illegal or unconstrained clocks. It still reports the design as not fully
+constrained because six APF-shell input ports and 28 APF-shell output ports lack
+I/O delays. The stripped baseline has the exact same 6/32/28/31 input-port,
+input-path, output-port, and output-path counts, so the integration introduced
+no new unconstrained category or path count. This supports the internal
+clock/timing comparison but does not waive the inherited external-I/O gap.
+
+The integrated capacity and internal timing gates are therefore positive for
+the stripped 90 MHz openfpgaOS profile. Substrate selection remains open:
+representative application performance with the smaller caches, a comparable
+project-owned minimal-SoC fit, actual 48 kHz audio adaptation and hardware
+playback, external-I/O constraints, GPL corresponding-source process, and a
+superseding ADR are still required.
+
 ## 7. Acceptance record
 
 Each candidate must produce one reviewable record containing:
