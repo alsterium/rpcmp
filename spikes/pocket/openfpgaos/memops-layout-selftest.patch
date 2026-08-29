@@ -1,0 +1,20 @@
+diff --git a/src/firmware/os/hal/memtest.c b/src/firmware/os/hal/memtest.c
+--- a/src/firmware/os/hal/memtest.c
++++ b/src/firmware/os/hal/memtest.c
+@@ -184,3 +184,3 @@
+-static uint8_t memops_src[MEMOPS_CAPACITY] __attribute__((aligned(64)));
+-static uint8_t memops_dst[MEMOPS_CAPACITY] __attribute__((aligned(64)));
+-static uint8_t memops_ref[MEMOPS_CAPACITY] __attribute__((aligned(64)));
++static uint8_t memops_src[MEMOPS_CAPACITY] __attribute__((aligned(64), used));
++static uint8_t memops_dst[MEMOPS_CAPACITY] __attribute__((aligned(64), used));
++static uint8_t memops_ref[MEMOPS_CAPACITY] __attribute__((aligned(64), used));
+@@ -187,0 +188,1 @@
++#ifndef RPCMP_MEMOPS_LAYOUT_SELFTEST
+@@ -273,0 +275,1 @@ static int memops_test_memcpy(void) {
++#endif
+@@ -329,0 +332,3 @@ int of_memops_test_boot(void) {
++#ifdef RPCMP_MEMOPS_LAYOUT_SELFTEST
++    return 0;
++#else
+@@ -341,0 +347,1 @@ int of_memops_test_boot(void) {
++#endif

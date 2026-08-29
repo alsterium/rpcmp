@@ -113,6 +113,10 @@ MEMCPY_HARNESS_SELFTEST_OS = Path(
     "out/research/openfpgaCore-618a3eb-lf/src/firmware/os/bld/pocket/os-memcpy-harness-selftest.bin"
 )
 MEMCPY_HARNESS_SELFTEST_OS_SHA256 = "44b581123cf53fe8c1b6077308709f0081df3fa2d227a20b22283ee735a88ad9"
+MEMOPS_LAYOUT_SELFTEST_OS = Path(
+    "out/research/openfpgaCore-618a3eb-lf/src/firmware/os/bld/pocket/os-memops-layout-selftest.bin"
+)
+MEMOPS_LAYOUT_SELFTEST_OS_SHA256 = "0f7db3529ef6fe9ac15f1777799e009936a22504aafd055af58b54483a2ce222"
 SAFE_MEMSET_RBF = Path(
     "out/research/openfpgaCore-618a3eb-lf/src/fpga/targets/pocket/"
     "bld/rpcmp90fcmem/output_files/ap_core.rbf"
@@ -182,7 +186,7 @@ def definitions() -> dict[str, object]:
                 "description": "RPCMP M0 openfpgaOS runtime workload probe",
                 "author": "RPCMP",
                 "url": "",
-                "version": "0.5.27-spike",
+                "version": "0.5.28-spike",
                 "date_release": "2026-08-30",
             },
             "framework": {
@@ -346,6 +350,7 @@ def build(
     memcpy_selftest: bool = False,
     memcpy_small_selftest: bool = False,
     memcpy_harness_selftest: bool = False,
+    memops_layout_selftest: bool = False,
 ) -> None:
     revision = subprocess.run(
         ["git", "-C", str(sdk), "rev-parse", "HEAD"],
@@ -646,12 +651,25 @@ def build(
             )
         os_binary_data = test_os.read_bytes()
         os_profile = "safe-memset OS with memcpy test harness and no memcpy calls"
+    elif memops_layout_selftest:
+        test_os = (repo / MEMOPS_LAYOUT_SELFTEST_OS).resolve()
+        if not test_os.is_file():
+            raise ValueError(f"memory-ops layout self-test OS does not exist: {test_os}")
+        test_os_sha256 = sha256(test_os)
+        if test_os_sha256 != MEMOPS_LAYOUT_SELFTEST_OS_SHA256:
+            raise ValueError(
+                "memory-ops layout self-test OS checksum mismatch: "
+                f"expected {MEMOPS_LAYOUT_SELFTEST_OS_SHA256}, got {test_os_sha256}"
+            )
+        os_binary_data = test_os.read_bytes()
+        os_profile = "safe-memset OS with retained memory-test BSS and no buffer operations"
     runtime_bitstream = verify_runtime_file(runtime, manifest, f"pocket/{VARIANT}.rbf_r")
     bitstream_data = runtime_bitstream.read_bytes()
     bitstream_profile = "manifest os25"
     native_bitstream_sha256 = None
     if (memset_fix_candidate or memops_selftest or memcpy_selftest or
-            memcpy_small_selftest or memcpy_harness_selftest):
+            memcpy_small_selftest or memcpy_harness_selftest or
+            memops_layout_selftest):
         native_bitstream = (repo / SAFE_MEMSET_RBF).resolve()
         if not native_bitstream.is_file():
             raise ValueError(f"safe-memset native RBF does not exist: {native_bitstream}")
@@ -962,6 +980,11 @@ def main() -> int:
         action="store_true",
         help="package the memcpy test harness without invoking memcpy",
     )
+    profiles.add_argument(
+        "--memops-layout-selftest",
+        action="store_true",
+        help="package retained memory-test BSS without running buffer operations",
+    )
     args = parser.parse_args()
     build(
         args.repo.resolve(),
@@ -995,6 +1018,7 @@ def main() -> int:
         args.memcpy_selftest,
         args.memcpy_small_selftest,
         args.memcpy_harness_selftest,
+        args.memops_layout_selftest,
     )
     return 0
 

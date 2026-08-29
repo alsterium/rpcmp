@@ -1164,6 +1164,21 @@ Reaching the workload implicates even the 0-to-31-byte `memcpy()` calls removed
 from this build; another black screen implicates the shared buffer workload or
 its effect on cached SDRAM instead.
 
+Pocket firmware 2.6 repeated the `Loading...` then persistent-black result with
+`0.5.27-spike`, excluding `memcpy()` itself and implicating either the common
+buffer workload or the extra BSS layout. The `0.5.28-spike` control retains all
+three aligned 4,224-byte arrays with the compiler `used` attribute but returns
+success without reading or writing them. The ELF symbol table confirms
+`memops_src`, `memops_dst`, and `memops_ref` are each present as 4,224-byte BSS
+symbols. The incremental delta is preserved in
+`spikes/pocket/openfpgaos/memops-layout-selftest.patch`.
+The warning-free build produces a 135,400-byte `os.bin` with SHA-256
+`0F7DB3529EF6FE9AC15F1777799E009936A22504AAFD055AF58B54483A2CE222`.
+The packaged 1,051,292-byte diagnostic ZIP has SHA-256
+`AAC73B58A5AD588C72C857CC0903A3DC527298DC07E9CFC426E0B9EE3A9EF111`.
+Reaching the workload isolates the failure to the removed buffer operations;
+another black screen isolates it to the additional BSS size or placement.
+
 ## 7. Acceptance record
 
 Each candidate must produce one reviewable record containing:
