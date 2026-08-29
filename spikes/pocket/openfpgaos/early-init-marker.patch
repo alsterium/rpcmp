@@ -7,6 +7,11 @@ diff --git a/src/firmware/os/kernel/main.c b/src/firmware/os/kernel/main.c
 @@ -392 +392 @@ void os_main(void) {
 -#ifdef RPCMP_EARLY_MARKER
 +#if defined(RPCMP_EARLY_MARKER) && RPCMP_EARLY_MARKER == 1
+@@ -404,1 +404,4 @@ void os_main(void) {
+     os_textguard_baseline();
++#if defined(RPCMP_EARLY_MARKER) && RPCMP_EARLY_MARKER == 3
++    rpcmp_early_marker();
++#endif
 @@ -412,1 +412,5 @@ void os_main(void) {
 +#if defined(RPCMP_EARLY_MARKER) && RPCMP_EARLY_MARKER == 2
 +    rpcmp_early_marker();

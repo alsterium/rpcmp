@@ -782,6 +782,24 @@ A white band narrows the failure to contract checking, the boot memory test,
 or later initialization. No white band narrows it to IRQ reset, textguard
 baselining, or early HAL initialization, which must then be split further.
 
+Pocket firmware 2.6 displayed `Loading...` but no white band with
+`0.5.8-spike`. Since the entry marker passed with the same RBF and load path,
+the failure is now bounded between entry to `os_main` and completion of
+`of_init_early()`.
+
+The `0.5.9-spike` diagnostic places the marker after `of_irq_init()` and
+`os_textguard_baseline()`, but before `of_init_early()`. Marker stage 3 is
+preserved in `spikes/pocket/openfpgaos/early-init-marker.patch` and built with
+`EXTRA_CFLAGS=-DRPCMP_EARLY_MARKER=3`. Disassembly confirms that IRQ reset and
+the textguard baseline read loop precede the framebuffer stores, while no
+clock, cache, timer, video, or terminal initialization follows before the halt.
+The resulting 111,796-byte `os.bin` has SHA-256
+`492485233D45A641F5FA7956FF214AB8680A230E4D013AC7AE6FEEED1B38A0E4`.
+The 1,037,970-byte local-only ZIP has SHA-256
+`EAC0597DC2823D782685537433863BDB695682DD8E212AF1587A1BAF8A69A7CE`.
+A white band isolates the failure inside `of_init_early()`; no white band
+isolates it to IRQ reset or textguard baselining.
+
 ## 7. Acceptance record
 
 Each candidate must produce one reviewable record containing:
