@@ -1,15 +1,44 @@
 diff --git a/src/firmware/os/kernel/main.c b/src/firmware/os/kernel/main.c
 --- a/src/firmware/os/kernel/main.c
 +++ b/src/firmware/os/kernel/main.c
-@@ -413,1 +413,11 @@ void os_main(void) {
-+#if defined(RPCMP_EARLY_MARKER) && RPCMP_EARLY_MARKER == 4
+@@ -28 +28 @@
+-static void rpcmp_early_marker(void) {
++static __attribute__((unused)) void rpcmp_early_marker(void) {
+@@ -38,1 +38,19 @@
++#if RPCMP_EARLY_MARKER == 5
++static void rpcmp_post_video_marker(void) {
++    const uintptr_t bases[3] = {
++        FB0_BASE + 0x40000000u,
++        FB1_BASE + 0x40000000u,
++        FB2_BASE + 0x40000000u,
++    };
++    for (uint32_t buffer = 0; buffer < 3; buffer++) {
++        volatile uint8_t *fb = (volatile uint8_t *)bases[buffer];
++        for (uint32_t y = 0; y < 16; y++) {
++            for (uint32_t x = 0; x < FB_WIDTH; x++)
++                fb[y * FB_STRIDE + x] = 15u;
++        }
++    }
++    __asm__ volatile("fence" ::: "memory");
++    for (;;) {}
++}
++#endif
+ #endif
+@@ -413,1 +431,17 @@ void os_main(void) {
++#if defined(RPCMP_EARLY_MARKER) && \
++    (RPCMP_EARLY_MARKER == 4 || RPCMP_EARLY_MARKER == 5)
 +    {
 +        extern uint32_t g_cpu_freq_hz;
 +        uint32_t clk_hz = CLK_FREQ_REG;
 +        if (clk_hz >= 50000000u && clk_hz <= 150000000u)
 +            g_cpu_freq_hz = clk_hz;
 +    }
++#if RPCMP_EARLY_MARKER == 5
++    of_video_init();
++    rpcmp_post_video_marker();
++#else
 +    rpcmp_early_marker();
++#endif
 +#else
      of_init_early();
 +#endif

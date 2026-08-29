@@ -820,6 +820,27 @@ The 1,038,038-byte local-only ZIP has SHA-256
 A white band makes `of_video_init()` the next failure boundary; no white band
 identifies the clock-register access or adoption path instead.
 
+Pocket firmware 2.6 displayed `Loading...` and the expected white band with
+`0.5.10-spike`. The clock-register access and adoption path are therefore
+excluded. The remaining early-HAL boundary is video initialization followed
+by terminal initialization.
+
+`of_video_init()` disables terminal scanout and switches to one of three app
+framebuffers, so a terminal-framebuffer marker cannot prove that the function
+returned. The `0.5.11-spike` diagnostic calls `of_video_init()`, then writes
+palette index 15 to a 320 by 16 band in all three app framebuffers through
+their uncached aliases (`0x50000000`, `0x50100000`, and `0x50200000`) before
+halting. The stage-5 source is preserved in
+`spikes/pocket/openfpgaos/pre-video-marker.patch`. Disassembly confirms the
+video call precedes all three address writes and that no terminal init occurs.
+The resulting 111,924-byte `os.bin` has SHA-256
+`338C8459DCD9F6723CD6226138761978425FF656EAC3D1F9128AB7C7F7724C12`.
+The 1,038,098-byte local-only ZIP has SHA-256
+`C31559EA2E423B508634D691D9DC263A5CFAE9228553307CDF3DD588C259C284`.
+A visible white band proves video initialization returned and leaves terminal
+initialization as the next boundary. No band keeps the failure inside video
+initialization or its app-framebuffer scanout path.
+
 ## 7. Acceptance record
 
 Each candidate must produce one reviewable record containing:
