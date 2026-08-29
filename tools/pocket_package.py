@@ -66,9 +66,13 @@ SYNCED_PALETTE_MARKER_OS = Path(
 )
 SYNCED_PALETTE_MARKER_OS_SHA256 = "9bef56fe8cb53b60cbb632e9c179e31521d3e0416bc5603df6f0a3f1a3415451"
 TERMINAL_MODE_MARKER_OS = Path(
-    "out/research/openfpgaCore-618a3eb-lf/src/firmware/os/bld/pocket/os.bin"
+    "out/research/openfpgaCore-618a3eb-lf/src/firmware/os/bld/pocket/os-terminal-mode-marker.bin"
 )
 TERMINAL_MODE_MARKER_OS_SHA256 = "5831e94db77386ba1c76d1865bfa18c81db710470eebce38a2b60370be7bab9b"
+TERM_CLEAR_NO_FLUSH_MARKER_OS = Path(
+    "out/research/openfpgaCore-618a3eb-lf/src/firmware/os/bld/pocket/os.bin"
+)
+TERM_CLEAR_NO_FLUSH_MARKER_OS_SHA256 = "25ade5881f2fba8a883e7a94b33ee844461ef2803306cbf27357b4595f5637d3"
 FREQUENCY_CONTROL_RBF = Path(
     "out/research/openfpgaCore-618a3eb-lf/src/fpga/targets/pocket/"
     "bld/rpcmp100fc/output_files/ap_core.rbf"
@@ -133,7 +137,7 @@ def definitions() -> dict[str, object]:
                 "description": "RPCMP M0 openfpgaOS runtime workload probe",
                 "author": "RPCMP",
                 "url": "",
-                "version": "0.5.16-spike",
+                "version": "0.5.17-spike",
                 "date_release": "2026-08-29",
             },
             "framework": {
@@ -286,6 +290,7 @@ def build(
     post_terminal_marker: bool = False,
     synced_palette_marker: bool = False,
     terminal_mode_marker: bool = False,
+    term_clear_no_flush_marker: bool = False,
 ) -> None:
     revision = subprocess.run(
         ["git", "-C", str(sdk), "rev-parse", "HEAD"],
@@ -436,6 +441,21 @@ def build(
             "the synchronized 16-color palette and terminal display-mode switch complete, "
             "then the uncached terminal framebuffer receives a persistent white band"
         )
+    elif term_clear_no_flush_marker:
+        marker_os = (repo / TERM_CLEAR_NO_FLUSH_MARKER_OS).resolve()
+        if not marker_os.is_file():
+            raise ValueError(f"terminal-clear-no-flush marker OS does not exist: {marker_os}")
+        marker_os_sha256 = sha256(marker_os)
+        if marker_os_sha256 != TERM_CLEAR_NO_FLUSH_MARKER_OS_SHA256:
+            raise ValueError(
+                "terminal-clear-no-flush marker OS checksum mismatch: "
+                f"expected {TERM_CLEAR_NO_FLUSH_MARKER_OS_SHA256}, got {marker_os_sha256}"
+            )
+        os_binary_data = marker_os.read_bytes()
+        os_profile = (
+            "terminal clear state, internal buffers, and cached framebuffer memset complete "
+            "without cache flush, then the uncached terminal framebuffer receives a white band"
+        )
     runtime_bitstream = verify_runtime_file(runtime, manifest, f"pocket/{VARIANT}.rbf_r")
     bitstream_data = runtime_bitstream.read_bytes()
     bitstream_profile = "manifest os25"
@@ -476,6 +496,7 @@ def build(
         or post_terminal_marker
         or synced_palette_marker
         or terminal_mode_marker
+        or term_clear_no_flush_marker
     ):
         native_bitstream = (repo / CLOCK_ISOLATION_RBF).resolve()
         if not native_bitstream.is_file():
@@ -675,6 +696,11 @@ def main() -> int:
         action="store_true",
         help="package the 90 MHz stock-cache fit with a marker after terminal display-mode switching",
     )
+    profiles.add_argument(
+        "--term-clear-no-flush-marker",
+        action="store_true",
+        help="package the terminal-clear diagnostic that omits only the framebuffer cache flush",
+    )
     args = parser.parse_args()
     build(
         args.repo.resolve(),
@@ -697,6 +723,7 @@ def main() -> int:
         args.post_terminal_marker,
         args.synced_palette_marker,
         args.terminal_mode_marker,
+        args.term_clear_no_flush_marker,
     )
     return 0
 

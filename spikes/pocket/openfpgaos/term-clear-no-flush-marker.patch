@@ -1,0 +1,63 @@
+diff --git a/src/firmware/os/kernel/main.c b/src/firmware/os/kernel/main.c
+--- a/src/firmware/os/kernel/main.c
++++ b/src/firmware/os/kernel/main.c
+@@ -38,4 +38,5 @@ static __attribute__((unused)) void rpcmp_early_marker(void) {
+ #if RPCMP_EARLY_MARKER == 5 || RPCMP_EARLY_MARKER == 6 || \
+     RPCMP_EARLY_MARKER == 7 || RPCMP_EARLY_MARKER == 8 || \
+-    RPCMP_EARLY_MARKER == 9 || RPCMP_EARLY_MARKER == 10
++    RPCMP_EARLY_MARKER == 9 || RPCMP_EARLY_MARKER == 10 || \
++    RPCMP_EARLY_MARKER == 11
+ static __attribute__((unused)) void rpcmp_post_video_marker(void) {
+@@ -59,1 +60,1 @@
+-    RPCMP_EARLY_MARKER == 10
++    RPCMP_EARLY_MARKER == 10 || RPCMP_EARLY_MARKER == 11
+@@ -100,1 +101,1 @@ static void rpcmp_post_terminal_marker(void) {
+-#if RPCMP_EARLY_MARKER == 10
++#if RPCMP_EARLY_MARKER == 10 || RPCMP_EARLY_MARKER == 11
+@@ -488,7 +489,7 @@ void os_main(void) {
+     (RPCMP_EARLY_MARKER == 4 || RPCMP_EARLY_MARKER == 5 || \
+      RPCMP_EARLY_MARKER == 6 || RPCMP_EARLY_MARKER == 7 || \
+      RPCMP_EARLY_MARKER == 8 || RPCMP_EARLY_MARKER == 9 || \
+-     RPCMP_EARLY_MARKER == 10)
++     RPCMP_EARLY_MARKER == 10 || RPCMP_EARLY_MARKER == 11)
+     {
+         extern uint32_t g_cpu_freq_hz;
+         uint32_t clk_hz = CLK_FREQ_REG;
+@@ -496,6 +497,16 @@ void os_main(void) {
+             g_cpu_freq_hz = clk_hz;
+     }
+-#if RPCMP_EARLY_MARKER == 10
++#if RPCMP_EARLY_MARKER == 11
++    extern void rpcmp_term_clear_without_flush(void);
++    of_video_init();
++    rpcmp_init_terminal_palette();
++    while (PAL_INDEX & PAL_INDEX_BUSY) {}
++    of_video_set_palette(15, 0xFF, 0xFF, 0xFF);
++    while (PAL_INDEX & PAL_INDEX_BUSY) {}
++    of_video_set_display_mode(0);
++    rpcmp_term_clear_without_flush();
++    rpcmp_terminal_framebuffer_marker();
++#elif RPCMP_EARLY_MARKER == 10
+     of_video_init();
+     rpcmp_init_terminal_palette();
+     while (PAL_INDEX & PAL_INDEX_BUSY) {}
+diff --git a/src/firmware/os/targets/pocket/terminal.c b/src/firmware/os/targets/pocket/terminal.c
+--- a/src/firmware/os/targets/pocket/terminal.c
++++ b/src/firmware/os/targets/pocket/terminal.c
+@@ -303,0 +304,16 @@ void of_term_clear(void) {
++
++#if defined(RPCMP_EARLY_MARKER) && RPCMP_EARLY_MARKER == 11
++void rpcmp_term_clear_without_flush(void) {
++    term_fg = OF_COLOR_WHITE;
++    term_bg = OF_COLOR_BLACK;
++    esc_state = ESC_NONE;
++
++    uint8_t clr = term_color_byte(term_fg, term_bg);
++    memset(term_chars, ' ', TERM_COLS * TERM_ROWS);
++    memset(term_colors, clr, TERM_COLS * TERM_ROWS);
++    memset(TERM_FB_CACHED, 0, FB_WIDTH * FB_HEIGHT);
++
++    term_col = 0;
++    term_row = 0;
++}
++#endif

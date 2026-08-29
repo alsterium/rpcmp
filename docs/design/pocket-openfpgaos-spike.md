@@ -944,6 +944,26 @@ A persistent white band excludes terminal display-mode switching and leaves
 `of_term_clear()` as the next boundary. No band isolates the failure to the
 display-mode call or terminal scanout selection.
 
+Pocket firmware 2.6 displayed and retained the white band with
+`0.5.16-spike`. Terminal display-mode switching and terminal scanout selection
+are therefore excluded.
+
+The `0.5.17-spike` diagnostic performs the state reset, internal character and
+color buffer clears, and cached terminal-framebuffer `memset()` from
+`of_term_clear()`, but deliberately omits only `of_cache_flush_range()`. It
+then writes the persistent band through the uncached terminal-framebuffer
+alias and halts. The stage-11 delta is preserved in
+`spikes/pocket/openfpgaos/term-clear-no-flush-marker.patch`. Disassembly
+confirms all three `memset()` calls, no cache-flush call between the cached
+framebuffer clear and marker, writes to `0x50300000`, and the halt loop. The
+resulting 112,228-byte `os.bin` has SHA-256
+`25ADE5881F2FBA8A883E7A94B33EE844461EF2803306CBF27357B4595F5637D3`.
+The 1,038,346-byte local-only ZIP has SHA-256
+`4B9DB75E6B80EFD170CD9E8673179D9CD7559C6B7375F1F7D7ED76D49B5450C9`.
+A persistent white band isolates the failure to the omitted 1,200-line
+`cbo.flush` path. No band instead leaves the cached framebuffer clear,
+internal buffer clears, or dirty cached/uncached alias interaction in scope.
+
 ## 7. Acceptance record
 
 Each candidate must produce one reviewable record containing:
