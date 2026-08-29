@@ -964,6 +964,26 @@ A persistent white band isolates the failure to the omitted 1,200-line
 `cbo.flush` path. No band instead leaves the cached framebuffer clear,
 internal buffer clears, or dirty cached/uncached alias interaction in scope.
 
+Pocket firmware 2.6 did not display the white band with `0.5.17-spike`.
+Because that diagnostic never calls `of_cache_flush_range()`, the failure is
+before the flush. The cached framebuffer `memset()`, the two internal 1,200-byte
+buffer clears, and cached/uncached alias interaction remain in scope.
+
+The `0.5.18-spike` diagnostic resets terminal state and clears only the
+internal character and color buffers. It performs no cached terminal-
+framebuffer access before writing the band through `0x50300000`. The stage-12
+delta is preserved in
+`spikes/pocket/openfpgaos/term-clear-internal-marker.patch`. Disassembly
+confirms the two 1,200-byte `memset()` calls, no access to `0x10300000`, the
+uncached marker writes, and the halt loop. The resulting 112,228-byte `os.bin`
+has SHA-256
+`13A74751906C520C2CDB5D7D97CCB72DF2A1EAEEFBF44AD953F5B23E54146CDB`.
+The 1,038,341-byte local-only ZIP has SHA-256
+`D913EF6B95356DED3C70FC50C1384A0DFA3B1101B8989DE051CD159F93286EC1`.
+A persistent white band isolates the failure to the cached framebuffer clear
+or cached/uncached alias interaction. No band moves the boundary into the
+terminal state stores or the two internal buffer clears.
+
 ## 7. Acceptance record
 
 Each candidate must produce one reviewable record containing:
