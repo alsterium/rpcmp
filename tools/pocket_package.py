@@ -74,9 +74,13 @@ TERM_CLEAR_NO_FLUSH_MARKER_OS = Path(
 )
 TERM_CLEAR_NO_FLUSH_MARKER_OS_SHA256 = "25ade5881f2fba8a883e7a94b33ee844461ef2803306cbf27357b4595f5637d3"
 TERM_CLEAR_INTERNAL_MARKER_OS = Path(
-    "out/research/openfpgaCore-618a3eb-lf/src/firmware/os/bld/pocket/os.bin"
+    "out/research/openfpgaCore-618a3eb-lf/src/firmware/os/bld/pocket/os-term-clear-internal-marker.bin"
 )
 TERM_CLEAR_INTERNAL_MARKER_OS_SHA256 = "13a74751906c520c2cdb5d7d97ccb72df2a1eaeefbf44ad953f5b23e54146cdb"
+TERM_STATE_MARKER_OS = Path(
+    "out/research/openfpgaCore-618a3eb-lf/src/firmware/os/bld/pocket/os.bin"
+)
+TERM_STATE_MARKER_OS_SHA256 = "d73a272457189b37b2c1ebb2b70ec880aa9fef9993b27c478f69eb79934b6cab"
 FREQUENCY_CONTROL_RBF = Path(
     "out/research/openfpgaCore-618a3eb-lf/src/fpga/targets/pocket/"
     "bld/rpcmp100fc/output_files/ap_core.rbf"
@@ -141,7 +145,7 @@ def definitions() -> dict[str, object]:
                 "description": "RPCMP M0 openfpgaOS runtime workload probe",
                 "author": "RPCMP",
                 "url": "",
-                "version": "0.5.18-spike",
+                "version": "0.5.19-spike",
                 "date_release": "2026-08-29",
             },
             "framework": {
@@ -296,6 +300,7 @@ def build(
     terminal_mode_marker: bool = False,
     term_clear_no_flush_marker: bool = False,
     term_clear_internal_marker: bool = False,
+    term_state_marker: bool = False,
 ) -> None:
     revision = subprocess.run(
         ["git", "-C", str(sdk), "rev-parse", "HEAD"],
@@ -476,6 +481,21 @@ def build(
             "terminal state and internal character/color buffer clears complete without any "
             "cached framebuffer access, then the uncached terminal framebuffer receives a white band"
         )
+    elif term_state_marker:
+        marker_os = (repo / TERM_STATE_MARKER_OS).resolve()
+        if not marker_os.is_file():
+            raise ValueError(f"terminal-state marker OS does not exist: {marker_os}")
+        marker_os_sha256 = sha256(marker_os)
+        if marker_os_sha256 != TERM_STATE_MARKER_OS_SHA256:
+            raise ValueError(
+                "terminal-state marker OS checksum mismatch: "
+                f"expected {TERM_STATE_MARKER_OS_SHA256}, got {marker_os_sha256}"
+            )
+        os_binary_data = marker_os.read_bytes()
+        os_profile = (
+            "terminal state stores complete without internal buffer or cached framebuffer clears, "
+            "then the uncached terminal framebuffer receives a white band"
+        )
     runtime_bitstream = verify_runtime_file(runtime, manifest, f"pocket/{VARIANT}.rbf_r")
     bitstream_data = runtime_bitstream.read_bytes()
     bitstream_profile = "manifest os25"
@@ -518,6 +538,7 @@ def build(
         or terminal_mode_marker
         or term_clear_no_flush_marker
         or term_clear_internal_marker
+        or term_state_marker
     ):
         native_bitstream = (repo / CLOCK_ISOLATION_RBF).resolve()
         if not native_bitstream.is_file():
@@ -727,6 +748,11 @@ def main() -> int:
         action="store_true",
         help="package the terminal-clear diagnostic that touches only internal terminal buffers",
     )
+    profiles.add_argument(
+        "--term-state-marker",
+        action="store_true",
+        help="package the terminal-clear diagnostic that performs only terminal state stores",
+    )
     args = parser.parse_args()
     build(
         args.repo.resolve(),
@@ -751,6 +777,7 @@ def main() -> int:
         args.terminal_mode_marker,
         args.term_clear_no_flush_marker,
         args.term_clear_internal_marker,
+        args.term_state_marker,
     )
     return 0
 
