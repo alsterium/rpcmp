@@ -800,6 +800,26 @@ The 1,037,970-byte local-only ZIP has SHA-256
 A white band isolates the failure inside `of_init_early()`; no white band
 isolates it to IRQ reset or textguard baselining.
 
+Pocket firmware 2.6 displayed `Loading...` and the expected white band with
+`0.5.9-spike`. IRQ reset and textguard baselining are therefore excluded, and
+the failure is inside `of_init_early()`.
+
+Source inspection shows that `of_cache_init()` and `of_timer_init()` are
+no-ops in this Pocket build. The next substantive operation after adopting
+the bitstream's advertised clock is `of_video_init()`. The `0.5.10-spike`
+diagnostic reproduces the clock-register read and plausibility-gated update,
+then halts with marker stage 4 before calling video initialization. This
+source delta is preserved in
+`spikes/pocket/openfpgaos/pre-video-marker.patch`. Disassembly confirms the
+read from `0x400000D4`, optional `g_cpu_freq_hz` store, framebuffer marker,
+and halt loop, with no video-initialization call. The resulting 111,860-byte
+`os.bin` has SHA-256
+`9DD374F0F022FB84F48DC3A2FA8AF0EF19AB755D696EC33B172BF1B49269D431`.
+The 1,038,038-byte local-only ZIP has SHA-256
+`DBE30EE2182E7103F50DEEE64A246CE162C0D009E7B46CD928B7EDE13AAE6744`.
+A white band makes `of_video_init()` the next failure boundary; no white band
+identifies the clock-register access or adoption path instead.
+
 ## 7. Acceptance record
 
 Each candidate must produce one reviewable record containing:

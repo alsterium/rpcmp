@@ -38,9 +38,13 @@ EARLY_INIT_MARKER_OS = Path(
 )
 EARLY_INIT_MARKER_OS_SHA256 = "8f286d3f3aec754277420333f6583bf80fa6de008ee5ad90b6605f8e6accab2b"
 PRE_EARLY_INIT_MARKER_OS = Path(
-    "out/research/openfpgaCore-618a3eb-lf/src/firmware/os/bld/pocket/os.bin"
+    "out/research/openfpgaCore-618a3eb-lf/src/firmware/os/bld/pocket/os-pre-early-init-marker.bin"
 )
 PRE_EARLY_INIT_MARKER_OS_SHA256 = "492485233d45a641f5fa7956ff214ab8680a230e4d013ac7ae6feeed1b38a0e4"
+PRE_VIDEO_MARKER_OS = Path(
+    "out/research/openfpgaCore-618a3eb-lf/src/firmware/os/bld/pocket/os.bin"
+)
+PRE_VIDEO_MARKER_OS_SHA256 = "9dd374f0f022fb84f48dc3a2fa8af0ef19ab755d696ec33b172bf1b49269d431"
 FREQUENCY_CONTROL_RBF = Path(
     "out/research/openfpgaCore-618a3eb-lf/src/fpga/targets/pocket/"
     "bld/rpcmp100fc/output_files/ap_core.rbf"
@@ -105,7 +109,7 @@ def definitions() -> dict[str, object]:
                 "description": "RPCMP M0 openfpgaOS runtime workload probe",
                 "author": "RPCMP",
                 "url": "",
-                "version": "0.5.9-spike",
+                "version": "0.5.10-spike",
                 "date_release": "2026-08-29",
             },
             "framework": {
@@ -251,6 +255,7 @@ def build(
     early_os_marker: bool = False,
     early_init_marker: bool = False,
     pre_early_init_marker: bool = False,
+    pre_video_marker: bool = False,
 ) -> None:
     revision = subprocess.run(
         ["git", "-C", str(sdk), "rev-parse", "HEAD"],
@@ -302,6 +307,18 @@ def build(
             )
         os_binary_data = marker_os.read_bytes()
         os_profile = "IRQ reset and textguard baseline complete, then a 320x16 white marker halts"
+    elif pre_video_marker:
+        marker_os = (repo / PRE_VIDEO_MARKER_OS).resolve()
+        if not marker_os.is_file():
+            raise ValueError(f"pre-video marker OS does not exist: {marker_os}")
+        marker_os_sha256 = sha256(marker_os)
+        if marker_os_sha256 != PRE_VIDEO_MARKER_OS_SHA256:
+            raise ValueError(
+                "pre-video marker OS checksum mismatch: "
+                f"expected {PRE_VIDEO_MARKER_OS_SHA256}, got {marker_os_sha256}"
+            )
+        os_binary_data = marker_os.read_bytes()
+        os_profile = "clock register adoption completes, then a 320x16 white marker halts before video init"
     runtime_bitstream = verify_runtime_file(runtime, manifest, f"pocket/{VARIANT}.rbf_r")
     bitstream_data = runtime_bitstream.read_bytes()
     bitstream_profile = "manifest os25"
@@ -330,7 +347,13 @@ def build(
             )
         bitstream_data = reverse_rbf_bits(native_bitstream.read_bytes())
         bitstream_profile = "rpcmp 16KiB/32KiB + boot ROM at 90MHz; no JT51/MMIO overlay"
-    elif clock_isolation_rbf or early_os_marker or early_init_marker or pre_early_init_marker:
+    elif (
+        clock_isolation_rbf
+        or early_os_marker
+        or early_init_marker
+        or pre_early_init_marker
+        or pre_video_marker
+    ):
         native_bitstream = (repo / CLOCK_ISOLATION_RBF).resolve()
         if not native_bitstream.is_file():
             raise ValueError(f"clock-isolation native RBF does not exist: {native_bitstream}")
@@ -494,6 +517,11 @@ def main() -> int:
         action="store_true",
         help="package the 90 MHz stock-cache fit with a marker before early HAL initialization",
     )
+    profiles.add_argument(
+        "--pre-video-marker",
+        action="store_true",
+        help="package the 90 MHz stock-cache fit with a marker before video initialization",
+    )
     args = parser.parse_args()
     build(
         args.repo.resolve(),
@@ -509,6 +537,7 @@ def main() -> int:
         args.early_os_marker,
         args.early_init_marker,
         args.pre_early_init_marker,
+        args.pre_video_marker,
     )
     return 0
 

@@ -1,0 +1,15 @@
+diff --git a/src/firmware/os/kernel/main.c b/src/firmware/os/kernel/main.c
+--- a/src/firmware/os/kernel/main.c
++++ b/src/firmware/os/kernel/main.c
+@@ -413,1 +413,11 @@ void os_main(void) {
++#if defined(RPCMP_EARLY_MARKER) && RPCMP_EARLY_MARKER == 4
++    {
++        extern uint32_t g_cpu_freq_hz;
++        uint32_t clk_hz = CLK_FREQ_REG;
++        if (clk_hz >= 50000000u && clk_hz <= 150000000u)
++            g_cpu_freq_hz = clk_hz;
++    }
++    rpcmp_early_marker();
++#else
+     of_init_early();
++#endif
