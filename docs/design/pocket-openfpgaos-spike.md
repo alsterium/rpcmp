@@ -1148,6 +1148,22 @@ Reaching the workload places the first failing boundary at 32 bytes or above;
 another black screen keeps the failure in the shared harness or 0-to-31-byte
 copy paths.
 
+Pocket firmware 2.6 also repeated the `Loading...` then persistent-black result
+with `0.5.26-spike`, keeping the failure below the 32-byte boundary or in the
+shared harness. The `0.5.27-spike` control retains the same three aligned
+4,224-byte cached-SDRAM buffers and performs six rounds of source/destination
+pattern fill, reference copy, and full destination/reference comparison. Each
+round has a zero-byte expected copy and deliberately makes no `memcpy()` call.
+The incremental delta is preserved in
+`spikes/pocket/openfpgaos/memcpy-harness-selftest.patch`.
+The resulting 136,088-byte `os.bin` has SHA-256
+`44B581123CF53FE8C1B6077308709F0081DF3FA2D227A20B22283EE735A88AD9`.
+The packaged 1,051,638-byte diagnostic ZIP has SHA-256
+`B7871DA655DDF87893314F4F0F154B35D03691EDD3AD20D03753B67E498C0132`.
+Reaching the workload implicates even the 0-to-31-byte `memcpy()` calls removed
+from this build; another black screen implicates the shared buffer workload or
+its effect on cached SDRAM instead.
+
 ## 7. Acceptance record
 
 Each candidate must produce one reviewable record containing:

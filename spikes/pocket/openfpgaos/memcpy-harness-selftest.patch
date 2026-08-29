@@ -1,0 +1,12 @@
+diff --git a/src/firmware/os/hal/memtest.c b/src/firmware/os/hal/memtest.c
+--- a/src/firmware/os/hal/memtest.c
++++ b/src/firmware/os/hal/memtest.c
+@@ -227,1 +227,3 @@ static int memops_test_memcpy(void) {
+-#ifdef RPCMP_MEMCPY_SMALL_SELFTEST
++#if defined(RPCMP_MEMCPY_HARNESS_SELFTEST)
++        0,
++#elif defined(RPCMP_MEMCPY_SMALL_SELFTEST)
+@@ -250,0 +253,1 @@ static int memops_test_memcpy(void) {
++#ifndef RPCMP_MEMCPY_HARNESS_SELFTEST
+@@ -260,0 +264,1 @@ static int memops_test_memcpy(void) {
++#endif
