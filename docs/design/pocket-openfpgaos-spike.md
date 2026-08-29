@@ -1020,6 +1020,24 @@ A persistent white band excludes the character-buffer clear and isolates the
 failure to the color-buffer clear. No band isolates the failure to the
 character-buffer clear.
 
+Pocket firmware 2.6 did not display the white band with `0.5.20-spike`. The
+first `memset(term_chars, ' ', 1200)` call is therefore the first observed
+failure boundary.
+
+The `0.5.21-spike` diagnostic writes the same 1,200-byte `term_chars` range
+with a volatile byte-store loop instead of calling `memset()`. The stage-15
+delta is preserved in
+`spikes/pocket/openfpgaos/term-chars-volatile-marker.patch`. Disassembly
+confirms a 1,200-iteration `sb` loop over the same destination, no `memset()`
+call, the terminal marker writes, and the halt loop. The resulting
+112,228-byte `os.bin` has SHA-256
+`F78A94FF4FC05C479EC6951734905D664DB954D96FDC8D35D2D2670056DF25F2`.
+The 1,038,341-byte local-only ZIP has SHA-256
+`4B4A9E62EB94361EE661C078F384FFD01FD7C6CCD37A439F2C9AD34057389871`.
+A persistent white band isolates the failure to the linked `memset()` path.
+No band instead shows that writing the `term_chars` region or the write count
+is the relevant boundary.
+
 ## 7. Acceptance record
 
 Each candidate must produce one reviewable record containing:
