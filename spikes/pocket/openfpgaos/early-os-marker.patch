@@ -1,0 +1,35 @@
+diff --git a/src/firmware/os/kernel/main.c b/src/firmware/os/kernel/main.c
+--- a/src/firmware/os/kernel/main.c
++++ b/src/firmware/os/kernel/main.c
+@@ -22,6 +22,20 @@
+ #include <stddef.h>
+ #include <string.h>
+ 
++#ifdef RPCMP_EARLY_MARKER
++#include "../hal/regs.h"
++
++static void rpcmp_early_marker(void) {
++    volatile uint8_t *fb = (volatile uint8_t *)TERM_FB_BASE;
++    for (uint32_t y = 0; y < 16; y++) {
++        for (uint32_t x = 0; x < 320; x++)
++            fb[y * 320u + x] = 15u;
++    }
++    __asm__ volatile("fence" ::: "memory");
++    for (;;) {}
++}
++#endif
++
+ /* Layout-shift pad for boot-lottery bisection (sim + HW pad sweeps).
+  * Build with EXTRA_CFLAGS=-DOS_LAYOUT_PAD=<bytes> to insert N bytes of
+  * never-referenced data into .text, shifting every symbol downstream of
+@@ -375,6 +389,10 @@ static void os_apply_instance_roots(void) {
+ #endif /* OF_TARGET_SUPPORTS_RELAUNCH */
+ 
+ void os_main(void) {
++#ifdef RPCMP_EARLY_MARKER
++    rpcmp_early_marker();
++#endif
++
+     /* Clear IRQ callback state and hardware source masks before enabling
+      * machine interrupts.  The bootloader deliberately keeps MIE disabled
+      * while SDRAM .bss is being zeroed. */

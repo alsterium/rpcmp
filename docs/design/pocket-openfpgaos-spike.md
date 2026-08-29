@@ -743,7 +743,9 @@ replaced by a checksum-pinned diagnostic build from runtime revision
 `618a3eb985759a4154115109c2c8036271252888`. At the first instruction of
 `os_main`, before normal OS initialization, this build writes palette index 15
 to a 320 by 16 pixel band at terminal framebuffer address `0x50300000`, issues
-a memory fence, and halts. The generated 111,732-byte `os.bin` has SHA-256
+a memory fence, and halts. The source delta is preserved as
+`spikes/pocket/openfpgaos/early-os-marker.patch` and is enabled with
+`EXTRA_CFLAGS=-DRPCMP_EARLY_MARKER`. The generated 111,732-byte `os.bin` has SHA-256
 `560FFE0ED43E85FD0FF2CF0C40EB73BE731A0639C0AE97181250940F8FD131C2`;
 disassembly confirms the framebuffer stores and terminal loop at OS entry.
 The resulting 1,037,872-byte local-only ZIP has SHA-256
