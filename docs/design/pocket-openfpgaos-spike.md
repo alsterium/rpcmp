@@ -877,9 +877,32 @@ resulting 111,924-byte `os.bin` has SHA-256
 `148607342E593D8CB7246A40F44D278F6C6186754E5066833FBD1AB1986F960A`.
 The 1,038,105-byte local-only ZIP has SHA-256
 `3A5A9406966F9585A5FC921954448FABCE4C4C0BC498F82991EDD95A0B5EDE69`.
-A visible white band means one palette upload works and implicates repeated
-palette calls or their busy/deferred state. No band identifies the first full
-palette upload or commit as the failure boundary.
+A visible white band means one palette upload returned. The band may then turn
+black when that staged upload commits because only palette entry 0 was set and
+entry 15 in the uploaded shadow remained black. No initial band identifies the
+first full palette upload as the failure boundary.
+
+Pocket firmware 2.6 displayed `Loading...`, briefly showed the white band, and
+then went black with `0.5.13-spike`. This proves the first palette call returned
+and the app-framebuffer marker ran. The later black frame is consistent with
+the staged all-black entry 15 becoming visible at VBlank, not a CPU hang.
+
+The `0.5.14-spike` diagnostic therefore executes the complete
+`of_term_init()`, waits for its pending palette commit to retire, re-uploads
+the now-complete 16-color shadow with entry 15 white, waits for that commit,
+and finally writes a 320 by 16 band to the uncached terminal framebuffer at
+`0x50300000`. The stage-8 delta is preserved in
+`spikes/pocket/openfpgaos/post-terminal-marker.patch`. Disassembly confirms
+video initialization, the 16-entry palette loop, terminal display-mode switch,
+terminal clear/cache flush, both palette-busy waits, the final palette upload,
+and the terminal-framebuffer halt marker. The resulting 112,228-byte `os.bin`
+has SHA-256
+`9350174F08CD1F1E37E54461C707DA68983F6573612B946CA8F1AD1D20B69662`.
+The 1,038,319-byte local-only ZIP has SHA-256
+`0578DBA7FA151777AC77357113780B24581C07D9D67F593E9E6AB29B883ED465`.
+A persistent white band proves all of terminal initialization completed. No
+band leaves the failure inside display-mode switching, terminal clearing/cache
+flushing, or palette commit retirement.
 
 ## 7. Acceptance record
 
