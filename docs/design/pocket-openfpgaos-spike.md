@@ -1082,6 +1082,14 @@ fit and timing reports are unchanged. This is a correction candidate until a
 Pocket boot reaches the normal workload screen and completes the existing
 automatic, queue, input, and overall checks.
 
+Pocket firmware 2.6 booted the `0.5.23-spike` correction candidate into the
+normal workload UI, and the user reported that the workload operated fully.
+This validates the one-word-loop `memset()` correction for the observed boot
+failure and closes the stage-10 through stage-16 terminal-clear bisection.
+It does not yet establish long-duration stability or prove every separate
+`memcpy()` and `memmove()` path; repeated warm launches and a cold-power boot
+remain the final stability check for this candidate.
+
 ## 7. Acceptance record
 
 Each candidate must produce one reviewable record containing:
