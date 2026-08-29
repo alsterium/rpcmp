@@ -94,9 +94,13 @@ TERM_CHARS_WORD_LOOP_MARKER_OS = Path(
 )
 TERM_CHARS_WORD_LOOP_MARKER_OS_SHA256 = "1ceb9f4291e8037aa2f09461be9522c56965bf79561953a0854f2474a9f25493"
 SAFE_MEMSET_OS = Path(
-    "out/research/openfpgaCore-618a3eb-lf/src/firmware/os/bld/pocket/os.bin"
+    "out/research/openfpgaCore-618a3eb-lf/src/firmware/os/bld/pocket/os-safe-memset.bin"
 )
 SAFE_MEMSET_OS_SHA256 = "3bb812a1b320c7350046097d361dbf8567662218c9d8ba2f0457e0325f2826a9"
+MEMOPS_SELFTEST_OS = Path(
+    "out/research/openfpgaCore-618a3eb-lf/src/firmware/os/bld/pocket/os.bin"
+)
+MEMOPS_SELFTEST_OS_SHA256 = "58453b17ff872a5f715b8e56e856605cefee143b096ddbe98f28efd633c00a84"
 SAFE_MEMSET_RBF = Path(
     "out/research/openfpgaCore-618a3eb-lf/src/fpga/targets/pocket/"
     "bld/rpcmp90fcmem/output_files/ap_core.rbf"
@@ -166,7 +170,7 @@ def definitions() -> dict[str, object]:
                 "description": "RPCMP M0 openfpgaOS runtime workload probe",
                 "author": "RPCMP",
                 "url": "",
-                "version": "0.5.23-spike",
+                "version": "0.5.24-spike",
                 "date_release": "2026-08-30",
             },
             "framework": {
@@ -326,6 +330,7 @@ def build(
     term_chars_volatile_marker: bool = False,
     term_chars_word_loop_marker: bool = False,
     memset_fix_candidate: bool = False,
+    memops_selftest: bool = False,
 ) -> None:
     revision = subprocess.run(
         ["git", "-C", str(sdk), "rev-parse", "HEAD"],
@@ -578,11 +583,23 @@ def build(
             )
         os_binary_data = fixed_os.read_bytes()
         os_profile = "normal openfpgaOS with a one-word-per-iteration memset implementation"
+    elif memops_selftest:
+        test_os = (repo / MEMOPS_SELFTEST_OS).resolve()
+        if not test_os.is_file():
+            raise ValueError(f"memory-operations self-test OS does not exist: {test_os}")
+        test_os_sha256 = sha256(test_os)
+        if test_os_sha256 != MEMOPS_SELFTEST_OS_SHA256:
+            raise ValueError(
+                "memory-operations self-test OS checksum mismatch: "
+                f"expected {MEMOPS_SELFTEST_OS_SHA256}, got {test_os_sha256}"
+            )
+        os_binary_data = test_os.read_bytes()
+        os_profile = "safe-memset OS with cached-SDRAM memcpy/memmove boot self-test"
     runtime_bitstream = verify_runtime_file(runtime, manifest, f"pocket/{VARIANT}.rbf_r")
     bitstream_data = runtime_bitstream.read_bytes()
     bitstream_profile = "manifest os25"
     native_bitstream_sha256 = None
-    if memset_fix_candidate:
+    if memset_fix_candidate or memops_selftest:
         native_bitstream = (repo / SAFE_MEMSET_RBF).resolve()
         if not native_bitstream.is_file():
             raise ValueError(f"safe-memset native RBF does not exist: {native_bitstream}")
@@ -873,6 +890,11 @@ def main() -> int:
         action="store_true",
         help="package the normal OS and matching RBF with the safe memset implementation",
     )
+    profiles.add_argument(
+        "--memops-selftest",
+        action="store_true",
+        help="package the safe-memset OS with the cached-SDRAM memory-operations self-test",
+    )
     args = parser.parse_args()
     build(
         args.repo.resolve(),
@@ -902,6 +924,7 @@ def main() -> int:
         args.term_chars_volatile_marker,
         args.term_chars_word_loop_marker,
         args.memset_fix_candidate,
+        args.memops_selftest,
     )
     return 0
 

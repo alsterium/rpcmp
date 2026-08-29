@@ -1096,6 +1096,24 @@ is therefore accepted as stable for the reproduced startup failure. Separate
 coverage of the optimized `memcpy()` and `memmove()` paths remains follow-up
 work and is not implied by this result.
 
+The `0.5.24-spike` candidate adds a boot-time, cached-SDRAM self-test for the
+remaining BRAM-resident `memcpy()` and `memmove()` implementations. It checks
+126 disjoint-copy cases and 108 overlapping-move cases across zero length,
+byte/word/32-byte/64-byte boundaries, sizes through 4,096 bytes, aligned and
+unaligned addresses, both overlap directions, return values, and untouched
+guard bytes. The stage delta is preserved in
+`spikes/pocket/openfpgaos/memops-selftest.patch`. Disassembly confirms that
+the test arrays are 64-byte-aligned in cached SDRAM and that the test calls the
+BRAM functions at `0x32b4` and `0x346c`. The resulting 136,872-byte `os.bin`
+has SHA-256
+`58453B17FF872A5F715B8E56E856605CEFEE143B096DDBE98F28EFD633C00A84`.
+The 1,052,009-byte local-only ZIP has SHA-256
+`EA548B2EFFDC9E733CD9CE753B44A33C78512F84170B5CF8CDC9EED4AB3024D5`.
+It uses the already hardware-stable safe-`memset()` RBF. A successful test
+prints `Memory ops........ OK` during boot and continues to the normal
+workload; a mismatch prints its operation, case, offset, expected byte, and
+actual byte, then halts before filesystem and application initialization.
+
 ## 7. Acceptance record
 
 Each candidate must produce one reviewable record containing:
