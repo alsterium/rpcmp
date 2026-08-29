@@ -745,7 +745,7 @@ replaced by a checksum-pinned diagnostic build from runtime revision
 to a 320 by 16 pixel band at terminal framebuffer address `0x50300000`, issues
 a memory fence, and halts. The source delta is preserved as
 `spikes/pocket/openfpgaos/early-os-marker.patch` and is enabled with
-`EXTRA_CFLAGS=-DRPCMP_EARLY_MARKER`. The generated 111,732-byte `os.bin` has SHA-256
+`EXTRA_CFLAGS=-DRPCMP_EARLY_MARKER=1`. The generated 111,732-byte `os.bin` has SHA-256
 `560FFE0ED43E85FD0FF2CF0C40EB73BE731A0639C0AE97181250940F8FD131C2`;
 disassembly confirms the framebuffer stores and terminal loop at OS entry.
 The resulting 1,037,872-byte local-only ZIP has SHA-256
@@ -758,6 +758,29 @@ by black with no white band places the boundary at OS image transfer,
 verification, jump, or the first SDRAM instructions. Failure to display even
 `Loading...` is an unexpected regression in the already exercised RBF/APF
 path and should trigger an installation/hash check before further diagnosis.
+
+Pocket firmware 2.6 displayed `Loading...` and then the expected white band
+with `0.5.7-spike`. This proves that the bootloader transferred and verified
+the OS image, jumped to `os_main`, fetched its initial instructions from
+SDRAM, and completed uncached terminal-framebuffer stores. The earlier black
+screen is therefore inside normal OS initialization rather than the APF load,
+OS-image transfer, or initial execution boundary.
+
+The `0.5.8-spike` diagnostic advances the same marker to immediately after
+`of_irq_init()`, `os_textguard_baseline()`, and `of_init_early()`. The last call
+initializes the advertised CPU clock, cache, timer, video, and terminal. The
+stage extension is preserved in
+`spikes/pocket/openfpgaos/early-init-marker.patch`, applied after the entry
+marker patch, and built with `EXTRA_CFLAGS=-DRPCMP_EARLY_MARKER=2`.
+Disassembly confirms those calls precede
+the framebuffer stores and halt loop. The resulting 112,164-byte `os.bin` has
+SHA-256
+`8F286D3F3AEC754277420333F6583BF80FA6DE008EE5AD90B6605F8E6ACCAB2B`.
+The 1,038,279-byte local-only ZIP has SHA-256
+`B821CE7D7FA385AD1AE8718A5D558F2840E909464254DD4D216D3D35CE7A21AD`.
+A white band narrows the failure to contract checking, the boot memory test,
+or later initialization. No white band narrows it to IRQ reset, textguard
+baselining, or early HAL initialization, which must then be split further.
 
 ## 7. Acceptance record
 
