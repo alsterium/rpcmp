@@ -1,0 +1,29 @@
+diff --git a/src/firmware/os/hal/memtest.c b/src/firmware/os/hal/memtest.c
+--- a/src/firmware/os/hal/memtest.c
++++ b/src/firmware/os/hal/memtest.c
+@@ -49,1 +49,1 @@
+-#ifdef RPCMP_MEMOPS_SELFTEST
++#if defined(RPCMP_MEMOPS_SELFTEST) || defined(RPCMP_MEMCPY_SELFTEST)
+@@ -180,1 +180,1 @@ int of_memtest_boot(void) {
+-#ifdef RPCMP_MEMOPS_SELFTEST
++#if defined(RPCMP_MEMOPS_SELFTEST) || defined(RPCMP_MEMCPY_SELFTEST)
+@@ -267,0 +268,1 @@ static int memops_test_memcpy(void) {
++#ifndef RPCMP_MEMCPY_SELFTEST
+@@ -315,0 +317,1 @@ static int memops_test_memmove(void) {
++#endif
+@@ -320,0 +323,1 @@ int of_memops_test_boot(void) {
++#ifndef RPCMP_MEMCPY_SELFTEST
+@@ -322,0 +326,1 @@ int of_memops_test_boot(void) {
++#endif
+diff --git a/src/firmware/os/hal/memtest.h b/src/firmware/os/hal/memtest.h
+--- a/src/firmware/os/hal/memtest.h
++++ b/src/firmware/os/hal/memtest.h
+@@ -29,1 +29,1 @@
+-#ifdef RPCMP_MEMOPS_SELFTEST
++#if defined(RPCMP_MEMOPS_SELFTEST) || defined(RPCMP_MEMCPY_SELFTEST)
+diff --git a/src/firmware/os/kernel/main.c b/src/firmware/os/kernel/main.c
+--- a/src/firmware/os/kernel/main.c
++++ b/src/firmware/os/kernel/main.c
+@@ -658,1 +658,1 @@ void os_main(void) {
+-#ifdef RPCMP_MEMOPS_SELFTEST
++#if defined(RPCMP_MEMOPS_SELFTEST) || defined(RPCMP_MEMCPY_SELFTEST)

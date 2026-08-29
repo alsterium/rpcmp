@@ -1114,6 +1114,25 @@ prints `Memory ops........ OK` during boot and continues to the normal
 workload; a mismatch prints its operation, case, offset, expected byte, and
 actual byte, then halts before filesystem and application initialization.
 
+On Pocket firmware 2.6, `0.5.24-spike` displayed `Loading...` and then remained
+black instead of reaching the workload. No self-test failure detail was
+visible. Since the hardware-stable `0.5.23-spike` differs only by the boot
+self-test OS, either the test harness or one of the exercised memory-operation
+paths does not complete on hardware.
+
+The `0.5.25-spike` diagnostic runs only the 126 disjoint `memcpy()` cases and
+omits all reference and calls for the 108 `memmove()` cases. The stage delta
+is preserved in `spikes/pocket/openfpgaos/memcpy-only-selftest.patch`.
+Disassembly contains `memcpy-ret` but no `memmove-ret` self-test failure path.
+The resulting 136,344-byte `os.bin` has SHA-256
+`C42369C8B78BB09F34E69C62E9334F12839C1D573810C095CBEA844544EE53D1`.
+The packaged 1,051,799-byte diagnostic ZIP has SHA-256
+`02CE32D7881A7AB37BC7F67D6FCF4E29749B97805DCD80543A4D08DFA17D4A6F`.
+Reaching the normal workload excludes the `memcpy()` suite and isolates the
+failure to the omitted `memmove()` suite. Repeating the black screen instead
+keeps the failure in the `memcpy()` suite or its shared harness and requires a
+size-boundary split.
+
 ## 7. Acceptance record
 
 Each candidate must produce one reviewable record containing:
