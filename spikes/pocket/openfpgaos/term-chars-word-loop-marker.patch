@@ -1,0 +1,48 @@
+diff --git a/src/firmware/os/kernel/main.c b/src/firmware/os/kernel/main.c
+--- a/src/firmware/os/kernel/main.c
++++ b/src/firmware/os/kernel/main.c
+@@ -43,1 +43,1 @@
+-    RPCMP_EARLY_MARKER == 15
++    RPCMP_EARLY_MARKER == 15 || RPCMP_EARLY_MARKER == 16
+@@ -64,1 +64,2 @@
+-    RPCMP_EARLY_MARKER == 14 || RPCMP_EARLY_MARKER == 15
++    RPCMP_EARLY_MARKER == 14 || RPCMP_EARLY_MARKER == 15 || \
++    RPCMP_EARLY_MARKER == 16
+@@ -107,1 +108,2 @@
+-    RPCMP_EARLY_MARKER == 14 || RPCMP_EARLY_MARKER == 15
++    RPCMP_EARLY_MARKER == 14 || RPCMP_EARLY_MARKER == 15 || \
++    RPCMP_EARLY_MARKER == 16
+@@ -501,1 +503,2 @@ void os_main(void) {
+-     RPCMP_EARLY_MARKER == 14 || RPCMP_EARLY_MARKER == 15)
++     RPCMP_EARLY_MARKER == 14 || RPCMP_EARLY_MARKER == 15 || \
++     RPCMP_EARLY_MARKER == 16)
+@@ -508,1 +511,11 @@ void os_main(void) {
+-#if RPCMP_EARLY_MARKER == 15
++#if RPCMP_EARLY_MARKER == 16
++    extern void rpcmp_term_clear_chars_word_loop(void);
++    of_video_init();
++    rpcmp_init_terminal_palette();
++    while (PAL_INDEX & PAL_INDEX_BUSY) {}
++    of_video_set_palette(15, 0xFF, 0xFF, 0xFF);
++    while (PAL_INDEX & PAL_INDEX_BUSY) {}
++    of_video_set_display_mode(0);
++    rpcmp_term_clear_chars_word_loop();
++    rpcmp_terminal_framebuffer_marker();
++#elif RPCMP_EARLY_MARKER == 15
+diff --git a/src/firmware/os/targets/pocket/terminal.c b/src/firmware/os/targets/pocket/terminal.c
+--- a/src/firmware/os/targets/pocket/terminal.c
++++ b/src/firmware/os/targets/pocket/terminal.c
+@@ -368,0 +369,13 @@
++
++#if defined(RPCMP_EARLY_MARKER) && RPCMP_EARLY_MARKER == 16
++void rpcmp_term_clear_chars_word_loop(void) {
++    term_fg = OF_COLOR_WHITE;
++    term_bg = OF_COLOR_BLACK;
++    esc_state = ESC_NONE;
++    volatile uint32_t *chars = (volatile uint32_t *)term_chars;
++    for (unsigned i = 0; i < (TERM_COLS * TERM_ROWS) / sizeof(*chars); i++)
++        chars[i] = 0x20202020u;
++    term_col = 0;
++    term_row = 0;
++}
++#endif

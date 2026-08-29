@@ -86,9 +86,13 @@ TERM_CHARS_MARKER_OS = Path(
 )
 TERM_CHARS_MARKER_OS_SHA256 = "c762ad7e45d6394b042806f55d4b42e094777a76a6e449ff07b61a961cb0b664"
 TERM_CHARS_VOLATILE_MARKER_OS = Path(
-    "out/research/openfpgaCore-618a3eb-lf/src/firmware/os/bld/pocket/os.bin"
+    "out/research/openfpgaCore-618a3eb-lf/src/firmware/os/bld/pocket/os-term-chars-volatile-marker.bin"
 )
 TERM_CHARS_VOLATILE_MARKER_OS_SHA256 = "f78a94ff4fc05c479ec6951734905d664db954d96fdc8d35d2d2670056df25f2"
+TERM_CHARS_WORD_LOOP_MARKER_OS = Path(
+    "out/research/openfpgaCore-618a3eb-lf/src/firmware/os/bld/pocket/os.bin"
+)
+TERM_CHARS_WORD_LOOP_MARKER_OS_SHA256 = "1ceb9f4291e8037aa2f09461be9522c56965bf79561953a0854f2474a9f25493"
 FREQUENCY_CONTROL_RBF = Path(
     "out/research/openfpgaCore-618a3eb-lf/src/fpga/targets/pocket/"
     "bld/rpcmp100fc/output_files/ap_core.rbf"
@@ -153,8 +157,8 @@ def definitions() -> dict[str, object]:
                 "description": "RPCMP M0 openfpgaOS runtime workload probe",
                 "author": "RPCMP",
                 "url": "",
-                "version": "0.5.21-spike",
-                "date_release": "2026-08-29",
+                "version": "0.5.22-spike",
+                "date_release": "2026-08-30",
             },
             "framework": {
                 "target_product": "Analogue Pocket",
@@ -311,6 +315,7 @@ def build(
     term_state_marker: bool = False,
     term_chars_marker: bool = False,
     term_chars_volatile_marker: bool = False,
+    term_chars_word_loop_marker: bool = False,
 ) -> None:
     revision = subprocess.run(
         ["git", "-C", str(sdk), "rev-parse", "HEAD"],
@@ -536,6 +541,21 @@ def build(
             "terminal state stores and a volatile byte loop over the character buffer complete "
             "without calling memset, then the uncached terminal framebuffer receives a white band"
         )
+    elif term_chars_word_loop_marker:
+        marker_os = (repo / TERM_CHARS_WORD_LOOP_MARKER_OS).resolve()
+        if not marker_os.is_file():
+            raise ValueError(f"terminal-chars-word-loop marker OS does not exist: {marker_os}")
+        marker_os_sha256 = sha256(marker_os)
+        if marker_os_sha256 != TERM_CHARS_WORD_LOOP_MARKER_OS_SHA256:
+            raise ValueError(
+                "terminal-chars-word-loop marker OS checksum mismatch: "
+                f"expected {TERM_CHARS_WORD_LOOP_MARKER_OS_SHA256}, got {marker_os_sha256}"
+            )
+        os_binary_data = marker_os.read_bytes()
+        os_profile = (
+            "terminal state stores and a volatile one-word-per-iteration loop over the character "
+            "buffer complete, then the uncached terminal framebuffer receives a white band"
+        )
     runtime_bitstream = verify_runtime_file(runtime, manifest, f"pocket/{VARIANT}.rbf_r")
     bitstream_data = runtime_bitstream.read_bytes()
     bitstream_profile = "manifest os25"
@@ -581,6 +601,7 @@ def build(
         or term_state_marker
         or term_chars_marker
         or term_chars_volatile_marker
+        or term_chars_word_loop_marker
     ):
         native_bitstream = (repo / CLOCK_ISOLATION_RBF).resolve()
         if not native_bitstream.is_file():
@@ -805,6 +826,11 @@ def main() -> int:
         action="store_true",
         help="package the character-buffer diagnostic that uses a volatile byte loop",
     )
+    profiles.add_argument(
+        "--term-chars-word-loop-marker",
+        action="store_true",
+        help="package the character-buffer diagnostic that uses a volatile word loop",
+    )
     args = parser.parse_args()
     build(
         args.repo.resolve(),
@@ -832,6 +858,7 @@ def main() -> int:
         args.term_state_marker,
         args.term_chars_marker,
         args.term_chars_volatile_marker,
+        args.term_chars_word_loop_marker,
     )
     return 0
 

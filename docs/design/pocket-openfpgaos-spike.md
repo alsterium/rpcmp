@@ -1038,6 +1038,26 @@ A persistent white band isolates the failure to the linked `memset()` path.
 No band instead shows that writing the `term_chars` region or the write count
 is the relevant boundary.
 
+Pocket firmware 2.6 displayed and retained the white band with
+`0.5.21-spike`. The same destination and byte count therefore work through a
+volatile byte-store loop, isolating the failure to the linked `memset()`
+implementation or its store pattern rather than the `term_chars` allocation.
+
+The `0.5.22-spike` diagnostic writes the same 1,200-byte `term_chars` range as
+300 volatile 32-bit stores. Each `sw` is separated from the next by pointer
+arithmetic and a loop branch. The stage-16 delta is preserved in
+`spikes/pocket/openfpgaos/term-chars-word-loop-marker.patch`. Disassembly
+confirms a single `sw` in the loop body, the `0x20202020` fill word, the same
+end address, the terminal marker writes, and the halt loop. The resulting
+112,228-byte `os.bin` has SHA-256
+`1CEB9F4291E8037AA2F09461BE9522C56965BF79561953A0854F2474A9F25493`.
+The 1,038,348-byte local-only ZIP has SHA-256
+`E66C08351078F523A232748E0504865D5D09040B06CFB94D205F348834B24729`.
+A persistent white band shows that word stores are safe when separated and
+isolates the failure to the long back-to-back store sequence in the linked
+fast `memset()`. No band instead shows that the 32-bit cached write path is the
+relevant boundary, requiring a byte-store replacement.
+
 ## 7. Acceptance record
 
 Each candidate must produce one reviewable record containing:
