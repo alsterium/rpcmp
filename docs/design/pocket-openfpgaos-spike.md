@@ -1133,6 +1133,21 @@ failure to the omitted `memmove()` suite. Repeating the black screen instead
 keeps the failure in the `memcpy()` suite or its shared harness and requires a
 size-boundary split.
 
+Pocket firmware 2.6 repeated the `Loading...` then persistent-black result with
+`0.5.25-spike`. This excludes the omitted `memmove()` suite from the immediate
+failure path. The `0.5.26-spike` boundary diagnostic therefore retains only
+the 54 `memcpy()` cases with sizes 0 through 31 bytes across all six alignment
+pairs. It excludes the 32-byte unrolled path and the 64-byte cached-SDRAM
+`cbo.inval` path. The incremental source delta is preserved in
+`spikes/pocket/openfpgaos/memcpy-small-selftest.patch`.
+The resulting 136,328-byte `os.bin` has SHA-256
+`BAF29AE95CF5833D84141BC6B6D23077C31007F7CDD1F84928C269A505EEE699`.
+The packaged 1,051,789-byte diagnostic ZIP has SHA-256
+`AADF3A8C82D055A96983CD49A24145343B44D5665F77C470D950012557A402B2`.
+Reaching the workload places the first failing boundary at 32 bytes or above;
+another black screen keeps the failure in the shared harness or 0-to-31-byte
+copy paths.
+
 ## 7. Acceptance record
 
 Each candidate must produce one reviewable record containing:
