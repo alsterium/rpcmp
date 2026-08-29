@@ -1002,6 +1002,24 @@ A persistent white band excludes the state stores and isolates the failure to
 one of the internal-buffer clears. No band instead requires splitting the
 five state stores.
 
+Pocket firmware 2.6 displayed and retained the white band with
+`0.5.19-spike`. The terminal state stores are therefore excluded, leaving the
+two internal 1,200-byte buffer clears as the exact remaining boundary.
+
+The `0.5.20-spike` diagnostic performs the known-good state stores and only
+the first internal clear, `memset(term_chars, ' ', 1200)`. It omits the color
+buffer and framebuffer clears before writing the uncached terminal marker.
+The stage-14 delta is preserved in
+`spikes/pocket/openfpgaos/term-chars-marker.patch`. Disassembly confirms one
+1,200-byte `memset()` targeting `term_chars`, no second `memset()`, the marker
+writes, and the halt loop. The resulting 112,164-byte `os.bin` has SHA-256
+`C762AD7E45D6394B042806F55D4B42E094777A76A6E449FF07B61A961CB0B664`.
+The 1,038,318-byte local-only ZIP has SHA-256
+`045E78DAF6EC9B21D9E11FFE0E4379FD4300C6C4D4B035148E1AD3EE85401657`.
+A persistent white band excludes the character-buffer clear and isolates the
+failure to the color-buffer clear. No band isolates the failure to the
+character-buffer clear.
+
 ## 7. Acceptance record
 
 Each candidate must produce one reviewable record containing:
