@@ -1179,6 +1179,26 @@ The packaged 1,051,292-byte diagnostic ZIP has SHA-256
 Reaching the workload isolates the failure to the removed buffer operations;
 another black screen isolates it to the additional BSS size or placement.
 
+On Pocket firmware 2.6, `0.5.28-spike` progressed from `Loading...` to
+`Booting...` but then continuously alternated between those two screens. This
+is consistent with a heartbeat/watchdog reload after OS entry, rather than the
+previous persistent-black symptom. The three-buffer BSS ends at `0x10390B90`.
+Although this is below the linker's `0x103E0000` OSDATA limit, it is the first
+diagnostic layout to cross `0x10390000`, making an undocumented hardware
+boundary effect a working inference rather than an established contract.
+
+The `0.5.29-spike` control retains only `memops_src`, confirmed by the ELF
+symbol table as one 4,224-byte BSS symbol, and performs no buffer operations.
+Its BSS ends at `0x1038EA90`, 5,488 bytes below `0x10390000`. The incremental
+delta is preserved in
+`spikes/pocket/openfpgaos/memops-one-buffer-layout-selftest.patch`.
+The warning-free build produces a 135,400-byte `os.bin` with SHA-256
+`D9513734C0EB06FD37F7785A33FB1D264B8444C5704027F101C874FB0637B7CE`.
+The packaged 1,051,273-byte diagnostic ZIP has SHA-256
+`575A4287B1E973C32C610B64919466A176729A9C7648EC992D1326C27395DADE`.
+Reaching the workload supports the boundary/size hypothesis; repeating the
+reload loop means even one extra buffer or another placement change is enough.
+
 ## 7. Acceptance record
 
 Each candidate must produce one reviewable record containing:
