@@ -1058,6 +1058,30 @@ isolates the failure to the long back-to-back store sequence in the linked
 fast `memset()`. No band instead shows that the 32-bit cached write path is the
 relevant boundary, requiring a byte-store replacement.
 
+Pocket firmware 2.6 displayed and retained the white band with
+`0.5.22-spike`. A 32-bit store therefore completes against the same aligned
+SDRAM range when pointer arithmetic and a branch separate it from the next
+store. Together with the failing 16-store unrolled `memset()` case, this
+isolates the observed halt to its long back-to-back store sequence.
+
+The `0.5.23-spike` correction candidate removes the 64-byte and 32-byte
+unrolled paths from the BRAM-resident `memset()` and retains its aligned
+one-word loop plus byte fallback. The source delta is preserved in
+`spikes/pocket/openfpgaos/safe-memset.patch`. The normal, marker-free
+135,448-byte `os.bin` has SHA-256
+`3BB812A1B320C7350046097D361DBF8567662218C9D8BA2F0457E0325F2826A9`.
+Its 15,652-byte `boot.bin` has SHA-256
+`BC904414D8188D4FF8CB38B8B08202F507B3D30D04A5A48BCB09C7D42D4F43F4`.
+Quartus 25.1 MIF/HEX Update and Assembler completed with zero errors and zero
+warnings, producing a 1,983,628-byte RBF with SHA-256
+`FA75E3CF3FE465090924D28DF5616170CD2F4EEFD9F4D68C89A72CB2CD93DBD5`.
+The 1,051,242-byte local-only ZIP has SHA-256
+`890824A0ECC283A82ED55347574B0F60FDA5542FC3A2CC35D9C1E63F7D34EAA8`.
+Only initialized BRAM contents changed; the FPGA netlist and the prior 90 MHz
+fit and timing reports are unchanged. This is a correction candidate until a
+Pocket boot reaches the normal workload screen and completes the existing
+automatic, queue, input, and overall checks.
+
 ## 7. Acceptance record
 
 Each candidate must produce one reviewable record containing:

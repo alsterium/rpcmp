@@ -90,9 +90,18 @@ TERM_CHARS_VOLATILE_MARKER_OS = Path(
 )
 TERM_CHARS_VOLATILE_MARKER_OS_SHA256 = "f78a94ff4fc05c479ec6951734905d664db954d96fdc8d35d2d2670056df25f2"
 TERM_CHARS_WORD_LOOP_MARKER_OS = Path(
-    "out/research/openfpgaCore-618a3eb-lf/src/firmware/os/bld/pocket/os.bin"
+    "out/research/openfpgaCore-618a3eb-lf/src/firmware/os/bld/pocket/os-term-chars-word-loop-marker.bin"
 )
 TERM_CHARS_WORD_LOOP_MARKER_OS_SHA256 = "1ceb9f4291e8037aa2f09461be9522c56965bf79561953a0854f2474a9f25493"
+SAFE_MEMSET_OS = Path(
+    "out/research/openfpgaCore-618a3eb-lf/src/firmware/os/bld/pocket/os.bin"
+)
+SAFE_MEMSET_OS_SHA256 = "3bb812a1b320c7350046097d361dbf8567662218c9d8ba2f0457e0325f2826a9"
+SAFE_MEMSET_RBF = Path(
+    "out/research/openfpgaCore-618a3eb-lf/src/fpga/targets/pocket/"
+    "bld/rpcmp90fcmem/output_files/ap_core.rbf"
+)
+SAFE_MEMSET_RBF_SHA256 = "fa75e3cf3fe465090924d28df5616170cd2f4eefd9f4d68c89a72cb2cd93dbd5"
 FREQUENCY_CONTROL_RBF = Path(
     "out/research/openfpgaCore-618a3eb-lf/src/fpga/targets/pocket/"
     "bld/rpcmp100fc/output_files/ap_core.rbf"
@@ -157,7 +166,7 @@ def definitions() -> dict[str, object]:
                 "description": "RPCMP M0 openfpgaOS runtime workload probe",
                 "author": "RPCMP",
                 "url": "",
-                "version": "0.5.22-spike",
+                "version": "0.5.23-spike",
                 "date_release": "2026-08-30",
             },
             "framework": {
@@ -316,6 +325,7 @@ def build(
     term_chars_marker: bool = False,
     term_chars_volatile_marker: bool = False,
     term_chars_word_loop_marker: bool = False,
+    memset_fix_candidate: bool = False,
 ) -> None:
     revision = subprocess.run(
         ["git", "-C", str(sdk), "rev-parse", "HEAD"],
@@ -556,11 +566,38 @@ def build(
             "terminal state stores and a volatile one-word-per-iteration loop over the character "
             "buffer complete, then the uncached terminal framebuffer receives a white band"
         )
+    elif memset_fix_candidate:
+        fixed_os = (repo / SAFE_MEMSET_OS).resolve()
+        if not fixed_os.is_file():
+            raise ValueError(f"safe-memset OS does not exist: {fixed_os}")
+        fixed_os_sha256 = sha256(fixed_os)
+        if fixed_os_sha256 != SAFE_MEMSET_OS_SHA256:
+            raise ValueError(
+                "safe-memset OS checksum mismatch: "
+                f"expected {SAFE_MEMSET_OS_SHA256}, got {fixed_os_sha256}"
+            )
+        os_binary_data = fixed_os.read_bytes()
+        os_profile = "normal openfpgaOS with a one-word-per-iteration memset implementation"
     runtime_bitstream = verify_runtime_file(runtime, manifest, f"pocket/{VARIANT}.rbf_r")
     bitstream_data = runtime_bitstream.read_bytes()
     bitstream_profile = "manifest os25"
     native_bitstream_sha256 = None
-    if integrated_rbf:
+    if memset_fix_candidate:
+        native_bitstream = (repo / SAFE_MEMSET_RBF).resolve()
+        if not native_bitstream.is_file():
+            raise ValueError(f"safe-memset native RBF does not exist: {native_bitstream}")
+        native_bitstream_sha256 = sha256(native_bitstream)
+        if native_bitstream_sha256 != SAFE_MEMSET_RBF_SHA256:
+            raise ValueError(
+                "safe-memset native RBF checksum mismatch: "
+                f"expected {SAFE_MEMSET_RBF_SHA256}, got {native_bitstream_sha256}"
+            )
+        bitstream_data = reverse_rbf_bits(native_bitstream.read_bytes())
+        bitstream_profile = (
+            "rpcmp stock 32KiB/128KiB caches + safe-memset boot ROM at 90MHz; "
+            "no JT51/MMIO overlay"
+        )
+    elif integrated_rbf:
         native_bitstream = (repo / INTEGRATED_RBF).resolve()
         if not native_bitstream.is_file():
             raise ValueError(f"integrated native RBF does not exist: {native_bitstream}")
@@ -831,6 +868,11 @@ def main() -> int:
         action="store_true",
         help="package the character-buffer diagnostic that uses a volatile word loop",
     )
+    profiles.add_argument(
+        "--memset-fix-candidate",
+        action="store_true",
+        help="package the normal OS and matching RBF with the safe memset implementation",
+    )
     args = parser.parse_args()
     build(
         args.repo.resolve(),
@@ -859,6 +901,7 @@ def main() -> int:
         args.term_chars_marker,
         args.term_chars_volatile_marker,
         args.term_chars_word_loop_marker,
+        args.memset_fix_candidate,
     )
     return 0
 

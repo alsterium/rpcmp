@@ -1,0 +1,54 @@
+diff --git a/src/firmware/os/hal/fast_mem.S b/src/firmware/os/hal/fast_mem.S
+--- a/src/firmware/os/hal/fast_mem.S
++++ b/src/firmware/os/hal/fast_mem.S
+@@ -14,2 +14,3 @@
+- *   memset:          plain 16-word unrolled stores (store buffer
+- *                    handles write-allocate pipelining)
++ *   memset:          one word store per loop iteration. Pocket hardware
++ *                    testing showed that long back-to-back store runs can
++ *                    stop forward progress in the cached SDRAM path.
+@@ -188,2 +189,3 @@ memcpy:
+- * Plain 16-word unrolled stores. The store buffer handles
+- * write-allocate pipelining, so this is the fastest approach we have.
++ * Keep integer work and a branch between word stores. A 16-word unrolled
++ * store sequence reproducibly stopped Pocket hardware while the equivalent
++ * single-store loop completed against the same aligned SDRAM destination.
+@@ -208,38 +210,0 @@ memset:
+-    li      t1, 64
+-    bltu    a2, t1, .Lset_32
+-.Lset_64:
+-    sw      a1,  0(a0)
+-    sw      a1,  4(a0)
+-    sw      a1,  8(a0)
+-    sw      a1, 12(a0)
+-    sw      a1, 16(a0)
+-    sw      a1, 20(a0)
+-    sw      a1, 24(a0)
+-    sw      a1, 28(a0)
+-    sw      a1, 32(a0)
+-    sw      a1, 36(a0)
+-    sw      a1, 40(a0)
+-    sw      a1, 44(a0)
+-    sw      a1, 48(a0)
+-    sw      a1, 52(a0)
+-    sw      a1, 56(a0)
+-    sw      a1, 60(a0)
+-    addi    a0, a0, 64
+-    addi    a2, a2, -64
+-    bgeu    a2, t1, .Lset_64
+-
+-.Lset_32:
+-    li      t1, 32
+-    bltu    a2, t1, .Lset_4
+-    sw      a1,  0(a0)
+-    sw      a1,  4(a0)
+-    sw      a1,  8(a0)
+-    sw      a1, 12(a0)
+-    sw      a1, 16(a0)
+-    sw      a1, 20(a0)
+-    sw      a1, 24(a0)
+-    sw      a1, 28(a0)
+-    addi    a0, a0, 32
+-    addi    a2, a2, -32
+-    bgeu    a2, t1, .Lset_32
+-
