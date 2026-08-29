@@ -841,6 +841,28 @@ A visible white band proves video initialization returned and leaves terminal
 initialization as the next boundary. No band keeps the failure inside video
 initialization or its app-framebuffer scanout path.
 
+Pocket firmware 2.6 displayed `Loading...` and the expected white band with
+`0.5.11-spike`. Video initialization and app-framebuffer scanout are therefore
+excluded. The failure is inside `of_term_init()`.
+
+The first operation in `of_term_init()` installs the 16 VGA terminal colors.
+Each `of_video_set_palette()` call updates one shadow entry and attempts a
+complete 256-entry staged palette upload, so terminal initialization performs
+this path 16 times before switching display mode or clearing the terminal
+framebuffer. The `0.5.12-spike` diagnostic reproduces that exact color loop
+after `of_video_init()`, then writes the same three-buffer white band and
+halts. The stage-6 delta is preserved in
+`spikes/pocket/openfpgaos/terminal-palette-marker.patch`. Disassembly confirms
+the video call, 16 palette-loop iterations (including the 256-entry MMIO
+upload path), three framebuffer writes, and terminal halt loop. The resulting
+112,164-byte `os.bin` has SHA-256
+`46FDF101EBB64E838C2785D62BC7FD1E3AC9654BDB4D9A24B5DBE0AD4267A2BE`.
+The 1,038,283-byte local-only ZIP has SHA-256
+`69C7442C1228709EBE51BC04CF36A818F958C32A3AF1E7A18B5DB747D642EC6B`.
+A visible white band excludes palette initialization and leaves terminal-mode
+switching or terminal-buffer clearing/cache flushing as the next boundary. No
+band identifies the palette upload path as the failure boundary.
+
 ## 7. Acceptance record
 
 Each candidate must produce one reviewable record containing:

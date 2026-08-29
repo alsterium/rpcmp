@@ -46,9 +46,13 @@ PRE_VIDEO_MARKER_OS = Path(
 )
 PRE_VIDEO_MARKER_OS_SHA256 = "9dd374f0f022fb84f48dc3a2fa8af0ef19ab755d696ec33b172bf1b49269d431"
 POST_VIDEO_MARKER_OS = Path(
-    "out/research/openfpgaCore-618a3eb-lf/src/firmware/os/bld/pocket/os.bin"
+    "out/research/openfpgaCore-618a3eb-lf/src/firmware/os/bld/pocket/os-post-video-marker.bin"
 )
 POST_VIDEO_MARKER_OS_SHA256 = "338c8459dcd9f6723cd6226138761978425ff656eac3d1f9128ab7c7f7724c12"
+POST_PALETTE_MARKER_OS = Path(
+    "out/research/openfpgaCore-618a3eb-lf/src/firmware/os/bld/pocket/os.bin"
+)
+POST_PALETTE_MARKER_OS_SHA256 = "46fdf101ebb64e838c2785d62bc7fd1e3ac9654bdb4d9a24b5dbe0ad4267a2be"
 FREQUENCY_CONTROL_RBF = Path(
     "out/research/openfpgaCore-618a3eb-lf/src/fpga/targets/pocket/"
     "bld/rpcmp100fc/output_files/ap_core.rbf"
@@ -113,7 +117,7 @@ def definitions() -> dict[str, object]:
                 "description": "RPCMP M0 openfpgaOS runtime workload probe",
                 "author": "RPCMP",
                 "url": "",
-                "version": "0.5.11-spike",
+                "version": "0.5.12-spike",
                 "date_release": "2026-08-29",
             },
             "framework": {
@@ -261,6 +265,7 @@ def build(
     pre_early_init_marker: bool = False,
     pre_video_marker: bool = False,
     post_video_marker: bool = False,
+    post_palette_marker: bool = False,
 ) -> None:
     revision = subprocess.run(
         ["git", "-C", str(sdk), "rev-parse", "HEAD"],
@@ -336,6 +341,21 @@ def build(
             )
         os_binary_data = marker_os.read_bytes()
         os_profile = "video init completes, then all three uncached app framebuffers receive a white band"
+    elif post_palette_marker:
+        marker_os = (repo / POST_PALETTE_MARKER_OS).resolve()
+        if not marker_os.is_file():
+            raise ValueError(f"post-palette marker OS does not exist: {marker_os}")
+        marker_os_sha256 = sha256(marker_os)
+        if marker_os_sha256 != POST_PALETTE_MARKER_OS_SHA256:
+            raise ValueError(
+                "post-palette marker OS checksum mismatch: "
+                f"expected {POST_PALETTE_MARKER_OS_SHA256}, got {marker_os_sha256}"
+            )
+        os_binary_data = marker_os.read_bytes()
+        os_profile = (
+            "video init and the terminal 16-color palette loop complete, then all three "
+            "uncached app framebuffers receive a white band"
+        )
     runtime_bitstream = verify_runtime_file(runtime, manifest, f"pocket/{VARIANT}.rbf_r")
     bitstream_data = runtime_bitstream.read_bytes()
     bitstream_profile = "manifest os25"
@@ -371,6 +391,7 @@ def build(
         or pre_early_init_marker
         or pre_video_marker
         or post_video_marker
+        or post_palette_marker
     ):
         native_bitstream = (repo / CLOCK_ISOLATION_RBF).resolve()
         if not native_bitstream.is_file():
@@ -545,6 +566,11 @@ def main() -> int:
         action="store_true",
         help="package the 90 MHz stock-cache fit with a three-buffer marker after video initialization",
     )
+    profiles.add_argument(
+        "--post-palette-marker",
+        action="store_true",
+        help="package the 90 MHz stock-cache fit with a marker after terminal palette initialization",
+    )
     args = parser.parse_args()
     build(
         args.repo.resolve(),
@@ -562,6 +588,7 @@ def main() -> int:
         args.pre_early_init_marker,
         args.pre_video_marker,
         args.post_video_marker,
+        args.post_palette_marker,
     )
     return 0
 

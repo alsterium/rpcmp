@@ -1,0 +1,52 @@
+diff --git a/src/firmware/os/kernel/main.c b/src/firmware/os/kernel/main.c
+--- a/src/firmware/os/kernel/main.c
++++ b/src/firmware/os/kernel/main.c
+@@ -38 +38 @@
+-#if RPCMP_EARLY_MARKER == 5
++#if RPCMP_EARLY_MARKER == 5 || RPCMP_EARLY_MARKER == 6
+@@ -54,5 +54,24 @@ static void rpcmp_post_video_marker(void) {
+     __asm__ volatile("fence" ::: "memory");
+     for (;;) {}
+ }
++
++#if RPCMP_EARLY_MARKER == 6
++static void rpcmp_init_terminal_palette(void) {
++    static const uint8_t vga_palette[16][3] = {
++        { 0x00, 0x00, 0x00 }, { 0x00, 0x00, 0xAA },
++        { 0x00, 0xAA, 0x00 }, { 0x00, 0xAA, 0xAA },
++        { 0xAA, 0x00, 0x00 }, { 0xAA, 0x00, 0xAA },
++        { 0xAA, 0x55, 0x00 }, { 0xAA, 0xAA, 0xAA },
++        { 0x55, 0x55, 0x55 }, { 0x55, 0x55, 0xFF },
++        { 0x55, 0xFF, 0x55 }, { 0x55, 0xFF, 0xFF },
++        { 0xFF, 0x55, 0x55 }, { 0xFF, 0x55, 0xFF },
++        { 0xFF, 0xFF, 0x55 }, { 0xFF, 0xFF, 0xFF },
++    };
++
++    for (int i = 0; i < 16; i++)
++        of_video_set_palette(i, vga_palette[i][0],
++                             vga_palette[i][1], vga_palette[i][2]);
++}
++#endif
+ #endif
+ #endif
+@@ -432,6 +451,7 @@ void os_main(void) {
+      * below have vouched for the core/os pairing. */
+ #if defined(RPCMP_EARLY_MARKER) && \
+-    (RPCMP_EARLY_MARKER == 4 || RPCMP_EARLY_MARKER == 5)
++    (RPCMP_EARLY_MARKER == 4 || RPCMP_EARLY_MARKER == 5 || \
++     RPCMP_EARLY_MARKER == 6)
+     {
+         extern uint32_t g_cpu_freq_hz;
+         uint32_t clk_hz = CLK_FREQ_REG;
+@@ -442,7 +462,10 @@ void os_main(void) {
+             g_cpu_freq_hz = clk_hz;
+     }
+-#if RPCMP_EARLY_MARKER == 5
++#if RPCMP_EARLY_MARKER == 5 || RPCMP_EARLY_MARKER == 6
+     of_video_init();
++#if RPCMP_EARLY_MARKER == 6
++    rpcmp_init_terminal_palette();
++#endif
+     rpcmp_post_video_marker();
+ #else
+     rpcmp_early_marker();
