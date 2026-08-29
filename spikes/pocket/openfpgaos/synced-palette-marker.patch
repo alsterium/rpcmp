@@ -1,0 +1,23 @@
+diff --git a/src/firmware/os/kernel/main.c b/src/firmware/os/kernel/main.c
+--- a/src/firmware/os/kernel/main.c
++++ b/src/firmware/os/kernel/main.c
+@@ -39,1 +39,2 @@
+-    RPCMP_EARLY_MARKER == 7 || RPCMP_EARLY_MARKER == 8
++    RPCMP_EARLY_MARKER == 7 || RPCMP_EARLY_MARKER == 8 || \
++    RPCMP_EARLY_MARKER == 9
+@@ -57,1 +58,1 @@
+-#if RPCMP_EARLY_MARKER == 6
++#if RPCMP_EARLY_MARKER == 6 || RPCMP_EARLY_MARKER == 9
+@@ -477,1 +478,1 @@ void os_main(void) {
+-     RPCMP_EARLY_MARKER == 8)
++     RPCMP_EARLY_MARKER == 8 || RPCMP_EARLY_MARKER == 9)
+@@ -485,1 +486,8 @@ void os_main(void) {
+-#if RPCMP_EARLY_MARKER == 8
++#if RPCMP_EARLY_MARKER == 9
++    of_video_init();
++    rpcmp_init_terminal_palette();
++    while (PAL_INDEX & PAL_INDEX_BUSY) {}
++    of_video_set_palette(15, 0xFF, 0xFF, 0xFF);
++    while (PAL_INDEX & PAL_INDEX_BUSY) {}
++    rpcmp_post_video_marker();
++#elif RPCMP_EARLY_MARKER == 8

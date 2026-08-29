@@ -904,6 +904,27 @@ A persistent white band proves all of terminal initialization completed. No
 band leaves the failure inside display-mode switching, terminal clearing/cache
 flushing, or palette commit retirement.
 
+Pocket firmware 2.6 did not display the white band with `0.5.14-spike`. That
+combined diagnostic does not distinguish the 16-color palette loop and commit
+waits from the later terminal display-mode switch and terminal clear/cache
+flush.
+
+The `0.5.15-spike` diagnostic remains in app-framebuffer mode. It installs all
+16 terminal colors, waits for the first staged commit, re-uploads the complete
+palette shadow with entry 15 white, waits for the final commit, and only then
+writes the persistent band to all three uncached app framebuffers. The stage-9
+delta is preserved in
+`spikes/pocket/openfpgaos/synced-palette-marker.patch`. Disassembly confirms
+the 16-entry loop, two palette-busy waits, final 256-entry upload, three
+framebuffer writes, and halt loop, with no terminal display-mode switch or
+terminal clear. The resulting 112,164-byte `os.bin` has SHA-256
+`9BEF56FE8CB53B60CBB632E9C179E31521D3E0416BC5603DF6F0A3F1A3415451`.
+The 1,038,300-byte local-only ZIP has SHA-256
+`AAA5BCBDF1370735E0A131E5B56F1F3E7BBD42C8A7B708A880FAB78C89D841F2`.
+A persistent white band excludes the full palette path and makes terminal
+display-mode switching the next boundary. No band isolates the failure to the
+16-color loop or palette commit retirement.
+
 ## 7. Acceptance record
 
 Each candidate must produce one reviewable record containing:
