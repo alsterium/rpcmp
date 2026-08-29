@@ -863,6 +863,24 @@ A visible white band excludes palette initialization and leaves terminal-mode
 switching or terminal-buffer clearing/cache flushing as the next boundary. No
 band identifies the palette upload path as the failure boundary.
 
+Pocket firmware 2.6 displayed `Loading...` and then blacked out with
+`0.5.12-spike`. The palette initialization path is therefore the current
+failure boundary. One palette call normally attempts a complete 256-entry
+shadow upload and staged commit; later calls may instead observe the busy bit
+and defer their upload. The `0.5.13-spike` diagnostic calls only the first
+terminal operation, `of_video_set_palette(0, 0, 0, 0)`, after video
+initialization, then writes the same three-buffer white band and halts. The
+stage-7 delta is preserved in
+`spikes/pocket/openfpgaos/first-palette-marker.patch`. Disassembly confirms one
+palette call between video initialization and the framebuffer writes. The
+resulting 111,924-byte `os.bin` has SHA-256
+`148607342E593D8CB7246A40F44D278F6C6186754E5066833FBD1AB1986F960A`.
+The 1,038,105-byte local-only ZIP has SHA-256
+`3A5A9406966F9585A5FC921954448FABCE4C4C0BC498F82991EDD95A0B5EDE69`.
+A visible white band means one palette upload works and implicates repeated
+palette calls or their busy/deferred state. No band identifies the first full
+palette upload or commit as the failure boundary.
+
 ## 7. Acceptance record
 
 Each candidate must produce one reviewable record containing:

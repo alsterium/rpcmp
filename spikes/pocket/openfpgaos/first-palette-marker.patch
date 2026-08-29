@@ -1,0 +1,49 @@
+diff --git a/src/firmware/os/kernel/main.c b/src/firmware/os/kernel/main.c
+--- a/src/firmware/os/kernel/main.c
++++ b/src/firmware/os/kernel/main.c
+@@ -34,7 +34,9 @@ static __attribute__((unused)) void rpcmp_early_marker(void) {
+     __asm__ volatile("fence" ::: "memory");
+     for (;;) {}
+ }
+-#if RPCMP_EARLY_MARKER == 5 || RPCMP_EARLY_MARKER == 6
++
++#if RPCMP_EARLY_MARKER == 5 || RPCMP_EARLY_MARKER == 6 || \
++    RPCMP_EARLY_MARKER == 7
+ static void rpcmp_post_video_marker(void) {
+     const uintptr_t bases[3] = {
+         FB0_BASE + 0x40000000u,
+@@ -70,5 +72,11 @@ static void rpcmp_init_terminal_palette(void) {
+                              vga_palette[i][1], vga_palette[i][2]);
+ }
+ #endif
++
++#if RPCMP_EARLY_MARKER == 7
++static void rpcmp_init_first_terminal_palette_entry(void) {
++    of_video_set_palette(0, 0x00, 0x00, 0x00);
++}
++#endif
+ #endif
+ #endif
+@@ -449,17 +457,20 @@ void os_main(void) {
+      * below have vouched for the core/os pairing. */
+ #if defined(RPCMP_EARLY_MARKER) && \
+     (RPCMP_EARLY_MARKER == 4 || RPCMP_EARLY_MARKER == 5 || \
+-     RPCMP_EARLY_MARKER == 6)
++     RPCMP_EARLY_MARKER == 6 || RPCMP_EARLY_MARKER == 7)
+     {
+         extern uint32_t g_cpu_freq_hz;
+         uint32_t clk_hz = CLK_FREQ_REG;
+         if (clk_hz >= 50000000u && clk_hz <= 150000000u)
+             g_cpu_freq_hz = clk_hz;
+     }
+-#if RPCMP_EARLY_MARKER == 5 || RPCMP_EARLY_MARKER == 6
++#if RPCMP_EARLY_MARKER == 5 || RPCMP_EARLY_MARKER == 6 || \
++    RPCMP_EARLY_MARKER == 7
+     of_video_init();
+ #if RPCMP_EARLY_MARKER == 6
+     rpcmp_init_terminal_palette();
++#elif RPCMP_EARLY_MARKER == 7
++    rpcmp_init_first_terminal_palette_entry();
+ #endif
+     rpcmp_post_video_marker();
+ #else
