@@ -29,6 +29,10 @@ CLOCK_ISOLATION_RBF = Path(
     "bld/rpcmp90fc/output_files/ap_core.rbf"
 )
 CLOCK_ISOLATION_RBF_SHA256 = "d8fcc136e09d21c62505330570f9d1d16011024799625aabfa94ac20a2d016f5"
+EARLY_MARKER_OS = Path(
+    "out/research/openfpgaCore-618a3eb-lf/src/firmware/os/bld/pocket/os.bin"
+)
+EARLY_MARKER_OS_SHA256 = "560ffe0ed43e85fd0ff2cf0c40eb73be731a0639c0ae97181250940f8fd131c2"
 FREQUENCY_CONTROL_RBF = Path(
     "out/research/openfpgaCore-618a3eb-lf/src/fpga/targets/pocket/"
     "bld/rpcmp100fc/output_files/ap_core.rbf"
@@ -93,7 +97,7 @@ def definitions() -> dict[str, object]:
                 "description": "RPCMP M0 openfpgaOS runtime workload probe",
                 "author": "RPCMP",
                 "url": "",
-                "version": "0.5.6-spike",
+                "version": "0.5.7-spike",
                 "date_release": "2026-08-29",
             },
             "framework": {
@@ -236,6 +240,7 @@ def build(
     clock_isolation_rbf: bool = False,
     frequency_control_rbf: bool = False,
     local_stock_rbf: bool = False,
+    early_os_marker: bool = False,
 ) -> None:
     revision = subprocess.run(
         ["git", "-C", str(sdk), "rev-parse", "HEAD"],
@@ -249,6 +254,20 @@ def build(
     manifest = parse_manifest(runtime / "MANIFEST")
     loader = verify_runtime_file(runtime, manifest, "pocket/loader.bin")
     os_binary = verify_runtime_file(runtime, manifest, "pocket/os.bin")
+    os_binary_data = os_binary.read_bytes()
+    os_profile = "manifest os25"
+    if early_os_marker:
+        marker_os = (repo / EARLY_MARKER_OS).resolve()
+        if not marker_os.is_file():
+            raise ValueError(f"early-marker OS does not exist: {marker_os}")
+        marker_os_sha256 = sha256(marker_os)
+        if marker_os_sha256 != EARLY_MARKER_OS_SHA256:
+            raise ValueError(
+                "early-marker OS checksum mismatch: "
+                f"expected {EARLY_MARKER_OS_SHA256}, got {marker_os_sha256}"
+            )
+        os_binary_data = marker_os.read_bytes()
+        os_profile = "os_main writes a 320x16 white framebuffer marker and halts"
     runtime_bitstream = verify_runtime_file(runtime, manifest, f"pocket/{VARIANT}.rbf_r")
     bitstream_data = runtime_bitstream.read_bytes()
     bitstream_profile = "manifest os25"
@@ -277,7 +296,7 @@ def build(
             )
         bitstream_data = reverse_rbf_bits(native_bitstream.read_bytes())
         bitstream_profile = "rpcmp 16KiB/32KiB + boot ROM at 90MHz; no JT51/MMIO overlay"
-    elif clock_isolation_rbf:
+    elif clock_isolation_rbf or early_os_marker:
         native_bitstream = (repo / CLOCK_ISOLATION_RBF).resolve()
         if not native_bitstream.is_file():
             raise ValueError(f"clock-isolation native RBF does not exist: {native_bitstream}")
@@ -333,7 +352,7 @@ def build(
         write_file(staging, core_root / f"{VARIANT}.rbf_r", bitstream_data)
 
         common_root = PurePosixPath("Assets") / PLATFORM_ID / "common"
-        write_file(staging, common_root / "os.bin", os_binary.read_bytes())
+        write_file(staging, common_root / "os.bin", os_binary_data)
         write_file(staging, common_root / "rpcmp-probe.elf", elf.read_bytes())
         write_file(staging, common_root / "rpcmp-probe.ini", b"[os]\nELF=rpcmp-probe.elf\nARGS=\nVARIANT=os25\n")
         synthetic = bytes((offset * 37 + 11) % 256 for offset in range(4096))
@@ -377,6 +396,7 @@ def build(
         "sdk_revision": SDK_REVISION,
         "runtime_revision": RUNTIME_REVISION,
         "bitstream_profile": bitstream_profile,
+        "os_profile": os_profile,
         "native_bitstream_sha256": native_bitstream_sha256,
         "artifacts": {
             path.relative_to(output).as_posix(): {"bytes": path.stat().st_size, "sha256": sha256(path)}
@@ -425,6 +445,11 @@ def main() -> int:
         action="store_true",
         help="package the checksum-pinned local rebuild of the stock os25 fit",
     )
+    profiles.add_argument(
+        "--early-os-marker",
+        action="store_true",
+        help="package the 90 MHz stock-cache fit with a checksum-pinned early OS marker",
+    )
     args = parser.parse_args()
     build(
         args.repo.resolve(),
@@ -437,6 +462,7 @@ def main() -> int:
         args.clock_isolation_rbf,
         args.frequency_control_rbf,
         args.local_stock_rbf,
+        args.early_os_marker,
     )
     return 0
 

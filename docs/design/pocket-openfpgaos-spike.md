@@ -729,6 +729,34 @@ If this control boots, feature pruning is the remaining common cause of the
 custom-fit failures; if it blacks out, the local fit/tool/timing path remains
 the fault boundary.
 
+Pocket firmware 2.6 produced a black screen without displaying `Loading...`
+with this locally rebuilt stock control. Unlike the timing-clean custom fits,
+this RBF therefore did not establish successful APF bootloader execution. Its
+timing violation and near-full device utilization make it unsuitable as the
+next software-side diagnostic, and this result does not overturn the known-good
+manifest-runtime control.
+
+The `0.5.7-spike` diagnostic instead reuses the `0.5.3-spike` 90 MHz,
+stock-cache, no-JT51 native RBF. That fit has 0.597 ns worst setup slack and
+previously displayed `Loading...` before blacking out. Its SDK-manifest OS is
+replaced by a checksum-pinned diagnostic build from runtime revision
+`618a3eb985759a4154115109c2c8036271252888`. At the first instruction of
+`os_main`, before normal OS initialization, this build writes palette index 15
+to a 320 by 16 pixel band at terminal framebuffer address `0x50300000`, issues
+a memory fence, and halts. The generated 111,732-byte `os.bin` has SHA-256
+`560FFE0ED43E85FD0FF2CF0C40EB73BE731A0639C0AE97181250940F8FD131C2`;
+disassembly confirms the framebuffer stores and terminal loop at OS entry.
+The resulting 1,037,872-byte local-only ZIP has SHA-256
+`8C0162C5CC6F012518F12673C742DF04F3EE8187124ACF219EF4C03CA7604308`.
+
+A white band after `Loading...` proves the bootloader transferred control to
+the OS and that initial SDRAM instruction fetch and framebuffer stores work;
+the failure is then later in normal OS initialization. `Loading...` followed
+by black with no white band places the boundary at OS image transfer,
+verification, jump, or the first SDRAM instructions. Failure to display even
+`Loading...` is an unexpected regression in the already exercised RBF/APF
+path and should trigger an installation/hash check before further diagnosis.
+
 ## 7. Acceptance record
 
 Each candidate must produce one reviewable record containing:
