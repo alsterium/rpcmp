@@ -62,9 +62,13 @@ POST_TERMINAL_MARKER_OS = Path(
 )
 POST_TERMINAL_MARKER_OS_SHA256 = "9350174f08cd1f1e37e54461c707da68983f6573612b946ca8f1ad1d20b69662"
 SYNCED_PALETTE_MARKER_OS = Path(
-    "out/research/openfpgaCore-618a3eb-lf/src/firmware/os/bld/pocket/os.bin"
+    "out/research/openfpgaCore-618a3eb-lf/src/firmware/os/bld/pocket/os-synced-palette-marker.bin"
 )
 SYNCED_PALETTE_MARKER_OS_SHA256 = "9bef56fe8cb53b60cbb632e9c179e31521d3e0416bc5603df6f0a3f1a3415451"
+TERMINAL_MODE_MARKER_OS = Path(
+    "out/research/openfpgaCore-618a3eb-lf/src/firmware/os/bld/pocket/os.bin"
+)
+TERMINAL_MODE_MARKER_OS_SHA256 = "5831e94db77386ba1c76d1865bfa18c81db710470eebce38a2b60370be7bab9b"
 FREQUENCY_CONTROL_RBF = Path(
     "out/research/openfpgaCore-618a3eb-lf/src/fpga/targets/pocket/"
     "bld/rpcmp100fc/output_files/ap_core.rbf"
@@ -129,7 +133,7 @@ def definitions() -> dict[str, object]:
                 "description": "RPCMP M0 openfpgaOS runtime workload probe",
                 "author": "RPCMP",
                 "url": "",
-                "version": "0.5.15-spike",
+                "version": "0.5.16-spike",
                 "date_release": "2026-08-29",
             },
             "framework": {
@@ -281,6 +285,7 @@ def build(
     first_palette_marker: bool = False,
     post_terminal_marker: bool = False,
     synced_palette_marker: bool = False,
+    terminal_mode_marker: bool = False,
 ) -> None:
     revision = subprocess.run(
         ["git", "-C", str(sdk), "rev-parse", "HEAD"],
@@ -416,6 +421,21 @@ def build(
             "the 16-color palette loop and synchronized final commit complete in app mode, "
             "then all three uncached app framebuffers receive a persistent white band"
         )
+    elif terminal_mode_marker:
+        marker_os = (repo / TERMINAL_MODE_MARKER_OS).resolve()
+        if not marker_os.is_file():
+            raise ValueError(f"terminal-mode marker OS does not exist: {marker_os}")
+        marker_os_sha256 = sha256(marker_os)
+        if marker_os_sha256 != TERMINAL_MODE_MARKER_OS_SHA256:
+            raise ValueError(
+                "terminal-mode marker OS checksum mismatch: "
+                f"expected {TERMINAL_MODE_MARKER_OS_SHA256}, got {marker_os_sha256}"
+            )
+        os_binary_data = marker_os.read_bytes()
+        os_profile = (
+            "the synchronized 16-color palette and terminal display-mode switch complete, "
+            "then the uncached terminal framebuffer receives a persistent white band"
+        )
     runtime_bitstream = verify_runtime_file(runtime, manifest, f"pocket/{VARIANT}.rbf_r")
     bitstream_data = runtime_bitstream.read_bytes()
     bitstream_profile = "manifest os25"
@@ -455,6 +475,7 @@ def build(
         or first_palette_marker
         or post_terminal_marker
         or synced_palette_marker
+        or terminal_mode_marker
     ):
         native_bitstream = (repo / CLOCK_ISOLATION_RBF).resolve()
         if not native_bitstream.is_file():
@@ -649,6 +670,11 @@ def main() -> int:
         action="store_true",
         help="package the 90 MHz stock-cache fit with a synchronized marker after the 16-color palette loop",
     )
+    profiles.add_argument(
+        "--terminal-mode-marker",
+        action="store_true",
+        help="package the 90 MHz stock-cache fit with a marker after terminal display-mode switching",
+    )
     args = parser.parse_args()
     build(
         args.repo.resolve(),
@@ -670,6 +696,7 @@ def main() -> int:
         args.first_palette_marker,
         args.post_terminal_marker,
         args.synced_palette_marker,
+        args.terminal_mode_marker,
     )
     return 0
 
