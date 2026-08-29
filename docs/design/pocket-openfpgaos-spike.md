@@ -1090,6 +1090,12 @@ It does not yet establish long-duration stability or prove every separate
 `memcpy()` and `memmove()` path; repeated warm launches and a cold-power boot
 remain the final stability check for this candidate.
 
+The same `0.5.23-spike` package subsequently passed three warm relaunches and
+one launch after fully powering the Pocket off. The safe-`memset()` correction
+is therefore accepted as stable for the reproduced startup failure. Separate
+coverage of the optimized `memcpy()` and `memmove()` paths remains follow-up
+work and is not implied by this result.
+
 ## 7. Acceptance record
 
 Each candidate must produce one reviewable record containing:
