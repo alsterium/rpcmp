@@ -65,6 +65,13 @@ This evidence does not yet approve a general openfpgaOS substrate or arbitrary
 firmware growth; such approval requires explaining or eliminating the placement
 sensitivity.
 
+The resulting `0.5.38-safe` package (SHA-256
+`1F677C0AC2C1C266D55447538DC61DC2D0EE5EB87B01164A2C4C2406B9202FEB`)
+was then installed on Pocket firmware 2.6 and reached the workload-probe screen
+through normal startup. This confirms the pinned workaround as the continuing
+M0 hardware baseline; it does not broaden the decision to unpinned layouts or
+supersede this gate.
+
 Version m0.4 continuously decodes the read address and exposes signature `M004`. On 2026-08-26, Pocket returned that signature and the expected results for a direct `Run 1` then `Run 2` sequence: exact writes `0x00F00010=0x40` and `0x00F00018=0`, command/snapshot/event sequences 1 then 2, and counter/event values 1,000 then 2,000. This closes the bounded minimum target experiment in decision item 8 at the register-spike level and physically validates its integrated APF read/write path. It does not select the execution substrate or close the broader gate: JTAG enumeration, detailed APF boot/status and extended heartbeat observation, data slots, video/audio, runtime resources, licenses, and production protocol decisions remain open.
 
 A source-level candidate survey is recorded in `docs/design/pocket-execution-candidates.md`, with exact compatibility gates in `docs/design/pocket-openfpgaos-spike.md`. It identifies openfpgaOS as the leading subject for the next bounded spike because it exposes a RISC-V app runtime and APF-backed platform services. No dependency or substrate is selected: the default SDK C++ profile lacks the standard library required by RPCMP's current types, stock packaging automatically includes prohibited proprietary sample data, upstream-reported Pocket utilization is already 87–89%, the RPCMP/JT51 fit is unmeasured, and the Windows build path and mixed-license distribution posture remain unresolved. JTFRAME is retained as an HDL/build-organization reference rather than a runtime candidate because its Pocket target is not public.

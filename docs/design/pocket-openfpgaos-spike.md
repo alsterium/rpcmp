@@ -1334,6 +1334,10 @@ layouts are safe.
 
 The resulting `0.5.38-safe` 1,051,242-byte ZIP has SHA-256
 `1F677C0AC2C1C266D55447538DC61DC2D0EE5EB87B01164A2C4C2406B9202FEB`.
+Pocket firmware 2.6 subsequently loaded this exact package through the normal
+openFPGA flow and reached the workload-probe screen. This reconfirms the pinned
+pair after the diagnostic series and makes `0.5.38-safe` the continuing M0
+hardware baseline. The placement-sensitivity limitation remains unchanged.
 
 ## 7. Acceptance record
 
