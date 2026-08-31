@@ -1,6 +1,8 @@
 # `.rpcmlib` Container Specification v1
 
-Status: design contract for M1; M0 may define types but must not implement the full container.
+Status: active M1 contract. The envelope below is frozen; required-section
+payload layouts remain unfrozen until the corresponding M1 slice lands. A
+partial implementation must not claim full v1 compatibility.
 
 ## 1. Requirements
 
@@ -20,7 +22,51 @@ Section directory
 Footer/checksum information (optional v1 extension)
 ```
 
-The exact byte offsets and field widths are frozen by M1 using golden binary fixtures. Until then, writers must not claim v1 compatibility.
+All integers are unsigned little-endian. The v1 header is exactly 80 bytes:
+
+| Offset | Size | Field |
+|---:|---:|---|
+| 0 | 8 | magic: ASCII `RPCMLIB` followed by `00` |
+| 8 | 2 | format major (`1`) |
+| 10 | 2 | format minor (`0`) |
+| 12 | 4 | header size (`80`) |
+| 16 | 8 | optional feature flags |
+| 24 | 8 | required feature flags |
+| 32 | 8 | total file size |
+| 40 | 8 | section-directory offset |
+| 48 | 4 | section-directory entry count |
+| 52 | 4 | directory entry size (`40`) |
+| 56 | 16 | deterministic library build ID |
+| 72 | 4 | header CRC-32 |
+| 76 | 4 | reserved, written as zero and ignored by readers |
+
+The header CRC-32 is IEEE CRC-32 (polynomial `0xEDB88320`, initial value and
+final XOR `0xFFFFFFFF`) over all 80 header bytes with bytes 72 through 75 set to
+zero. v1 defines no feature bits yet, so both flag fields are written as zero;
+readers ignore unknown optional bits and reject any non-zero required bit.
+
+The directory immediately describes `entry_count` fixed 40-byte entries:
+
+| Entry offset | Size | Field |
+|---:|---:|---|
+| 0 | 4 | section type as four ASCII bytes |
+| 4 | 4 | section flags; bit 0 means required |
+| 8 | 8 | payload offset |
+| 16 | 8 | stored payload length |
+| 24 | 4 | payload CRC-32 using the same IEEE parameters |
+| 28 | 4 | required alignment, a non-zero power of two |
+| 32 | 8 | reserved, written as zero and ignored by readers |
+
+The directory range must fit in the declared file size, each payload offset must
+obey its entry alignment, and payloads must not overlap the header, directory,
+or one another. Empty payloads retain an in-range aligned offset and do not
+create an overlap. Section tags are unique. Required v1 tags are the literal
+four-byte values `TRAK`, `BLOB`, `STRS`, `DEPS`, `INDX`, and `CSUM`; their
+payload layouts are frozen by later M1 slices. Unknown entries with required bit
+set are rejected; unknown optional entries are checksum-validated and ignored.
+
+Until every required payload layout is frozen, writers must not claim complete
+v1 compatibility.
 
 ### Header semantic fields
 

@@ -1,5 +1,9 @@
 # M0 — Architecture Skeleton
 
+Status: completed on 2026-08-31. Host acceptance is green; Pocket execution
+remains the separately scoped ADR-0004 feasibility gate described below. Active
+feature development continues in `M1-library-container.md`.
+
 ## Design baseline
 
 The executable M0 design is recorded in `docs/design/m0-executable-design.md` and ADR-0001 through ADR-0004. The host skeleton now implements the public contract values, deterministic Mock Core, mock-only text UI, independent link targets, and architecture checks. Run it with `pwsh -File tools/host-verify.ps1`.
