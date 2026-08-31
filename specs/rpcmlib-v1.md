@@ -1,8 +1,8 @@
 # `.rpcmlib` Container Specification v1
 
-Status: active M1 contract. The envelope below is frozen; required-section
-payload layouts remain unfrozen until the corresponding M1 slice lands. A
-partial implementation must not claim full v1 compatibility.
+Status: active M1 contract. The envelope and required-section payload layouts
+below are frozen. A partial implementation must not claim full v1 compatibility
+until logical validation, the deterministic writer, and golden fixtures land.
 
 ## 1. Requirements
 
@@ -62,11 +62,81 @@ obey its entry alignment, and payloads must not overlap the header, directory,
 or one another. Empty payloads retain an in-range aligned offset and do not
 create an overlap. Section tags are unique. Required v1 tags are the literal
 four-byte values `TRAK`, `BLOB`, `STRS`, `DEPS`, `INDX`, and `CSUM`; their
-payload layouts are frozen by later M1 slices. Unknown entries with required bit
-set are rejected; unknown optional entries are checksum-validated and ignored.
+payload layouts are defined below. Unknown entries with required bit set are
+rejected; unknown optional entries are checksum-validated and ignored.
 
-Until every required payload layout is frozen, writers must not claim complete
-v1 compatibility.
+### Required-section encoding
+
+IDs are non-zero unsigned 64-bit values. ID zero is the absent-value sentinel
+only for optional string references. Section-relative offsets are measured from
+the first byte of that section and are checked before access. They never cross
+the public library API.
+
+`TRAK`, `DEPS`, `INDX`, and `CSUM` begin with an 8-byte array header: record
+count (`u32`) followed by record size (`u32`). Records immediately follow the
+header. `TRAK` records are 96 bytes:
+
+| Offset | Size | Field |
+|---:|---:|---|
+| 0 | 8 | TrackId |
+| 8 | 4 | format FourCC (`MDX ` initially) |
+| 12 | 4 | capability/analysis flags |
+| 16 | 8 | primary BlobId |
+| 24 | 8 | title StringId |
+| 32 | 8 | artist StringId |
+| 40 | 8 | album StringId, zero if absent |
+| 48 | 8 | composer StringId, zero if absent |
+| 56 | 8 | system StringId, zero if absent |
+| 64 | 8 | duration ticks, `UINT64_MAX` if unknown |
+| 72 | 8 | loop-start ticks, `UINT64_MAX` if unknown |
+| 80 | 4 | first dependency ordinal |
+| 84 | 4 | dependency count |
+| 88 | 2 | year, zero if unknown |
+| 90 | 1 | estimate confidence: 0 unknown, 1 estimated, 2 exact |
+| 91 | 5 | reserved, written as zero and ignored |
+
+`BLOB` begins with count (`u32`), record size 48 (`u32`), and section-relative
+payload-area offset (`u64`). Blob records immediately follow this 16-byte
+header:
+
+| Offset | Size | Field |
+|---:|---:|---|
+| 0 | 8 | BlobId |
+| 8 | 4 | blob-kind FourCC (`MDX ` or `PDX ` initially) |
+| 12 | 2 | codec: 0 means none |
+| 14 | 2 | reserved |
+| 16 | 8 | uncompressed size |
+| 24 | 8 | stored size |
+| 32 | 8 | section-relative payload offset |
+| 40 | 4 | payload alignment |
+| 44 | 4 | payload CRC-32 |
+
+Codec zero requires equal stored and uncompressed sizes. Payloads lie at or
+after the declared payload-area offset, obey their non-zero power-of-two
+alignment, stay within `BLOB`, and do not overlap. Identical content is
+represented by one BlobId/record rather than overlapping payload ranges.
+
+`STRS` begins with count (`u32`), record size 16 (`u32`), and section-relative
+UTF-8 data-area offset (`u64`). Each record is StringId (`u64`), data-relative
+offset (`u32`), and byte length (`u32`). Strings are unterminated UTF-8,
+NFC-normalized by writers, individually bounded, and may share an exact byte
+range only when their bytes are identical. Embedded NUL is forbidden.
+
+Each 24-byte `DEPS` record contains owner TrackId (`u64`), role FourCC (`u32`),
+reserved zero (`u32`), and target BlobId (`u64`). A track's dependency range is
+within the array, contiguous, and every covered record names that track.
+
+Each 24-byte `INDX` record contains entity kind (`u32`: 1 track, 2 blob),
+reserved zero (`u32`), entity ID (`u64`), zero-based record ordinal (`u32`), and
+reserved zero (`u32`). Entries are strictly sorted by `(entity kind, entity ID)`
+and contain exactly one entry for every track and blob. Readers use this array
+for bounded binary search rather than scanning record sections per lookup.
+
+Each 24-byte `CSUM` record contains entity kind (`u32`, 2 for blob), CRC-32
+(`u32`), entity ID (`u64`), and decoded byte length (`u64`). Entries are
+strictly sorted by `(entity kind, entity ID)` and contain exactly one record for
+every blob. Its checksum and length must agree with the Blob record and decoded
+payload. CRC-32 detects corruption and is not an authenticity mechanism.
 
 ### Header semantic fields
 
@@ -90,7 +160,7 @@ v1 compatibility.
 
 Optional sections include `ANALYSIS`, artwork, search indices, and future format/device metadata.
 
-## 3. Logical records
+## 3. Logical validation and public records
 
 `TrackRecord` includes stable ID, format tag, primary blob ID, title/artist strings, optional album/composer/system/year, dependency range, duration/loop estimates with confidence, and capability/analysis flags.
 
@@ -98,9 +168,25 @@ Optional sections include `ANALYSIS`, artwork, search indices, and future format
 
 Dependencies identify roles (for example `pdx_samples`) by IDs. They do not expose source paths to runtime.
 
+Before exposing a library, readers validate section headers and record-array
+arithmetic, configured admission limits, non-zero unique IDs, strict INDEX and
+CSUM ordering/completeness, UTF-8 strings, codecs, dependency ranges, and every
+cross-reference. Public values contain typed IDs, copied metadata or bounded
+immutable byte/string views, and logical dependency roles. They contain no
+section tags, codecs, record ordinals, or offsets.
+
 ## 4. Identity and reproducibility
 
-- IDs are derived deterministically from canonical content and role, or assigned by a documented collision-safe deterministic process.
+- BlobId is the first 64 digest bits, interpreted little-endian, of SHA-256 over
+  `"blob\0"`, the blob-kind
+  FourCC, and canonical uncompressed bytes. StringId uses SHA-256 over
+  `"string\0"` and NFC UTF-8 bytes. TrackId uses SHA-256 over `"track\0"`, the
+  format FourCC, primary BlobId, ordered dependency role/BlobId pairs, and
+  canonical metadata StringIds. Multi-byte inputs to these hashes are encoded
+  little-endian. A zero result or truncated-ID collision is resolved
+  deterministically by appending a little-endian `u32` counter starting at 1
+  and rehashing; the counter is not stored because readers consume the resolved
+  ID.
 - Directory traversal order is normalized.
 - Timestamps and machine-specific paths are excluded by default.
 - Strings are valid UTF-8; normalization policy is recorded and tested.
@@ -116,7 +202,11 @@ Dependencies identify roles (for example `pdx_samples`) by IDs. They do not expo
 6. Verify required sections, unique IDs, references, codecs, and checksums.
 7. Expose typed logical views only after validation succeeds.
 
-Suggested defensive defaults: bounded section count, string length, dependency count per track, total decoded size, and compression ratio. Final values must be justified against Pocket memory limits in M1.
+Host defaults are at most 64 sections, 1,000,000 records per section, 4 KiB per
+string, 64 dependencies per track, 4 GiB stored file size, and 8 GiB total
+decoded blob size. Callers may lower them. Pocket-specific limits must be
+measured and frozen before the Pocket integration slice; they must not silently
+inherit the host allocation budget.
 
 ## 6. Compatibility
 

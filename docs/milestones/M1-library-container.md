@@ -43,6 +43,9 @@ Each slice must keep the repository verifiable. A partial reader must not claim
 full `.rpcmlib` v1 compatibility until all required payload layouts are frozen
 and all acceptance criteria pass.
 
+Progress: slice 1 is complete. Slice 2 has frozen all required payload layouts;
+typed logical validation and views are the active implementation unit.
+
 ## Acceptance criteria
 
 1. Golden fixtures define every byte of a minimal and multi-track file.
