@@ -26,6 +26,14 @@ struct TrackId {
   std::uint64_t value{};
 };
 
+struct BlobId {
+  std::uint64_t value{};
+};
+
+struct StringId {
+  std::uint64_t value{};
+};
+
 struct ChannelId {
   std::uint16_t value{};
 };
@@ -38,6 +46,12 @@ constexpr bool operator==(TrackId left, TrackId right) noexcept {
   return left.value == right.value;
 }
 constexpr bool operator!=(TrackId left, TrackId right) noexcept { return !(left == right); }
+constexpr bool operator==(BlobId left, BlobId right) noexcept { return left.value == right.value; }
+constexpr bool operator!=(BlobId left, BlobId right) noexcept { return !(left == right); }
+constexpr bool operator==(StringId left, StringId right) noexcept {
+  return left.value == right.value;
+}
+constexpr bool operator!=(StringId left, StringId right) noexcept { return !(left == right); }
 constexpr bool operator==(ChannelId left, ChannelId right) noexcept {
   return left.value == right.value;
 }

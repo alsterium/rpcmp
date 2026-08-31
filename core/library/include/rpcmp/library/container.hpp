@@ -35,11 +35,27 @@ enum class LibraryError : std::uint8_t {
   UnknownRequiredSection,
   MissingRequiredSection,
   BadSectionChecksum,
+  InvalidSectionHeader,
+  RecordLimitExceeded,
+  InvalidRecordOrder,
+  InvalidUtf8,
+  StringTooLong,
+  EmbeddedNul,
+  UnsupportedCodec,
+  InvalidReference,
+  InvalidIndex,
+  InvalidChecksumRecord,
+  DependencyLimitExceeded,
+  DecodedSizeLimitExceeded,
 };
 
 struct ValidationLimits {
   std::uint32_t max_sections{64};
   std::uint64_t max_file_size{4ULL * 1024ULL * 1024ULL * 1024ULL};
+  std::uint32_t max_records_per_section{1'000'000};
+  std::uint32_t max_string_bytes{4 * 1024};
+  std::uint32_t max_dependencies_per_track{64};
+  std::uint64_t max_total_decoded_bytes{8ULL * 1024ULL * 1024ULL * 1024ULL};
 };
 
 struct EnvelopeInfo {

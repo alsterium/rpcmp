@@ -95,8 +95,10 @@ target_link_libraries(rpcmp_runtime PUBLIC rpcmp_contracts)
 rpcmp_production_options(rpcmp_runtime)
 
 add_library(rpcmp_library STATIC
-  core/library/src/container.cpp)
+  core/library/src/container.cpp
+  core/library/src/logical_library.cpp)
 target_include_directories(rpcmp_library PUBLIC core/library/include)
+target_link_libraries(rpcmp_library PUBLIC rpcmp_contracts)
 rpcmp_production_options(rpcmp_library)
 
 add_library(rpcmp_ui STATIC
@@ -143,6 +145,12 @@ if(BUILD_TESTING)
   rpcmp_test_options(rpcmp_library_tests)
   add_test(NAME library COMMAND rpcmp_library_tests)
 
+  add_executable(rpcmp_logical_library_tests tests/library/logical_library_tests.cpp)
+  target_include_directories(rpcmp_logical_library_tests PRIVATE tests/support)
+  target_link_libraries(rpcmp_logical_library_tests PRIVATE rpcmp_library)
+  rpcmp_test_options(rpcmp_logical_library_tests)
+  add_test(NAME logical_library COMMAND rpcmp_logical_library_tests)
+
   add_executable(rpcmp_ui_tests tests/ui/text_ui_tests.cpp)
   target_include_directories(rpcmp_ui_tests PRIVATE tests/support)
   target_link_libraries(rpcmp_ui_tests PRIVATE rpcmp_ui)
@@ -170,6 +178,11 @@ if(BUILD_TESTING)
     NAME architecture_spike_negative
     COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/architecture/check_dependencies.py
             --root ${CMAKE_SOURCE_DIR}/tests/architecture/fixtures/runtime_depends_spike
+            --expect-violation)
+  add_test(
+    NAME architecture_library_negative
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/architecture/check_dependencies.py
+            --root ${CMAKE_SOURCE_DIR}/tests/architecture/fixtures/library_depends_runtime
             --expect-violation)
   add_test(
     NAME pocket_package_builder
