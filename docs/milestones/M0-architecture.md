@@ -8,6 +8,14 @@ Windows host verification pins LLVM 22.1.8 and treats `clang-format` and `clang-
 
 Pocket execution remains an explicit feasibility gate. The official openFPGA template does not by itself establish a general-purpose runtime for RPCMP, so a host-green M0 must not be reported as Pocket-compatible until ADR-0004 is superseded by target-spike evidence.
 
+The continuing hardware-development baseline is the checksum- and size-pinned
+openfpgaOS `0.5.38-safe` package recorded in ADR-0004. Pocket firmware 2.6
+reached its workload-probe screen through normal startup after the diagnostic
+series. This permits bounded RPCMP application-layer experiments without
+changing the proven OS/RBF pair. It does not close ADR-0004: a `0x40`
+later-code/BSS placement change caused repeatable blackouts, so arbitrary OS
+growth and unpinned runtime layouts remain unsupported.
+
 ## Objective
 
 Prove the Core/UI boundary before implementing music formats, synthesis, or final graphics.
