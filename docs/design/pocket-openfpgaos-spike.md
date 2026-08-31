@@ -1297,6 +1297,23 @@ The packaged 1,051,299-byte diagnostic ZIP has SHA-256
 A blackout implicates the second call or binary layout; reaching the workload
 confirms that consuming the next terminal cell is required.
 
+Pocket firmware 2.6 blacked out with `0.5.36-spike` even though its second
+terminal call processed no characters. Rebuilding `0.5.32-spike` and
+`0.5.36-spike` reproduced their pinned hashes. Their `of_memops_test_boot`,
+`of_term_putchar`, `of_term_puts`, and `os_main` entry addresses match exactly;
+the later code and BSS in `0.5.36-spike` move by `0x40`. The `0.5.37-spike`
+diagnostic retains the empty-call branch in the binary but skips it on the
+successful result. It preserves the failing layout: `syscall_init` at
+`0x10336480`, BSS `0x10341550..0x1038DA40`, and the same 135,528-byte OS size.
+Its incremental delta is preserved in
+`spikes/pocket/openfpgaos/memops-skipped-empty-write-selftest.patch`; the OS
+SHA-256 is
+`F8DF7617FC44E7493BB6A67CE964214CF4483722FA3384C6C7BF9876C4942882`.
+The packaged 1,051,325-byte diagnostic ZIP has SHA-256
+`81E0D0886E952160E3A79DF17D379A60DDA1C00B0C3AC9841A6D3CEC3968B689`.
+Reaching the workload implicates executing the second call; another blackout
+implicates the `+0x40` placement change rather than terminal behavior.
+
 ## 7. Acceptance record
 
 Each candidate must produce one reviewable record containing:

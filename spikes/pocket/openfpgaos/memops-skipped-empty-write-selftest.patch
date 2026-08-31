@@ -1,0 +1,8 @@
+diff --git a/src/firmware/os/kernel/main.c b/src/firmware/os/kernel/main.c
+--- a/src/firmware/os/kernel/main.c
++++ b/src/firmware/os/kernel/main.c
+@@ -677,0 +678,4 @@ void os_main(void) {
++#ifdef RPCMP_MEMOPS_SKIPPED_EMPTY_WRITE_SELFTEST
++    if (memops_rc != 0)
++        of_term_puts("");
++#endif
