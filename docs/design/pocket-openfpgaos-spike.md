@@ -1245,6 +1245,22 @@ If this version reloads, the label or cumulative terminal output is sufficient;
 if it reaches the workload, the remaining differentiator is `status_ok()` and
 its newline/status rendering.
 
+Pocket firmware 2.6 reached the workload probe normally with `0.5.32-spike`.
+The label and its cumulative terminal character count are therefore not enough
+to reproduce the reload. The `0.5.33-spike` diagnostic adds the colored
+` \033[92mOK\033[0m` portion of `status_ok()` but deliberately omits only its
+trailing newline. The incremental delta is preserved in
+`spikes/pocket/openfpgaos/memops-status-no-newline-selftest.patch`.
+Disassembly confirms the forced memory-test call followed by separate label and
+status terminal calls. BSS ends at `0x1038DA50`. The warning-free build produces
+a 135,544-byte `os.bin` with SHA-256
+`173CF50C8594B3C1A762A0B5A79030A7A0A9772117FDCE511250C1A4D75F3344`.
+The packaged 1,051,328-byte diagnostic ZIP has SHA-256
+`A222183C46DE3359AE112B0F7959B2FDDEBC34C9C37607678E20C37742A59ABB`.
+Reaching the workload isolates the reload trigger to the omitted newline;
+another reload implicates the added colored status sequence or character-count
+boundary.
+
 ## 7. Acceptance record
 
 Each candidate must produce one reviewable record containing:
