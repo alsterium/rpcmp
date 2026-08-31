@@ -54,5 +54,5 @@ if ($LASTEXITCODE -ne 0) {
     --elf /workspace/rpcmp/out/build/pocket-openfpgaos/rpcmp-probe.elf `
     --output /workspace/rpcmp/out/build/pocket-openfpgaos-package `
     --zip /workspace/rpcmp/out/build/rpcmp-openfpgaos-probe.zip `
-    --integrated-rbf
+    --safe-layout
 exit $LASTEXITCODE

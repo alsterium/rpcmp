@@ -1314,6 +1314,27 @@ The packaged 1,051,325-byte diagnostic ZIP has SHA-256
 Reaching the workload implicates executing the second call; another blackout
 implicates the `+0x40` placement change rather than terminal behavior.
 
+Pocket firmware 2.6 blacked out with `0.5.37-spike` even though the second
+terminal call was not executed. This closes the memory-operations diagnostic
+series: the failure follows the `+0x40` later-code/BSS placement, not memory-op,
+terminal-call, character, ANSI, newline, or cursor behavior. Further
+instruction-level perturbation is deferred because it does not improve the M0
+substrate decision.
+
+Subsequent work uses the hardware-proven safe-layout pair exclusively: the
+135,448-byte normal OS SHA-256
+`3BB812A1B320C7350046097D361DBF8567662218C9D8BA2F0457E0325F2826A9`
+and the 1,983,628-byte native RBF SHA-256
+`FA75E3CF3FE465090924D28DF5616170CD2F4EEFD9F4D68C89A72CB2CD93DBD5`.
+The package tool exposes this as `--safe-layout`, retains
+`--memset-fix-candidate` as a compatibility alias, and rejects either artifact
+when its size or hash changes. `tools/pocket-toolchain-verify.ps1` now packages
+this profile. This is a pinned empirical workaround, not proof that nearby
+layouts are safe.
+
+The resulting `0.5.38-safe` 1,051,242-byte ZIP has SHA-256
+`1F677C0AC2C1C266D55447538DC61DC2D0EE5EB87B01164A2C4C2406B9202FEB`.
+
 ## 7. Acceptance record
 
 Each candidate must produce one reviewable record containing:

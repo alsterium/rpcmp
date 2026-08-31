@@ -17,12 +17,18 @@ class PackageBuilderTests(unittest.TestCase):
     def test_probe_metadata_is_versioned(self) -> None:
         metadata = PACKAGE.definitions()["core.json"]["core"]["metadata"]
         self.assertEqual(metadata["shortname"], PACKAGE.CORE_SHORTNAME)
-        self.assertEqual(metadata["version"], "0.5.37-spike")
+        self.assertEqual(metadata["version"], "0.5.38-safe")
         self.assertEqual(metadata["date_release"], "2026-08-31")
 
     def test_native_rbf_bits_are_reversed_per_byte(self) -> None:
         self.assertEqual(PACKAGE.reverse_rbf_bits(bytes([0x00, 0x01, 0x96, 0xFF])),
                          bytes([0x00, 0x80, 0x69, 0xFF]))
+
+    def test_safe_layout_artifact_contract_is_pinned(self) -> None:
+        self.assertEqual(PACKAGE.SAFE_MEMSET_OS_SIZE, 135448)
+        self.assertEqual(PACKAGE.SAFE_MEMSET_RBF_SIZE, 1983628)
+        self.assertEqual(len(PACKAGE.SAFE_MEMSET_OS_SHA256), 64)
+        self.assertEqual(len(PACKAGE.SAFE_MEMSET_RBF_SHA256), 64)
 
     def make_valid_tree(self, root: Path) -> None:
         for relative in PACKAGE.expected_paths():

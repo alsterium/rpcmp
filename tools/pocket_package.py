@@ -97,6 +97,7 @@ SAFE_MEMSET_OS = Path(
     "out/research/openfpgaCore-618a3eb-lf/src/firmware/os/bld/pocket/os-safe-memset.bin"
 )
 SAFE_MEMSET_OS_SHA256 = "3bb812a1b320c7350046097d361dbf8567662218c9d8ba2f0457e0325f2826a9"
+SAFE_MEMSET_OS_SIZE = 135448
 MEMOPS_SELFTEST_OS = Path(
     "out/research/openfpgaCore-618a3eb-lf/src/firmware/os/bld/pocket/os-memops-selftest.bin"
 )
@@ -158,6 +159,7 @@ SAFE_MEMSET_RBF = Path(
     "bld/rpcmp90fcmem/output_files/ap_core.rbf"
 )
 SAFE_MEMSET_RBF_SHA256 = "fa75e3cf3fe465090924d28df5616170cd2f4eefd9f4d68c89a72cb2cd93dbd5"
+SAFE_MEMSET_RBF_SIZE = 1983628
 FREQUENCY_CONTROL_RBF = Path(
     "out/research/openfpgaCore-618a3eb-lf/src/fpga/targets/pocket/"
     "bld/rpcmp100fc/output_files/ap_core.rbf"
@@ -222,7 +224,7 @@ def definitions() -> dict[str, object]:
                 "description": "RPCMP M0 openfpgaOS runtime workload probe",
                 "author": "RPCMP",
                 "url": "",
-                "version": "0.5.37-spike",
+                "version": "0.5.38-safe",
                 "date_release": "2026-08-31",
             },
             "framework": {
@@ -646,6 +648,11 @@ def build(
                 "safe-memset OS checksum mismatch: "
                 f"expected {SAFE_MEMSET_OS_SHA256}, got {fixed_os_sha256}"
             )
+        if fixed_os.stat().st_size != SAFE_MEMSET_OS_SIZE:
+            raise ValueError(
+                "safe-memset OS size mismatch: "
+                f"expected {SAFE_MEMSET_OS_SIZE}, got {fixed_os.stat().st_size}"
+            )
         os_binary_data = fixed_os.read_bytes()
         os_profile = "normal openfpgaOS with a one-word-per-iteration memset implementation"
     elif memops_selftest:
@@ -835,6 +842,11 @@ def build(
             raise ValueError(
                 "safe-memset native RBF checksum mismatch: "
                 f"expected {SAFE_MEMSET_RBF_SHA256}, got {native_bitstream_sha256}"
+            )
+        if native_bitstream.stat().st_size != SAFE_MEMSET_RBF_SIZE:
+            raise ValueError(
+                "safe-memset native RBF size mismatch: "
+                f"expected {SAFE_MEMSET_RBF_SIZE}, got {native_bitstream.stat().st_size}"
             )
         bitstream_data = reverse_rbf_bits(native_bitstream.read_bytes())
         bitstream_profile = (
@@ -1113,9 +1125,11 @@ def main() -> int:
         help="package the character-buffer diagnostic that uses a volatile word loop",
     )
     profiles.add_argument(
+        "--safe-layout",
         "--memset-fix-candidate",
+        dest="memset_fix_candidate",
         action="store_true",
-        help="package the normal OS and matching RBF with the safe memset implementation",
+        help="package the hardware-proven normal OS and matching RBF in the pinned safe layout",
     )
     profiles.add_argument(
         "--memops-selftest",
