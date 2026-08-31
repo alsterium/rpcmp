@@ -1214,6 +1214,20 @@ Reaching the workload isolates the reload trigger to the removed 4,224-byte BSS
 buffer; another reload loop excludes the buffer and implicates the added call,
 terminal output, or their code-layout change.
 
+Pocket firmware 2.6 repeated the `Loading...`/`Booting...` reload loop with
+`0.5.30-spike`, excluding the extra BSS buffers. The `0.5.31-spike` diagnostic
+keeps the no-buffer immediate-success function, forces one non-inlined call,
+stores its result through a volatile local, and removes the `Memory ops...`
+terminal write plus `status_ok()` call. Disassembly confirms a `jal` to
+`of_memops_test_boot`, whose body is only `li a0,0; ret`. The incremental delta
+is preserved in `spikes/pocket/openfpgaos/memops-silent-call-selftest.patch`.
+The warning-free build produces a 135,448-byte `os.bin` with SHA-256
+`B2388A933173F3F4F24AC78117A143A6221BBDECE6A00ADD17D3F8DCD4732F54`.
+The packaged 1,051,275-byte diagnostic ZIP has SHA-256
+`B9E8BD4938134A96F6C98032D7381906311E680301694385796C94E3CB3B78B5`.
+Reaching the workload isolates the reload trigger to the removed terminal or
+status output; another reload loop implicates the forced call or code layout.
+
 ## 7. Acceptance record
 
 Each candidate must produce one reviewable record containing:

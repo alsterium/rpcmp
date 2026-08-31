@@ -1,0 +1,18 @@
+diff --git a/src/firmware/os/hal/memtest.c b/src/firmware/os/hal/memtest.c
+--- a/src/firmware/os/hal/memtest.c
++++ b/src/firmware/os/hal/memtest.c
+@@ -337,0 +338,3 @@
++#ifdef RPCMP_MEMOPS_SILENT_CALL_SELFTEST
++__attribute__((noinline, noipa))
++#endif
+diff --git a/src/firmware/os/kernel/main.c b/src/firmware/os/kernel/main.c
+--- a/src/firmware/os/kernel/main.c
++++ b/src/firmware/os/kernel/main.c
+@@ -658,0 +659,5 @@ void os_main(void) {
++#ifdef RPCMP_MEMOPS_SILENT_CALL_SELFTEST
++    volatile int memops_rc = of_memops_test_boot();
++    if (memops_rc != 0)
++        for (;;) {}
++#else
+@@ -668,0 +674,1 @@ void os_main(void) {
++#endif

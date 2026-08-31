@@ -125,6 +125,10 @@ MEMOPS_NO_BUFFER_LAYOUT_SELFTEST_OS = Path(
     "out/research/openfpgaCore-618a3eb-lf/src/firmware/os/bld/pocket/os-memops-no-buffer-layout-selftest.bin"
 )
 MEMOPS_NO_BUFFER_LAYOUT_SELFTEST_OS_SHA256 = "169f20e337e0e77c3b87c81a38c1576fe845451885c09c7fc9e10c07901577f9"
+MEMOPS_SILENT_CALL_SELFTEST_OS = Path(
+    "out/research/openfpgaCore-618a3eb-lf/src/firmware/os/bld/pocket/os-memops-silent-call-selftest.bin"
+)
+MEMOPS_SILENT_CALL_SELFTEST_OS_SHA256 = "b2388a933173f3f4f24ac78117a143a6221bbdece6a00add17d3f8dcd4732f54"
 SAFE_MEMSET_RBF = Path(
     "out/research/openfpgaCore-618a3eb-lf/src/fpga/targets/pocket/"
     "bld/rpcmp90fcmem/output_files/ap_core.rbf"
@@ -194,7 +198,7 @@ def definitions() -> dict[str, object]:
                 "description": "RPCMP M0 openfpgaOS runtime workload probe",
                 "author": "RPCMP",
                 "url": "",
-                "version": "0.5.30-spike",
+                "version": "0.5.31-spike",
                 "date_release": "2026-08-31",
             },
             "framework": {
@@ -361,6 +365,7 @@ def build(
     memops_layout_selftest: bool = False,
     memops_one_buffer_layout_selftest: bool = False,
     memops_no_buffer_layout_selftest: bool = False,
+    memops_silent_call_selftest: bool = False,
 ) -> None:
     revision = subprocess.run(
         ["git", "-C", str(sdk), "rev-parse", "HEAD"],
@@ -697,6 +702,18 @@ def build(
             )
         os_binary_data = test_os.read_bytes()
         os_profile = "safe-memset OS with memory-test call path and no extra BSS buffers"
+    elif memops_silent_call_selftest:
+        test_os = (repo / MEMOPS_SILENT_CALL_SELFTEST_OS).resolve()
+        if not test_os.is_file():
+            raise ValueError(f"silent-call self-test OS does not exist: {test_os}")
+        test_os_sha256 = sha256(test_os)
+        if test_os_sha256 != MEMOPS_SILENT_CALL_SELFTEST_OS_SHA256:
+            raise ValueError(
+                "silent-call self-test OS checksum mismatch: "
+                f"expected {MEMOPS_SILENT_CALL_SELFTEST_OS_SHA256}, got {test_os_sha256}"
+            )
+        os_binary_data = test_os.read_bytes()
+        os_profile = "safe-memset OS with one forced silent memory-test call"
     runtime_bitstream = verify_runtime_file(runtime, manifest, f"pocket/{VARIANT}.rbf_r")
     bitstream_data = runtime_bitstream.read_bytes()
     bitstream_profile = "manifest os25"
@@ -704,7 +721,7 @@ def build(
     if (memset_fix_candidate or memops_selftest or memcpy_selftest or
             memcpy_small_selftest or memcpy_harness_selftest or
             memops_layout_selftest or memops_one_buffer_layout_selftest or
-            memops_no_buffer_layout_selftest):
+            memops_no_buffer_layout_selftest or memops_silent_call_selftest):
         native_bitstream = (repo / SAFE_MEMSET_RBF).resolve()
         if not native_bitstream.is_file():
             raise ValueError(f"safe-memset native RBF does not exist: {native_bitstream}")
@@ -1030,6 +1047,11 @@ def main() -> int:
         action="store_true",
         help="package the memory-test call path without extra BSS buffers",
     )
+    profiles.add_argument(
+        "--memops-silent-call-selftest",
+        action="store_true",
+        help="package one forced memory-test call without terminal/status output",
+    )
     args = parser.parse_args()
     build(
         args.repo.resolve(),
@@ -1066,6 +1088,7 @@ def main() -> int:
         args.memops_layout_selftest,
         args.memops_one_buffer_layout_selftest,
         args.memops_no_buffer_layout_selftest,
+        args.memops_silent_call_selftest,
     )
     return 0
 
