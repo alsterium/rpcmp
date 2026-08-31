@@ -95,6 +95,10 @@ header. `TRAK` records are 96 bytes:
 | 90 | 1 | estimate confidence: 0 unknown, 1 estimated, 2 exact |
 | 91 | 5 | reserved, written as zero and ignored |
 
+Track records are strictly sorted by TrackId. Their dependency ranges appear in
+the same order, do not overlap or leave unreferenced `DEPS` records, and together
+partition the entire `DEPS` array.
+
 `BLOB` begins with count (`u32`), record size 48 (`u32`), and section-relative
 payload-area offset (`u64`). Blob records immediately follow this 16-byte
 header:
@@ -113,14 +117,17 @@ header:
 
 Codec zero requires equal stored and uncompressed sizes. Payloads lie at or
 after the declared payload-area offset, obey their non-zero power-of-two
-alignment, stay within `BLOB`, and do not overlap. Identical content is
-represented by one BlobId/record rather than overlapping payload ranges.
+alignment, stay within `BLOB`, and do not overlap. Blob records are strictly
+sorted by BlobId, and their payload offsets are monotonically non-overlapping in
+that same order. Identical content is represented by one BlobId/record rather
+than overlapping payload ranges.
 
 `STRS` begins with count (`u32`), record size 16 (`u32`), and section-relative
 UTF-8 data-area offset (`u64`). Each record is StringId (`u64`), data-relative
 offset (`u32`), and byte length (`u32`). Strings are unterminated UTF-8,
 NFC-normalized by writers, individually bounded, and may share an exact byte
-range only when their bytes are identical. Embedded NUL is forbidden.
+range only when their bytes are identical. Embedded NUL is forbidden. String
+records are strictly sorted by StringId.
 
 Each 24-byte `DEPS` record contains owner TrackId (`u64`), role FourCC (`u32`),
 reserved zero (`u32`), and target BlobId (`u64`). A track's dependency range is
