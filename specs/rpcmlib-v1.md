@@ -125,9 +125,11 @@ than overlapping payload ranges.
 `STRS` begins with count (`u32`), record size 16 (`u32`), and section-relative
 UTF-8 data-area offset (`u64`). Each record is StringId (`u64`), data-relative
 offset (`u32`), and byte length (`u32`). Strings are unterminated UTF-8,
-NFC-normalized by writers, individually bounded, and may share an exact byte
-range only when their bytes are identical. Embedded NUL is forbidden. String
-records are strictly sorted by StringId.
+NFC-normalized by writers and individually bounded. Embedded NUL is forbidden.
+Because StringId is content-derived and duplicate IDs are forbidden, identical
+content is represented by one record. String records are strictly sorted by
+StringId, and their data ranges are monotonically non-overlapping in that same
+order.
 
 Each 24-byte `DEPS` record contains owner TrackId (`u64`), role FourCC (`u32`),
 reserved zero (`u32`), and target BlobId (`u64`). A track's dependency range is

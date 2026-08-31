@@ -173,6 +173,12 @@ if(BUILD_TESTING)
   rpcmp_test_options(rpcmp_writer_tests)
   add_test(NAME writer COMMAND rpcmp_writer_tests)
 
+  add_executable(rpcmp_m1_acceptance_tests tests/library/m1_acceptance_tests.cpp)
+  target_include_directories(rpcmp_m1_acceptance_tests PRIVATE tests/support)
+  target_link_libraries(rpcmp_m1_acceptance_tests PRIVATE rpcmp_utility)
+  rpcmp_test_options(rpcmp_m1_acceptance_tests)
+  add_test(NAME m1_acceptance COMMAND rpcmp_m1_acceptance_tests)
+
   add_executable(rpcmp_ui_tests tests/ui/text_ui_tests.cpp)
   target_include_directories(rpcmp_ui_tests PRIVATE tests/support)
   target_link_libraries(rpcmp_ui_tests PRIVATE rpcmp_ui)

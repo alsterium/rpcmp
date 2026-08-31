@@ -234,13 +234,18 @@ LibraryError LogicalLibrary::open(const ByteView file, LogicalLibrary& output,
   }
 
   std::uint64_t previous_id{};
+  std::uint64_t previous_string_end = string_data_offset;
   for (std::uint32_t ordinal = 0; ordinal < candidate.string_count_; ++ordinal) {
     const auto* const record =
         candidate.strings_.data + 16 + static_cast<std::size_t>(ordinal) * 16;
     const std::uint64_t id = read_u64(record);
     const std::uint32_t offset = read_u32(record + 8);
     const std::uint32_t length = read_u32(record + 12);
-    if (id == 0 || id <= previous_id) {
+    if (offset > candidate.strings_.size - string_data_offset) {
+      return LibraryError::RangeOutsideFile;
+    }
+    const std::uint64_t absolute_offset = string_data_offset + offset;
+    if (id == 0 || id <= previous_id || absolute_offset < previous_string_end) {
       return LibraryError::InvalidRecordOrder;
     }
     if (length > limits.max_string_bytes) {
@@ -258,6 +263,7 @@ LibraryError LogicalLibrary::open(const ByteView file, LogicalLibrary& output,
     if (!valid_utf8(data, length)) {
       return LibraryError::InvalidUtf8;
     }
+    previous_string_end = absolute_offset + length;
     previous_id = id;
   }
 
@@ -324,7 +330,8 @@ LibraryError LogicalLibrary::open(const ByteView file, LogicalLibrary& output,
     return LibraryError::InvalidReference;
   }
 
-  if (index_count != candidate.track_count_ + candidate.blob_count_) {
+  if (static_cast<std::uint64_t>(index_count) !=
+      static_cast<std::uint64_t>(candidate.track_count_) + candidate.blob_count_) {
     return LibraryError::InvalidIndex;
   }
   std::uint32_t previous_kind{};
