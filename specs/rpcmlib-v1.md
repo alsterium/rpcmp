@@ -196,7 +196,12 @@ section tags, codecs, record ordinals, or offsets.
   ID.
 - Directory traversal order is normalized.
 - Timestamps and machine-specific paths are excluded by default.
-- Strings are valid UTF-8; normalization policy is recorded and tested.
+- Utility ingestion validates UTF-8 and NFC-normalizes strings before creating
+  the normalized writer model. Stable IDs and the byte writer consume the exact
+  NFC UTF-8 bytes from that model; the byte writer does not apply a second,
+  platform-dependent normalization pass. The normalization implementation and
+  conformance tests must be recorded before arbitrary source metadata is
+  admitted.
 - Blob deduplication is content-based.
 
 ## 5. Validation order
