@@ -94,6 +94,11 @@ target_include_directories(rpcmp_runtime PUBLIC core/runtime/include)
 target_link_libraries(rpcmp_runtime PUBLIC rpcmp_contracts)
 rpcmp_production_options(rpcmp_runtime)
 
+add_library(rpcmp_library STATIC
+  core/library/src/container.cpp)
+target_include_directories(rpcmp_library PUBLIC core/library/include)
+rpcmp_production_options(rpcmp_library)
+
 add_library(rpcmp_ui STATIC
   core/ui/src/text_ui.cpp)
 target_include_directories(rpcmp_ui PUBLIC core/ui/include)
@@ -131,6 +136,12 @@ if(BUILD_TESTING)
   target_link_libraries(rpcmp_runtime_tests PRIVATE rpcmp_runtime)
   rpcmp_test_options(rpcmp_runtime_tests)
   add_test(NAME runtime COMMAND rpcmp_runtime_tests)
+
+  add_executable(rpcmp_library_tests tests/library/container_tests.cpp)
+  target_include_directories(rpcmp_library_tests PRIVATE tests/support)
+  target_link_libraries(rpcmp_library_tests PRIVATE rpcmp_library)
+  rpcmp_test_options(rpcmp_library_tests)
+  add_test(NAME library COMMAND rpcmp_library_tests)
 
   add_executable(rpcmp_ui_tests tests/ui/text_ui_tests.cpp)
   target_include_directories(rpcmp_ui_tests PRIVATE tests/support)
