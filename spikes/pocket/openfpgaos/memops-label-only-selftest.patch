@@ -1,0 +1,7 @@
+diff --git a/src/firmware/os/kernel/main.c b/src/firmware/os/kernel/main.c
+--- a/src/firmware/os/kernel/main.c
++++ b/src/firmware/os/kernel/main.c
+@@ -662,0 +663,3 @@ void os_main(void) {
++#ifdef RPCMP_MEMOPS_LABEL_ONLY_SELFTEST
++    of_term_puts("  Memory ops........ ");
++#endif

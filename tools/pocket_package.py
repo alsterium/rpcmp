@@ -129,6 +129,10 @@ MEMOPS_SILENT_CALL_SELFTEST_OS = Path(
     "out/research/openfpgaCore-618a3eb-lf/src/firmware/os/bld/pocket/os-memops-silent-call-selftest.bin"
 )
 MEMOPS_SILENT_CALL_SELFTEST_OS_SHA256 = "b2388a933173f3f4f24ac78117a143a6221bbdece6a00add17d3f8dcd4732f54"
+MEMOPS_LABEL_ONLY_SELFTEST_OS = Path(
+    "out/research/openfpgaCore-618a3eb-lf/src/firmware/os/bld/pocket/os-memops-label-only-selftest.bin"
+)
+MEMOPS_LABEL_ONLY_SELFTEST_OS_SHA256 = "00c5bab243a56af2f709caf9f7ceb4e89d5800ff9732d42e00fced97193f038a"
 SAFE_MEMSET_RBF = Path(
     "out/research/openfpgaCore-618a3eb-lf/src/fpga/targets/pocket/"
     "bld/rpcmp90fcmem/output_files/ap_core.rbf"
@@ -198,7 +202,7 @@ def definitions() -> dict[str, object]:
                 "description": "RPCMP M0 openfpgaOS runtime workload probe",
                 "author": "RPCMP",
                 "url": "",
-                "version": "0.5.31-spike",
+                "version": "0.5.32-spike",
                 "date_release": "2026-08-31",
             },
             "framework": {
@@ -366,6 +370,7 @@ def build(
     memops_one_buffer_layout_selftest: bool = False,
     memops_no_buffer_layout_selftest: bool = False,
     memops_silent_call_selftest: bool = False,
+    memops_label_only_selftest: bool = False,
 ) -> None:
     revision = subprocess.run(
         ["git", "-C", str(sdk), "rev-parse", "HEAD"],
@@ -702,6 +707,18 @@ def build(
             )
         os_binary_data = test_os.read_bytes()
         os_profile = "safe-memset OS with memory-test call path and no extra BSS buffers"
+    elif memops_label_only_selftest:
+        test_os = (repo / MEMOPS_LABEL_ONLY_SELFTEST_OS).resolve()
+        if not test_os.is_file():
+            raise ValueError(f"label-only self-test OS does not exist: {test_os}")
+        test_os_sha256 = sha256(test_os)
+        if test_os_sha256 != MEMOPS_LABEL_ONLY_SELFTEST_OS_SHA256:
+            raise ValueError(
+                "label-only self-test OS checksum mismatch: "
+                f"expected {MEMOPS_LABEL_ONLY_SELFTEST_OS_SHA256}, got {test_os_sha256}"
+            )
+        os_binary_data = test_os.read_bytes()
+        os_profile = "safe-memset OS with forced memory-test call and label-only terminal output"
     elif memops_silent_call_selftest:
         test_os = (repo / MEMOPS_SILENT_CALL_SELFTEST_OS).resolve()
         if not test_os.is_file():
@@ -721,7 +738,8 @@ def build(
     if (memset_fix_candidate or memops_selftest or memcpy_selftest or
             memcpy_small_selftest or memcpy_harness_selftest or
             memops_layout_selftest or memops_one_buffer_layout_selftest or
-            memops_no_buffer_layout_selftest or memops_silent_call_selftest):
+            memops_no_buffer_layout_selftest or memops_silent_call_selftest or
+            memops_label_only_selftest):
         native_bitstream = (repo / SAFE_MEMSET_RBF).resolve()
         if not native_bitstream.is_file():
             raise ValueError(f"safe-memset native RBF does not exist: {native_bitstream}")
@@ -1052,6 +1070,11 @@ def main() -> int:
         action="store_true",
         help="package one forced memory-test call without terminal/status output",
     )
+    profiles.add_argument(
+        "--memops-label-only-selftest",
+        action="store_true",
+        help="package one forced memory-test call with its terminal label only",
+    )
     args = parser.parse_args()
     build(
         args.repo.resolve(),
@@ -1089,6 +1112,7 @@ def main() -> int:
         args.memops_one_buffer_layout_selftest,
         args.memops_no_buffer_layout_selftest,
         args.memops_silent_call_selftest,
+        args.memops_label_only_selftest,
     )
     return 0
 

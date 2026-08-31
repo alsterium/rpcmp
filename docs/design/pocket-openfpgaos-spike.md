@@ -1228,6 +1228,23 @@ The packaged 1,051,275-byte diagnostic ZIP has SHA-256
 Reaching the workload isolates the reload trigger to the removed terminal or
 status output; another reload loop implicates the forced call or code layout.
 
+Pocket firmware 2.6 reached the workload probe normally with `0.5.31-spike`.
+This excludes the forced function call, volatile result, and their code layout,
+and narrows the `0.5.30-spike` reload trigger to its extra terminal sequence.
+The `0.5.32-spike` diagnostic keeps the proven `0.5.31-spike` path and adds only
+`of_term_puts("  Memory ops........ ")`; it deliberately omits `status_ok()` and
+its colored `OK` plus newline. The incremental delta is preserved in
+`spikes/pocket/openfpgaos/memops-label-only-selftest.patch`. Disassembly confirms
+the non-inlined test call followed by the terminal call. BSS ends at
+`0x1038DA00`. The warning-free build produces a 135,464-byte `os.bin` with
+SHA-256
+`00C5BAB243A56AF2F709CAF9F7CEB4E89D5800FF9732D42E00FCED97193F038A`.
+The packaged 1,051,296-byte diagnostic ZIP has SHA-256
+`A28CCB2B5EAF9B2B62DB48050C11CB7A88B9D404ADC3F110E5721C263784C09D`.
+If this version reloads, the label or cumulative terminal output is sufficient;
+if it reaches the workload, the remaining differentiator is `status_ok()` and
+its newline/status rendering.
+
 ## 7. Acceptance record
 
 Each candidate must produce one reviewable record containing:
