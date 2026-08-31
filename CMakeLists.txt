@@ -15,6 +15,8 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 file(GLOB_RECURSE RPCMP_CXX_FILES CONFIGURE_DEPENDS
   "${CMAKE_SOURCE_DIR}/core/*.cpp"
   "${CMAKE_SOURCE_DIR}/core/*.hpp"
+  "${CMAKE_SOURCE_DIR}/utility/*.cpp"
+  "${CMAKE_SOURCE_DIR}/utility/*.hpp"
   "${CMAKE_SOURCE_DIR}/spikes/*.cpp"
   "${CMAKE_SOURCE_DIR}/spikes/*.hpp"
   "${CMAKE_SOURCE_DIR}/tests/*.cpp"
@@ -101,6 +103,12 @@ target_include_directories(rpcmp_library PUBLIC core/library/include)
 target_link_libraries(rpcmp_library PUBLIC rpcmp_contracts)
 rpcmp_production_options(rpcmp_library)
 
+add_library(rpcmp_utility STATIC
+  utility/src/stable_id.cpp)
+target_include_directories(rpcmp_utility PUBLIC utility/include)
+target_link_libraries(rpcmp_utility PUBLIC rpcmp_library)
+rpcmp_production_options(rpcmp_utility)
+
 add_library(rpcmp_ui STATIC
   core/ui/src/text_ui.cpp)
 target_include_directories(rpcmp_ui PUBLIC core/ui/include)
@@ -150,6 +158,12 @@ if(BUILD_TESTING)
   target_link_libraries(rpcmp_logical_library_tests PRIVATE rpcmp_library)
   rpcmp_test_options(rpcmp_logical_library_tests)
   add_test(NAME logical_library COMMAND rpcmp_logical_library_tests)
+
+  add_executable(rpcmp_stable_id_tests tests/utility/stable_id_tests.cpp)
+  target_include_directories(rpcmp_stable_id_tests PRIVATE tests/support)
+  target_link_libraries(rpcmp_stable_id_tests PRIVATE rpcmp_utility)
+  rpcmp_test_options(rpcmp_stable_id_tests)
+  add_test(NAME stable_id COMMAND rpcmp_stable_id_tests)
 
   add_executable(rpcmp_ui_tests tests/ui/text_ui_tests.cpp)
   target_include_directories(rpcmp_ui_tests PRIVATE tests/support)
