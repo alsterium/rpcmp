@@ -1273,6 +1273,17 @@ The packaged 1,051,333-byte diagnostic ZIP has SHA-256
 Reaching the workload implicates ANSI parsing; another blackout means the plain
 characters or the terminal position/count boundary are sufficient.
 
+Pocket firmware 2.6 blacked out with `0.5.34-spike`, excluding ANSI parsing.
+The `0.5.35-spike` diagnostic adds only one space after the label. Its
+incremental delta is preserved in
+`spikes/pocket/openfpgaos/memops-one-space-selftest.patch`. BSS ends at
+`0x1038DA40`; the warning-free 135,528-byte `os.bin` has SHA-256
+`04DA74D22E576CA3B9CFC358E6616C2435A191DD27F35FA9FF5649A40F9AA020`.
+The packaged 1,051,322-byte diagnostic ZIP has SHA-256
+`BCCCCADDF230401A8E00A5AC8DC46E3E915F0D3C7220ADA5029D381E40538E91`.
+A blackout means the first additional character crosses the failure boundary;
+reaching the workload moves that boundary to the subsequent `O` or `K`.
+
 ## 7. Acceptance record
 
 Each candidate must produce one reviewable record containing:
