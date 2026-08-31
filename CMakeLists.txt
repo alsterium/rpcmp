@@ -169,6 +169,7 @@ if(BUILD_TESTING)
   add_executable(rpcmp_writer_tests tests/utility/writer_tests.cpp)
   target_include_directories(rpcmp_writer_tests PRIVATE tests/support)
   target_link_libraries(rpcmp_writer_tests PRIVATE rpcmp_utility)
+  target_compile_definitions(rpcmp_writer_tests PRIVATE RPCMP_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
   rpcmp_test_options(rpcmp_writer_tests)
   add_test(NAME writer COMMAND rpcmp_writer_tests)
 

@@ -203,6 +203,10 @@ section tags, codecs, record ordinals, or offsets.
   conformance tests must be recorded before arbitrary source metadata is
   admitted.
 - Blob deduplication is content-based.
+- The v1 writer emits required sections in `TRAK`, `BLOB`, `STRS`, `DEPS`,
+  `INDX`, `CSUM` order with 8-byte file alignment. Its deterministic 16-byte
+  build ID is the first 16 SHA-256 digest bytes over the six complete section
+  payloads concatenated in that order, before file-alignment padding.
 
 ## 5. Validation order
 

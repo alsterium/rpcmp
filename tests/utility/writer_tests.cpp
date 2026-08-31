@@ -4,7 +4,10 @@
 
 #include <algorithm>
 #include <cstdint>
+#include <fstream>
+#include <string>
 #include <utility>
+#include <vector>
 
 namespace {
 
@@ -32,6 +35,51 @@ rpcmp::utility::NormalizedLibrary fixture() {
   return input;
 }
 
+rpcmp::utility::NormalizedLibrary minimal_fixture() {
+  rpcmp::utility::NormalizedLibrary input;
+  input.blobs = {{kMdx, {1, 2, 3}}};
+  rpcmp::utility::NormalizedTrack track;
+  track.format = kMdx;
+  track.title = "Title";
+  track.artist = "Artist";
+  input.tracks = {track};
+  return input;
+}
+
+std::uint8_t hex_nibble(const char value) {
+  if (value >= '0' && value <= '9') {
+    return static_cast<std::uint8_t>(value - '0');
+  }
+  if (value >= 'a' && value <= 'f') {
+    return static_cast<std::uint8_t>(value - 'a' + 10);
+  }
+  return 0xFFU;
+}
+
+std::vector<std::uint8_t> read_golden(const char* const filename) {
+  const std::string path = std::string{RPCMP_SOURCE_DIR} + "/tests/fixtures/rpcmlib/" + filename;
+  std::ifstream input(path);
+  std::string hex;
+  std::string line;
+  while (std::getline(input, line)) {
+    hex += line;
+  }
+  std::vector<std::uint8_t> bytes;
+  if ((hex.size() & 1U) != 0) {
+    return bytes;
+  }
+  bytes.reserve(hex.size() / 2);
+  for (std::size_t index = 0; index < hex.size(); index += 2) {
+    const std::uint8_t high = hex_nibble(hex[index]);
+    const std::uint8_t low = hex_nibble(hex[index + 1]);
+    if (high == 0xFFU || low == 0xFFU) {
+      return {};
+    }
+    bytes.push_back(static_cast<std::uint8_t>((high << 4U) | low));
+  }
+  return bytes;
+}
+
 } // namespace
 
 int main() {
@@ -41,6 +89,11 @@ int main() {
   const auto second = rpcmp::utility::write_rpcmlib(input);
   RPCMP_CHECK(suite, first.ok());
   RPCMP_CHECK(suite, first.bytes == second.bytes);
+  RPCMP_CHECK(suite, first.bytes == read_golden("multi-track.rpcmlib.hex"));
+
+  const auto minimal = rpcmp::utility::write_rpcmlib(minimal_fixture());
+  RPCMP_CHECK(suite, minimal.ok());
+  RPCMP_CHECK(suite, minimal.bytes == read_golden("minimal.rpcmlib.hex"));
 
   auto reordered = fixture();
   std::reverse(reordered.blobs.begin(), reordered.blobs.end());

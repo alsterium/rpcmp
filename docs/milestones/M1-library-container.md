@@ -43,10 +43,12 @@ Each slice must keep the repository verifiable. A partial reader must not claim
 full `.rpcmlib` v1 compatibility until all required payload layouts are frozen
 and all acceptance criteria pass.
 
-Progress: slices 1 and 2 are complete. The reader validates all required
+Progress: slices 1 through 3 are complete. The reader validates all required
 payload layouts before exposing typed track, blob, string, and dependency views.
-Slice 3 (deterministic writer, stable-ID generation, and golden fixtures) is the
-active implementation unit.
+The deterministic writer, stable SHA-256 IDs, and byte-exact minimal and
+multi-track golden fixtures are verified on the host. Slice 4 (bounded
+corruption coverage and the 1,000-track random-access proof) is the active
+implementation unit.
 
 ## Acceptance criteria
 
