@@ -1284,6 +1284,19 @@ The packaged 1,051,322-byte diagnostic ZIP has SHA-256
 A blackout means the first additional character crosses the failure boundary;
 reaching the workload moves that boundary to the subsequent `O` or `K`.
 
+Pocket firmware 2.6 blacked out with `0.5.35-spike`: one space in a second
+terminal call is sufficient, while the label's own trailing space in
+`0.5.32-spike` is safe. The `0.5.36-spike` diagnostic makes that second call
+with an empty string, changing no terminal character or cursor position. Its
+incremental delta is preserved in
+`spikes/pocket/openfpgaos/memops-empty-write-selftest.patch`. BSS ends at
+`0x1038DA40`; the warning-free 135,528-byte `os.bin` has SHA-256
+`8C6A0A5A46A3D7D3832560C7DA889ABE145AA47E350332960F4EC4CA43B8A3C7`.
+The packaged 1,051,299-byte diagnostic ZIP has SHA-256
+`95D1E574EF638B9AE0392CE35A186F38A0FC6D064B428133D8843BE500CF9AD9`.
+A blackout implicates the second call or binary layout; reaching the workload
+confirms that consuming the next terminal cell is required.
+
 ## 7. Acceptance record
 
 Each candidate must produce one reviewable record containing:

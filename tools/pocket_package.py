@@ -145,6 +145,10 @@ MEMOPS_ONE_SPACE_SELFTEST_OS = Path(
     "out/research/openfpgaCore-618a3eb-lf/src/firmware/os/bld/pocket/os-memops-one-space-selftest.bin"
 )
 MEMOPS_ONE_SPACE_SELFTEST_OS_SHA256 = "04da74d22e576ca3b9cfc358e6616c2435a191dd27f35fa9ff5649a40f9aa020"
+MEMOPS_EMPTY_WRITE_SELFTEST_OS = Path(
+    "out/research/openfpgaCore-618a3eb-lf/src/firmware/os/bld/pocket/os-memops-empty-write-selftest.bin"
+)
+MEMOPS_EMPTY_WRITE_SELFTEST_OS_SHA256 = "8c6a0a5a46a3d7d3832560c7da889abe145aa47e350332960f4ec4ca43b8a3c7"
 SAFE_MEMSET_RBF = Path(
     "out/research/openfpgaCore-618a3eb-lf/src/fpga/targets/pocket/"
     "bld/rpcmp90fcmem/output_files/ap_core.rbf"
@@ -214,7 +218,7 @@ def definitions() -> dict[str, object]:
                 "description": "RPCMP M0 openfpgaOS runtime workload probe",
                 "author": "RPCMP",
                 "url": "",
-                "version": "0.5.35-spike",
+                "version": "0.5.36-spike",
                 "date_release": "2026-08-31",
             },
             "framework": {
@@ -386,6 +390,7 @@ def build(
     memops_status_no_newline_selftest: bool = False,
     memops_plain_ok_selftest: bool = False,
     memops_one_space_selftest: bool = False,
+    memops_empty_write_selftest: bool = False,
 ) -> None:
     revision = subprocess.run(
         ["git", "-C", str(sdk), "rev-parse", "HEAD"],
@@ -722,6 +727,18 @@ def build(
             )
         os_binary_data = test_os.read_bytes()
         os_profile = "safe-memset OS with memory-test call path and no extra BSS buffers"
+    elif memops_empty_write_selftest:
+        test_os = (repo / MEMOPS_EMPTY_WRITE_SELFTEST_OS).resolve()
+        if not test_os.is_file():
+            raise ValueError(f"empty-write self-test OS does not exist: {test_os}")
+        test_os_sha256 = sha256(test_os)
+        if test_os_sha256 != MEMOPS_EMPTY_WRITE_SELFTEST_OS_SHA256:
+            raise ValueError(
+                "empty-write self-test OS checksum mismatch: "
+                f"expected {MEMOPS_EMPTY_WRITE_SELFTEST_OS_SHA256}, got {test_os_sha256}"
+            )
+        os_binary_data = test_os.read_bytes()
+        os_profile = "safe-memset OS with memory-test label and second empty terminal call"
     elif memops_one_space_selftest:
         test_os = (repo / MEMOPS_ONE_SPACE_SELFTEST_OS).resolve()
         if not test_os.is_file():
@@ -791,7 +808,8 @@ def build(
             memops_layout_selftest or memops_one_buffer_layout_selftest or
             memops_no_buffer_layout_selftest or memops_silent_call_selftest or
             memops_label_only_selftest or memops_status_no_newline_selftest or
-            memops_plain_ok_selftest or memops_one_space_selftest):
+            memops_plain_ok_selftest or memops_one_space_selftest or
+            memops_empty_write_selftest):
         native_bitstream = (repo / SAFE_MEMSET_RBF).resolve()
         if not native_bitstream.is_file():
             raise ValueError(f"safe-memset native RBF does not exist: {native_bitstream}")
@@ -1142,6 +1160,11 @@ def main() -> int:
         action="store_true",
         help="package the memory-test label with one additional space",
     )
+    profiles.add_argument(
+        "--memops-empty-write-selftest",
+        action="store_true",
+        help="package the memory-test label followed by an empty terminal call",
+    )
     args = parser.parse_args()
     build(
         args.repo.resolve(),
@@ -1183,6 +1206,7 @@ def main() -> int:
         args.memops_status_no_newline_selftest,
         args.memops_plain_ok_selftest,
         args.memops_one_space_selftest,
+        args.memops_empty_write_selftest,
     )
     return 0
 
