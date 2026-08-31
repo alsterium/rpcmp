@@ -104,7 +104,8 @@ target_link_libraries(rpcmp_library PUBLIC rpcmp_contracts)
 rpcmp_production_options(rpcmp_library)
 
 add_library(rpcmp_utility STATIC
-  utility/src/stable_id.cpp)
+  utility/src/stable_id.cpp
+  utility/src/writer.cpp)
 target_include_directories(rpcmp_utility PUBLIC utility/include)
 target_link_libraries(rpcmp_utility PUBLIC rpcmp_library)
 rpcmp_production_options(rpcmp_utility)
@@ -164,6 +165,12 @@ if(BUILD_TESTING)
   target_link_libraries(rpcmp_stable_id_tests PRIVATE rpcmp_utility)
   rpcmp_test_options(rpcmp_stable_id_tests)
   add_test(NAME stable_id COMMAND rpcmp_stable_id_tests)
+
+  add_executable(rpcmp_writer_tests tests/utility/writer_tests.cpp)
+  target_include_directories(rpcmp_writer_tests PRIVATE tests/support)
+  target_link_libraries(rpcmp_writer_tests PRIVATE rpcmp_utility)
+  rpcmp_test_options(rpcmp_writer_tests)
+  add_test(NAME writer COMMAND rpcmp_writer_tests)
 
   add_executable(rpcmp_ui_tests tests/ui/text_ui_tests.cpp)
   target_include_directories(rpcmp_ui_tests PRIVATE tests/support)
