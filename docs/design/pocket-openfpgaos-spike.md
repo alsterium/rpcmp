@@ -1199,6 +1199,21 @@ The packaged 1,051,273-byte diagnostic ZIP has SHA-256
 Reaching the workload supports the boundary/size hypothesis; repeating the
 reload loop means even one extra buffer or another placement change is enough.
 
+Pocket firmware 2.6 repeated the `Loading...`/`Booting...` reload loop with
+`0.5.29-spike`. Since its BSS remained below `0x10390000`, that address-boundary
+inference is weakened. The `0.5.30-spike` control removes all three memory-test
+arrays while retaining the `Memory ops...` call/result path, whose test function
+returns success immediately. The ELF symbol table contains no `memops_*`
+symbols, and BSS ends at `0x1038D9C0`. The incremental delta is preserved in
+`spikes/pocket/openfpgaos/memops-no-buffer-layout-selftest.patch`.
+The warning-free build produces a 135,400-byte `os.bin` with SHA-256
+`169F20E337E0E77C3B87C81A38C1576FE845451885C09C7FC9E10C07901577F9`.
+The packaged 1,051,249-byte diagnostic ZIP has SHA-256
+`71C783274BE2BECDAF262D078D221B3FC74EFEB4706CFF07447D517C99B2248B`.
+Reaching the workload isolates the reload trigger to the removed 4,224-byte BSS
+buffer; another reload loop excludes the buffer and implicates the added call,
+terminal output, or their code-layout change.
+
 ## 7. Acceptance record
 
 Each candidate must produce one reviewable record containing:

@@ -1,0 +1,17 @@
+diff --git a/src/firmware/os/hal/memtest.c b/src/firmware/os/hal/memtest.c
+--- a/src/firmware/os/hal/memtest.c
++++ b/src/firmware/os/hal/memtest.c
+@@ -183,0 +184,1 @@
++#ifndef RPCMP_MEMOPS_NO_BUFFER_LAYOUT_SELFTEST
+@@ -188,0 +190,1 @@
++#endif
+@@ -190,2 +192,3 @@
+ #if !defined(RPCMP_MEMOPS_LAYOUT_SELFTEST) && \
+-    !defined(RPCMP_MEMOPS_ONE_BUFFER_LAYOUT_SELFTEST)
++    !defined(RPCMP_MEMOPS_ONE_BUFFER_LAYOUT_SELFTEST) && \
++    !defined(RPCMP_MEMOPS_NO_BUFFER_LAYOUT_SELFTEST)
+@@ -335,2 +338,3 @@ int of_memops_test_boot(void) {
+ #if defined(RPCMP_MEMOPS_LAYOUT_SELFTEST) || \
+-    defined(RPCMP_MEMOPS_ONE_BUFFER_LAYOUT_SELFTEST)
++    defined(RPCMP_MEMOPS_ONE_BUFFER_LAYOUT_SELFTEST) || \
++    defined(RPCMP_MEMOPS_NO_BUFFER_LAYOUT_SELFTEST)

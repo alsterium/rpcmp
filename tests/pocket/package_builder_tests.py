@@ -17,8 +17,8 @@ class PackageBuilderTests(unittest.TestCase):
     def test_probe_metadata_is_versioned(self) -> None:
         metadata = PACKAGE.definitions()["core.json"]["core"]["metadata"]
         self.assertEqual(metadata["shortname"], PACKAGE.CORE_SHORTNAME)
-        self.assertEqual(metadata["version"], "0.5.29-spike")
-        self.assertEqual(metadata["date_release"], "2026-08-30")
+        self.assertEqual(metadata["version"], "0.5.30-spike")
+        self.assertEqual(metadata["date_release"], "2026-08-31")
 
     def test_native_rbf_bits_are_reversed_per_byte(self) -> None:
         self.assertEqual(PACKAGE.reverse_rbf_bits(bytes([0x00, 0x01, 0x96, 0xFF])),
