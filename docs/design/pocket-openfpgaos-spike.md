@@ -1261,6 +1261,18 @@ Reaching the workload isolates the reload trigger to the omitted newline;
 another reload implicates the added colored status sequence or character-count
 boundary.
 
+Pocket firmware 2.6 blacked out with `0.5.33-spike`, so the trailing newline is
+not required to reproduce the failure. The `0.5.34-spike` diagnostic replaces
+the colored status sequence with plain ` OK`, retaining neither ANSI escapes nor
+a newline. Its incremental delta is preserved in
+`spikes/pocket/openfpgaos/memops-plain-ok-selftest.patch`. BSS ends at
+`0x1038DA50`; the warning-free 135,544-byte `os.bin` has SHA-256
+`F8240F3D8ECC26AFD1E676E880D612F79C9F79E044DE13B9BD4AB65B0F57219D`.
+The packaged 1,051,333-byte diagnostic ZIP has SHA-256
+`98ED9834531DA59B4B62F210E81C390DAA2A11B4032D54B55EB8FF4454203863`.
+Reaching the workload implicates ANSI parsing; another blackout means the plain
+characters or the terminal position/count boundary are sufficient.
+
 ## 7. Acceptance record
 
 Each candidate must produce one reviewable record containing:

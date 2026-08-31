@@ -1,0 +1,7 @@
+diff --git a/src/firmware/os/kernel/main.c b/src/firmware/os/kernel/main.c
+--- a/src/firmware/os/kernel/main.c
++++ b/src/firmware/os/kernel/main.c
+@@ -668,0 +669,3 @@ void os_main(void) {
++#ifdef RPCMP_MEMOPS_PLAIN_OK_SELFTEST
++    of_term_puts(" OK");
++#endif
