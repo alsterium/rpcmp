@@ -78,7 +78,10 @@ def find_violations(root: Path) -> list[str]:
     for path in source_files(mdx_root):
         violations.append(f"out-of-scope MDX implementation: {path.relative_to(root)}")
 
-    allowed_m0_rtl = {Path("core/rtl/pocket/rpcmp_spike_regs.sv")}
+    allowed_m0_rtl = {
+        Path("core/rtl/pocket/rpcmp_spike_regs.sv"),
+        Path("core/rtl/pocket/rpcmp_device_queue.sv"),
+    }
     for path in source_files(root / "core" / "rtl"):
         relative_path = path.relative_to(root)
         if relative_path not in allowed_m0_rtl:

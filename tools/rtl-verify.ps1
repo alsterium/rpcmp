@@ -44,8 +44,8 @@ if ($versionText -notmatch '2025\.2') {
 
 $outputDirectory = Join-Path $repositoryRoot 'out\sim\pocket-spike'
 $workLibrary = Join-Path $outputDirectory 'work'
-$rtlSource = Join-Path $repositoryRoot 'core\rtl\pocket\rpcmp_spike_regs.sv'
-$testSource = Join-Path $repositoryRoot 'tests\rtl\pocket_spike_tb.sv'
+$rtlSources = @((Join-Path $repositoryRoot 'core\rtl\pocket\rpcmp_spike_regs.sv'), (Join-Path $repositoryRoot 'core\rtl\pocket\rpcmp_device_queue.sv'))
+$testSources = @((Join-Path $repositoryRoot 'tests\rtl\pocket_spike_tb.sv'), (Join-Path $repositoryRoot 'tests\rtl\device_queue_tb.sv'))
 
 New-Item -ItemType Directory -Force -Path $outputDirectory | Out-Null
 Push-Location $outputDirectory
@@ -58,7 +58,7 @@ try {
         }
     }
 
-    & $vlog -quiet -sv -work work $rtlSource $testSource
+    & $vlog -quiet -sv -work work $rtlSources $testSources
     if ($LASTEXITCODE -ne 0) {
         throw 'vlog failed.'
     }
@@ -67,20 +67,14 @@ try {
         throw 'RTL compilation passed, but simulation requires SALT_LICENSE_SERVER to reference a valid Questa Starter license.'
     }
 
-    $simulationOutput = @(
-        & $vsim -c -quiet -lib work pocket_spike_tb -do 'onerror {quit -code 1}; run -all; quit -code 0' 2>&1
-    )
-    $simulationExitCode = $LASTEXITCODE
-    $simulationOutput | Write-Output
-    if ($simulationExitCode -ne 0) {
-        throw 'vsim failed.'
-    }
-    $simulationText = $simulationOutput | Out-String
-    if ($simulationText -notmatch '(?m)^# pocket_spike_tb: PASS\r?$') {
-        throw 'vsim completed without the pocket_spike_tb PASS marker.'
-    }
-    if ($simulationText -notmatch '(?m)^# Errors: 0, Warnings: 0\r?$') {
-        throw 'vsim completed without the required zero-error, zero-warning summary.'
+    foreach ($simulation in @(@{Top='pocket_spike_tb'; Marker='pocket_spike_tb: PASS'}, @{Top='device_queue_tb'; Marker='device_queue_tb: PASS'})) {
+        $simulationOutput = @(& $vsim -c -quiet -lib work $simulation.Top -do 'onerror {quit -code 1}; run -all; quit -code 0' 2>&1)
+        $simulationExitCode = $LASTEXITCODE
+        $simulationOutput | Write-Output
+        if ($simulationExitCode -ne 0) { throw "vsim failed for $($simulation.Top)." }
+        $simulationText = $simulationOutput | Out-String
+        if ($simulationText -notmatch "(?m)^# $([regex]::Escape($simulation.Marker)).*\r?$") { throw "missing PASS for $($simulation.Top)." }
+        if ($simulationText -notmatch '(?m)^# Errors: 0, Warnings: 0\r?$') { throw "non-clean summary for $($simulation.Top)." }
     }
 } finally {
     Pop-Location

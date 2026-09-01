@@ -16,7 +16,8 @@ cmake --build --preset host-msvc --target format-check
 cmake --build --preset host-msvc --target tidy-check
 ```
 
-Run the standalone M0 Pocket register-spike simulation with Questa Altera Starter 2025.2:
+Run the M0 register spike and M2 device queue simulations with Questa Altera
+Starter 2025.2:
 
 ```powershell
 pwsh -File tools/rtl-verify.ps1
@@ -24,7 +25,12 @@ pwsh -File tools/rtl-verify.ps1
 
 The script accepts `RPCMP_QUESTA_ROOT` as the directory containing `vsim.exe`; otherwise it checks the documented Quartus Lite installation path. Questa Starter requires a free, 12-month `SW-QUESTA` license. Generate it in Altera's Self Service Licensing Center and set `SALT_LICENSE_SERVER` to the downloaded license-file path before running the script. See the official [Questa Starter licensing instructions](https://docs.altera.com/r/docs/683472/25.3/altera-fpga-software-installation-and-licensing/questa-altera-fpga-edition-and-questa-altera-fpga-starter-edition-software-license). A process started before the environment-variable change automatically reloads the User or Machine value without printing it.
 
-The HDL compiler can validate the source without that environment variable, but the self-checking simulation cannot run. A passing invocation requires the testbench PASS marker plus Questa's zero-error, zero-warning summary. The simulation does not validate the APF shell, timing closure, JTAG, or execution on Pocket.
+The HDL compiler can validate the source without that environment variable, but
+the self-checking simulation cannot run. A passing invocation requires both
+testbench PASS markers plus Questa's zero-error, zero-warning summary. The M2
+test covers reset, due-time hold, full/reject, sticky flags, backpressure,
+wrap/reuse, ordering, and asynchronous clocks. It does not validate the APF
+shell, timing closure, YM2151 synthesis, audio output, JTAG, or Pocket hardware.
 
 Run the reproducible Quartus template-integration build separately with:
 
