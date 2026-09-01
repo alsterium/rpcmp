@@ -1,6 +1,7 @@
 # M1 — Library Container
 
-Status: active
+Status: completed on 2026-09-01. Host acceptance, cross-build/package checks,
+and the firmware 2.6 Pocket bounded-read integration gate are green.
 
 ## Objective
 
@@ -54,8 +55,13 @@ Slice 5 is host- and cross-build complete. The `0.5.39-m1` Pocket application
 admits at most 1,024 bytes from dataslot 5, opens the packaged 656-byte minimal
 golden library with Pocket-specific count and decoded-size limits, resolves its
 known `BlobId`, verifies the three logical bytes, and rejects a missing ID. The
-package retains the pinned safe OS/RBF pair byte-for-byte. Firmware 2.6 hardware
-confirmation of `LIBRARY: PASS` and `RESULT: PASS` remains before M1 completion.
+package retains the pinned safe OS/RBF pair byte-for-byte. On Pocket firmware
+2.6 the application reached and completed all four interactive input steps.
+That control-flow point is reachable only after `library_passed` and every other
+automatic gate succeed; a failure holds before the interactive probe begins.
+The `LIBRARY: PASS` and final `OVERALL: PASS` strings were not visible because
+the accumulated diagnostic redraw exceeded the visible terminal area. This is
+a presentation limitation, not an unexecuted or failed library gate.
 
 ## Acceptance criteria
 

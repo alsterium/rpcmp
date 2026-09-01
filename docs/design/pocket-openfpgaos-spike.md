@@ -1363,8 +1363,15 @@ SHA-256
 `3BB812A1B320C7350046097D361DBF8567662218C9D8BA2F0457E0325F2826A9`
 and the native RBF remains exactly 1,983,628 bytes with SHA-256
 `FA75E3CF3FE465090924D28DF5616170CD2F4EEFD9F4D68C89A72CB2CD93DBD5`.
-Firmware 2.6 hardware observation is pending; this package is not yet recorded
-as an M1 hardware pass.
+On Pocket firmware 2.6, `0.5.39-m1` reached the interactive probe and all four
+input operations passed. `main()` enters that probe only after the library,
+storage, latency, queue, and workload gates all pass; any failure calls the
+non-returning result hold first. This therefore confirms the bounded logical
+library read on hardware. The literal `LIBRARY: PASS` and final
+`OVERALL: PASS` rows were not visible: the accumulated diagnostic redraw
+exceeded the terminal's visible line area. The result is recorded as an M1
+hardware pass with that display limitation, rather than as direct observation
+of those two strings.
 
 ## 7. Acceptance record
 

@@ -140,6 +140,13 @@ RBF are unchanged. On launch, confirm `LIBRARY: PASS` followed by
 `OVERALL: PASS`. Record the firmware version and exact last visible line if it
 does not reach those results.
 
+Firmware 2.6 completed all four interactive input steps with this exact
+package. Because the interactive probe is entered only after every automatic
+gate, including the bounded library read, succeeds, this is the M1 hardware
+pass. The accumulated diagnostic redraw placed the literal `LIBRARY: PASS` and
+final `OVERALL: PASS` rows outside the visible terminal area; future probe UI
+work should clear or paginate the result screen.
+
 The reduced-cache workload `0.5.0-spike` ZIP SHA-256 is
 `6bfd479fa5375cb01abcf1f4b52bb0206db7a7ece9c8249b5d06d935829cb872`.
 Developer Builds displays this package under its metadata shortname
