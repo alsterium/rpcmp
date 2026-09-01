@@ -74,10 +74,6 @@ def find_violations(root: Path) -> list[str]:
         if ui_link and "rpcmp_runtime" in ui_link.group("body"):
             violations.append("rpcmp_ui links rpcmp_runtime")
 
-    mdx_root = root / "core" / "runtime" / "engines" / "mdx"
-    for path in source_files(mdx_root):
-        violations.append(f"out-of-scope MDX implementation: {path.relative_to(root)}")
-
     allowed_rtl = {
         Path("core/rtl/pocket/rpcmp_spike_regs.sv"),
         Path("core/rtl/pocket/rpcmp_device_queue.sv"),

@@ -92,6 +92,7 @@ target_include_directories(rpcmp_contracts PUBLIC core/contracts/include)
 rpcmp_production_options(rpcmp_contracts)
 
 add_library(rpcmp_runtime STATIC
+  core/runtime/engines/mdx/mdx_parser.cpp
   core/runtime/src/device_scheduler.cpp
   core/runtime/src/fixed_ym2151_sequence.cpp
   core/runtime/src/mock_core.cpp)
@@ -170,6 +171,13 @@ if(BUILD_TESTING)
   target_link_libraries(rpcmp_device_scheduler_tests PRIVATE rpcmp_runtime)
   rpcmp_test_options(rpcmp_device_scheduler_tests)
   add_test(NAME device_scheduler COMMAND rpcmp_device_scheduler_tests)
+
+  add_executable(rpcmp_mdx_parser_tests tests/runtime/mdx_parser_tests.cpp)
+  target_include_directories(rpcmp_mdx_parser_tests PRIVATE tests/support)
+  target_link_libraries(rpcmp_mdx_parser_tests PRIVATE rpcmp_runtime)
+  target_compile_definitions(rpcmp_mdx_parser_tests PRIVATE RPCMP_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
+  rpcmp_test_options(rpcmp_mdx_parser_tests)
+  add_test(NAME mdx_parser COMMAND rpcmp_mdx_parser_tests)
 
   add_executable(rpcmp_library_tests tests/library/container_tests.cpp)
   target_include_directories(rpcmp_library_tests PRIVATE tests/support)
