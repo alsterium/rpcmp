@@ -10,6 +10,7 @@
 namespace rpcmp::runtime::mdx {
 
 inline constexpr std::size_t kMdxMaxDecodedInstructions = kMdxMaxInputBytes;
+inline constexpr std::size_t kMdxBoundaryBitmapBytes = (kMdxMaxInputBytes + 7U) / 8U;
 
 enum class InstructionKind : std::uint8_t {
   Rest = 0,
@@ -38,6 +39,7 @@ enum class DecodeError : std::uint8_t {
   InvalidLimits,
   RangeOutsideInput,
   TruncatedInstruction,
+  InvalidBranchTarget,
   InvalidRepeat,
   InvalidSyncChannel,
   UnsupportedOpcode,
@@ -74,6 +76,10 @@ struct DocumentValidation {
   std::array<TrackValidation, kMdxTrackCount> tracks{};
 };
 
+struct ControlFlowScratch {
+  std::array<std::uint8_t, kMdxBoundaryBitmapBytes> instruction_starts{};
+};
+
 // Decodes one admitted v1 instruction without executing it. source_offset is
 // the absolute input offset corresponding to source.data[0].
 [[nodiscard]] DecodeResult decode_instruction(ByteView source, std::size_t source_offset,
@@ -90,6 +96,13 @@ struct DocumentValidation {
 [[nodiscard]] DecodeResult validate_document(const MdxDocument& document,
                                              DocumentValidation& output,
                                              DecodeLimits limits = DecodeLimits{}) noexcept;
+
+// Proves that every admitted control-flow target has the MXDRV-defined base,
+// remains within this track, and lands on the required instruction/repeat
+// boundary. Scratch is caller-owned so Pocket integrations choose its storage.
+[[nodiscard]] DecodeResult validate_control_flow(const TrackView& track,
+                                                 ControlFlowScratch& scratch,
+                                                 DecodeLimits limits = DecodeLimits{}) noexcept;
 
 } // namespace rpcmp::runtime::mdx
 

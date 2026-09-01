@@ -20,6 +20,41 @@ DecodeResult admitted(const ByteView source, const std::size_t source_offset,
   return {};
 }
 
+void set_boundary(ControlFlowScratch& scratch, const std::size_t offset) noexcept {
+  scratch.instruction_starts[offset / 8U] |= static_cast<std::uint8_t>(1U << (offset % 8U));
+}
+
+bool is_boundary(const ControlFlowScratch& scratch, const std::size_t offset) noexcept {
+  return (scratch.instruction_starts[offset / 8U] &
+          static_cast<std::uint8_t>(1U << (offset % 8U))) != 0;
+}
+
+bool relative_target(const std::size_t after, const std::int16_t relative, const std::size_t size,
+                     std::size_t& target) noexcept {
+  if (relative < 0) {
+    const auto magnitude = static_cast<std::size_t>(-static_cast<std::int32_t>(relative));
+    if (magnitude > after) {
+      return false;
+    }
+    target = after - magnitude;
+    return true;
+  }
+  const auto magnitude = static_cast<std::size_t>(relative);
+  if (magnitude > size - after) {
+    return false;
+  }
+  target = after + magnitude;
+  return true;
+}
+
+std::int16_t read_i16be(const std::uint8_t* bytes) noexcept {
+  const auto bits =
+      static_cast<std::uint16_t>((static_cast<std::uint16_t>(bytes[0]) << 8U) | bytes[1]);
+  const auto value =
+      bits <= 0x7fffU ? static_cast<std::int32_t>(bits) : static_cast<std::int32_t>(bits) - 0x10000;
+  return static_cast<std::int16_t>(value);
+}
+
 } // namespace
 
 DecodeResult decode_instruction(const ByteView source, const std::size_t source_offset,
@@ -198,6 +233,91 @@ DecodeResult validate_document(const MdxDocument& document, DocumentValidation& 
   }
   output = candidate;
   return {};
+}
+
+DecodeResult validate_control_flow(const TrackView& track, ControlFlowScratch& scratch,
+                                   const DecodeLimits limits) noexcept {
+  if (limits.max_instructions == 0 || limits.max_instructions > kMdxMaxDecodedInstructions) {
+    return failure(DecodeError::InvalidLimits, track.source_offset, track.logical_channel);
+  }
+  if ((track.source.data == nullptr && track.source.size != 0) ||
+      track.source.size > kMdxMaxInputBytes) {
+    return failure(DecodeError::RangeOutsideInput, track.source_offset, track.logical_channel);
+  }
+
+  const std::size_t bitmap_bytes = (track.source.size + 7U) / 8U;
+  for (std::size_t index = 0; index < bitmap_bytes; ++index) {
+    scratch.instruction_starts[index] = 0;
+  }
+
+  std::size_t cursor = 0;
+  std::size_t instruction_count = 0;
+  bool found_terminal = false;
+  while (cursor < track.source.size) {
+    if (instruction_count == limits.max_instructions) {
+      return failure(DecodeError::BudgetExhausted, track.source_offset + cursor,
+                     track.logical_channel);
+    }
+    set_boundary(scratch, cursor);
+    InstructionView instruction{};
+    const auto decoded =
+        decode_instruction({track.source.data + cursor, track.source.size - cursor},
+                           track.source_offset + cursor, track.logical_channel, instruction);
+    if (!decoded.ok()) {
+      return decoded;
+    }
+    ++instruction_count;
+    cursor += instruction.source.size;
+    if (instruction.kind == InstructionKind::TrackEnd) {
+      found_terminal = true;
+      break;
+    }
+  }
+  if (!found_terminal) {
+    return failure(DecodeError::TruncatedInstruction, track.source_offset + track.source.size,
+                   track.logical_channel);
+  }
+
+  cursor = 0;
+  while (cursor < track.source.size) {
+    InstructionView instruction{};
+    const auto decoded =
+        decode_instruction({track.source.data + cursor, track.source.size - cursor},
+                           track.source_offset + cursor, track.logical_channel, instruction);
+    if (!decoded.ok()) {
+      return decoded;
+    }
+    const std::size_t after = cursor + instruction.source.size;
+    if (instruction.kind == InstructionKind::TrackLoop ||
+        instruction.kind == InstructionKind::RepeatEnd) {
+      std::size_t target = 0;
+      if (!relative_target(after, read_i16be(instruction.source.data + 1), track.source.size,
+                           target) ||
+          target >= track.source.size || !is_boundary(scratch, target)) {
+        return failure(DecodeError::InvalidBranchTarget, instruction.byte_offset,
+                       track.logical_channel);
+      }
+      if (instruction.kind == InstructionKind::RepeatEnd &&
+          (target < 3 || track.source.data[target - 3] != 0xf6 ||
+           track.source.data[target - 1] != 0x00)) {
+        return failure(DecodeError::InvalidRepeat, instruction.byte_offset, track.logical_channel);
+      }
+    } else if (instruction.kind == InstructionKind::RepeatEscape) {
+      std::size_t operand = 0;
+      if (!relative_target(after, read_i16be(instruction.source.data + 1), track.source.size,
+                           operand) ||
+          operand == 0 || operand > track.source.size - 2 ||
+          track.source.data[operand - 1] != 0xf5 || !is_boundary(scratch, operand - 1)) {
+        return failure(DecodeError::InvalidRepeat, instruction.byte_offset, track.logical_channel);
+      }
+    }
+    cursor = after;
+    if (instruction.kind == InstructionKind::TrackEnd) {
+      return {};
+    }
+  }
+  return failure(DecodeError::TruncatedInstruction, track.source_offset + track.source.size,
+                 track.logical_channel);
 }
 
 } // namespace rpcmp::runtime::mdx

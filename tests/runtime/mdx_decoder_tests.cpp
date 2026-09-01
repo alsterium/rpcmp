@@ -9,6 +9,7 @@
 namespace {
 
 using rpcmp::runtime::mdx::ByteView;
+using rpcmp::runtime::mdx::ControlFlowScratch;
 using rpcmp::runtime::mdx::DecodeError;
 using rpcmp::runtime::mdx::DecodeLimits;
 using rpcmp::runtime::mdx::DocumentValidation;
@@ -151,6 +152,41 @@ int main() {
   RPCMP_CHECK(suite,
               rpcmp::runtime::mdx::decode_instruction({nullptr, 1}, 0, 0, instruction).error ==
                   DecodeError::RangeOutsideInput);
+
+  static ControlFlowScratch scratch{};
+  // f6 count 00; rest; f4 -> f5 operand; f5 -> byte after f6; f1 00
+  const std::vector<std::uint8_t> repeated{0xf6, 0x02, 0x00, 0x00, 0xf4, 0x00,
+                                           0x01, 0xf5, 0xff, 0xf9, 0xf1, 0x00};
+  RPCMP_CHECK(suite, rpcmp::runtime::mdx::validate_control_flow(track(repeated), scratch).ok());
+
+  auto invalid_branch = repeated;
+  invalid_branch[9] = 0xfb;
+  const auto bad_branch =
+      rpcmp::runtime::mdx::validate_control_flow(track(invalid_branch), scratch);
+  RPCMP_CHECK(suite, bad_branch.error == DecodeError::InvalidBranchTarget);
+  RPCMP_CHECK(suite, bad_branch.byte_offset == 107);
+
+  auto malformed_repeat = repeated;
+  malformed_repeat[0] = 0x00;
+  const auto bad_repeat =
+      rpcmp::runtime::mdx::validate_control_flow(track(malformed_repeat), scratch);
+  RPCMP_CHECK(suite, bad_repeat.error == DecodeError::InvalidRepeat);
+  RPCMP_CHECK(suite, bad_repeat.byte_offset == 107);
+
+  auto invalid_escape = repeated;
+  invalid_escape[6] = 0x02;
+  const auto bad_escape =
+      rpcmp::runtime::mdx::validate_control_flow(track(invalid_escape), scratch);
+  RPCMP_CHECK(suite, bad_escape.error == DecodeError::InvalidRepeat);
+  RPCMP_CHECK(suite, bad_escape.byte_offset == 104);
+
+  const std::vector<std::uint8_t> looped{0x00, 0xf1, 0xff, 0xfc, 0xf1, 0x00};
+  RPCMP_CHECK(suite, rpcmp::runtime::mdx::validate_control_flow(track(looped), scratch).ok());
+  auto middle_target = looped;
+  middle_target[3] = 0xfe;
+  RPCMP_CHECK(suite,
+              rpcmp::runtime::mdx::validate_control_flow(track(middle_target), scratch).error ==
+                  DecodeError::InvalidBranchTarget);
 
   return suite.finish("mdx instruction decoder");
 }

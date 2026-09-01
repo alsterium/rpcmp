@@ -18,7 +18,10 @@ only the approved fixed-boundary subset, reports unsupported extensions without
 guessing their length, and transactionally rejects active P-track intent.
 The admitted bytes are also converted to endian-independent typed semantics,
 with duration expansion and signed operands covered by exact golden cases.
-Control flow and device traces are not executed yet.
+Control-flow preparation now validates loop targets against decoded instruction
+boundaries and proves the immutable repeat-start/end/escape relationships used
+by the historical self-modifying counter scheme. Control flow and device traces
+are not executed yet.
 
 ## Objective
 
