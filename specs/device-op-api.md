@@ -74,6 +74,20 @@ Submission and dispatch results are typed and distinguish at least `accepted`,
 `queue_full`, `invalid_device`, `invalid_operation`, `time_overflow`, and
 `device_fault`. Diagnostic text is optional and is not a stable API value.
 
+The M2 host scheduler admits at most 64 operations into a preallocated ring.
+Its configured capacity may be smaller; zero or more than 64 is an invalid
+configuration. Submission validates the entire stream before changing the
+queue; a rejected stream has no partial effect. A newly submitted first
+timestamp must not precede the current queue tail. The scheduler is configured
+for one YM2151-compatible device and one tick rate. A stream using another ID,
+device type, or tick rate is rejected.
+
+The device port returns `accepted`, `backpressure`, or `device_fault` for each
+operation. Backpressure leaves the due operation at the queue head. Device
+fault is latched and prevents further submission or advancement until scheduler
+reset. Absolute advancement rejects reversed time; relative advancement checks
+unsigned 64-bit addition before changing media time.
+
 ## Reset semantics
 
 `Reset` is an ordered device operation, not a scheduler reset. It reaches the
@@ -84,6 +98,10 @@ Resetting the scheduler is a separate control action: it clears every pending
 operation, clears scheduler overflow/error state, resets media time to zero,
 and resets each attached device through its port. After reset, no operation
 from the previous generation may be dispatched.
+
+Queue clearing occurs before the port reset is requested. If the port reset
+fails, the empty scheduler latches `device_fault`; no pre-reset operation is
+restored.
 
 ## Determinism requirements
 

@@ -92,6 +92,7 @@ target_include_directories(rpcmp_contracts PUBLIC core/contracts/include)
 rpcmp_production_options(rpcmp_contracts)
 
 add_library(rpcmp_runtime STATIC
+  core/runtime/src/device_scheduler.cpp
   core/runtime/src/fixed_ym2151_sequence.cpp
   core/runtime/src/mock_core.cpp)
 target_include_directories(rpcmp_runtime PUBLIC core/runtime/include)
@@ -163,6 +164,12 @@ if(BUILD_TESTING)
   target_link_libraries(rpcmp_fixed_ym2151_sequence_tests PRIVATE rpcmp_runtime)
   rpcmp_test_options(rpcmp_fixed_ym2151_sequence_tests)
   add_test(NAME fixed_ym2151_sequence COMMAND rpcmp_fixed_ym2151_sequence_tests)
+
+  add_executable(rpcmp_device_scheduler_tests tests/runtime/device_scheduler_tests.cpp)
+  target_include_directories(rpcmp_device_scheduler_tests PRIVATE tests/support)
+  target_link_libraries(rpcmp_device_scheduler_tests PRIVATE rpcmp_runtime)
+  rpcmp_test_options(rpcmp_device_scheduler_tests)
+  add_test(NAME device_scheduler COMMAND rpcmp_device_scheduler_tests)
 
   add_executable(rpcmp_library_tests tests/library/container_tests.cpp)
   target_include_directories(rpcmp_library_tests PRIVATE tests/support)
