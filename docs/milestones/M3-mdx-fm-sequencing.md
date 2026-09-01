@@ -4,16 +4,19 @@ Status: active on 2026-09-01. M2 is complete. The historical MXDRV and local
 corpus investigation is recorded in `docs/research/mdx-mxdrv-format.md`; this
 milestone starts by freezing `specs/mdx-v1.md` before parser implementation.
 
-Progress: slices 1 through 3 are complete. The MDX v1 contract freezes the
-bounded FM scope and mandatory additive PCM extension seam. The aggregate-only
-corpus auditor scans each physical track region once without following control
-flow, stops at unknown variable-length extensions rather than guessing, and
-emits no paths, titles, PDX names, payload bytes, or per-file hashes. The
-structural parser now validates immutable input transactionally, exposes fixed
-YM2151/legacy-ADPCM track targets and decoded voice records through borrowed
-views, recognizes but rejects PCM8, and passes every-byte truncation plus
-offset, overlap, voice, limit, and malformed-header tests. Track bytecode is
-not executed or semantically admitted yet.
+Progress: slices 1 through 3 and the bytecode-admission portion of slice 4 are
+complete. The MDX v1 contract freezes the bounded FM scope and mandatory
+additive PCM extension seam. The aggregate-only corpus auditor scans each
+physical track region once without following control flow, stops at unknown
+variable-length extensions rather than guessing, and emits no paths, titles,
+PDX names, payload bytes, or per-file hashes. The structural parser now
+validates immutable input transactionally, exposes fixed YM2151/legacy-ADPCM
+track targets and decoded voice records through borrowed views, recognizes but
+rejects PCM8, and passes every-byte truncation plus offset, overlap, voice,
+limit, and malformed-header tests. The non-executing track decoder now admits
+only the approved fixed-boundary subset, reports unsupported extensions without
+guessing their length, and transactionally rejects active P-track intent.
+Control flow and semantic/device traces are not executed yet.
 
 ## Objective
 
