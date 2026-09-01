@@ -23,7 +23,9 @@ boundaries and proves the immutable repeat-start/end/escape relationships used
 by the historical self-modifying counter scheme. Control flow and device traces
 are executed by a per-playback track state machine with immutable source bytes,
 bounded same-tick instruction/branch work, repeat frames, and explicit sync
-wait state. Multi-track service and device traces are not executed yet.
+wait state. Document ticks now commit A-through-H semantic batches and sync
+release effects transactionally in historical service order. Device register
+traces are not emitted yet.
 
 ## Objective
 

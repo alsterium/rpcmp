@@ -93,6 +93,7 @@ rpcmp_production_options(rpcmp_contracts)
 
 add_library(rpcmp_runtime STATIC
   core/runtime/engines/mdx/mdx_decoder.cpp
+  core/runtime/engines/mdx/mdx_document_machine.cpp
   core/runtime/engines/mdx/mdx_parser.cpp
   core/runtime/engines/mdx/mdx_semantic.cpp
   core/runtime/engines/mdx/mdx_track_machine.cpp
@@ -199,6 +200,13 @@ if(BUILD_TESTING)
   target_link_libraries(rpcmp_mdx_track_machine_tests PRIVATE rpcmp_runtime)
   rpcmp_test_options(rpcmp_mdx_track_machine_tests)
   add_test(NAME mdx_track_machine COMMAND rpcmp_mdx_track_machine_tests)
+
+  add_executable(rpcmp_mdx_document_machine_tests
+    tests/runtime/mdx_document_machine_tests.cpp)
+  target_include_directories(rpcmp_mdx_document_machine_tests PRIVATE tests/support)
+  target_link_libraries(rpcmp_mdx_document_machine_tests PRIVATE rpcmp_runtime)
+  rpcmp_test_options(rpcmp_mdx_document_machine_tests)
+  add_test(NAME mdx_document_machine COMMAND rpcmp_mdx_document_machine_tests)
 
   add_executable(rpcmp_library_tests tests/library/container_tests.cpp)
   target_include_directories(rpcmp_library_tests PRIVATE tests/support)
