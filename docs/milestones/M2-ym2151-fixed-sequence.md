@@ -8,15 +8,16 @@ Progress: slices 1 through 3 are complete. Slice 4 is partially complete:
 ADR-0006 selects pinned JT51 for local M2 verification while prohibiting
 redistribution, but ADR-0004 remains unsuperseded and the Pocket execution
 substrate is not yet selected. Slice 5 is partially complete through standalone
-AUDIO specification and simulation. The v1 portable values and self-authored
+AUDIO specification and simulation, including the pinned real JT51 source. The
+v1 portable values and self-authored
 17-operation, 3.5-second sequence are implemented with a 254-byte exact golden
 trace. A host scheduler now validates streams atomically and dispatches through
 a typed device port from a preallocated 64-entry maximum ring, with tested
 ordering, backpressure, full rejection, reset, fault, and time bounds. The
 CPU-local v1 MMIO/FIFO protocol and project-owned asynchronous-clock queue are
 specified and self-tested in RTL. The project-owned rational-rate Pocket AUDIO
-adapter is specified and self-tested standalone; JT51/APF integration, fit, and
-hardware audio remain open.
+adapter and JT51 command/sample binding are specified and self-tested. APF
+integration, fit, and hardware audio remain open.
 
 ## Objective
 

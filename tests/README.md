@@ -34,6 +34,16 @@ covers rational sample selection, exact serial framing, silence, saturation,
 underflow, overflow, flag clear, and reset. They do not validate APF/JT51
 integration, timing closure, physical audio output, JTAG, or Pocket hardware.
 
+Run the same integration test against the actual clean, pinned JT51 checkout
+instead of the boundary model with:
+
+```powershell
+pwsh -File tools/rtl-jt51-verify.ps1
+```
+
+This second command refuses a different revision or local JT51 changes and does
+not copy GPL source or generated output into the repository.
+
 Run the reproducible Quartus template-integration build separately with:
 
 ```powershell

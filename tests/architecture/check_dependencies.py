@@ -82,6 +82,7 @@ def find_violations(root: Path) -> list[str]:
         Path("core/rtl/pocket/rpcmp_spike_regs.sv"),
         Path("core/rtl/pocket/rpcmp_device_queue.sv"),
         Path("core/rtl/pocket/rpcmp_pocket_audio.sv"),
+        Path("core/rtl/pocket/rpcmp_jt51_audio.sv"),
     }
     for path in source_files(root / "core" / "rtl"):
         relative_path = path.relative_to(root)

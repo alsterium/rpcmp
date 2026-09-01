@@ -8,6 +8,13 @@ wide signed stereo stream in the 12.288 MHz domain, saturates to 16 bits, and
 emits exact 48 kHz frames with sticky boundary diagnostics. It is not yet
 integrated with JT51 or an APF shell.
 
+`pocket/rpcmp_jt51_audio.sv` implements the adapter in
+`specs/ym2151-rtl-adapter-v1.md`: bounded reset and busy-aware two-stage JT51
+writes, rational clock enables, and native-sample connection to the Pocket
+AUDIO adapter. The ordinary RTL suite uses a behavioral JT51 boundary model;
+`tools/rtl-jt51-verify.ps1` separately requires and compiles the clean pinned
+GPL checkout from ignored research output.
+
 `pocket/rpcmp_device_queue.sv` is the project-owned M2 v1 CPU-to-device queue.
 Its CPU-local MMIO map, eight-entry FIFO, due-time behavior, backpressure,
 reset, and bundled-data toggle CDC are defined in
