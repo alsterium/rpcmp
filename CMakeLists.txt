@@ -238,6 +238,9 @@ if(BUILD_TESTING)
   add_test(
     NAME pocket_package_builder
     COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/pocket/package_builder_tests.py)
+  add_test(
+    NAME mdx_corpus_audit
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/utility/mdx_corpus_audit_tests.py)
 
   if(RPCMP_ENABLE_CLANG_TOOLS)
     add_test(NAME format

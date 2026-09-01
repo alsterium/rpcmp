@@ -234,13 +234,63 @@ tests need self-authored byte fixtures for every accepted command and malformed
 boundary. Locally supplied files may add private event-trace hashes and command
 coverage without recording copyrighted payload bytes.
 
+### Bounded corpus-auditor result
+
+M3 slice 2 added `tools/mdx_corpus_audit.py`. It recursively reads `.mdx` files
+with a 1 MiB hard ceiling, scans each derived physical track region linearly,
+and never follows branches or loops. It stops at `e6`/`e7` because their length
+is not safely inferable from the opcode alone. Its JSON schema contains only
+aggregate counts and extrema; root paths, relative paths, titles, PDX names,
+payloads, and per-file hashes are not fields.
+
+The formal auditor was run read-only against the same local corpus on
+2026-09-01:
+
+| Observation | Result |
+| --- | ---: |
+| Files and bytes observed | 13,140 / 44,045,401 |
+| Bounded ordinary layouts | 13,038 |
+| Missing title terminator | 1 |
+| LZX body signature | 3 |
+| Invalid inferred track table | 24 |
+| Offset outside input | 74 |
+| Linearly terminated track regions | 146,919 |
+| Regions stopped at `e6`/`e7` | 551 |
+| Regions stopped at undefined `e0`–`e5` | 19 |
+| Truncated instruction at region end | 15 |
+| Region exhausted without `f1` | 22 |
+| Maximum title / PDX-reference bytes | 159 / 21 |
+
+Opcode counts are occurrences in bounded physical regions, not file counts and
+not proof that an opcode is semantically valid on a particular target. Relevant
+compatibility pressure observed by the linear scan includes:
+
+| Command family | Occurrences |
+| --- | ---: |
+| `fa` / `f9` attenuation steps | 707,634 / 687,265 |
+| `e9` key-on LFO delay | 45,837 |
+| `ea` hardware LFO | 45,244 |
+| `eb` amplitude LFO | 11,770 |
+| `ec` pitch LFO | 159,566 |
+| `ed` noise/PCM rate | 59,548 |
+| `e8` PCM8 declaration | 2,557 |
+| `e7` +16/+17 family | 407 |
+| `e6` 02EX family | 144 |
+
+These results change implementation priority but not the v1 acceptance rule.
+In particular, `fa`/`f9` and LFO behavior need golden traces early because they
+are common, while `e6`/`e7` remain reject-on-sight until every used subcommand
+has a proven length and effect. The 102 files outside the bounded ordinary set
+remain compatibility-investigation inputs; they are not justification for
+weakening offset or terminator checks.
+
 ## Required work before parser implementation
 
 1. Write an M3 milestone and `mdx-v1` parser/sequence contract that freezes
    accepted layouts, opcodes, integer timing, service order, error codes, and
    resource budgets.
-2. Build a read-only corpus auditor that reports structure and opcode coverage
-   without executing unbounded control flow or emitting titles/filenames.
+2. ~~Build a read-only corpus auditor that reports structure and opcode coverage
+   without executing unbounded control flow or emitting titles/filenames.~~
 3. Select at least two independent fidelity oracles. One must be the
    MXDRV-derived 2.06+17 behavior; the other should be a separately implemented
    decoder or an X68000/emulator register trace.
