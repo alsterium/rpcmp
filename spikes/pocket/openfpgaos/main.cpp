@@ -1,3 +1,4 @@
+#include "rpcmp/library/logical_library.hpp"
 #include "rpcmp/spike/comparison_probe.hpp"
 
 #include <cstdint>
@@ -20,6 +21,8 @@ void rpcmp_pocket_terminal_init();
 namespace {
 
 constexpr std::uint32_t kSyntheticSlot = 4;
+constexpr std::uint32_t kLibrarySlot = 5;
+constexpr std::size_t kPocketLibraryBytes = 1024;
 constexpr std::uint32_t kActionPlay = 1U << 0;
 constexpr std::uint32_t kActionTogglePause = 1U << 1;
 constexpr std::uint32_t kActionStop = 1U << 2;
@@ -42,6 +45,37 @@ private:
   std::uint32_t size_{};
   bool valid_{};
 };
+
+bool verify_library_blob() {
+  std::uint32_t size{};
+  if (rpcmp_pocket_slot_size(kLibrarySlot, &size) != 0 || size < rpcmp::library::kHeaderSize ||
+      size > kPocketLibraryBytes) {
+    return false;
+  }
+  static std::uint8_t bytes[kPocketLibraryBytes]{};
+  if (rpcmp_pocket_slot_read(kLibrarySlot, 0, bytes, size) != 0) {
+    return false;
+  }
+  rpcmp::library::ValidationLimits limits;
+  limits.max_sections = 6;
+  limits.max_file_size = kPocketLibraryBytes;
+  limits.max_records_per_section = 16;
+  limits.max_string_bytes = 64;
+  limits.max_dependencies_per_track = 4;
+  limits.max_total_decoded_bytes = 256;
+  rpcmp::library::LogicalLibrary library;
+  if (rpcmp::library::LogicalLibrary::open({bytes, size}, library, limits) !=
+      rpcmp::library::LibraryError::None) {
+    return false;
+  }
+  rpcmp::library::BlobView blob;
+  constexpr rpcmp::contracts::BlobId kExpectedBlob{0xA75C21A0C642594AULL};
+  if (!library.find_blob(kExpectedBlob, blob) || blob.bytes.size != 3 || blob.bytes.data[0] != 1 ||
+      blob.bytes.data[1] != 2 || blob.bytes.data[2] != 3) {
+    return false;
+  }
+  return !library.find_blob(rpcmp::contracts::BlobId{1}, blob);
+}
 
 class PocketClock final : public rpcmp::spike::IProbeMonotonicClock {
 public:
@@ -85,7 +119,8 @@ private:
   std::uint64_t last_sequence_{};
 };
 
-void print_result(const rpcmp::spike::ProbeRunResult& result, const bool passed) {
+void print_result(const rpcmp::spike::ProbeRunResult& result, const bool library_passed,
+                  const bool passed) {
   std::printf("RPCMP openfpgaOS probe\n\n");
   std::printf("slot4_bytes=%lu\n", static_cast<unsigned long>(result.blob_size));
   for (std::size_t index = 0; index < result.storage_checks.size(); ++index) {
@@ -105,6 +140,7 @@ void print_result(const rpcmp::spike::ProbeRunResult& result, const bool passed)
               static_cast<unsigned long long>(result.event_digest));
   std::printf("final_sequence=%llu\n",
               static_cast<unsigned long long>(result.final_snapshot_sequence));
+  std::printf("LIBRARY: %s\n", library_passed ? "PASS" : "FAIL");
   std::printf("\nRESULT: %s\n", passed ? "PASS" : "FAIL");
   std::printf("Open the Pocket menu to exit.\n");
 }
@@ -255,9 +291,12 @@ int main() {
   const bool workloads_passed = headless_workload.passed() && observed_workload.passed() &&
                                 rpcmp::spike::equivalent_runtime_workload(
                                     headless_workload.reference, observed_workload.reference);
-  print_result(observed,
-               passed && latency.passed() && profiles_passed && queue_passed && workloads_passed);
-  if (!passed || !latency.passed() || !profiles_passed || !queue_passed || !workloads_passed) {
+  const bool library_passed = verify_library_blob();
+  print_result(observed, library_passed,
+               passed && latency.passed() && profiles_passed && queue_passed && workloads_passed &&
+                   library_passed);
+  if (!passed || !latency.passed() || !profiles_passed || !queue_passed || !workloads_passed ||
+      !library_passed) {
     rpcmp_pocket_hold_result();
   }
 

@@ -130,6 +130,16 @@ these exact paths from the SD card, then extract
 /Platforms/rpcmp_probe.json
 ```
 
+The current M1 bounded-library package is `0.5.39-m1`. Its ZIP is 1,057,657
+bytes with SHA-256
+`548E38DE6C99511CE372E083B6CC24869520AD18702DFC0D3C65621150EB8E22`.
+It adds the 656-byte minimal `.rpcmlib` golden fixture in dataslot 5 and a
+bounded logical blob check in the application. The hardware-proven safe OS and
+RBF are unchanged. On launch, confirm `LIBRARY: PASS` followed by
+`RESULT: PASS`, then complete the existing input prompts through
+`OVERALL: PASS`. Record the firmware version and exact last visible line if it
+does not reach those results.
+
 The reduced-cache workload `0.5.0-spike` ZIP SHA-256 is
 `6bfd479fa5375cb01abcf1f4b52bb0206db7a7ece9c8249b5d06d935829cb872`.
 Developer Builds displays this package under its metadata shortname

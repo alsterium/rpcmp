@@ -221,11 +221,11 @@ def definitions() -> dict[str, object]:
             "metadata": {
                 "platform_ids": [PLATFORM_ID],
                 "shortname": CORE_SHORTNAME,
-                "description": "RPCMP M0 openfpgaOS runtime workload probe",
+                "description": "RPCMP M1 bounded library blob probe",
                 "author": "RPCMP",
                 "url": "",
-                "version": "0.5.38-safe",
-                "date_release": "2026-08-31",
+                "version": "0.5.39-m1",
+                "date_release": "2026-09-01",
             },
             "framework": {
                 "target_product": "Analogue Pocket",
@@ -250,6 +250,7 @@ def definitions() -> dict[str, object]:
         {"id": 2, "name": "OS Config", "required": False, "parameters": 0, "extensions": ["ini"], "deferload": True},
         {"id": 3, "name": "Application", "required": False, "parameters": 0, "extensions": ["elf"], "deferload": True},
         {"id": 4, "name": "Synthetic Data", "required": False, "parameters": 0, "extensions": ["bin"], "deferload": True},
+        {"id": 5, "name": "RPCMP Library", "required": False, "parameters": 0, "extensions": ["rpcmlib"], "deferload": True},
     ]
     return {
         "audio.json": {"audio": {"magic": MAGIC}},
@@ -294,7 +295,7 @@ def expected_paths() -> set[PurePosixPath]:
     instance_root = PurePosixPath("Assets") / PLATFORM_ID / CORE_ID
     names = set(definitions()) | {"loader.bin", f"{VARIANT}.rbf_r"}
     paths = {core_root / name for name in names}
-    paths |= {common_root / name for name in ("os.bin", "rpcmp-probe.ini", "rpcmp-probe.elf", "synthetic.bin")}
+    paths |= {common_root / name for name in ("os.bin", "rpcmp-probe.ini", "rpcmp-probe.elf", "synthetic.bin", "minimal.rpcmlib")}
     paths |= {instance_root / "rpcmp-probe.json", PurePosixPath("Platforms") / f"{PLATFORM_ID}.json"}
     return paths
 
@@ -308,12 +309,12 @@ def validate_json(path: Path) -> None:
         raise ValueError(f"invalid or missing APF magic: {path}")
     if path.name == "data.json":
         slots = root.get("data_slots", [])
-        if [slot.get("id") for slot in slots] != [0, 1, 2, 3, 4]:
-            raise ValueError("data.json must contain only slots 0 through 4")
+        if [slot.get("id") for slot in slots] != [0, 1, 2, 3, 4, 5]:
+            raise ValueError("data.json must contain only slots 0 through 5")
         if any(slot.get("nonvolatile") for slot in slots):
             raise ValueError("nonvolatile slots are prohibited in this spike")
         if any(slot.get("required") or not slot.get("deferload") for slot in slots[1:]):
-            raise ValueError("openfpgaOS slots 1 through 4 must be optional and deferred")
+            raise ValueError("openfpgaOS slots 1 through 5 must be optional and deferred")
     if path.name == "core.json":
         metadata = root.get("metadata", {})
         expected_core_id = f"{metadata.get('author')}.{metadata.get('shortname')}"
@@ -956,6 +957,10 @@ def build(
         write_file(staging, common_root / "rpcmp-probe.ini", b"[os]\nELF=rpcmp-probe.elf\nARGS=\nVARIANT=os25\n")
         synthetic = bytes((offset * 37 + 11) % 256 for offset in range(4096))
         write_file(staging, common_root / "synthetic.bin", synthetic)
+        golden_hex = (repo / "tests" / "fixtures" / "rpcmlib" / "minimal.rpcmlib.hex").read_text(
+            encoding="ascii"
+        )
+        write_file(staging, common_root / "minimal.rpcmlib", bytes.fromhex(golden_hex))
 
         instance = {
             "instance": {
@@ -965,6 +970,7 @@ def build(
                     {"id": 2, "filename": "rpcmp-probe.ini"},
                     {"id": 3, "filename": "rpcmp-probe.elf"},
                     {"id": 4, "filename": "synthetic.bin"},
+                    {"id": 5, "filename": "minimal.rpcmlib"},
                 ],
             }
         }

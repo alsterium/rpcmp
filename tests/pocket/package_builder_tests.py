@@ -17,8 +17,8 @@ class PackageBuilderTests(unittest.TestCase):
     def test_probe_metadata_is_versioned(self) -> None:
         metadata = PACKAGE.definitions()["core.json"]["core"]["metadata"]
         self.assertEqual(metadata["shortname"], PACKAGE.CORE_SHORTNAME)
-        self.assertEqual(metadata["version"], "0.5.38-safe")
-        self.assertEqual(metadata["date_release"], "2026-08-31")
+        self.assertEqual(metadata["version"], "0.5.39-m1")
+        self.assertEqual(metadata["date_release"], "2026-09-01")
 
     def test_native_rbf_bits_are_reversed_per_byte(self) -> None:
         self.assertEqual(PACKAGE.reverse_rbf_bits(bytes([0x00, 0x01, 0x96, 0xFF])),
@@ -70,7 +70,7 @@ class PackageBuilderTests(unittest.TestCase):
             value = json.loads(data_path.read_text(encoding="ascii"))
             value["data"]["data_slots"].append({"id": 7})
             data_path.write_bytes(PACKAGE.json_bytes(value))
-            with self.assertRaisesRegex(ValueError, "only slots 0 through 4"):
+            with self.assertRaisesRegex(ValueError, "only slots 0 through 5"):
                 PACKAGE.verify_tree(root)
 
     def test_core_folder_metadata_mismatch_is_rejected(self) -> None:

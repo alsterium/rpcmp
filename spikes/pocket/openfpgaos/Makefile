@@ -18,6 +18,7 @@ LIBGCC := $(shell $(CXX) $(ARCH) -print-libgcc-file-name)
 
 INCLUDES := \
   -I$(ROOT)/core/contracts/include \
+  -I$(ROOT)/core/library/include \
   -I$(ROOT)/core/runtime/include \
   -I$(ROOT)/spikes/pocket/common/include \
   -I$(SDK_DIR)/include
@@ -58,6 +59,8 @@ CRT := \
 
 CXX_SOURCES := \
   $(ROOT)/core/contracts/src/validation.cpp \
+  $(ROOT)/core/library/src/container.cpp \
+  $(ROOT)/core/library/src/logical_library.cpp \
   $(ROOT)/core/runtime/src/mock_core.cpp \
   $(ROOT)/spikes/pocket/common/src/comparison_probe.cpp \
   $(ROOT)/spikes/pocket/openfpgaos/main.cpp

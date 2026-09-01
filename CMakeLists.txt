@@ -131,6 +131,13 @@ target_include_directories(rpcmp_pocket_comparison_probe PUBLIC
 target_link_libraries(rpcmp_pocket_comparison_probe PUBLIC rpcmp_runtime)
 rpcmp_production_options(rpcmp_pocket_comparison_probe)
 
+add_library(rpcmp_pocket_app_compile_check OBJECT
+  spikes/pocket/openfpgaos/main.cpp)
+target_link_libraries(rpcmp_pocket_app_compile_check PRIVATE
+  rpcmp_library
+  rpcmp_pocket_comparison_probe)
+rpcmp_production_options(rpcmp_pocket_app_compile_check)
+
 add_executable(rpcmp_pocket_comparison_probe_host spikes/pocket/host/main.cpp)
 target_link_libraries(rpcmp_pocket_comparison_probe_host PRIVATE rpcmp_pocket_comparison_probe)
 rpcmp_production_options(rpcmp_pocket_comparison_probe_host)

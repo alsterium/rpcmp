@@ -1339,6 +1339,33 @@ openFPGA flow and reached the workload-probe screen. This reconfirms the pinned
 pair after the diagnostic series and makes `0.5.38-safe` the continuing M0
 hardware baseline. The placement-sensitivity limitation remains unchanged.
 
+### M1 bounded logical-library package — 2026-09-01
+
+The `0.5.39-m1` application adds a bounded read of dataslot 5 and exercises the
+M1 `LogicalLibrary` reader against the 656-byte minimal golden `.rpcmlib`. It
+admits no more than 1,024 input bytes, applies Pocket-specific section, record,
+string, dependency, and decoded-blob limits, resolves the known blob ID, checks
+its three logical bytes, and confirms that a missing ID is not exposed. The
+screen reports this independent gate as `LIBRARY: PASS`; it is also required
+for `RESULT: PASS` and continuation to the workload probe.
+
+The RISC-V ELF is 249,528 bytes with SHA-256
+`8C8AF2ACE758D7D4140FCB3A38E76FC7731EC1C00311E41B6F07128232AFA4F0`.
+The packaged library has SHA-256
+`92A0B9D76785B662EDBA06285388497E54184C835FB2573229C304A3349B8FB0`.
+The 1,057,657-byte ZIP has SHA-256
+`548E38DE6C99511CE372E083B6CC24869520AD18702DFC0D3C65621150EB8E22`.
+`tools/pocket-toolchain-verify.ps1` passed the cross-build, ELF checks, desktop
+semantic probe, APF JSON/path validation, and deterministic package build.
+
+The safe-layout guard confirms the OS remains exactly 135,448 bytes with
+SHA-256
+`3BB812A1B320C7350046097D361DBF8567662218C9D8BA2F0457E0325F2826A9`
+and the native RBF remains exactly 1,983,628 bytes with SHA-256
+`FA75E3CF3FE465090924D28DF5616170CD2F4EEFD9F4D68C89A72CB2CD93DBD5`.
+Firmware 2.6 hardware observation is pending; this package is not yet recorded
+as an M1 hardware pass.
+
 ## 7. Acceptance record
 
 Each candidate must produce one reviewable record containing:

@@ -50,8 +50,12 @@ multi-track golden fixtures are verified on the host. Bounded corruption tests
 cover the v1 envelope, record identities, references, UTF-8/NUL handling,
 checksums, codecs, and admission limits. A synthetic 1,000-track library opens
 and resolves arbitrary tracks and their blobs through the binary-search index.
-Slice 5 (bounded logical blob reads in the pinned safe Pocket application) is
-the active implementation unit.
+Slice 5 is host- and cross-build complete. The `0.5.39-m1` Pocket application
+admits at most 1,024 bytes from dataslot 5, opens the packaged 656-byte minimal
+golden library with Pocket-specific count and decoded-size limits, resolves its
+known `BlobId`, verifies the three logical bytes, and rejects a missing ID. The
+package retains the pinned safe OS/RBF pair byte-for-byte. Firmware 2.6 hardware
+confirmation of `LIBRARY: PASS` and `RESULT: PASS` remains before M1 completion.
 
 ## Acceptance criteria
 
