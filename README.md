@@ -21,7 +21,7 @@ The defining rule is `Core -> UI = State` and `UI -> Core = Command`. Playback m
 - Product scope: `docs/PRD.md`
 - Architecture and dependency rules: `docs/ARCHITECTURE.md`
 - Public contracts: `specs/`
-- First implementation task: `docs/milestones/M0-architecture.md`
+- Active implementation task: `docs/milestones/M2-ym2151-fixed-sequence.md`
 - M0 executable design: `docs/design/m0-executable-design.md`
 - Pocket platform boundary: `docs/design/pocket-platform-boundary.md`
 - Pocket execution candidates: `docs/design/pocket-execution-candidates.md`
@@ -40,12 +40,16 @@ tests/                   cross-module fixtures and integration tests
 third_party/             vendored dependencies and notices
 ```
 
-M0 selects C++17 and CMake for the host architecture skeleton. Pocket execution and a concrete YM2151 core remain gated by target-toolchain and license evidence; see the M0 ADRs.
+M0 selects C++17 and CMake for the host architecture skeleton, and M1 freezes
+the library container. M2 starts with a platform-neutral timestamped device
+operation contract and deterministic fixed YM2151 trace. Pocket execution and
+a concrete YM2151 core remain gated by target-toolchain, audio-path, and license
+evidence; see ADR-0004 and the active milestone.
 
 ## Recommended execution
 
 1. Initialize a repository with this package at its root.
-2. Ask Codex to read `AGENTS.md` and implement M0 only.
+2. Ask Codex to read `AGENTS.md` and the active milestone only.
 3. Review the public contracts and architecture tests before accepting implementation.
 4. Continue milestone-by-milestone; do not jump directly to full MDX playback.
 
