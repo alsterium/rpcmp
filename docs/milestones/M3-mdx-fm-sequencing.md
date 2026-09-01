@@ -21,7 +21,9 @@ with duration expansion and signed operands covered by exact golden cases.
 Control-flow preparation now validates loop targets against decoded instruction
 boundaries and proves the immutable repeat-start/end/escape relationships used
 by the historical self-modifying counter scheme. Control flow and device traces
-are not executed yet.
+are executed by a per-playback track state machine with immutable source bytes,
+bounded same-tick instruction/branch work, repeat frames, and explicit sync
+wait state. Multi-track service and device traces are not executed yet.
 
 ## Objective
 
