@@ -4,12 +4,12 @@ Status: active from 2026-09-01. M1 is complete. The milestone began with the
 host device operation contract and deterministic trace; ADR-0006 subsequently
 selected one pinned YM2151 RTL revision for local M2 verification.
 
-Progress: slices 1 through 4 are complete. ADR-0006 selects pinned JT51 for
+Progress: slices 1 through 5 are complete. ADR-0006 selects pinned JT51 for
 local M2 verification while prohibiting redistribution, and ADR-0007 selects a
 project-owned hardware sequencer strictly for M2 Pocket validation. ADR-0004
-remains unsuperseded for the production player substrate. Slice 5 is partially
-complete through standalone
-AUDIO specification and simulation, including the pinned real JT51 source. The
+remains unsuperseded for the production player substrate. Slice 6 has a
+validated local-only Pocket package and is waiting for hardware observation.
+The AUDIO specification and simulation include the pinned real JT51 source. The
 v1 portable values and self-authored
 17-operation, 3.5-second sequence are implemented with a 254-byte exact golden
 trace. A host scheduler now validates streams atomically and dispatches through
@@ -18,7 +18,8 @@ ordering, backpressure, full rejection, reset, fault, and time bounds. The
 CPU-local v1 MMIO/FIFO protocol and project-owned asynchronous-clock queue are
 specified and self-tested in RTL. The project-owned rational-rate Pocket AUDIO
 adapter and JT51 command/sample binding are specified and self-tested. APF
-integration simulation; APF fit and hardware audio remain open.
+integration simulation, fit, timing, and package validation pass; only hardware
+audio, relaunch/reset, and sustained-run acceptance remain open.
 
 ## Objective
 

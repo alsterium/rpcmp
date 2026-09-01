@@ -1,0 +1,24 @@
+{
+  "core": {
+    "magic": "APF_VER_1",
+    "metadata": {
+      "platform_ids": [],
+      "shortname": "RPCMP M2",
+      "description": "Local M2 YM2151 fixed-sequence test.",
+      "author": "alsterium",
+      "url": "https://github.com/alsterium/rpcmp",
+      "version": "0.0.0-m2-local",
+      "date_release": "2026-09-01"
+    },
+    "framework": {
+      "target_product": "Analogue Pocket",
+      "version_required": "1.1",
+      "sleep_supported": false,
+      "dock": { "supported": true, "analog_output": false },
+      "hardware": { "link_port": false, "cartridge_adapter": -1 }
+    },
+    "cores": [
+      { "name": "m2-fixed", "id": 0, "filename": "m2fixed.rbf_r" }
+    ]
+  }
+}
