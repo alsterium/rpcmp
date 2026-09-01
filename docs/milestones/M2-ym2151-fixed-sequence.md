@@ -4,6 +4,11 @@ Status: active from 2026-09-01. M1 is complete. Begin with the host device
 operation contract and deterministic trace; no YM2151 RTL dependency is
 selected by this milestone document.
 
+Progress: slice 1 is complete. The v1 portable values and self-authored
+17-operation, 3.5-second sequence are implemented with a 254-byte exact golden
+trace. No scheduler, hardware protocol, third-party RTL, or audio adapter is
+claimed by this slice.
+
 ## Objective
 
 Produce one deterministic, synthetic YM2151 register sequence through the
