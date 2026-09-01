@@ -1,17 +1,20 @@
 # M2 — YM2151 Fixed Test Sequence
 
-Status: active from 2026-09-01. M1 is complete. Begin with the host device
-operation contract and deterministic trace; no YM2151 RTL dependency is
-selected by this milestone document.
+Status: active from 2026-09-01. M1 is complete. The milestone began with the
+host device operation contract and deterministic trace; ADR-0006 subsequently
+selected one pinned YM2151 RTL revision for local M2 verification.
 
-Progress: slices 1 through 3 are complete. The v1 portable values and self-authored
+Progress: slices 1 through 3 are complete. Slice 4 is partially complete: ADR-0006
+selects pinned JT51 for local M2 verification while prohibiting redistribution,
+but ADR-0004 remains unsuperseded and the Pocket execution substrate is not yet
+selected. The v1 portable values and self-authored
 17-operation, 3.5-second sequence are implemented with a 254-byte exact golden
 trace. A host scheduler now validates streams atomically and dispatches through
 a typed device port from a preallocated 64-entry maximum ring, with tested
 ordering, backpressure, full rejection, reset, fault, and time bounds. The
 CPU-local v1 MMIO/FIFO protocol and project-owned asynchronous-clock queue are
-specified and self-tested in RTL. No third-party sound RTL, APF integration, or
-audio adapter is claimed by these slices.
+specified and self-tested in RTL. No APF integration or audio adapter is
+claimed by these slices.
 
 ## Objective
 
@@ -110,7 +113,8 @@ unversioned or unconstrained build is diagnostic evidence, not acceptance.
   application layout permits bounded experiments but does not approve arbitrary
   firmware growth.
 - The pinned JT51 research fit demonstrates capacity and internal timing only.
-  It does not select JT51, connect 48 kHz Pocket audio, or authorize release.
+  ADR-0006 selects that exact revision for local M2 verification, but the fit
+  does not connect 48 kHz Pocket audio or authorize release.
 - Pocket's APF AUDIO rate is fixed at 48 kHz. Device clock and rational sample
   conversion must be specified and tested before hardware acceptance.
 - The literal tone and duration are not a fidelity oracle for later MDX work;
