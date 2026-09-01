@@ -179,6 +179,38 @@ authority; converting to rounded BPM is display-only. Equal-tick operations
 must preserve the historical channel service order after that order is proven
 by golden traces.
 
+## Frozen FM note-start observations
+
+The M3 implementation rechecked the pinned `portable_mdx` translation before
+adding device routing. For FM channels, the driver initializes pan to both
+outputs (`c0`), coarse volume to 8, detune to zero, and no selected voice.
+Commands update channel state; a selected voice is applied when the following
+note is serviced. An absent selected voice is therefore rejected before that
+note emits any register write.
+
+For a note, the observed register order is:
+
+1. If the voice changed, write four DT1/MUL values at `40+ch,+8...`, four TL
+   values at `60+ch,+8...` (carriers temporarily muted with `7f`), then the 16
+   KS/AR through D1L/RR values at `80` through `e0` in the same operator order.
+2. Write pan plus feedback/connection to `20+ch`.
+3. Compute `pitch = ((note & 7f) << 6) + 5 + detune`, clamp it to
+   `0000..17ff`, write `(pitch * 4) & ff` to `30+ch`, then translate
+   `pitch >> 6` through the YM2151 key-code table and write `28+ch`.
+4. Add the channel attenuation to the original TL bytes only for the carrier
+   mask selected by the algorithm, saturating at `7f`, and write those carrier
+   TL registers in operator order.
+5. Write `(slot_mask << 3) | ch` to register `08` for key-on.
+
+The carrier masks by connection number 0 through 7 are `08,08,08,08,0c,0e,0e,0f`.
+The coarse volume-to-attenuation table is
+`2a,28,25,22,20,1d,1a,18,15,12,10,0d,0a,08,05,02`; values with bit 7 set are
+direct attenuation values with that bit removed. `ff` writes register `12`,
+and `fe` retains its exact address/value and position. Gate expiry, delayed
+key-on, tie/key-off suppression, and per-tick portamento occur in separate
+tick lifecycle stages and must not be approximated inside this note-start
+mapping.
+
 ## Extension boundary for the first FM milestone
 
 The historical notes describe `e7` extensions added in +16/+17 (forced error,

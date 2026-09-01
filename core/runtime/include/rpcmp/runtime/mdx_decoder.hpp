@@ -45,6 +45,7 @@ enum class DecodeError : std::uint8_t {
   UnsupportedOpcode,
   UnsupportedExtension,
   UnsupportedPcm,
+  MissingVoice,
   BudgetExhausted,
 };
 
