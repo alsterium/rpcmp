@@ -1,14 +1,17 @@
 # M2 — YM2151 Fixed Test Sequence
 
-Status: active from 2026-09-01. M1 is complete. The milestone began with the
+Status: complete on 2026-09-01. M1 is complete. The milestone began with the
 host device operation contract and deterministic trace; ADR-0006 subsequently
 selected one pinned YM2151 RTL revision for local M2 verification.
 
-Progress: slices 1 through 5 are complete. ADR-0006 selects pinned JT51 for
+Progress: slices 1 through 6 are complete. ADR-0006 selects pinned JT51 for
 local M2 verification while prohibiting redistribution, and ADR-0007 selects a
 project-owned hardware sequencer strictly for M2 Pocket validation. ADR-0004
-remains unsuperseded for the production player substrate. Slice 6 has a
-validated local-only Pocket package and is waiting for hardware observation.
+remains unsuperseded for the production player substrate. Slice 6 used the
+validated local-only Pocket package on Pocket firmware 2.6: the initial launch,
+three warm relaunches, and one power-off restart all completed with audible
+audio and the expected blue-to-green state transition, followed by a ten-minute
+fault-free terminal-state run.
 The AUDIO specification and simulation include the pinned real JT51 source. The
 v1 portable values and self-authored
 17-operation, 3.5-second sequence are implemented with a 254-byte exact golden
@@ -18,8 +21,8 @@ ordering, backpressure, full rejection, reset, fault, and time bounds. The
 CPU-local v1 MMIO/FIFO protocol and project-owned asynchronous-clock queue are
 specified and self-tested in RTL. The project-owned rational-rate Pocket AUDIO
 adapter and JT51 command/sample binding are specified and self-tested. APF
-integration simulation, fit, timing, and package validation pass; only hardware
-audio, relaunch/reset, and sustained-run acceptance remain open.
+integration simulation, fit, timing, package validation, and all hardware
+acceptance checks pass.
 
 ## Objective
 

@@ -57,3 +57,13 @@ sequence is audible, final color, three warm relaunches, one power-off restart,
 and at least a ten-minute terminal-state run. Green proves queue completion,
 not audio fidelity by itself; acceptance requires both audible completion and
 no red terminal state.
+
+### Accepted result — 2026-09-01
+
+The checksum-recorded package above passed on Pocket firmware 2.6. The initial
+launch displayed blue and then green, and the complete fixed sequence was
+audible. Three warm relaunches and one restart after powering the Pocket off
+also completed successfully. The final green state remained stable for ten
+minutes without a red fault indication. This satisfies the M2 hardware audio,
+terminal-state, relaunch/reset, power-cycle, and sustained-run acceptance
+criteria.
