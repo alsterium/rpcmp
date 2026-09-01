@@ -22,8 +22,12 @@ module rpcmp_device_queue #(
     logic overflow_sticky, invalid_sticky, inflight;
     logic [1:0] transfer_kind;
     logic [7:0] transfer_address, transfer_value;
-    logic request_toggle, ack_toggle, ack_sync_1, ack_sync_2, ack_seen;
-    logic request_sync_1, request_sync_2, request_seen;
+    logic request_toggle, ack_toggle, ack_seen;
+    (* altera_attribute = "-name SYNCHRONIZER_IDENTIFICATION FORCED_IF_ASYNCHRONOUS" *)
+    logic ack_sync_1, ack_sync_2;
+    (* altera_attribute = "-name SYNCHRONIZER_IDENTIFICATION FORCED_IF_ASYNCHRONOUS" *)
+    logic request_sync_1, request_sync_2;
+    logic request_seen;
 
     wire queue_full = (count == DEPTH);
     wire push_address = (mmio_addr == BASE_ADDR + 32'h20);
