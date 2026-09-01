@@ -16,7 +16,9 @@ rejects PCM8, and passes every-byte truncation plus offset, overlap, voice,
 limit, and malformed-header tests. The non-executing track decoder now admits
 only the approved fixed-boundary subset, reports unsupported extensions without
 guessing their length, and transactionally rejects active P-track intent.
-Control flow and semantic/device traces are not executed yet.
+The admitted bytes are also converted to endian-independent typed semantics,
+with duration expansion and signed operands covered by exact golden cases.
+Control flow and device traces are not executed yet.
 
 ## Objective
 
