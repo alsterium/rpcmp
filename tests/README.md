@@ -42,7 +42,9 @@ pwsh -File tools/rtl-jt51-verify.ps1
 ```
 
 This second command refuses a different revision or local JT51 changes and does
-not copy GPL source or generated output into the repository.
+not copy GPL source or generated output into the repository. It also runs the
+complete fixed-sequence state machine through the production MMIO queue and
+requires 30 ordered JT51 address/data writes plus native audio samples.
 
 Run the reproducible Quartus template-integration build separately with:
 

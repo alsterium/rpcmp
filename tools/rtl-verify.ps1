@@ -44,8 +44,8 @@ if ($versionText -notmatch '2025\.2') {
 
 $outputDirectory = Join-Path $repositoryRoot 'out\sim\pocket-spike'
 $workLibrary = Join-Path $outputDirectory 'work'
-$rtlSources = @((Join-Path $repositoryRoot 'core\rtl\pocket\rpcmp_spike_regs.sv'), (Join-Path $repositoryRoot 'core\rtl\pocket\rpcmp_device_queue.sv'), (Join-Path $repositoryRoot 'core\rtl\pocket\rpcmp_pocket_audio.sv'), (Join-Path $repositoryRoot 'core\rtl\pocket\rpcmp_jt51_audio.sv'))
-$testSources = @((Join-Path $repositoryRoot 'tests\rtl\pocket_spike_tb.sv'), (Join-Path $repositoryRoot 'tests\rtl\device_queue_tb.sv'), (Join-Path $repositoryRoot 'tests\rtl\pocket_audio_tb.sv'), (Join-Path $repositoryRoot 'tests\rtl\jt51_model.sv'), (Join-Path $repositoryRoot 'tests\rtl\jt51_audio_tb.sv'))
+$rtlSources = @((Join-Path $repositoryRoot 'core\rtl\pocket\rpcmp_spike_regs.sv'), (Join-Path $repositoryRoot 'core\rtl\pocket\rpcmp_device_queue.sv'), (Join-Path $repositoryRoot 'core\rtl\pocket\rpcmp_pocket_audio.sv'), (Join-Path $repositoryRoot 'core\rtl\pocket\rpcmp_jt51_audio.sv'), (Join-Path $repositoryRoot 'core\rtl\pocket\rpcmp_m2_fixed_core.sv'))
+$testSources = @((Join-Path $repositoryRoot 'tests\rtl\pocket_spike_tb.sv'), (Join-Path $repositoryRoot 'tests\rtl\device_queue_tb.sv'), (Join-Path $repositoryRoot 'tests\rtl\pocket_audio_tb.sv'), (Join-Path $repositoryRoot 'tests\rtl\jt51_model.sv'), (Join-Path $repositoryRoot 'tests\rtl\jt51_audio_tb.sv'), (Join-Path $repositoryRoot 'tests\rtl\m2_fixed_core_tb.sv'))
 
 New-Item -ItemType Directory -Force -Path $outputDirectory | Out-Null
 Push-Location $outputDirectory
@@ -67,7 +67,7 @@ try {
         throw 'RTL compilation passed, but simulation requires SALT_LICENSE_SERVER to reference a valid Questa Starter license.'
     }
 
-    foreach ($simulation in @(@{Top='pocket_spike_tb'; Marker='pocket_spike_tb: PASS'}, @{Top='device_queue_tb'; Marker='device_queue_tb: PASS'}, @{Top='pocket_audio_tb'; Marker='pocket_audio_tb: PASS'}, @{Top='jt51_audio_tb'; Marker='jt51_audio_tb: PASS'})) {
+    foreach ($simulation in @(@{Top='pocket_spike_tb'; Marker='pocket_spike_tb: PASS'}, @{Top='device_queue_tb'; Marker='device_queue_tb: PASS'}, @{Top='pocket_audio_tb'; Marker='pocket_audio_tb: PASS'}, @{Top='jt51_audio_tb'; Marker='jt51_audio_tb: PASS'}, @{Top='m2_fixed_core_tb'; Marker='m2_fixed_core_tb: PASS'})) {
         $simulationOutput = @(& $vsim -c -quiet -lib work $simulation.Top -do 'onerror {quit -code 1}; run -all; quit -code 0' 2>&1)
         $simulationExitCode = $LASTEXITCODE
         $simulationOutput | Write-Output

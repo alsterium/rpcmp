@@ -28,10 +28,15 @@ try {
     & $vlog -quiet -sv -work work $sources `
         (Join-Path $root 'core\rtl\pocket\rpcmp_pocket_audio.sv') `
         (Join-Path $root 'core\rtl\pocket\rpcmp_jt51_audio.sv') `
-        (Join-Path $root 'tests\rtl\jt51_audio_tb.sv')
+        (Join-Path $root 'core\rtl\pocket\rpcmp_device_queue.sv') `
+        (Join-Path $root 'core\rtl\pocket\rpcmp_m2_fixed_core.sv') `
+        (Join-Path $root 'tests\rtl\jt51_audio_tb.sv') `
+        (Join-Path $root 'tests\rtl\m2_fixed_core_tb.sv')
     if ($LASTEXITCODE) { throw 'vlog failed.' }
-    $lines = @(& $vsim -c -quiet -lib work jt51_audio_tb -do 'onerror {quit -code 1}; run -all; quit -code 0' 2>&1)
-    $code = $LASTEXITCODE; $lines | Write-Output; $text = $lines | Out-String
-    if ($code -ne 0 -or $text -notmatch '(?m)^# jt51_audio_tb: PASS writes=30\r?$' -or
-        $text -notmatch '(?m)^# Errors: 0, Warnings: 0\r?$') { throw 'Real JT51 integration simulation failed.' }
+    foreach($simulation in @(@{Top='jt51_audio_tb';Marker='jt51_audio_tb: PASS writes=30'},@{Top='m2_fixed_core_tb';Marker='m2_fixed_core_tb: PASS writes=30'})) {
+        $lines = @(& $vsim -c -quiet -lib work $simulation.Top -do 'onerror {quit -code 1}; run -all; quit -code 0' 2>&1)
+        $code = $LASTEXITCODE; $lines | Write-Output; $text = $lines | Out-String
+        if ($code -ne 0 -or $text -notmatch "(?m)^# $([regex]::Escape($simulation.Marker)).*\r?$" -or
+            $text -notmatch '(?m)^# Errors: 0, Warnings: 0\r?$') { throw "Real JT51 simulation failed: $($simulation.Top)" }
+    }
 } finally { Pop-Location }

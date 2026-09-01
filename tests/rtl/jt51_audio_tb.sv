@@ -3,6 +3,7 @@ module jt51_audio_tb;
     logic clk_audio=0,reset_n=0,clear_audio_flags=0,dev_valid=0;
     logic dev_ready; logic [1:0] dev_kind=0; logic [7:0] dev_address=0,dev_value=0;
     logic audio_mclk,audio_lrck,audio_dac,audio_underflow,audio_overflow,audio_clipped;
+    logic device_idle;
     logic [31:0] selected_count,frame_count;
     integer writes=0,index,timeout;
     logic [15:0] observed [0:31];

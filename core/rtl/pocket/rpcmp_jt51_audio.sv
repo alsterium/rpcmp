@@ -13,6 +13,7 @@ module rpcmp_jt51_audio (
     output logic audio_underflow,
     output logic audio_overflow,
     output logic audio_clipped,
+    output logic device_idle,
     output logic [31:0] selected_count,
     output logic [31:0] frame_count
 );
@@ -33,6 +34,7 @@ module rpcmp_jt51_audio (
     assign cen_sum = {1'b0,cen_accum}+26'd3579545;
     assign jt_reset = !reset_n || state==RESET_HOLD;
     assign dev_ready = state==IDLE && (dev_kind==0 || dev_kind==1);
+    assign device_idle = state==IDLE;
 
     always_ff @(posedge clk_audio or negedge reset_n) begin
         if(!reset_n) begin
