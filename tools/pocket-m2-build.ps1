@@ -1,5 +1,5 @@
 [CmdletBinding()]
-param([ValidateSet('m2','m4')][string]$Variant='m2')
+param([ValidateSet('m2','m4','stereo')][string]$Variant='m2')
 
 $ErrorActionPreference='Stop'
 $root=(Resolve-Path (Join-Path $PSScriptRoot '..')).Path
@@ -14,8 +14,8 @@ if((& git -C $jt51 rev-parse HEAD).Trim() -ne $jt51Revision){throw 'JT51 revisio
 if(((& git -C $jt51 status --porcelain|Out-String).Trim())){throw 'Pinned JT51 checkout has local changes.'}
 if((& $quartusSh --version 2>&1|Out-String) -notmatch '25\.1std\.0 Build 1129'){throw 'Quartus version mismatch.'}
 
-$coreSource=if($Variant -eq 'm4'){'rpcmp_m4_mdx_core.sv'}else{'rpcmp_m2_fixed_core.sv'}
-$coreModule=if($Variant -eq 'm4'){'rpcmp_m4_mdx_core'}else{'rpcmp_m2_fixed_core'}
+$coreSource=switch($Variant){'m4' {'rpcmp_m4_mdx_core.sv'} 'stereo' {'rpcmp_stereo_probe_core.sv'} default {'rpcmp_m2_fixed_core.sv'}}
+$coreModule=switch($Variant){'m4' {'rpcmp_m4_mdx_core'} 'stereo' {'rpcmp_stereo_probe_core'} default {'rpcmp_m2_fixed_core'}}
 $output=Join-Path $root "out\pocket-$Variant";$build=Join-Path $output 'core-template';$archive=Join-Path $output 'template.zip'
 $outputFull=[IO.Path]::GetFullPath($output).TrimEnd('\')+'\';$buildFull=[IO.Path]::GetFullPath($build)
 if(-not $buildFull.StartsWith($outputFull,[StringComparison]::OrdinalIgnoreCase)){throw 'Unsafe build path.'}

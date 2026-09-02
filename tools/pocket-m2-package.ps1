@@ -1,5 +1,5 @@
 [CmdletBinding()]
-param([ValidateSet('m2','m4')][string]$Variant='m2')
+param([ValidateSet('m2','m4','stereo')][string]$Variant='m2')
 
 $ErrorActionPreference='Stop'
 function Assert([bool]$condition,[string]$message){if(-not $condition){throw $message}}
@@ -25,7 +25,7 @@ Assert (@($docs.data.data_slots).Count -eq 0 -and @($docs.input.controllers).Cou
 Assert (@($docs.video.scaler_modes).Count -eq 1 -and $docs.video.scaler_modes[0].width -eq 320 -and $docs.video.scaler_modes[0].height -eq 240) 'M2 video mode mismatch.'
 
 $output=Join-Path $root "out\pocket-$Variant\package";$sd=Join-Path $output 'sd'
-$folder=if($Variant -eq 'm4'){'alsterium.RPCMP M4'}else{'alsterium.RPCMP M2'}
+$folder=switch($Variant){'m4' {'alsterium.RPCMP M4'} 'stereo' {'alsterium.RPCMP Stereo'} default {'alsterium.RPCMP M2'}}
 $coreOut=Join-Path $sd "Cores\$folder"
 $outputFull=[IO.Path]::GetFullPath($output).TrimEnd('\')+'\';$sdFull=[IO.Path]::GetFullPath($sd)
 Assert ($sdFull.StartsWith($outputFull,[StringComparison]::OrdinalIgnoreCase)) 'Unsafe package path.'
@@ -39,10 +39,17 @@ if($Variant -eq 'm4'){
     $coreDoc.core.cores[0].name='m4-mdx';$coreDoc.core.cores[0].filename='m4mdx.rbf_r'
     $coreDoc|ConvertTo-Json -Depth 32|Set-Content $corePath -Encoding ascii
 }
+elseif($Variant -eq 'stereo'){
+    $corePath=Join-Path $coreOut 'core.json';$coreDoc=Get-Content -Raw $corePath|ConvertFrom-Json -Depth 32
+    $coreDoc.core.metadata.shortname='RPCMP Stereo';$coreDoc.core.metadata.description='Local YM2151 stereo channel mapping test.'
+    $coreDoc.core.metadata.version='0.7.1-stereo-local';$coreDoc.core.metadata.date_release='2026-09-02'
+    $coreDoc.core.cores[0].name='stereo-probe';$coreDoc.core.cores[0].filename='stereo.rbf_r'
+    $coreDoc|ConvertTo-Json -Depth 32|Set-Content $corePath -Encoding ascii
+}
 $packagedCore=Get-Content -Raw (Join-Path $coreOut 'core.json')|ConvertFrom-Json -Depth 32
-$expectedShortname=if($Variant -eq 'm4'){'RPCMP M4'}else{'RPCMP M2'}
-$expectedVersion=if($Variant -eq 'm4'){'0.7.0-m4-local'}else{'0.0.0-m2-local'}
-$expectedRbf=if($Variant -eq 'm4'){'m4mdx.rbf_r'}else{'m2fixed.rbf_r'}
+$expectedShortname=switch($Variant){'m4' {'RPCMP M4'} 'stereo' {'RPCMP Stereo'} default {'RPCMP M2'}}
+$expectedVersion=switch($Variant){'m4' {'0.7.0-m4-local'} 'stereo' {'0.7.1-stereo-local'} default {'0.0.0-m2-local'}}
+$expectedRbf=switch($Variant){'m4' {'m4mdx.rbf_r'} 'stereo' {'stereo.rbf_r'} default {'m2fixed.rbf_r'}}
 Assert ($packagedCore.core.magic -ceq 'APF_VER_1' -and
         $packagedCore.core.metadata.shortname -ceq $expectedShortname -and
         $packagedCore.core.metadata.version -ceq $expectedVersion -and
@@ -59,7 +66,7 @@ for($index=0;$index -lt $native.Length;$index++){if($table[$converted[$index]] -
 
 $expected=@($roots.Keys)+$rbfName|Sort-Object;$actual=@(Get-ChildItem $coreOut -File|ForEach-Object Name|Sort-Object)
 Assert (@(Compare-Object $expected $actual).Count -eq 0) 'Package allowlist mismatch.'
-$zipName=if($Variant -eq 'm4'){'alsterium.RPCMP-M4_0.7.0-m4-local_2026-09-02.zip'}else{'alsterium.RPCMP-M2_0.0.0-m2-local_2026-09-01.zip'}
+$zipName=switch($Variant){'m4' {'alsterium.RPCMP-M4_0.7.0-m4-local_2026-09-02.zip'} 'stereo' {'alsterium.RPCMP-Stereo_0.7.1-stereo-local_2026-09-02.zip'} default {'alsterium.RPCMP-M2_0.0.0-m2-local_2026-09-01.zip'}}
 $zip=Join-Path $output $zipName
 if(Test-Path $zip){Remove-Item -LiteralPath $zip -Force}
 Compress-Archive -LiteralPath (Join-Path $sd 'Cores') -DestinationPath $zip -CompressionLevel Optimal

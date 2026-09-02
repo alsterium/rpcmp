@@ -25,6 +25,10 @@ self-authored MDX probe trace. Its 33 RTL literals are mechanically compared
 with `specs/fixtures/mdx-fm-probe-trace-v1.csv`, which is independently compared
 with fresh C++ parser-to-scheduler output.
 
+`pocket/rpcmp_stereo_probe_core.sv` is the bounded M4S channel-mapping
+diagnostic. It emits separated logical-left and logical-right tones through the
+same queue, JT51, and Pocket AUDIO path before real-file playback work begins.
+
 `pocket/rpcmp_device_queue.sv` is the project-owned M2 v1 CPU-to-device queue.
 Its CPU-local MMIO map, eight-entry FIFO, due-time behavior, backpressure,
 reset, and bundled-data toggle CDC are defined in
