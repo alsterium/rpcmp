@@ -24,9 +24,9 @@ MdxIngestResult ingest_single_mdx(const runtime::mdx::ByteView source,
 
   NormalizedLibrary normalized;
   normalized.blobs.push_back(
-      {kMdxFourcc, std::vector<std::uint8_t>(source.data, source.data + source.size)});
+      {library::kMdxFourcc, std::vector<std::uint8_t>(source.data, source.data + source.size)});
   NormalizedTrack track;
-  track.format = kMdxFourcc;
+  track.format = library::kMdxFourcc;
   track.primary_blob_index = 0;
   track.title = metadata.title;
   track.artist = metadata.artist;

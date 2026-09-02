@@ -62,10 +62,10 @@ int main() {
   RPCMP_CHECK(suite, library.track_count() == 1);
   RPCMP_CHECK(suite, library.blob_count() == 1);
   const auto blob_id =
-      rpcmp::utility::stable_blob_id(rpcmp::utility::kMdxFourcc, {source.data(), source.size()});
+      rpcmp::utility::stable_blob_id(rpcmp::library::kMdxFourcc, {source.data(), source.size()});
   rpcmp::library::BlobView blob;
   RPCMP_CHECK(suite, library.find_blob(blob_id, blob));
-  RPCMP_CHECK(suite, blob.kind == rpcmp::utility::kMdxFourcc);
+  RPCMP_CHECK(suite, blob.kind == rpcmp::library::kMdxFourcc);
   RPCMP_CHECK(suite, blob.bytes.size == source.size());
   RPCMP_CHECK(suite, std::equal(source.begin(), source.end(), blob.bytes.data,
                                 blob.bytes.data + blob.bytes.size));

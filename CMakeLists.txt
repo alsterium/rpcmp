@@ -115,6 +115,12 @@ target_include_directories(rpcmp_library PUBLIC core/library/include)
 target_link_libraries(rpcmp_library PUBLIC rpcmp_contracts)
 rpcmp_production_options(rpcmp_library)
 
+add_library(rpcmp_player STATIC
+  core/player/src/mdx_library_session.cpp)
+target_include_directories(rpcmp_player PUBLIC core/player/include)
+target_link_libraries(rpcmp_player PUBLIC rpcmp_library rpcmp_runtime)
+rpcmp_production_options(rpcmp_player)
+
 add_library(rpcmp_utility STATIC
   utility/src/mdx_ingest.cpp
   utility/src/stable_id.cpp
@@ -295,6 +301,14 @@ if(BUILD_TESTING)
   target_compile_definitions(rpcmp_mdx_ingest_tests PRIVATE RPCMP_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
   rpcmp_test_options(rpcmp_mdx_ingest_tests)
   add_test(NAME mdx_ingest COMMAND rpcmp_mdx_ingest_tests)
+
+  add_executable(rpcmp_mdx_library_session_tests tests/player/mdx_library_session_tests.cpp)
+  target_include_directories(rpcmp_mdx_library_session_tests PRIVATE tests/support)
+  target_link_libraries(rpcmp_mdx_library_session_tests PRIVATE rpcmp_player rpcmp_utility)
+  target_compile_definitions(rpcmp_mdx_library_session_tests
+    PRIVATE RPCMP_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
+  rpcmp_test_options(rpcmp_mdx_library_session_tests)
+  add_test(NAME mdx_library_session COMMAND rpcmp_mdx_library_session_tests)
 
   add_executable(rpcmp_m1_acceptance_tests tests/library/m1_acceptance_tests.cpp)
   target_include_directories(rpcmp_m1_acceptance_tests PRIVATE tests/support)

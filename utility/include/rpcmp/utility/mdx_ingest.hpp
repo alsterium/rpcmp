@@ -1,6 +1,7 @@
 #ifndef RPCMP_UTILITY_MDX_INGEST_HPP
 #define RPCMP_UTILITY_MDX_INGEST_HPP
 
+#include "rpcmp/library/formats.hpp"
 #include "rpcmp/runtime/mdx_engine.hpp"
 #include "rpcmp/utility/writer.hpp"
 
@@ -9,8 +10,6 @@
 #include <vector>
 
 namespace rpcmp::utility {
-
-inline constexpr std::uint32_t kMdxFourcc = 0x2058444DU;
 
 struct MdxIngestMetadata {
   std::string title;
