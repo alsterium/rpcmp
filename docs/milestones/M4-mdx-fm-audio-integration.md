@@ -1,8 +1,8 @@
 # M4 — MDX FM Audio Integration
 
-Status: active. M3 is complete. All host, architectural, behavioral RTL,
-pinned real-JT51, Quartus, and packaging gates pass. Only Pocket hardware
-acceptance remains before completion.
+Status: complete on 2026-09-02. All host, architectural, behavioral RTL,
+pinned real-JT51, Quartus, packaging, and Pocket hardware acceptance gates
+pass.
 
 Build evidence on 2026-09-02: Quartus 25.1std.0 Build 1129 used official
 template `da3a021b1eaf742604d86d8dc9b33a6666263e6a` and JT51
@@ -55,9 +55,9 @@ still-gated general-purpose execution substrate.
    unconstrained external ports under the accepted M2 constraint policy.
 4. APF JSON roots, metadata, paths, bit reversal, package allowlist, and ZIP
    roots validate; hashes and sizes are recorded before SD installation.
-5. On Pocket firmware 2.6, the screen starts blue, the brief FM sound is
-   audible, and the screen reaches green rather than red. One warm relaunch and
-   one power-off cold start reproduce the result.
+5. On Pocket firmware 2.6, the screen starts blue, the expected periodic FM
+   sound is audible, and the screen reaches green rather than red. One warm
+   relaunch and one power-off cold start reproduce the result.
 6. Host tests, formatting, static analysis, architecture checks, and all
    affected RTL tests remain green.
 
@@ -72,4 +72,16 @@ still-gated general-purpose execution substrate.
 5. Power Pocket fully off, start it again, relaunch `RPCMP M4`, and repeat.
 6. Report firmware, initial result, relaunch result, and power-off result.
 
-This milestone is complete only after those hardware results are recorded.
+## Pocket hardware result
+
+Pocket firmware 2.6 passed on 2026-09-02. The initial launch reached blue then
+green, produced the expected periodic FM sound, and showed no red fault screen.
+Both a warm relaunch and a launch after full power-off also passed.
+
+The sound was heard from the physical left output only. This is expected to be
+single-sided for this fixture: after the driver's initial both-output channel
+control write (`YM2151 $20=$c0`), the self-authored MDX deliberately performs a
+direct `YM2151 $20=$55` write, which leaves only one YM2151 output-enable bit
+set. This result proves audible trace playback but does not prove Pocket
+left/right channel mapping. A later dedicated stereo probe must drive distinct
+signals to both logical outputs and verify their physical mapping.

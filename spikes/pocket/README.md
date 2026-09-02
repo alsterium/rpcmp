@@ -163,6 +163,15 @@ The current M4 local audio package is
 `out/pocket-m4/package/alsterium.RPCMP-M4_0.7.0-m4-local_2026-09-02.zip`
 (223,039 bytes, SHA-256
 `CAA31934F2B2B1EB1E2622AF67B4E5BB191DA8BF6C06F3C9E8AD9C680F944890`).
+
+The M4 hardware gate passed on Pocket firmware 2.6: the initial launch reached
+blue then green with the expected periodic FM sound and no red fault screen;
+warm restart and power-off cold start also passed. Audio was heard from the
+physical left output only. The fixture intentionally writes `YM2151 $20=$55`
+after its initial `$20=$c0`, leaving one output-enable bit set, so single-sided
+audio is expected here. This probe does not establish the logical-to-physical
+left/right mapping; that requires a dedicated stereo fixture.
+
 It feeds the exact M3 self-authored 33-write trace through the v1 queue, pinned
 JT51, and 48 kHz Pocket AUDIO path. Launch `RPCMP M4` from Developer Builds:
 blue means running, green means the queue drained and JT51 became idle, and red
