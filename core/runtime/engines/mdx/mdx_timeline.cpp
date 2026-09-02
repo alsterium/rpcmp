@@ -29,7 +29,7 @@ DecodeResult stamp_ym2151_tick(const DocumentTickBatch& actions, const Ym2151Wri
   const auto elapsed = numerator / kMdxOpmClockHz;
   scratch.candidate_state.remainder = numerator % kMdxOpmClockHz;
   if (elapsed > std::numeric_limits<std::uint64_t>::max() - state.scheduler_tick) {
-    return {DecodeError::BudgetExhausted, 0, 0xff};
+    return {DecodeError::ArithmeticOverflow, 0, 0xff};
   }
   scratch.candidate_state.scheduler_tick = state.scheduler_tick + elapsed;
 

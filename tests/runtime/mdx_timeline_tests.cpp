@@ -1,6 +1,8 @@
 #include "rpcmp/runtime/mdx_timeline.hpp"
 #include "test_support.hpp"
 
+#include <limits>
+
 int main() {
   rpcmp::test::Suite suite;
   rpcmp::runtime::mdx::DocumentTickBatch actions{};
@@ -47,6 +49,14 @@ int main() {
   RPCMP_CHECK(suite, state.scheduler_tick == before.scheduler_tick);
   RPCMP_CHECK(suite, timed.count == 1);
   RPCMP_CHECK(suite, timed.writes[0].at_tick == 99);
+
+  state.scheduler_tick = std::numeric_limits<std::uint64_t>::max();
+  state.remainder = 0;
+  const auto overflow =
+      rpcmp::runtime::mdx::stamp_ym2151_tick(actions, writes, 48'000, state, timed, scratch);
+  RPCMP_CHECK(suite, overflow.error == rpcmp::runtime::mdx::DecodeError::ArithmeticOverflow);
+  RPCMP_CHECK(suite, state.scheduler_tick == std::numeric_limits<std::uint64_t>::max());
+  RPCMP_CHECK(suite, state.remainder == 0);
 
   return suite.finish("mdx rational timeline");
 }
