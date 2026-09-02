@@ -38,6 +38,8 @@ before the first tick.
 The first self-authored FM fixture now passes a reproducible differential check
 against pinned independent `mdxtools`; exact-order agreements and the approved
 note-write differences are recorded in the MDX research report.
+Headless playback and playback interleaved with repeated real UI rendering now
+produce identical timestamped device traces through the bounded scheduler.
 
 ## Objective
 
