@@ -40,6 +40,11 @@ against pinned independent `mdxtools`; exact-order agreements and the approved
 note-write differences are recorded in the MDX research report.
 Headless playback and playback interleaved with repeated real UI rendering now
 produce identical timestamped device traces through the bounded scheduler.
+A cross-target Pocket probe now embeds the same self-authored FM fixture and
+checks its parse-to-scheduler digest against the host result. The RISC-V ELF,
+desktop SDK shim, APF definitions, package layout, and hardware-proven safe
+OS/RBF all pass automated verification. Firmware 2.6 execution of the
+`0.6.0-m3` package is the remaining acceptance gate.
 
 ## Objective
 

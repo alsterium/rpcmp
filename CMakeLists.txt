@@ -137,7 +137,8 @@ target_link_libraries(rpcmp_mock_ui_m0 PRIVATE rpcmp_ui)
 rpcmp_production_options(rpcmp_mock_ui_m0)
 
 add_library(rpcmp_pocket_comparison_probe STATIC
-  spikes/pocket/common/src/comparison_probe.cpp)
+  spikes/pocket/common/src/comparison_probe.cpp
+  spikes/pocket/common/src/mdx_hardware_probe.cpp)
 target_include_directories(rpcmp_pocket_comparison_probe PUBLIC
   spikes/pocket/common/include)
 target_link_libraries(rpcmp_pocket_comparison_probe PUBLIC rpcmp_runtime)

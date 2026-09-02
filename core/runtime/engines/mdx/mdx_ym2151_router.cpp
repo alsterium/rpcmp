@@ -119,7 +119,7 @@ std::uint16_t compute_gate_ticks(const Ym2151ChannelState& state,
     return static_cast<std::uint16_t>(
         (static_cast<std::uint16_t>(state.gate_parameter) * raw) / 8U + 1U);
   }
-  const auto sum = static_cast<std::uint16_t>(state.gate_parameter) + raw;
+  const auto sum = static_cast<std::uint32_t>(state.gate_parameter) + raw;
   return sum >= 0x100U ? static_cast<std::uint16_t>((sum & 0xffU) + 1U) : 1U;
 }
 

@@ -130,6 +130,30 @@ these exact paths from the SD card, then extract
 /Platforms/rpcmp_probe.json
 ```
 
+The current M3 cross-target package is `0.6.0-m3`. Its ZIP is 1,070,541 bytes
+with SHA-256
+`C3B595D29A6D6D4FB08A207B86CE6505E88238C6FAE373B755A5A8B2CE30EE1D`.
+It embeds a 93-byte self-authored FM-only MDX and runs it through structural
+parsing, playback preparation, four driver ticks, rational 48 kHz timing, the
+fixed-capacity scheduler bridge, and the device scheduler. No local corpus MDX
+or copyrighted music is included. The hardware-proven safe OS and RBF remain
+byte-identical to the M1 package.
+
+On launch, confirm these additional rows before completing the unchanged input
+sequence below:
+
+```text
+MDX: PASS W=33 T=2752
+MDX D=326b24326bc7b40f
+```
+
+The digest is FNV-1a over each dispatched scheduler tick in little-endian form,
+followed by its YM2151 address and value. Any parser, preparation, sequencing,
+timing, queueing, or dispatch mismatch stops before the interactive input
+probe and displays `MDX: FAIL`. On firmware 2.6, record the MDX rows, final
+`OVERALL: PASS`, three warm restarts, and one power-off cold start. This is the
+remaining M3 hardware acceptance gate; it does not exercise YM2151 audio RTL.
+
 The current M1 bounded-library package is `0.5.39-m1`. Its ZIP is 1,057,657
 bytes with SHA-256
 `548E38DE6C99511CE372E083B6CC24869520AD18702DFC0D3C65621150EB8E22`.

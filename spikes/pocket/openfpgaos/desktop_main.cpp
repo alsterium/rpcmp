@@ -1,4 +1,5 @@
 #include "rpcmp/spike/comparison_probe.hpp"
+#include "rpcmp/spike/mdx_hardware_probe.hpp"
 
 int of_file_read(std::uint32_t slot_id, std::uint32_t offset, void* destination,
                  std::uint32_t length);
@@ -88,10 +89,12 @@ int main() {
   const auto observed = rpcmp::spike::run_comparison_probe(blob, &observer);
   const auto headless = rpcmp::spike::run_comparison_probe(blob);
   const auto workload = rpcmp::spike::run_runtime_workload();
-  const bool passed =
-      rpcmp::spike::matches_golden(observed) && rpcmp::spike::matches_golden(headless) &&
-      rpcmp::spike::equivalent_semantics(observed, headless) &&
-      observer.last_sequence() == observed.final_snapshot_sequence && workload.passed();
+  const auto mdx = rpcmp::spike::run_mdx_hardware_probe();
+  const bool passed = rpcmp::spike::matches_golden(observed) &&
+                      rpcmp::spike::matches_golden(headless) &&
+                      rpcmp::spike::equivalent_semantics(observed, headless) &&
+                      observer.last_sequence() == observed.final_snapshot_sequence &&
+                      workload.passed() && mdx.passed();
 
   std::printf("snapshots=%llu\n", static_cast<unsigned long long>(observed.snapshot_count));
   std::printf("snapshot_digest=%llu\n", static_cast<unsigned long long>(observed.snapshot_digest));
@@ -105,6 +108,10 @@ int main() {
               static_cast<unsigned long long>(workload.event_digest));
   std::printf("workload_write_digest=%llu\n",
               static_cast<unsigned long long>(workload.write_digest));
+  std::printf("mdx_ticks=%lu\n", static_cast<unsigned long>(mdx.driver_ticks));
+  std::printf("mdx_writes=%lu\n", static_cast<unsigned long>(mdx.writes));
+  std::printf("mdx_end_tick=%llu\n", static_cast<unsigned long long>(mdx.end_tick));
+  std::printf("mdx_digest=%llu\n", static_cast<unsigned long long>(mdx.write_digest));
   std::printf("result=%s\n", passed ? "PASS" : "FAIL");
   return passed ? 0 : 1;
 }

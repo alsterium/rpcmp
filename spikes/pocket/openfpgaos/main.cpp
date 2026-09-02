@@ -1,5 +1,6 @@
 #include "rpcmp/library/logical_library.hpp"
 #include "rpcmp/spike/comparison_probe.hpp"
+#include "rpcmp/spike/mdx_hardware_probe.hpp"
 
 #include <cstdint>
 #include <cstdio>
@@ -119,7 +120,8 @@ private:
   std::uint64_t last_sequence_{};
 };
 
-void print_result(const rpcmp::spike::ProbeRunResult& result, const bool library_passed,
+void print_result(const rpcmp::spike::ProbeRunResult& result,
+                  const rpcmp::spike::MdxHardwareProbeResult& mdx, const bool library_passed,
                   const bool passed) {
   std::printf("RPCMP openfpgaOS probe\n\n");
   std::printf("slot4_bytes=%lu\n", static_cast<unsigned long>(result.blob_size));
@@ -141,6 +143,10 @@ void print_result(const rpcmp::spike::ProbeRunResult& result, const bool library
   std::printf("final_sequence=%llu\n",
               static_cast<unsigned long long>(result.final_snapshot_sequence));
   std::printf("LIBRARY: %s\n", library_passed ? "PASS" : "FAIL");
+  std::printf("MDX: %s W=%lu T=%llu\n", mdx.passed() ? "PASS" : "FAIL",
+              static_cast<unsigned long>(mdx.writes),
+              static_cast<unsigned long long>(mdx.end_tick));
+  std::printf("MDX digest=%016llx\n", static_cast<unsigned long long>(mdx.write_digest));
   std::printf("\nRESULT: %s\n", passed ? "PASS" : "FAIL");
   std::printf("Open the Pocket menu to exit.\n");
 }
@@ -198,10 +204,14 @@ void print_interactive(const rpcmp::spike::TargetReadProfile& fixed_16,
                        const rpcmp::spike::TargetReadProfile& fixed_4096,
                        const rpcmp::spike::RuntimeWorkloadProfile& headless_workload,
                        const rpcmp::spike::RuntimeWorkloadProfile& observed_workload,
+                       const rpcmp::spike::MdxHardwareProbeResult& mdx,
                        const rpcmp::spike::InteractiveCommandProbe& probe) {
   std::printf("\033[2J\033[H");
   std::printf("RPCMP runtime workload probe\n");
   std::printf("AUTO/QUEUE: PASS\n");
+  std::printf("MDX: PASS W=%lu T=%llu\n", static_cast<unsigned long>(mdx.writes),
+              static_cast<unsigned long long>(mdx.end_tick));
+  std::printf("MDX D=%016llx\n", static_cast<unsigned long long>(mdx.write_digest));
   print_profile("F16", fixed_16);
   print_profile("R16", rotating_16);
   print_profile("F256", fixed_256);
@@ -219,7 +229,7 @@ void print_interactive(const rpcmp::spike::TargetReadProfile& fixed_16,
   std::printf("state=%s seq=%llu\n\n", transport_name(probe.latest().transport),
               static_cast<unsigned long long>(probe.latest().sequence));
   if (probe.completed()) {
-    std::printf("INPUT: PASS\nOVERALL: PASS\n");
+    std::printf("MDX: PASS\nINPUT: PASS\nOVERALL: PASS\n");
     std::printf("Open Pocket menu to exit.\n");
     return;
   }
@@ -292,11 +302,12 @@ int main() {
                                 rpcmp::spike::equivalent_runtime_workload(
                                     headless_workload.reference, observed_workload.reference);
   const bool library_passed = verify_library_blob();
-  print_result(observed, library_passed,
+  const auto mdx = rpcmp::spike::run_mdx_hardware_probe();
+  print_result(observed, mdx, library_passed,
                passed && latency.passed() && profiles_passed && queue_passed && workloads_passed &&
-                   library_passed);
+                   library_passed && mdx.passed());
   if (!passed || !latency.passed() || !profiles_passed || !queue_passed || !workloads_passed ||
-      !library_passed) {
+      !library_passed || !mdx.passed()) {
     rpcmp_pocket_hold_result();
   }
 
@@ -306,14 +317,14 @@ int main() {
     rpcmp_pocket_hold_result();
   }
   print_interactive(fixed_16, rotating_16, fixed_256, fixed_4096, headless_workload,
-                    observed_workload, input_probe);
+                    observed_workload, mdx, input_probe);
   while (!input_probe.completed() && !input_probe.failed()) {
     rpcmp_pocket_wait_vblank();
     const auto action = pressed_action(rpcmp_pocket_poll_actions());
     if (action.has_value()) {
       static_cast<void>(input_probe.apply(*action));
       print_interactive(fixed_16, rotating_16, fixed_256, fixed_4096, headless_workload,
-                        observed_workload, input_probe);
+                        observed_workload, mdx, input_probe);
     }
   }
   rpcmp_pocket_hold_result();

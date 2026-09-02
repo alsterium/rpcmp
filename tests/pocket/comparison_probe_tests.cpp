@@ -1,4 +1,5 @@
 #include "rpcmp/spike/comparison_probe.hpp"
+#include "rpcmp/spike/mdx_hardware_probe.hpp"
 #include "test_support.hpp"
 
 #include <cstdint>
@@ -246,6 +247,13 @@ int main() {
   const auto invalid_workload_profile = rpcmp::spike::measure_runtime_workload_profile(
       workload_clock, rpcmp::spike::kRuntimeWorkloadMaxSamples + 1U);
   RPCMP_CHECK(suite, !invalid_workload_profile.passed());
+
+  const auto mdx = rpcmp::spike::run_mdx_hardware_probe();
+  RPCMP_CHECK(suite, mdx.passed());
+  RPCMP_CHECK(suite, mdx.driver_ticks == rpcmp::spike::kMdxHardwareProbeDriverTicks);
+  RPCMP_CHECK(suite, mdx.writes == rpcmp::spike::kMdxHardwareProbeExpectedWrites);
+  RPCMP_CHECK(suite, mdx.end_tick == rpcmp::spike::kMdxHardwareProbeExpectedEndTick);
+  RPCMP_CHECK(suite, mdx.write_digest == rpcmp::spike::kMdxHardwareProbeExpectedDigest);
 
   rpcmp::spike::InteractiveCommandProbe input_probe;
   RPCMP_CHECK(suite, input_probe.ready());

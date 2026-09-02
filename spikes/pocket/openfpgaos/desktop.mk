@@ -5,7 +5,18 @@ OUT_DIR ?= $(ROOT)/out/build/pocket-openfpgaos-desktop
 SRCS_CXX := \
   $(ROOT)/core/contracts/src/validation.cpp \
   $(ROOT)/core/runtime/src/mock_core.cpp \
+  $(ROOT)/core/runtime/engines/mdx/mdx_decoder.cpp \
+  $(ROOT)/core/runtime/engines/mdx/mdx_document_machine.cpp \
+  $(ROOT)/core/runtime/engines/mdx/mdx_engine.cpp \
+  $(ROOT)/core/runtime/engines/mdx/mdx_parser.cpp \
+  $(ROOT)/core/runtime/engines/mdx/mdx_scheduler_bridge.cpp \
+  $(ROOT)/core/runtime/engines/mdx/mdx_semantic.cpp \
+  $(ROOT)/core/runtime/engines/mdx/mdx_timeline.cpp \
+  $(ROOT)/core/runtime/engines/mdx/mdx_track_machine.cpp \
+  $(ROOT)/core/runtime/engines/mdx/mdx_ym2151_router.cpp \
+  $(ROOT)/core/runtime/src/device_scheduler.cpp \
   $(ROOT)/spikes/pocket/common/src/comparison_probe.cpp \
+  $(ROOT)/spikes/pocket/common/src/mdx_hardware_probe.cpp \
   $(ROOT)/spikes/pocket/openfpgaos/desktop_main.cpp
 CFLAGS := \
   -std=c++17 \

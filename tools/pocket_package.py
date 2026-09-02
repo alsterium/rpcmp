@@ -221,11 +221,11 @@ def definitions() -> dict[str, object]:
             "metadata": {
                 "platform_ids": [PLATFORM_ID],
                 "shortname": CORE_SHORTNAME,
-                "description": "RPCMP M1 bounded library blob probe",
+                "description": "RPCMP M3 MDX sequencing probe",
                 "author": "RPCMP",
                 "url": "",
-                "version": "0.5.39-m1",
-                "date_release": "2026-09-01",
+                "version": "0.6.0-m3",
+                "date_release": "2026-09-02",
             },
             "framework": {
                 "target_product": "Analogue Pocket",

@@ -1,4 +1,5 @@
 #include "rpcmp/spike/comparison_probe.hpp"
+#include "rpcmp/spike/mdx_hardware_probe.hpp"
 
 #include <cstdint>
 #include <iostream>
@@ -47,10 +48,11 @@ int main() {
   const auto observed = rpcmp::spike::run_comparison_probe(blob, &renderer);
   const auto headless = rpcmp::spike::run_comparison_probe(blob);
   const auto workload = rpcmp::spike::run_runtime_workload();
-  const auto passed = rpcmp::spike::matches_golden(observed) &&
-                      rpcmp::spike::matches_golden(headless) &&
-                      rpcmp::spike::equivalent_semantics(observed, headless) &&
-                      renderer.count() == observed.snapshot_count && workload.passed();
+  const auto mdx = rpcmp::spike::run_mdx_hardware_probe();
+  const auto passed =
+      rpcmp::spike::matches_golden(observed) && rpcmp::spike::matches_golden(headless) &&
+      rpcmp::spike::equivalent_semantics(observed, headless) &&
+      renderer.count() == observed.snapshot_count && workload.passed() && mdx.passed();
 
   std::cout << "schema=" << observed.schema_version << " snapshots=" << observed.snapshot_count
             << " snapshot_digest=" << observed.snapshot_digest << " events=" << observed.event_count
@@ -62,6 +64,8 @@ int main() {
             << " snapshot_digest=" << workload.snapshot_digest
             << " event_digest=" << workload.event_digest
             << " write_digest=" << workload.write_digest << '\n';
+  std::cout << "mdx ticks=" << mdx.driver_ticks << " writes=" << mdx.writes
+            << " digest=" << mdx.write_digest << " end_tick=" << mdx.end_tick << '\n';
   for (const auto& check : observed.storage_checks) {
     std::cout << "storage offset=" << check.offset << " length=" << check.length
               << " expected=" << check.expected_success << " read=" << check.read_succeeded
