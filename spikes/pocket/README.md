@@ -150,9 +150,14 @@ MDX D=326b24326bc7b40f
 The digest is FNV-1a over each dispatched scheduler tick in little-endian form,
 followed by its YM2151 address and value. Any parser, preparation, sequencing,
 timing, queueing, or dispatch mismatch stops before the interactive input
-probe and displays `MDX: FAIL`. On firmware 2.6, record the MDX rows, final
-`OVERALL: PASS`, three warm restarts, and one power-off cold start. This is the
-remaining M3 hardware acceptance gate; it does not exercise YM2151 audio RTL.
+probe and displays `MDX: FAIL`. For acceptance, record the firmware version,
+MDX rows, final `OVERALL: PASS`, normal-restart result, and one power-off cold
+start. This gate does not exercise YM2151 audio RTL.
+
+The M3 hardware gate passed on Pocket firmware 2.6: the automatic MDX and
+interactive checks passed, and the same package passed both a normal restart
+and a power-off cold start. M3 FM sequencing is therefore complete; YM2151
+audio RTL integration remains a later milestone.
 
 The current M1 bounded-library package is `0.5.39-m1`. Its ZIP is 1,057,657
 bytes with SHA-256

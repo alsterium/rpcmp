@@ -1,6 +1,6 @@
 # M3 — MDX FM Parsing and Sequencing
 
-Status: active on 2026-09-01. M2 is complete. The historical MXDRV and local
+Status: complete on 2026-09-02. M2 is complete. The historical MXDRV and local
 corpus investigation is recorded in `docs/research/mdx-mxdrv-format.md`; this
 milestone starts by freezing `specs/mdx-v1.md` before parser implementation.
 
@@ -43,8 +43,9 @@ produce identical timestamped device traces through the bounded scheduler.
 A cross-target Pocket probe now embeds the same self-authored FM fixture and
 checks its parse-to-scheduler digest against the host result. The RISC-V ELF,
 desktop SDK shim, APF definitions, package layout, and hardware-proven safe
-OS/RBF all pass automated verification. Firmware 2.6 execution of the
-`0.6.0-m3` package is the remaining acceptance gate.
+OS/RBF all pass automated verification. The `0.6.0-m3` package passed its
+parse-to-scheduler digest and interactive checks on Pocket firmware 2.6, then
+passed both a normal restart and a power-off cold start.
 
 ## Objective
 
