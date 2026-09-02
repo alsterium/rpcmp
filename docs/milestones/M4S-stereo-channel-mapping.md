@@ -1,7 +1,7 @@
 # M4S — Pocket Stereo Channel Mapping Probe
 
-Status: implementation complete; Pocket firmware 2.6 hardware acceptance is
-pending.
+Status: complete on 2026-09-02. Behavioral RTL, pinned real-JT51, Quartus,
+packaging, and Pocket firmware 2.6 hardware acceptance all pass.
 
 Build evidence on 2026-09-02: Quartus 25.1std.0 Build 1129 used official
 template `da3a021b1eaf742604d86d8dc9b33a6666263e6a` and JT51
@@ -70,3 +70,16 @@ reset and queue drain, and becomes red on a queue or audio diagnostic fault.
 3. Confirm: left-only tone, silence, right-only tone, then green screen.
 4. Record whether red appeared, repeat once by relaunching, then repeat after a
    full power-off.
+
+## Pocket hardware result
+
+Pocket firmware 2.6 passed on 2026-09-02. The initial launch produced the
+expected physical-left tone, silence, then physical-right tone and reached the
+green screen without showing red. A warm relaunch and a launch after full
+power-off both reproduced the result.
+
+This establishes the complete mapping used by the current audio path:
+YM2151/JT51 logical left reaches Pocket physical left, and logical right reaches
+Pocket physical right. M5 may therefore preserve the existing channel order;
+no swap is required before real-file MDX playback. The same ordering is the
+baseline for the mandatory future PCM mixer.
