@@ -155,6 +155,10 @@ add_executable(rpcmp_pocket_comparison_probe_host spikes/pocket/host/main.cpp)
 target_link_libraries(rpcmp_pocket_comparison_probe_host PRIVATE rpcmp_pocket_comparison_probe)
 rpcmp_production_options(rpcmp_pocket_comparison_probe_host)
 
+add_executable(rpcmp_mdx_trace_export spikes/pocket/host/mdx_trace_main.cpp)
+target_link_libraries(rpcmp_mdx_trace_export PRIVATE rpcmp_pocket_comparison_probe)
+rpcmp_production_options(rpcmp_mdx_trace_export)
+
 if(BUILD_TESTING)
   add_executable(rpcmp_contract_tests tests/contracts/contract_tests.cpp)
   target_include_directories(rpcmp_contract_tests PRIVATE tests/support)
@@ -300,6 +304,14 @@ if(BUILD_TESTING)
   rpcmp_test_options(rpcmp_pocket_comparison_probe_tests)
   add_test(NAME pocket_comparison_probe COMMAND rpcmp_pocket_comparison_probe_tests)
 
+  add_executable(rpcmp_mdx_trace_fixture_tests tests/pocket/mdx_trace_fixture_tests.cpp)
+  target_include_directories(rpcmp_mdx_trace_fixture_tests PRIVATE tests/support)
+  target_link_libraries(rpcmp_mdx_trace_fixture_tests PRIVATE rpcmp_pocket_comparison_probe)
+  target_compile_definitions(rpcmp_mdx_trace_fixture_tests PRIVATE
+    RPCMP_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
+  rpcmp_test_options(rpcmp_mdx_trace_fixture_tests)
+  add_test(NAME mdx_trace_fixture COMMAND rpcmp_mdx_trace_fixture_tests)
+
   add_test(
     NAME architecture_positive
     COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/architecture/check_dependencies.py
@@ -322,6 +334,9 @@ if(BUILD_TESTING)
   add_test(
     NAME pocket_package_builder
     COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/pocket/package_builder_tests.py)
+  add_test(
+    NAME m4_rtl_trace
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/pocket/m4_rtl_trace_tests.py)
   add_test(
     NAME mdx_corpus_audit
     COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/utility/mdx_corpus_audit_tests.py)

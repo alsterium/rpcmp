@@ -20,6 +20,11 @@ It reproduces the frozen 17-operation fixture as MMIO transactions into the v1
 queue and exposes completion/fault diagnostics. It is deliberately not a
 general Pocket runtime or future MDX sequencer.
 
+`pocket/rpcmp_m4_mdx_core.sv` reuses that validated hardware path for the M3
+self-authored MDX probe trace. Its 33 RTL literals are mechanically compared
+with `specs/fixtures/mdx-fm-probe-trace-v1.csv`, which is independently compared
+with fresh C++ parser-to-scheduler output.
+
 `pocket/rpcmp_device_queue.sv` is the project-owned M2 v1 CPU-to-device queue.
 Its CPU-local MMIO map, eight-entry FIFO, due-time behavior, backpressure,
 reset, and bundled-data toggle CDC are defined in

@@ -34,6 +34,9 @@ public:
     add_integer(dispatch_tick_);
     add_byte(write->address);
     add_byte(write->value);
+    if (writes_ < trace_.size()) {
+      trace_[writes_] = {dispatch_tick_, write->address, write->value};
+    }
     ++writes_;
     return runtime::DevicePortResult::Accepted;
   }
@@ -43,10 +46,14 @@ public:
     dispatch_tick_ = 0;
     digest_ = 14'695'981'039'346'656'037ULL;
     writes_ = 0;
+    trace_ = {};
   }
   void set_dispatch_tick(const std::uint64_t tick) noexcept { dispatch_tick_ = tick; }
   std::uint64_t digest() const noexcept { return digest_; }
   std::uint32_t writes() const noexcept { return writes_; }
+  const std::array<MdxHardwareWrite, kMdxHardwareProbeExpectedWrites>& trace() const noexcept {
+    return trace_;
+  }
 
 private:
   void add_byte(const std::uint8_t value) noexcept {
@@ -63,6 +70,7 @@ private:
   std::uint64_t dispatch_tick_{};
   std::uint64_t digest_{14'695'981'039'346'656'037ULL};
   std::uint32_t writes_{};
+  std::array<MdxHardwareWrite, kMdxHardwareProbeExpectedWrites> trace_{};
 };
 
 runtime::mdx::MdxDocument document;
@@ -86,7 +94,8 @@ bool MdxHardwareProbeResult::passed() const noexcept {
          write_digest == kMdxHardwareProbeExpectedDigest;
 }
 
-MdxHardwareProbeResult run_mdx_hardware_probe() noexcept {
+MdxHardwareProbeResult run_mdx_hardware_probe(MdxHardwareWrite* const trace,
+                                              const std::size_t trace_capacity) noexcept {
   MdxHardwareProbeResult result{};
   document = {};
   engine = {};
@@ -138,6 +147,11 @@ MdxHardwareProbeResult run_mdx_hardware_probe() noexcept {
   }
   result.writes = port.writes();
   result.write_digest = port.digest();
+  if (trace != nullptr && trace_capacity >= port.trace().size()) {
+    for (std::size_t index = 0; index < port.trace().size(); ++index) {
+      trace[index] = port.trace()[index];
+    }
+  }
   result.end_tick = engine.timeline.scheduler_tick;
   return result;
 }

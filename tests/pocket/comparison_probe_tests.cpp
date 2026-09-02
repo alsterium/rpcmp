@@ -248,7 +248,7 @@ int main() {
       workload_clock, rpcmp::spike::kRuntimeWorkloadMaxSamples + 1U);
   RPCMP_CHECK(suite, !invalid_workload_profile.passed());
 
-  const auto mdx = rpcmp::spike::run_mdx_hardware_probe();
+  const auto mdx = rpcmp::spike::run_mdx_hardware_probe(nullptr, 0);
   RPCMP_CHECK(suite, mdx.passed());
   RPCMP_CHECK(suite, mdx.driver_ticks == rpcmp::spike::kMdxHardwareProbeDriverTicks);
   RPCMP_CHECK(suite, mdx.writes == rpcmp::spike::kMdxHardwareProbeExpectedWrites);

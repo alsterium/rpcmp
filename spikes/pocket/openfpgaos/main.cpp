@@ -302,7 +302,7 @@ int main() {
                                 rpcmp::spike::equivalent_runtime_workload(
                                     headless_workload.reference, observed_workload.reference);
   const bool library_passed = verify_library_blob();
-  const auto mdx = rpcmp::spike::run_mdx_hardware_probe();
+  const auto mdx = rpcmp::spike::run_mdx_hardware_probe(nullptr, 0);
   print_result(observed, mdx, library_passed,
                passed && latency.passed() && profiles_passed && queue_passed && workloads_passed &&
                    library_passed && mdx.passed());

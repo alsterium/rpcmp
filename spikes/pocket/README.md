@@ -159,6 +159,17 @@ interactive checks passed, and the same package passed both a normal restart
 and a power-off cold start. M3 FM sequencing is therefore complete; YM2151
 audio RTL integration remains a later milestone.
 
+The current M4 local audio package is
+`out/pocket-m4/package/alsterium.RPCMP-M4_0.7.0-m4-local_2026-09-02.zip`
+(223,039 bytes, SHA-256
+`CAA31934F2B2B1EB1E2622AF67B4E5BB191DA8BF6C06F3C9E8AD9C680F944890`).
+It feeds the exact M3 self-authored 33-write trace through the v1 queue, pinned
+JT51, and 48 kHz Pocket AUDIO path. Launch `RPCMP M4` from Developer Builds:
+blue means running, green means the queue drained and JT51 became idle, and red
+means a queue or audio fault. Record whether the brief FM sound is audible,
+then repeat once after relaunch and once after a full power-off start. This is a
+local-only package and contains no MDX file or user music.
+
 The current M1 bounded-library package is `0.5.39-m1`. Its ZIP is 1,057,657
 bytes with SHA-256
 `548E38DE6C99511CE372E083B6CC24869520AD18702DFC0D3C65621150EB8E22`.

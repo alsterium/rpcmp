@@ -4,6 +4,7 @@
 #include "rpcmp/runtime/mdx_decoder.hpp"
 #include "rpcmp/runtime/mdx_parser.hpp"
 
+#include <array>
 #include <cstddef>
 #include <cstdint>
 
@@ -14,6 +15,12 @@ inline constexpr std::uint32_t kMdxHardwareProbeDriverTicks = 4;
 inline constexpr std::uint32_t kMdxHardwareProbeExpectedWrites = 33;
 inline constexpr std::uint64_t kMdxHardwareProbeExpectedEndTick = 2'752;
 inline constexpr std::uint64_t kMdxHardwareProbeExpectedDigest = 3'633'037'323'379'651'599ULL;
+
+struct MdxHardwareWrite {
+  std::uint64_t at_tick{};
+  std::uint8_t address{};
+  std::uint8_t value{};
+};
 
 struct MdxHardwareProbeResult {
   runtime::mdx::MdxError parse_error{runtime::mdx::MdxError::None};
@@ -31,7 +38,8 @@ struct MdxHardwareProbeResult {
 // Runs a self-authored FM-only MDX through parse, preparation, sequencing,
 // rational timing, fixed-length bridge, scheduler, and a deterministic port.
 // Large working storage is static so the Pocket stack is not part of the gate.
-[[nodiscard]] MdxHardwareProbeResult run_mdx_hardware_probe() noexcept;
+[[nodiscard]] MdxHardwareProbeResult
+run_mdx_hardware_probe(MdxHardwareWrite* trace = nullptr, std::size_t trace_capacity = 0) noexcept;
 
 } // namespace rpcmp::spike
 
