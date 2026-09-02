@@ -32,6 +32,9 @@ Timer B intervals are converted to scheduler ticks with an exact integer
 remainder accumulator and the historical `c8` initial value.
 Timed FM writes can now be staged into the existing fixed-capacity scheduler in
 allocation-free chunks while preserving order and resumable backpressure.
+The document machine, FM router, and rational timeline now advance through one
+transactional engine call, with complete document/control-flow preparation
+before the first tick.
 
 ## Objective
 
