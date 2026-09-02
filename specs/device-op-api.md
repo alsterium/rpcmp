@@ -58,6 +58,11 @@ contain the ID and must identify it as YM2151-compatible before either v1
 operation is accepted. No pointer, container offset, platform address, dynamic
 type name, or engine-owned object crosses this boundary.
 
+The runtime additionally accepts a non-owning fixed batch view containing a
+pointer, count, version, and tick rate. This is an in-process, allocation-free
+submission API only; it has exactly the same full-batch validation and atomic
+admission semantics as `DeviceOpStream` and is not a serialized contract.
+
 ## Validation and results
 
 The complete fixed sequence is validated before scheduling. Validation rejects:
@@ -81,6 +86,12 @@ queue; a rejected stream has no partial effect. A newly submitted first
 timestamp must not precede the current queue tail. The scheduler is configured
 for one YM2151-compatible device and one tick rate. A stream using another ID,
 device type, or tick rate is rejected.
+
+An engine batch larger than the scheduler ring is retained by its engine-side
+adapter and submitted in validated chunks no larger than the currently free
+ring capacity. The adapter must preserve its cursor across queue backpressure,
+must not advance media time itself, and must not begin the next engine tick
+until every operation from the current tick has been admitted.
 
 The device port returns `accepted`, `backpressure`, or `device_fault` for each
 operation. Backpressure leaves the due operation at the queue head. Device

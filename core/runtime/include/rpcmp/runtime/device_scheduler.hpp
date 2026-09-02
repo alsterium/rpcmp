@@ -33,12 +33,21 @@ enum class SchedulerResult : std::uint8_t {
   DeviceFault,
 };
 
+struct DeviceOpBatchView {
+  const contracts::DeviceOp* operations{};
+  std::size_t count{};
+  std::uint16_t version{contracts::kDeviceOpStreamVersion};
+  std::uint32_t tick_rate{};
+};
+
 class DeviceScheduler final {
 public:
   DeviceScheduler(IDevicePort& port, std::uint32_t tick_rate, std::size_t capacity,
                   std::uint64_t max_media_tick) noexcept;
 
   SchedulerResult submit(const contracts::DeviceOpStream& stream);
+  SchedulerResult submit(DeviceOpBatchView batch);
+  SchedulerResult validate(DeviceOpBatchView batch) const noexcept;
   SchedulerResult advance_to(std::uint64_t media_tick);
   SchedulerResult advance_by(std::uint64_t delta_ticks);
   SchedulerResult reset();
@@ -50,7 +59,6 @@ public:
   bool faulted() const noexcept;
 
 private:
-  SchedulerResult validate(const contracts::DeviceOpStream& stream) const noexcept;
   SchedulerResult drain();
   const contracts::DeviceOp& front() const noexcept;
   const contracts::DeviceOp& back() const noexcept;

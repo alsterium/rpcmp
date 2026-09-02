@@ -95,6 +95,7 @@ add_library(rpcmp_runtime STATIC
   core/runtime/engines/mdx/mdx_decoder.cpp
   core/runtime/engines/mdx/mdx_document_machine.cpp
   core/runtime/engines/mdx/mdx_parser.cpp
+  core/runtime/engines/mdx/mdx_scheduler_bridge.cpp
   core/runtime/engines/mdx/mdx_semantic.cpp
   core/runtime/engines/mdx/mdx_timeline.cpp
   core/runtime/engines/mdx/mdx_track_machine.cpp
@@ -222,6 +223,13 @@ if(BUILD_TESTING)
   target_link_libraries(rpcmp_mdx_timeline_tests PRIVATE rpcmp_runtime)
   rpcmp_test_options(rpcmp_mdx_timeline_tests)
   add_test(NAME mdx_timeline COMMAND rpcmp_mdx_timeline_tests)
+
+  add_executable(rpcmp_mdx_scheduler_bridge_tests
+    tests/runtime/mdx_scheduler_bridge_tests.cpp)
+  target_include_directories(rpcmp_mdx_scheduler_bridge_tests PRIVATE tests/support)
+  target_link_libraries(rpcmp_mdx_scheduler_bridge_tests PRIVATE rpcmp_runtime)
+  rpcmp_test_options(rpcmp_mdx_scheduler_bridge_tests)
+  add_test(NAME mdx_scheduler_bridge COMMAND rpcmp_mdx_scheduler_bridge_tests)
 
   add_executable(rpcmp_library_tests tests/library/container_tests.cpp)
   target_include_directories(rpcmp_library_tests PRIVATE tests/support)

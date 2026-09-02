@@ -13,15 +13,20 @@ DeviceScheduler::DeviceScheduler(IDevicePort& port, const std::uint32_t tick_rat
       configuration_valid_(tick_rate != 0 && capacity != 0 && capacity <= kMaxScheduledDeviceOps) {}
 
 SchedulerResult DeviceScheduler::submit(const contracts::DeviceOpStream& stream) {
-  const auto result = validate(stream);
+  return submit(
+      {stream.operations.data(), stream.operations.size(), stream.version, stream.tick_rate});
+}
+
+SchedulerResult DeviceScheduler::submit(const DeviceOpBatchView batch) {
+  const auto result = validate(batch);
   if (result != SchedulerResult::Accepted) {
     return result;
   }
-  if (stream.operations.size() > capacity_ - size_) {
+  if (batch.count > capacity_ - size_) {
     return SchedulerResult::QueueFull;
   }
-  for (const auto& operation : stream.operations) {
-    push_back(operation);
+  for (std::size_t index = 0; index < batch.count; ++index) {
+    push_back(batch.operations[index]);
   }
   return SchedulerResult::Accepted;
 }
@@ -76,21 +81,22 @@ std::size_t DeviceScheduler::capacity() const noexcept { return capacity_; }
 
 bool DeviceScheduler::faulted() const noexcept { return faulted_; }
 
-SchedulerResult DeviceScheduler::validate(const contracts::DeviceOpStream& stream) const noexcept {
+SchedulerResult DeviceScheduler::validate(const DeviceOpBatchView batch) const noexcept {
   if (faulted_) {
     return SchedulerResult::DeviceFault;
   }
-  if (!configuration_valid_ || stream.version != contracts::kDeviceOpStreamVersion ||
-      stream.tick_rate != tick_rate_) {
+  if (!configuration_valid_ || batch.version != contracts::kDeviceOpStreamVersion ||
+      batch.tick_rate != tick_rate_ || (batch.count != 0 && batch.operations == nullptr)) {
     return SchedulerResult::InvalidOperation;
   }
-  if (stream.operations.size() > capacity_) {
+  if (batch.count > capacity_) {
     return SchedulerResult::QueueFull;
   }
 
   std::uint64_t previous_tick{};
   bool first = true;
-  for (const auto& operation : stream.operations) {
+  for (std::size_t index = 0; index < batch.count; ++index) {
+    const auto& operation = batch.operations[index];
     if (operation.device_id != port_.device_id() ||
         port_.device_type() != contracts::DeviceType::Ym2151) {
       return SchedulerResult::InvalidDevice;

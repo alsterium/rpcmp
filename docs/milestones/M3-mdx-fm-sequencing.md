@@ -30,6 +30,8 @@ pan/pitch, carrier-level, and key-on register order. Gate key-off, tie,
 key-on delay, and per-tick portamento now use the MXDRV-derived tick lifecycle.
 Timer B intervals are converted to scheduler ticks with an exact integer
 remainder accumulator and the historical `c8` initial value.
+Timed FM writes can now be staged into the existing fixed-capacity scheduler in
+allocation-free chunks while preserving order and resumable backpressure.
 
 ## Objective
 
