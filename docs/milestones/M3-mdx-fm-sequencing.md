@@ -35,6 +35,9 @@ allocation-free chunks while preserving order and resumable backpressure.
 The document machine, FM router, and rational timeline now advance through one
 transactional engine call, with complete document/control-flow preparation
 before the first tick.
+The first self-authored FM fixture now passes a reproducible differential check
+against pinned independent `mdxtools`; exact-order agreements and the approved
+note-write differences are recorded in the MDX research report.
 
 ## Objective
 

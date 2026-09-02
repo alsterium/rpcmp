@@ -369,3 +369,33 @@ weakening offset or terminator checks.
 
 No third-party source or binary from this research is linked into RPCMP, and no
 new dependency is selected by this document.
+
+## Independent oracle approval record
+
+The self-authored `oracle-fm.mdx.hex` fixture was executed against independently
+implemented `mdxtools` commit `9c8539fec2757fcf7c85d1986171b50ebe2ef1e5`.
+`tools/verify-mdxtools-oracle.ps1` rebuilds the small callback harness inside the
+pinned RPCMP Docker toolchain and byte-compares its 70-event output with the
+committed trace. No third-party object is linked into RPCMP or its normal test
+executables.
+
+The differential host test approves the following agreements over four driver
+ticks:
+
+- Timer B, direct OPM writes, A-before-B service order, note key-on at tick 0,
+  and gate key-off at tick 3 have the same ordered address/value observations.
+- Every register written by RPCMP has the same final value in the independent
+  trace, including voice parameters, pitch, carrier attenuation, pan, direct
+  writes, and key state.
+- Four `c8` Timer B intervals equal 2,752 ticks in the 48 kHz scheduler domain.
+
+The raw traces intentionally do not compare every write one-for-one. `mdxtools`
+applies a voice at `fd`, rewrites pitch and TL on otherwise idle ticks, and
+writes key code before key fraction. The examined MXDRV-derived path applies a
+changed voice at note start, avoids unchanged writes, and writes key fraction
+before key code. RPCMP keeps the MXDRV-derived ordering required by its stated
+compatibility target; the independent oracle is used for final register values,
+driver-tick lifecycle, cross-track order, and direct operations. Therefore the
+approved two-oracle exact-order subset is Timer B, direct writes, channel
+service order, and key events; internal note-start ordering remains explicitly
+MXDRV-authoritative rather than being changed to match `mdxtools`.

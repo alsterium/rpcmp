@@ -238,6 +238,13 @@ if(BUILD_TESTING)
   rpcmp_test_options(rpcmp_mdx_engine_tests)
   add_test(NAME mdx_engine COMMAND rpcmp_mdx_engine_tests)
 
+  add_executable(rpcmp_mdx_oracle_tests tests/runtime/mdx_oracle_tests.cpp)
+  target_include_directories(rpcmp_mdx_oracle_tests PRIVATE tests/support)
+  target_link_libraries(rpcmp_mdx_oracle_tests PRIVATE rpcmp_runtime)
+  target_compile_definitions(rpcmp_mdx_oracle_tests PRIVATE RPCMP_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
+  rpcmp_test_options(rpcmp_mdx_oracle_tests)
+  add_test(NAME mdx_oracle COMMAND rpcmp_mdx_oracle_tests)
+
   add_executable(rpcmp_library_tests tests/library/container_tests.cpp)
   target_include_directories(rpcmp_library_tests PRIVATE tests/support)
   target_link_libraries(rpcmp_library_tests PRIVATE rpcmp_library)
