@@ -179,6 +179,12 @@ authority; converting to rounded BPM is display-only. Equal-tick operations
 must preserve the historical channel service order after that order is proven
 by golden traces.
 
+MXDRV initializes Timer B to `c8` before playback. An `ff` command changes the
+value during channel service, so the final Timer B value observed in a driver
+tick defines the following elapsed interval. RPCMP stamps all writes produced
+by that service at the current scheduler time, then advances by the exact
+rational interval and carries the division remainder into the next tick.
+
 ## Frozen FM note-start observations
 
 The M3 implementation rechecked the pinned `portable_mdx` translation before
