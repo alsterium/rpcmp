@@ -16,3 +16,7 @@ no third-party music, driver binary, ROM data, or PDX sample.
 The `.hex` text is only a reviewable representation. Tests decode it and assert
 the exact binary length and every parsed field before generating malformed
 copies in memory.
+
+`../rpcmlib/mdx-session.rpcmlib.hex` is the deterministic M5 library produced
+from `oracle-fm.mdx.hex` with title `Self-authored FM fixture` and an empty
+artist. It contains no third-party music data.

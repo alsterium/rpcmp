@@ -21,8 +21,8 @@ std::uint8_t nibble(const char value) {
   return 0xff;
 }
 
-std::vector<std::uint8_t> fixture() {
-  std::ifstream input(std::string{RPCMP_SOURCE_DIR} + "/tests/fixtures/mdx/oracle-fm.mdx.hex");
+std::vector<std::uint8_t> fixture(const char* const relative_path) {
+  std::ifstream input(std::string{RPCMP_SOURCE_DIR} + "/tests/fixtures/" + relative_path);
   std::string text{std::istreambuf_iterator<char>(input), {}};
   std::vector<std::uint8_t> bytes;
   std::uint8_t high = 0xff;
@@ -62,12 +62,13 @@ bool equal(const rpcmp::runtime::mdx::TimedYm2151Batch& left,
 
 int main() {
   rpcmp::test::Suite suite;
-  const auto source = fixture();
-  const rpcmp::utility::MdxIngestMetadata metadata{"Self-authored FM fixture", "RPCMP"};
+  const auto source = fixture("mdx/oracle-fm.mdx.hex");
+  const rpcmp::utility::MdxIngestMetadata metadata{"Self-authored FM fixture", ""};
   static rpcmp::utility::MdxIngestWorkspace ingest_workspace{};
   const auto ingested =
       rpcmp::utility::ingest_single_mdx({source.data(), source.size()}, metadata, ingest_workspace);
   RPCMP_CHECK(suite, ingested.ok());
+  RPCMP_CHECK(suite, ingested.library_bytes == fixture("rpcmlib/mdx-session.rpcmlib.hex"));
 
   rpcmp::library::LogicalLibrary library;
   RPCMP_CHECK(suite, rpcmp::library::LogicalLibrary::open(

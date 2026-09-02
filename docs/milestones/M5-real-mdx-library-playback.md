@@ -93,3 +93,22 @@ video independence, timing closure, and failure behavior.
 analysis and user-run package construction. Filenames, titles, source bytes,
 per-file hashes, generated user libraries, and proprietary driver binaries are
 not committed. Repository tests continue to use only project-authored fixtures.
+
+## Progress evidence
+
+Slices 1 through 3 are complete as of 2026-09-02. The Docker-pinned xPack GCC
+14.2.0-3 cross-build links the logical-library session as an ELF32 RISC-V
+application with no undefined symbols. Its project-authored 752-byte library
+fixture is also executed by the openfpgaOS desktop shim for 32 driver ticks:
+33 YM2151 writes and digest `f1f04f5a8695a112`.
+
+The cross-target budget is `text=22,784`, `data=767,712`, and `bss=131,340`
+bytes: 921,836 static bytes total and 55,701,268 bytes headroom in the SDK's
+56,623,104-byte application SDRAM window. GCC reports no dynamic stack frames.
+The largest individual frame is 7,408 bytes; summing every emitted static
+frame gives a deliberately conservative 17,328-byte bound and 506,960 bytes of
+headroom against the Pocket application's 524,288-byte stack. Large engine and
+batch workspaces are static and explicitly placed in the probe.
+
+This is compatibility and resource evidence only. It does not supersede
+ADR-0004 or authorize replacing the hardware-proven safe-layout package.

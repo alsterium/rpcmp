@@ -8,6 +8,7 @@ CXX := $(CROSS)g++
 READELF := $(CROSS)readelf
 SIZE := $(CROSS)size
 NM := $(CROSS)nm
+LD := $(CROSS)ld
 
 ARCH := -march=rv32imafc -mabi=ilp32f
 CXX_SYSTEM_INCLUDES := $(shell echo | $(CXX) $(ARCH) -x c++ -E -Wp,-v - 2>&1 | sed -n 's,^ \(/.*c++.*\),-isystem \1,p')
@@ -19,6 +20,7 @@ LIBGCC := $(shell $(CXX) $(ARCH) -print-libgcc-file-name)
 INCLUDES := \
   -I$(ROOT)/core/contracts/include \
   -I$(ROOT)/core/library/include \
+  -I$(ROOT)/core/player/include \
   -I$(ROOT)/core/runtime/include \
   -I$(ROOT)/spikes/pocket/common/include \
   -I$(SDK_DIR)/include
@@ -84,6 +86,27 @@ SDK_INIT_OBJECT := $(OUT_DIR)/sdk/of_init.o
 OBJECTS := $(CXX_OBJECTS) $(C_OBJECTS) $(SDK_INIT_OBJECT)
 ELF := $(OUT_DIR)/rpcmp-probe.elf
 
+M5_OUT_DIR ?= $(ROOT)/out/build/pocket-openfpgaos-m5
+M5_CXX_SOURCES := \
+  $(ROOT)/core/contracts/src/validation.cpp \
+  $(ROOT)/core/library/src/container.cpp \
+  $(ROOT)/core/library/src/logical_library.cpp \
+  $(ROOT)/core/player/src/mdx_library_session.cpp \
+  $(ROOT)/core/runtime/engines/mdx/mdx_decoder.cpp \
+  $(ROOT)/core/runtime/engines/mdx/mdx_document_machine.cpp \
+  $(ROOT)/core/runtime/engines/mdx/mdx_engine.cpp \
+  $(ROOT)/core/runtime/engines/mdx/mdx_parser.cpp \
+  $(ROOT)/core/runtime/engines/mdx/mdx_semantic.cpp \
+  $(ROOT)/core/runtime/engines/mdx/mdx_timeline.cpp \
+  $(ROOT)/core/runtime/engines/mdx/mdx_track_machine.cpp \
+  $(ROOT)/core/runtime/engines/mdx/mdx_ym2151_router.cpp \
+  $(ROOT)/spikes/pocket/openfpgaos/m5_session_probe.cpp
+M5_CXX_OBJECTS := $(patsubst $(ROOT)/%.cpp,$(M5_OUT_DIR)/%.o,$(M5_CXX_SOURCES))
+M5_LIBRARY := $(M5_OUT_DIR)/m5-library.rpcmlib
+M5_LIBRARY_OBJECT := $(M5_OUT_DIR)/m5-library.o
+M5_ELF := $(M5_OUT_DIR)/rpcmp-m5-session.elf
+M5_BUDGET := $(M5_OUT_DIR)/budget.json
+
 .DEFAULT_GOAL := verify
 
 $(OUT_DIR)/%.o: $(ROOT)/%.cpp
@@ -93,6 +116,26 @@ $(OUT_DIR)/%.o: $(ROOT)/%.cpp
 $(OUT_DIR)/%.o: $(ROOT)/%.c
 	@mkdir -p $(dir $@)
 	$(CC) $(CFLAGS) -c -o $@ $<
+
+$(M5_OUT_DIR)/%.o: $(ROOT)/%.cpp
+	@mkdir -p $(dir $@)
+	$(CXX) $(CXXFLAGS) -fstack-usage -c -o $@ $<
+
+$(M5_LIBRARY): $(ROOT)/tests/fixtures/rpcmlib/mdx-session.rpcmlib.hex
+	@mkdir -p $(dir $@)
+	python3 -c "import pathlib; p=pathlib.Path('$<'); pathlib.Path('$@').write_bytes(bytes.fromhex(p.read_text()))"
+
+$(M5_LIBRARY_OBJECT): $(M5_LIBRARY)
+	cd $(M5_OUT_DIR) && $(LD) -r -b binary -o $(notdir $@) $(notdir $<)
+
+$(M5_ELF): $(M5_CXX_OBJECTS) $(M5_LIBRARY_OBJECT) $(CRT) $(SDK_DIR)/app.ld
+	$(CXX) $(ARCH) -nostdlib -static -T $(SDK_DIR)/app.ld -L$(SDK_DIR)/musl/lib \
+	  -Wl,--gc-sections -Wl,--no-warn-rwx-segments -Wl,-Map,$(M5_OUT_DIR)/rpcmp-m5-session.map \
+	  -o $@ $(CRT) $(M5_CXX_OBJECTS) $(M5_LIBRARY_OBJECT) $(LIBS)
+
+$(M5_BUDGET): $(M5_ELF)
+	python3 $(ROOT)/tools/elf_budget.py --elf $(M5_ELF) --size-tool $(SIZE) \
+	  --stack-root $(M5_OUT_DIR) --static-limit 56623104 --stack-limit 524288 --output $@
 
 $(SDK_INIT_OBJECT): $(SDK_DIR)/of_init.c
 	@mkdir -p $(dir $@)
@@ -109,10 +152,16 @@ verify: $(ELF)
 	test -z "$$($(NM) --undefined-only $(ELF))"
 	sha256sum $(ELF)
 
+m5-budget: $(M5_BUDGET)
+	$(SIZE) $(M5_ELF)
+	$(READELF) -h $(M5_ELF) | grep -F 'Machine:' | grep -F 'RISC-V'
+	test -z "$$($(NM) --undefined-only $(M5_ELF))"
+	sha256sum $(M5_ELF) $(M5_BUDGET)
+
 clean:
 	@case "$(abspath $(OUT_DIR))" in \
 	  "$(ROOT)/out/build/"*) rm -rf -- "$(abspath $(OUT_DIR))" ;; \
 	  *) echo "refusing to clean outside $(ROOT)/out/build: $(abspath $(OUT_DIR))" >&2; exit 1 ;; \
 	esac
 
-.PHONY: verify clean
+.PHONY: verify m5-budget clean

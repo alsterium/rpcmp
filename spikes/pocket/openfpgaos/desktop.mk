@@ -1,6 +1,8 @@
 ROOT := $(abspath $(dir $(lastword $(MAKEFILE_LIST)))/../../..)
 SDK_DIR ?= $(ROOT)/out/research/openfpgaSDK-a408ddc/src/sdk
 OUT_DIR ?= $(ROOT)/out/build/pocket-openfpgaos-desktop
+M5_DESKTOP := $(OUT_DIR)/m5_session_pc
+HOST_CXX ?= g++
 
 SRCS_CXX := \
   $(ROOT)/core/contracts/src/validation.cpp \
@@ -23,6 +25,8 @@ CFLAGS := \
   -fno-exceptions \
   -fno-rtti \
   -I$(ROOT)/core/contracts/include \
+  -I$(ROOT)/core/library/include \
+  -I$(ROOT)/core/player/include \
   -I$(ROOT)/core/runtime/include \
   -I$(ROOT)/spikes/pocket/common/include
 
@@ -34,6 +38,28 @@ verify: app_pc
 	@mkdir -p "$(OUT_DIR)/data"
 	OF_DATA_DIR="$(OUT_DIR)/data" ./app_pc
 
+M5_SRCS_CXX := \
+  $(ROOT)/core/contracts/src/validation.cpp \
+  $(ROOT)/core/library/src/container.cpp \
+  $(ROOT)/core/library/src/logical_library.cpp \
+  $(ROOT)/core/player/src/mdx_library_session.cpp \
+  $(ROOT)/core/runtime/engines/mdx/mdx_decoder.cpp \
+  $(ROOT)/core/runtime/engines/mdx/mdx_document_machine.cpp \
+  $(ROOT)/core/runtime/engines/mdx/mdx_engine.cpp \
+  $(ROOT)/core/runtime/engines/mdx/mdx_parser.cpp \
+  $(ROOT)/core/runtime/engines/mdx/mdx_semantic.cpp \
+  $(ROOT)/core/runtime/engines/mdx/mdx_timeline.cpp \
+  $(ROOT)/core/runtime/engines/mdx/mdx_track_machine.cpp \
+  $(ROOT)/core/runtime/engines/mdx/mdx_ym2151_router.cpp \
+  $(ROOT)/spikes/pocket/openfpgaos/m5_session_desktop.cpp
+
+$(M5_DESKTOP): $(M5_SRCS_CXX)
+	@mkdir -p "$(OUT_DIR)"
+	$(HOST_CXX) $(CFLAGS) -Wall -Wextra -Wpedantic -Werror -o $@ $(M5_SRCS_CXX)
+
+m5-desktop: $(M5_DESKTOP)
+	$(M5_DESKTOP) $(ROOT)/tests/fixtures/rpcmlib/mdx-session.rpcmlib.hex
+
 prepare-desktop:
 	@mkdir -p "$(OUT_DIR)/data"
 
@@ -43,4 +69,4 @@ clean-desktop:
 	  *) echo "refusing to clean outside $(ROOT)/out/build: $(abspath $(OUT_DIR))" >&2; exit 1 ;; \
 	esac
 
-.PHONY: verify prepare-desktop clean-desktop
+.PHONY: verify m5-desktop prepare-desktop clean-desktop

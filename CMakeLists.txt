@@ -24,6 +24,7 @@ file(GLOB_RECURSE RPCMP_CXX_FILES CONFIGURE_DEPENDS
 set(RPCMP_TIDY_FILES ${RPCMP_CXX_FILES})
 list(FILTER RPCMP_TIDY_FILES INCLUDE REGEX "[.]cpp$")
 list(FILTER RPCMP_TIDY_FILES EXCLUDE REGEX "[/\\]tests[/\\]architecture[/\\]fixtures[/\\]")
+list(FILTER RPCMP_TIDY_FILES EXCLUDE REGEX "[/\\]spikes[/\\]pocket[/\\]openfpgaos[/\\]desktop_main[.]cpp$")
 
 if(RPCMP_ENABLE_CLANG_TOOLS)
   if(RPCMP_LLVM_VERSION STREQUAL "")
@@ -161,6 +162,16 @@ target_link_libraries(rpcmp_pocket_app_compile_check PRIVATE
   rpcmp_library
   rpcmp_pocket_comparison_probe)
 rpcmp_production_options(rpcmp_pocket_app_compile_check)
+
+add_library(rpcmp_m5_pocket_compile_check OBJECT
+  spikes/pocket/openfpgaos/m5_session_probe.cpp)
+target_link_libraries(rpcmp_m5_pocket_compile_check PRIVATE rpcmp_player)
+rpcmp_production_options(rpcmp_m5_pocket_compile_check)
+
+add_library(rpcmp_m5_desktop_compile_check OBJECT
+  spikes/pocket/openfpgaos/m5_session_desktop.cpp)
+target_link_libraries(rpcmp_m5_desktop_compile_check PRIVATE rpcmp_player)
+rpcmp_production_options(rpcmp_m5_desktop_compile_check)
 
 add_executable(rpcmp_pocket_comparison_probe_host spikes/pocket/host/main.cpp)
 target_link_libraries(rpcmp_pocket_comparison_probe_host PRIVATE rpcmp_pocket_comparison_probe)
