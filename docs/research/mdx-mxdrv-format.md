@@ -211,6 +211,16 @@ key-on, tie/key-off suppression, and per-tick portamento occur in separate
 tick lifecycle stages and must not be approximated inside this note-start
 mapping.
 
+The tick lifecycle order is also frozen from `L001050`, `L0011b4`, and
+`L000c66`: portamento accumulation occurs first when key-on delay is zero;
+gate expiry can then emit `08 = channel` key-off; newly decoded commands follow;
+finally a pending note either decrements its delay or emits the note-start
+sequence. A nonnegative gate byte computes `((gate * raw_duration) >> 3) + 1`.
+A negative gate byte adds to the raw duration modulo 256 and uses one tick when
+the addition does not carry. `f7` suppresses gate expiry for the note following
+it, and a tied note updates parameters and pitch without issuing another
+key-on while the channel remains on.
+
 ## Extension boundary for the first FM milestone
 
 The historical notes describe `e7` extensions added in +16/+17 (forced error,

@@ -1,6 +1,7 @@
 #include "rpcmp/runtime/mdx_ym2151_router.hpp"
 
 #include <algorithm>
+#include <climits>
 
 namespace rpcmp::runtime::mdx {
 namespace {
@@ -51,9 +52,29 @@ bool write_voice(const Voice& voice, const std::uint8_t channel, Ym2151WriteBatc
   return true;
 }
 
-bool write_note(const Voice& voice, Ym2151ChannelState& state, const SemanticAction& action,
+std::uint16_t current_pitch(const Ym2151ChannelState& state) noexcept {
+  const auto offset = state.portamento_accumulator >> 8;
+  const auto pitch =
+      std::max<std::int32_t>(0, std::min<std::int32_t>(0x17ff, state.base_pitch + offset));
+  return static_cast<std::uint16_t>(pitch);
+}
+
+bool write_pitch(Ym2151ChannelState& state, const std::uint8_t channel,
+                 Ym2151WriteBatch& batch) noexcept {
+  const std::uint16_t pitch = current_pitch(state);
+  if (pitch == state.last_pitch) {
+    return true;
+  }
+  state.last_pitch = pitch;
+  const auto scaled = static_cast<std::uint32_t>(pitch) * 4U;
+  return append(batch, channel, static_cast<std::uint8_t>(0x30U + channel),
+                static_cast<std::uint8_t>(scaled)) &&
+         append(batch, channel, static_cast<std::uint8_t>(0x28U + channel),
+                kKeyCode[static_cast<std::size_t>(pitch) >> 6U]);
+}
+
+bool write_note(const Voice& voice, Ym2151ChannelState& state, const std::uint8_t channel,
                 Ym2151WriteBatch& batch) noexcept {
-  const std::uint8_t channel = action.logical_channel;
   if (state.applied_voice != state.selected_voice) {
     if (!write_voice(voice, channel, batch)) {
       return false;
@@ -61,15 +82,8 @@ bool write_note(const Voice& voice, Ym2151ChannelState& state, const SemanticAct
     state.applied_voice = state.selected_voice;
   }
   const auto control = static_cast<std::uint8_t>((state.pan << 6U) | voice.feedback_connection);
-  std::int32_t pitch = static_cast<std::int32_t>(action.instruction.value & 0x7fU) * 64 + 5;
-  pitch += state.detune;
-  pitch = std::max<std::int32_t>(0, std::min<std::int32_t>(0x17ff, pitch));
-  const auto scaled_pitch = static_cast<std::uint32_t>(pitch) * 4U;
   if (!append(batch, channel, static_cast<std::uint8_t>(0x20U + channel), control) ||
-      !append(batch, channel, static_cast<std::uint8_t>(0x30U + channel),
-              static_cast<std::uint8_t>(scaled_pitch)) ||
-      !append(batch, channel, static_cast<std::uint8_t>(0x28U + channel),
-              kKeyCode[static_cast<std::size_t>(pitch) >> 6U])) {
+      !write_pitch(state, channel, batch)) {
     return false;
   }
 
@@ -87,7 +101,48 @@ bool write_note(const Voice& voice, Ym2151ChannelState& state, const SemanticAct
       return false;
     }
   }
-  return append(batch, channel, 0x08, static_cast<std::uint8_t>((voice.slot_mask << 3U) | channel));
+  if (!state.key_on) {
+    if (!append(batch, channel, 0x08,
+                static_cast<std::uint8_t>((voice.slot_mask << 3U) | channel))) {
+      return false;
+    }
+    state.key_on = true;
+  }
+  return true;
+}
+
+std::uint16_t compute_gate_ticks(const Ym2151ChannelState& state,
+                                 const std::uint16_t duration_ticks) noexcept {
+  const auto raw = static_cast<std::uint8_t>(duration_ticks - 1U);
+  const auto signed_gate = static_cast<std::int8_t>(state.gate_parameter);
+  if (signed_gate >= 0) {
+    return static_cast<std::uint16_t>(
+        (static_cast<std::uint16_t>(state.gate_parameter) * raw) / 8U + 1U);
+  }
+  const auto sum = static_cast<std::uint16_t>(state.gate_parameter) + raw;
+  return sum >= 0x100U ? static_cast<std::uint16_t>((sum & 0xffU) + 1U) : 1U;
+}
+
+bool begin_tick(Ym2151ChannelState& state, const std::uint8_t channel,
+                Ym2151WriteBatch& batch) noexcept {
+  if (state.portamento_active && state.delay_ticks == 0) {
+    const auto next = static_cast<std::int64_t>(state.portamento_accumulator) +
+                      static_cast<std::int64_t>(state.portamento_delta);
+    if (next < INT32_MIN || next > INT32_MAX) {
+      return false;
+    }
+    state.portamento_accumulator = static_cast<std::int32_t>(next);
+  }
+  if (!state.suppress_key_off && state.gate_ticks != 0) {
+    --state.gate_ticks;
+    if (state.gate_ticks == 0 && state.key_on) {
+      if (!append(batch, channel, 0x08, channel)) {
+        return false;
+      }
+      state.key_on = false;
+    }
+  }
+  return true;
 }
 
 } // namespace
@@ -100,64 +155,106 @@ DecodeResult route_ym2151_batch(const MdxDocument& document, const DocumentTickB
   }
   scratch.candidate_state = state;
   scratch.pending_batch.count = 0;
+  std::size_t action_index = 0;
 
-  for (std::size_t index = 0; index < actions.count; ++index) {
-    const SemanticAction& action = actions.actions[index];
-    if (action.logical_channel >= kMdxFmTrackCount) {
-      return failure(DecodeError::RangeOutsideInput, action);
+  for (std::uint8_t logical_channel = 0; logical_channel < kMdxFmTrackCount; ++logical_channel) {
+    Ym2151ChannelState& channel = scratch.candidate_state.channels[logical_channel];
+    const SemanticAction synthetic{logical_channel, {}};
+    if (!begin_tick(channel, logical_channel, scratch.pending_batch)) {
+      return failure(DecodeError::BudgetExhausted, synthetic);
     }
-    Ym2151ChannelState& channel = scratch.candidate_state.channels[action.logical_channel];
-    switch (action.instruction.kind) {
-    case InstructionKind::TimerB:
-      if (!append(scratch.pending_batch, action.logical_channel, 0x12, action.instruction.value)) {
-        return failure(DecodeError::BudgetExhausted, action);
-      }
-      break;
-    case InstructionKind::DirectWrite:
-      if (!append(scratch.pending_batch, action.logical_channel, action.instruction.value,
-                  action.instruction.second_value)) {
-        return failure(DecodeError::BudgetExhausted, action);
-      }
-      break;
-    case InstructionKind::SelectVoice:
-      channel.selected_voice = action.instruction.value;
-      break;
-    case InstructionKind::Pan:
-      channel.pan = static_cast<std::uint8_t>(action.instruction.value & 0x03U);
-      break;
-    case InstructionKind::Volume:
-      if ((action.instruction.value & 0x80U) == 0 && action.instruction.value > 15) {
-        return failure(DecodeError::RangeOutsideInput, action);
-      }
-      channel.volume = action.instruction.value;
-      break;
-    case InstructionKind::Detune:
-      channel.detune = action.instruction.signed_value;
-      break;
-    case InstructionKind::Note:
-      if (channel.selected_voice >= document.voices.size() ||
-          !document.voices[channel.selected_voice].present) {
-        return failure(DecodeError::MissingVoice, action);
-      }
-      if (!write_note(document.voices[channel.selected_voice], channel, action,
-                      scratch.pending_batch)) {
-        return failure(DecodeError::BudgetExhausted, action);
-      }
-      break;
-    case InstructionKind::Rest:
-    case InstructionKind::Gate:
-    case InstructionKind::SuppressKeyOff:
-    case InstructionKind::RepeatStart:
-    case InstructionKind::RepeatEnd:
-    case InstructionKind::RepeatEscape:
-    case InstructionKind::Portamento:
-    case InstructionKind::TrackEnd:
-    case InstructionKind::TrackLoop:
-    case InstructionKind::KeyOnDelay:
-    case InstructionKind::ReleaseChannel:
-    case InstructionKind::WaitChannel:
-      break;
+    const bool has_actions = action_index < actions.count &&
+                             actions.actions[action_index].logical_channel == logical_channel;
+    if (has_actions) {
+      channel.suppress_key_off = false;
     }
+
+    while (action_index < actions.count &&
+           actions.actions[action_index].logical_channel == logical_channel) {
+      const SemanticAction& action = actions.actions[action_index++];
+      switch (action.instruction.kind) {
+      case InstructionKind::TimerB:
+        if (!append(scratch.pending_batch, logical_channel, 0x12, action.instruction.value)) {
+          return failure(DecodeError::BudgetExhausted, action);
+        }
+        break;
+      case InstructionKind::DirectWrite:
+        if (!append(scratch.pending_batch, logical_channel, action.instruction.value,
+                    action.instruction.second_value)) {
+          return failure(DecodeError::BudgetExhausted, action);
+        }
+        break;
+      case InstructionKind::SelectVoice:
+        channel.selected_voice = action.instruction.value;
+        break;
+      case InstructionKind::Pan:
+        channel.pan = static_cast<std::uint8_t>(action.instruction.value & 0x03U);
+        break;
+      case InstructionKind::Volume:
+        if ((action.instruction.value & 0x80U) == 0 && action.instruction.value > 15) {
+          return failure(DecodeError::RangeOutsideInput, action);
+        }
+        channel.volume = action.instruction.value;
+        break;
+      case InstructionKind::Gate:
+        channel.gate_parameter = action.instruction.value;
+        break;
+      case InstructionKind::SuppressKeyOff:
+        channel.suppress_key_off = true;
+        break;
+      case InstructionKind::Detune:
+        channel.detune = action.instruction.signed_value;
+        break;
+      case InstructionKind::Portamento:
+        channel.portamento_delta = static_cast<std::int32_t>(action.instruction.signed_value) * 256;
+        channel.portamento_active = true;
+        break;
+      case InstructionKind::KeyOnDelay:
+        channel.key_on_delay = action.instruction.value;
+        break;
+      case InstructionKind::Note:
+        if (channel.selected_voice >= document.voices.size() ||
+            !document.voices[channel.selected_voice].present) {
+          return failure(DecodeError::MissingVoice, action);
+        }
+        channel.base_pitch =
+            static_cast<std::int32_t>(action.instruction.value & 0x7fU) * 64 + 5 + channel.detune;
+        channel.portamento_accumulator = 0;
+        channel.last_pitch = 0xffff;
+        channel.gate_ticks = compute_gate_ticks(channel, action.instruction.duration_ticks);
+        channel.delay_ticks = channel.key_on_delay;
+        channel.pending_note = true;
+        break;
+      case InstructionKind::Rest:
+      case InstructionKind::RepeatStart:
+      case InstructionKind::RepeatEnd:
+      case InstructionKind::RepeatEscape:
+      case InstructionKind::TrackEnd:
+      case InstructionKind::TrackLoop:
+      case InstructionKind::ReleaseChannel:
+      case InstructionKind::WaitChannel:
+        break;
+      }
+    }
+
+    if (channel.pending_note) {
+      if (channel.delay_ticks != 0) {
+        --channel.delay_ticks;
+      } else {
+        if (!write_note(document.voices[channel.selected_voice], channel, logical_channel,
+                        scratch.pending_batch)) {
+          return failure(DecodeError::BudgetExhausted, synthetic);
+        }
+        channel.pending_note = false;
+      }
+    } else if (channel.portamento_active &&
+               !write_pitch(channel, logical_channel, scratch.pending_batch)) {
+      return failure(DecodeError::BudgetExhausted, synthetic);
+    }
+  }
+
+  if (action_index != actions.count) {
+    return failure(DecodeError::RangeOutsideInput, actions.actions[action_index]);
   }
 
   state = scratch.candidate_state;

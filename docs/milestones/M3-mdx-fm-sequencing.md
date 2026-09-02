@@ -26,8 +26,8 @@ bounded same-tick instruction/branch work, repeat frames, and explicit sync
 wait state. Document ticks now commit A-through-H semantic batches and sync
 release effects transactionally in historical service order. The initial
 YM2151 routing stage emits transactional Timer B, direct-write, voice,
-pan/pitch, carrier-level, and key-on register order; musical tick lifecycle
-events are not emitted yet.
+pan/pitch, carrier-level, and key-on register order. Gate key-off, tie,
+key-on delay, and per-tick portamento now use the MXDRV-derived tick lifecycle.
 
 ## Objective
 
