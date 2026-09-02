@@ -1,8 +1,9 @@
 # M0 — Architecture Skeleton
 
-Status: completed on 2026-08-31. Host acceptance is green; Pocket execution
-remains the separately scoped ADR-0004 feasibility gate described below. Active
-feature development continues in `M1-library-container.md`.
+Status: completed on 2026-08-31. Host acceptance is green. ADR-0008 later
+superseded the separately scoped ADR-0004 feasibility gate with a conditional
+M5 experiment decision. Active feature development continues in
+`M5-real-mdx-library-playback.md`.
 
 ## Design baseline
 
@@ -10,15 +11,20 @@ The executable M0 design is recorded in `docs/design/m0-executable-design.md` an
 
 Windows host verification pins LLVM 22.1.8 and treats `clang-format` and `clang-tidy` findings as failures. Linux/GCC CI is deferred and remains an explicit completion-gap item.
 
-Pocket execution remains an explicit feasibility gate. The official openFPGA template does not by itself establish a general-purpose runtime for RPCMP, so a host-green M0 must not be reported as Pocket-compatible until ADR-0004 is superseded by target-spike evidence.
+At M0 completion, Pocket execution remained an explicit feasibility gate. The
+official openFPGA template did not by itself establish a general-purpose
+runtime for RPCMP, so host-green M0 was not reported as Pocket-compatible.
+ADR-0008 now authorizes a stripped-openfpgaOS M5 experiment without promoting
+that substrate to production.
 
 The continuing hardware-development baseline is the checksum- and size-pinned
 openfpgaOS `0.5.38-safe` package recorded in ADR-0004. Pocket firmware 2.6
 reached its workload-probe screen through normal startup after the diagnostic
 series. This permits bounded RPCMP application-layer experiments without
-changing the proven OS/RBF pair. It does not close ADR-0004: a `0x40`
-later-code/BSS placement change caused repeatable blackouts, so arbitrary OS
-growth and unpinned runtime layouts remain unsupported.
+changing the proven OS/RBF pair. ADR-0008 preserves it as a control artifact:
+a `0x40` later-code/BSS placement change caused repeatable blackouts, so
+arbitrary OS growth and unpinned runtime layouts remain unsupported pending its
+production-promotion gates.
 
 ## Objective
 

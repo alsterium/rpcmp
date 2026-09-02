@@ -1,6 +1,6 @@
 # ADR-0004: Gate the Pocket execution substrate decision
 
-- Status: accepted
+- Status: superseded by ADR-0008
 - Date: 2026-08-25
 - Deciders: RPCMP maintainers
 
@@ -15,6 +15,11 @@ The initialized `analogue-openfpga-skill` snapshot confirms the APF hardware bou
 Quartus Prime Lite and Questa Starter are now available locally. The toolchain smoke test below proves that the unmodified official template can target Pocket's FPGA with Quartus 25.1, but it does not select the execution substrate or prove RPCMP logic on hardware.
 
 ## Decision
+
+This gate was superseded on 2026-09-02 by ADR-0008. ADR-0008 conditionally
+selects the stripped openfpgaOS profile for the bounded M5 hardware experiment
+while retaining explicit production-promotion gates. The historical decision
+and evidence below remain the rationale for those restrictions.
 
 M0 may implement the host architectural proof described by ADR-0001, but it must label Pocket deployment as unverified. No production Pocket adapter, third-party OS, soft CPU, or cross-toolchain dependency is added until a focused target spike records:
 

@@ -36,15 +36,14 @@ make raw source paths or container offsets visible to the engine, UI, or RTL.
   fake YM2151 write. A future mixer adds a second source at the existing stereo
   audio boundary.
 
-## Execution-substrate gate
+## Execution-substrate decision
 
-ADR-0004 still prohibits declaring the placement-sensitive openfpgaOS spike a
-production Pocket substrate. M5 may complete host ingestion, logical-library
-playback preparation, and bounded target experiments on the checksum-pinned
-safe layout. Before a real-file audio package can be called production, a
-superseding ADR must select a substrate and record executable/data memory,
-dataslot ownership, Core-to-RTL MMIO, scheduling clock, boot/reset/heartbeat,
-video independence, timing closure, and failure behavior.
+ADR-0008 supersedes ADR-0004 and conditionally selects the stripped openfpgaOS
+profile for the bounded M5 hardware experiment. It authorizes slice 4
+integration but does not declare a production Pocket substrate. Promotion
+requires resolving or rigorously bounding the placement-sensitive blackout and
+passing ADR-0008's memory-map, perturbation, APF lifecycle, silent-failure,
+integrated timing/CDC, and future-PCM-headroom gates.
 
 ## Implementation slices
 
@@ -57,9 +56,9 @@ video independence, timing closure, and failure behavior.
 3. Exercise the same session in the openfpgaOS desktop shim and cross-target
    build; measure code/data/stack budgets and preserve the safe-layout boot
    invariant.
-4. Resolve ADR-0004 with a production-capable substrate or explicitly approved
-   bounded M5 target. Integrate its CPU/device MMIO endpoint with the
-   hardware-proven JT51/Pocket AUDIO path.
+4. Under ADR-0008's conditionally approved stripped openfpgaOS target,
+   integrate the CPU/device MMIO endpoint with the hardware-proven
+   JT51/Pocket AUDIO path and gather its production-promotion evidence.
 5. Package one user-built `.rpcmlib` in a deferred APF slot and run Pocket
    acceptance. No copyrighted source file or generated library is committed.
 
@@ -110,5 +109,6 @@ frame gives a deliberately conservative 17,328-byte bound and 506,960 bytes of
 headroom against the Pocket application's 524,288-byte stack. Large engine and
 batch workspaces are static and explicitly placed in the probe.
 
-This is compatibility and resource evidence only. It does not supersede
-ADR-0004 or authorize replacing the hardware-proven safe-layout package.
+This compatibility and resource evidence supported ADR-0008's conditional M5
+selection. It still does not authorize treating a changed M5 package as a
+production replacement for the hardware-proven safe-layout control.

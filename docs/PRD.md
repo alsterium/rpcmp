@@ -106,7 +106,7 @@ The owner of input mapping, navigation, layout, rendering, widgets, and visualiz
 
 ## 9. Open decisions
 
-- Pocket execution substrate: project-owned soft CPU/firmware, a reviewed third-party runtime, a hardware-oriented implementation, or another proven APF-compatible design.
+- Production Pocket execution substrate: ADR-0008 conditionally selects stripped openfpgaOS for the bounded M5 experiment; production promotion remains gated by placement stability, APF lifecycle, timing/CDC, failure silence, and future PCM headroom, with a project-owned VexRiscv SoC as the required fallback if placement cannot be stabilized.
 - Runtime language/build system supported by the Pocket toolchain.
 - Licensed YM2151 implementation (for example, whether JT51 is suitable after license/toolchain review).
 - Pocket AUDIO output is fixed at 48 kHz by APF; internal device/scheduler clock rates and the resampling topology remain open.

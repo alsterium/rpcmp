@@ -36,8 +36,10 @@ queue without becoming a future parser or player runtime.
   consumes a clean JT51 checkout at
   `985a573dcfc1ff135553a39f7eae21d18ba57cbe`; no GPL source or binary is added
   to this repository.
-- Do not reuse the fixed state machine for MDX or later runtime work. ADR-0004
-  remains accepted and unsuperseded for the production Pocket substrate.
+- Do not reuse the fixed state machine for MDX or later runtime work. At this
+  decision's acceptance, ADR-0004 still gated the production Pocket substrate;
+  ADR-0008 later authorized stripped openfpgaOS only for the bounded M5
+  experiment and retained production-promotion gates.
 
 ## Consequences
 

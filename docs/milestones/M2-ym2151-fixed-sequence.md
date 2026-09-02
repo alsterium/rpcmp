@@ -117,9 +117,10 @@ unversioned or unconstrained build is diagnostic evidence, not acceptance.
 
 ## Known constraints and decision gates
 
-- ADR-0004 remains accepted and unsuperseded. The current checksum-pinned safe
-  application layout permits bounded experiments but does not approve arbitrary
-  firmware growth.
+- ADR-0008 has superseded ADR-0004 by conditionally selecting stripped
+  openfpgaOS for the bounded M5 experiment. Its production-promotion gates
+  preserve the restriction against arbitrary firmware growth and treating the
+  checksum-pinned safe layout as a general solution.
 - The pinned JT51 research fit demonstrates capacity and internal timing only.
   ADR-0006 selects that exact revision for local M2 verification, but the fit
   does not connect 48 kHz Pocket audio or authorize release.
