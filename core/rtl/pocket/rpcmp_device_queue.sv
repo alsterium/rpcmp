@@ -2,7 +2,7 @@ module rpcmp_device_queue #(
     parameter logic [31:0] BASE_ADDR = 32'h4000_0200,
     parameter int unsigned DEPTH = 8
 ) (
-    input logic cpu_clk, dev_clk, reset_n,
+    input logic cpu_clk, dev_clk, cpu_reset_n, dev_reset_n,
     input logic [31:0] mmio_addr, mmio_wr_data,
     input logic mmio_rd, mmio_wr,
     output logic [31:0] mmio_rd_data,
@@ -42,8 +42,8 @@ module rpcmp_device_queue #(
     wire ack_arrived = inflight && (ack_sync_2 != ack_seen);
     wire dispatch_ready = !inflight && (count != 0) && (now_tick >= due_mem[read_ptr]);
 
-    always_ff @(posedge cpu_clk or negedge reset_n) begin
-        if (!reset_n) begin
+    always_ff @(posedge cpu_clk or negedge cpu_reset_n) begin
+        if (!cpu_reset_n) begin
             write_ptr <= '0; read_ptr <= '0; count <= '0; now_tick <= '0;
             staged_due <= '0; overflow_sticky <= 0; invalid_sticky <= 0;
             transfer_kind <= 0; transfer_address <= 0; transfer_value <= 0;
@@ -86,8 +86,8 @@ module rpcmp_device_queue #(
         end
     end
 
-    always_ff @(posedge dev_clk or negedge reset_n) begin
-        if (!reset_n) begin
+    always_ff @(posedge dev_clk or negedge dev_reset_n) begin
+        if (!dev_reset_n) begin
             request_sync_1 <= 0; request_sync_2 <= 0; request_seen <= 0;
             ack_toggle <= 0; dev_valid <= 0; dev_kind <= 0;
             dev_address <= 0; dev_value <= 0;

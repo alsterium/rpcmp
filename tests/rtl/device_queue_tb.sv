@@ -11,7 +11,7 @@ module device_queue_tb;
     logic [15:0] observed [0:31];
     always #5 cpu_clk=~cpu_clk;
     always #7 dev_clk=~dev_clk;
-    rpcmp_device_queue dut (.*);
+    rpcmp_device_queue dut (.cpu_reset_n(reset_n), .dev_reset_n(reset_n), .*);
     always @(posedge dev_clk) if (reset_n && dev_valid && dev_ready) begin
         observed[events]={dev_address,dev_value}; events=events+1;
         if (stop_after_four && events==4) dev_ready<=0;

@@ -33,8 +33,10 @@ from CPU to device clock with a request toggle and remains stable until
 stages. Backpressure cannot drop or reorder work. Integration must mark the
 toggle synchronizers and constrain/review the bundled-data CDC path.
 
-Common active-low `reset_n` clears FIFO, staging, time, flags, request/ack state,
-and device valid even with queued or in-flight work. Platform integration must
-synchronize deassertion to both clocks. No pre-reset operation may reappear.
+One logical common active-low reset clears FIFO, staging, time, flags,
+request/ack state, and device valid even with queued or in-flight work. The RTL
+receives this as `cpu_reset_n` and `dev_reset_n` so platform integration can
+synchronize deassertion independently to both clocks. Both must be asserted for
+every common reset. No pre-reset operation may reappear.
 Version 1 has no device-fault wire; the selected sound adapter must define that
 mapping before integration.

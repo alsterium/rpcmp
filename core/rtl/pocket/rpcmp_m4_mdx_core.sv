@@ -111,7 +111,7 @@ module rpcmp_m4_mdx_core #(
     end
 
     rpcmp_device_queue queue (
-        .cpu_clk(clk_cpu), .dev_clk(clk_audio), .reset_n(reset_n),
+        .cpu_clk(clk_cpu), .dev_clk(clk_audio), .cpu_reset_n(reset_n), .dev_reset_n(reset_n),
         .mmio_rd(mmio_rd), .mmio_wr(mmio_wr), .mmio_addr(mmio_addr),
         .mmio_wr_data(mmio_wr_data), .mmio_rd_data(mmio_rd_data),
         .dev_valid(dev_valid), .dev_ready(dev_ready), .dev_kind(dev_kind),
