@@ -174,6 +174,13 @@ add_library(rpcmp_m5_pocket_compile_check OBJECT
 target_link_libraries(rpcmp_m5_pocket_compile_check PRIVATE rpcmp_player)
 rpcmp_production_options(rpcmp_m5_pocket_compile_check)
 
+add_library(rpcmp_m5_audio_pocket_compile_check OBJECT
+  spikes/pocket/openfpgaos/m5_audio_probe.cpp)
+target_link_libraries(rpcmp_m5_audio_pocket_compile_check PRIVATE
+  rpcmp_player
+  rpcmp_pocket_platform)
+rpcmp_production_options(rpcmp_m5_audio_pocket_compile_check)
+
 add_library(rpcmp_m5_desktop_compile_check OBJECT
   spikes/pocket/openfpgaos/m5_session_desktop.cpp)
 target_link_libraries(rpcmp_m5_desktop_compile_check PRIVATE rpcmp_player)

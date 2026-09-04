@@ -20,6 +20,7 @@ LIBGCC := $(shell $(CXX) $(ARCH) -print-libgcc-file-name)
 INCLUDES := \
   -I$(ROOT)/core/contracts/include \
   -I$(ROOT)/core/library/include \
+  -I$(ROOT)/core/platform/pocket/include \
   -I$(ROOT)/core/player/include \
   -I$(ROOT)/core/runtime/include \
   -I$(ROOT)/spikes/pocket/common/include \
@@ -110,6 +111,19 @@ M5_LIBRARY_OBJECT := $(M5_OUT_DIR)/m5-library.o
 M5_ELF := $(M5_OUT_DIR)/rpcmp-m5-session.elf
 M5_BUDGET := $(M5_OUT_DIR)/budget.json
 
+M5_AUDIO_OUT_DIR ?= $(ROOT)/out/build/pocket-openfpgaos-m5-audio
+M5_AUDIO_CXX_SOURCES := \
+  $(filter-out $(ROOT)/spikes/pocket/openfpgaos/m5_session_probe.cpp,$(M5_CXX_SOURCES)) \
+  $(ROOT)/core/platform/pocket/src/device_queue_mmio.cpp \
+  $(ROOT)/spikes/pocket/openfpgaos/m5_audio_probe.cpp
+M5_AUDIO_CXX_OBJECTS := $(patsubst $(ROOT)/%.cpp,$(M5_AUDIO_OUT_DIR)/%.o,$(M5_AUDIO_CXX_SOURCES))
+M5_AUDIO_C_OBJECTS := $(patsubst $(ROOT)/%.c,$(M5_AUDIO_OUT_DIR)/%.o,$(M5_C_SOURCES))
+M5_AUDIO_SDK_INIT_OBJECT := $(M5_AUDIO_OUT_DIR)/sdk/of_init.o
+M5_AUDIO_LIBRARY := $(M5_AUDIO_OUT_DIR)/m5-library.rpcmlib
+M5_AUDIO_LIBRARY_OBJECT := $(M5_AUDIO_OUT_DIR)/m5-library.o
+M5_AUDIO_ELF := $(M5_AUDIO_OUT_DIR)/rpcmp-m5-audio.elf
+M5_AUDIO_BUDGET := $(M5_AUDIO_OUT_DIR)/budget.json
+
 .DEFAULT_GOAL := verify
 
 $(OUT_DIR)/%.o: $(ROOT)/%.cpp
@@ -125,6 +139,14 @@ $(M5_OUT_DIR)/%.o: $(ROOT)/%.cpp
 	$(CXX) $(CXXFLAGS) -fstack-usage -c -o $@ $<
 
 $(M5_OUT_DIR)/%.o: $(ROOT)/%.c
+	@mkdir -p $(dir $@)
+	$(CC) $(CFLAGS) -fstack-usage -c -o $@ $<
+
+$(M5_AUDIO_OUT_DIR)/%.o: $(ROOT)/%.cpp
+	@mkdir -p $(dir $@)
+	$(CXX) $(CXXFLAGS) -fstack-usage -c -o $@ $<
+
+$(M5_AUDIO_OUT_DIR)/%.o: $(ROOT)/%.c
 	@mkdir -p $(dir $@)
 	$(CC) $(CFLAGS) -fstack-usage -c -o $@ $<
 
@@ -149,6 +171,27 @@ $(M5_BUDGET): $(M5_ELF) $(ROOT)/tools/elf_budget.py
 	  --stack-root $(M5_OUT_DIR) --static-limit 56623104 --data-limit 4096 \
 	  --stack-limit 524288 --output $@
 
+$(M5_AUDIO_LIBRARY): $(ROOT)/tests/fixtures/rpcmlib/mdx-session.rpcmlib.hex
+	@mkdir -p $(dir $@)
+	python3 -c "import pathlib; p=pathlib.Path('$<'); pathlib.Path('$@').write_bytes(bytes.fromhex(p.read_text()))"
+
+$(M5_AUDIO_LIBRARY_OBJECT): $(M5_AUDIO_LIBRARY)
+	cd $(M5_AUDIO_OUT_DIR) && $(LD) -r -b binary -o $(notdir $@) $(notdir $<)
+
+$(M5_AUDIO_SDK_INIT_OBJECT): $(SDK_DIR)/of_init.c
+	@mkdir -p $(dir $@)
+	$(CC) $(CFLAGS) -c -o $@ $<
+
+$(M5_AUDIO_ELF): $(M5_AUDIO_CXX_OBJECTS) $(M5_AUDIO_C_OBJECTS) $(M5_AUDIO_SDK_INIT_OBJECT) $(M5_AUDIO_LIBRARY_OBJECT) $(CRT) $(SDK_DIR)/app.ld
+	$(CXX) $(ARCH) -nostdlib -static -T $(SDK_DIR)/app.ld -L$(SDK_DIR)/musl/lib \
+	  -Wl,--gc-sections -Wl,--no-warn-rwx-segments -Wl,-Map,$(M5_AUDIO_OUT_DIR)/rpcmp-m5-audio.map \
+	  -o $@ $(CRT) $(M5_AUDIO_CXX_OBJECTS) $(M5_AUDIO_C_OBJECTS) $(M5_AUDIO_SDK_INIT_OBJECT) $(M5_AUDIO_LIBRARY_OBJECT) $(LIBS)
+
+$(M5_AUDIO_BUDGET): $(M5_AUDIO_ELF) $(ROOT)/tools/elf_budget.py
+	python3 $(ROOT)/tools/elf_budget.py --elf $(M5_AUDIO_ELF) --size-tool $(SIZE) \
+	  --stack-root $(M5_AUDIO_OUT_DIR) --static-limit 56623104 --data-limit 4096 \
+	  --stack-limit 524288 --output $@
+
 $(SDK_INIT_OBJECT): $(SDK_DIR)/of_init.c
 	@mkdir -p $(dir $@)
 	$(CC) $(CFLAGS) -c -o $@ $<
@@ -170,10 +213,16 @@ m5-budget: $(M5_BUDGET)
 	test -z "$$($(NM) --undefined-only $(M5_ELF))"
 	sha256sum $(M5_ELF) $(M5_BUDGET)
 
+m5-audio-budget: $(M5_AUDIO_BUDGET)
+	$(SIZE) $(M5_AUDIO_ELF)
+	$(READELF) -h $(M5_AUDIO_ELF) | grep -F 'Machine:' | grep -F 'RISC-V'
+	test -z "$$($(NM) --undefined-only $(M5_AUDIO_ELF))"
+	sha256sum $(M5_AUDIO_ELF) $(M5_AUDIO_BUDGET)
+
 clean:
 	@case "$(abspath $(OUT_DIR))" in \
 	  "$(ROOT)/out/build/"*) rm -rf -- "$(abspath $(OUT_DIR))" ;; \
 	  *) echo "refusing to clean outside $(ROOT)/out/build: $(abspath $(OUT_DIR))" >&2; exit 1 ;; \
 	esac
 
-.PHONY: verify m5-budget clean
+.PHONY: verify m5-budget m5-audio-budget clean
