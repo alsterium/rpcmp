@@ -102,6 +102,9 @@ M5_CXX_SOURCES := \
   $(ROOT)/core/runtime/engines/mdx/mdx_ym2151_router.cpp \
   $(ROOT)/spikes/pocket/openfpgaos/m5_session_probe.cpp
 M5_CXX_OBJECTS := $(patsubst $(ROOT)/%.cpp,$(M5_OUT_DIR)/%.o,$(M5_CXX_SOURCES))
+M5_C_SOURCES := $(ROOT)/spikes/pocket/openfpgaos/pocket_sdk_adapter.c
+M5_C_OBJECTS := $(patsubst $(ROOT)/%.c,$(M5_OUT_DIR)/%.o,$(M5_C_SOURCES))
+M5_SDK_INIT_OBJECT := $(M5_OUT_DIR)/sdk/of_init.o
 M5_LIBRARY := $(M5_OUT_DIR)/m5-library.rpcmlib
 M5_LIBRARY_OBJECT := $(M5_OUT_DIR)/m5-library.o
 M5_ELF := $(M5_OUT_DIR)/rpcmp-m5-session.elf
@@ -121,6 +124,10 @@ $(M5_OUT_DIR)/%.o: $(ROOT)/%.cpp
 	@mkdir -p $(dir $@)
 	$(CXX) $(CXXFLAGS) -fstack-usage -c -o $@ $<
 
+$(M5_OUT_DIR)/%.o: $(ROOT)/%.c
+	@mkdir -p $(dir $@)
+	$(CC) $(CFLAGS) -fstack-usage -c -o $@ $<
+
 $(M5_LIBRARY): $(ROOT)/tests/fixtures/rpcmlib/mdx-session.rpcmlib.hex
 	@mkdir -p $(dir $@)
 	python3 -c "import pathlib; p=pathlib.Path('$<'); pathlib.Path('$@').write_bytes(bytes.fromhex(p.read_text()))"
@@ -128,10 +135,14 @@ $(M5_LIBRARY): $(ROOT)/tests/fixtures/rpcmlib/mdx-session.rpcmlib.hex
 $(M5_LIBRARY_OBJECT): $(M5_LIBRARY)
 	cd $(M5_OUT_DIR) && $(LD) -r -b binary -o $(notdir $@) $(notdir $<)
 
-$(M5_ELF): $(M5_CXX_OBJECTS) $(M5_LIBRARY_OBJECT) $(CRT) $(SDK_DIR)/app.ld
+$(M5_SDK_INIT_OBJECT): $(SDK_DIR)/of_init.c
+	@mkdir -p $(dir $@)
+	$(CC) $(CFLAGS) -c -o $@ $<
+
+$(M5_ELF): $(M5_CXX_OBJECTS) $(M5_C_OBJECTS) $(M5_SDK_INIT_OBJECT) $(M5_LIBRARY_OBJECT) $(CRT) $(SDK_DIR)/app.ld
 	$(CXX) $(ARCH) -nostdlib -static -T $(SDK_DIR)/app.ld -L$(SDK_DIR)/musl/lib \
 	  -Wl,--gc-sections -Wl,--no-warn-rwx-segments -Wl,-Map,$(M5_OUT_DIR)/rpcmp-m5-session.map \
-	  -o $@ $(CRT) $(M5_CXX_OBJECTS) $(M5_LIBRARY_OBJECT) $(LIBS)
+	  -o $@ $(CRT) $(M5_CXX_OBJECTS) $(M5_C_OBJECTS) $(M5_SDK_INIT_OBJECT) $(M5_LIBRARY_OBJECT) $(LIBS)
 
 $(M5_BUDGET): $(M5_ELF) $(ROOT)/tools/elf_budget.py
 	python3 $(ROOT)/tools/elf_budget.py --elf $(M5_ELF) --size-tool $(SIZE) \

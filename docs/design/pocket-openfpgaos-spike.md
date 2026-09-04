@@ -1402,6 +1402,23 @@ either workspace from silently returning to `.data`. This closes ADR-0008's
 symbol-attribution requirement for the current M5 probe; it does not yet prove
 Pocket placement stability or authorize replacing the safe-layout control.
 
+The observable `0.8.0-m5-bss` diagnostic adds only the SDK initialization and
+terminal result adapter needed for hardware evidence. Its final load segment is
+`VAddr=0x10400000`, `FileSiz=0x0de18`, and `MemSiz=0x0e96f4`; aggregate sizes
+are `text=55,892`, `data=964`, and `bss=899,292`. It requires exactly 33 writes
+and digest `f1f04f5a8695a112`, otherwise it displays a numbered failure and
+holds the result screen.
+
+The package has the distinct core identity `RPCMP.M5BssProbe`, so it neither
+overwrites nor masquerades as the safe-layout control. It reuses the exact
+safe OS and RBF identities, contains only slots 0 through 3, and packages no
+music, corpus filename, synthetic data, or library data slot. The 974,669-byte
+ZIP `out/build/rpcmp-m5-bss-probe.zip` has SHA-256
+`799CB8816C7ECF014DD8DD173A62BA18B4CFF9895C8FE6B1D2A0CEB43B4B681C`.
+This diagnostic tests application load, BSS clear, C++ value initialization,
+library admission, and deterministic sequencing. Its safe-layout RBF has no
+JT51/MMIO overlay, so it is not M5 audio or queue acceptance.
+
 ## 7. Acceptance record
 
 Each candidate must produce one reviewable record containing:

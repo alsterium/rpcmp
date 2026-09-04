@@ -101,15 +101,17 @@ application with no undefined symbols. Its project-authored 752-byte library
 fixture is also executed by the openfpgaOS desktop shim for 32 driver ticks:
 33 YM2151 writes and digest `f1f04f5a8695a112`.
 
-The cross-target budget is now `text=23,112`, `data=792`, and `bss=898,260`
-bytes: 922,164 static bytes total and 55,700,940 bytes headroom in the SDK's
+The observable Pocket diagnostic budget is `text=55,892`, `data=964`, and
+`bss=899,292` bytes: 956,148 static bytes total and 55,666,956 bytes headroom
+in the SDK's
 56,623,104-byte application SDRAM window. GCC reports no dynamic stack frames.
 The largest individual frame is 7,408 bytes; summing every emitted static
-frame gives a deliberately conservative 17,328-byte bound and 506,960 bytes of
+frame gives a deliberately conservative 17,552-byte bound and 506,736 bytes of
 headroom against the Pocket application's 524,288-byte stack. Large engine and
 batch workspaces are static and explicitly placed in zero-backed storage in the
 probe. The initialized-data build gate is 4,096 bytes; the loader's file-backed
-`PT_LOAD` range fell from `0x0c0fe0` to `0x05d60` without changing the public
+`PT_LOAD` range is `0x0de18` after adding the Pocket terminal result adapter,
+still 733,640 bytes below the original `0x0c0fe0`, without changing the public
 MDX defaults or desktop trace.
 
 This compatibility and resource evidence supported ADR-0008's conditional M5

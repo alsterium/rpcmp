@@ -120,6 +120,35 @@ MDX-performance guarantee.
 
 ## Pocket installation and retest
 
+### M5 BSS placement diagnostic
+
+Extract `out/build/rpcmp-m5-bss-probe.zip` at the SD-card root. This package
+uses the separate paths below and can coexist with the existing safe-layout
+probe:
+
+```text
+/Cores/RPCMP.M5BssProbe
+/Assets/rpcmp_m5bss
+/Platforms/rpcmp_m5bss.json
+```
+
+From Developer Builds, open `M5BssProbe` and select `m5-bss` if the asset
+picker is shown. A pass reaches this terminal result:
+
+```text
+RPCMP M5 BSS probe
+
+M5 BSS: PASS
+W=33 D=f1f04f5a8695a112
+Open Pocket menu to exit.
+```
+
+Record the firmware version and the initial result, then relaunch it three
+times and perform one full power-off/cold-start run. A blackout, reload loop,
+or numbered `M5 BSS: FAIL` is a failure; record the last visible state. This
+diagnostic deliberately uses the checksum-pinned safe-layout OS/RBF and does
+not contain the JT51/MMIO overlay, so no audio is expected.
+
 Use Pocket firmware 2.2 or later. Replace the earlier experiment by removing
 these exact paths from the SD card, then extract
 `out/build/rpcmp-openfpgaos-probe.zip` at the SD-card root:

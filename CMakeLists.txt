@@ -372,6 +372,9 @@ if(BUILD_TESTING)
     NAME pocket_package_builder
     COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/pocket/package_builder_tests.py)
   add_test(
+    NAME pocket_m5_bss_package
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/pocket/m5_bss_package_tests.py)
+  add_test(
     NAME m4_rtl_trace
     COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/pocket/m4_rtl_trace_tests.py)
   add_test(
