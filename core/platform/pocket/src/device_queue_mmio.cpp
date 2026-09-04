@@ -27,6 +27,7 @@ constexpr std::uintptr_t kSoundIdOffset = 0x00;
 constexpr std::uintptr_t kSoundCapabilityOffset = 0x04;
 constexpr std::uintptr_t kSoundStatusOffset = 0x08;
 constexpr std::uintptr_t kSoundCommandOffset = 0x0C;
+constexpr std::uintptr_t kSoundAudioStatusOffset = 0x10;
 constexpr std::uint32_t kSoundCapability = (1U << 16U) | 256U;
 constexpr std::uint32_t kSoundBusy = 1U;
 constexpr std::uint32_t kSoundInvalid = 1U << 1U;
@@ -71,6 +72,14 @@ SoundResetMmioResult SoundResetMmio::reset(const std::uint32_t poll_limit) noexc
     }
   }
   return SoundResetMmioResult::Timeout;
+}
+
+SoundResetMmioResult SoundResetMmio::read_audio_status(std::uint32_t& status) noexcept {
+  if (!initialized_) {
+    return SoundResetMmioResult::IncompatibleHardware;
+  }
+  status = mmio_.read(base_ + kSoundAudioStatusOffset);
+  return (status & 7U) != 0U ? SoundResetMmioResult::DeviceFault : SoundResetMmioResult::Complete;
 }
 
 bool SoundResetMmio::initialized() const noexcept { return initialized_; }
@@ -146,6 +155,18 @@ DeviceQueueMmioResult DeviceQueueMmio::clear_fault_flags() noexcept {
   mmio_.write(base_ + kClearOffset, kClearFaults);
   faulted_ = (mmio_.read(base_ + kStatusOffset) & kStatusFaults) != 0U;
   return faulted_ ? DeviceQueueMmioResult::DeviceFault : DeviceQueueMmioResult::Accepted;
+}
+
+DeviceQueueMmioResult DeviceQueueMmio::read_status(std::uint32_t& status) noexcept {
+  if (!initialized_) {
+    return DeviceQueueMmioResult::NotInitialized;
+  }
+  status = mmio_.read(base_ + kStatusOffset);
+  if ((status & kStatusFaults) != 0U) {
+    faulted_ = true;
+    return DeviceQueueMmioResult::DeviceFault;
+  }
+  return DeviceQueueMmioResult::Accepted;
 }
 
 bool DeviceQueueMmio::initialized() const noexcept { return initialized_; }

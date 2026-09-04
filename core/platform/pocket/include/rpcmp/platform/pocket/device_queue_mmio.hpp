@@ -46,6 +46,7 @@ public:
 
   [[nodiscard]] SoundResetMmioResult initialize() noexcept;
   [[nodiscard]] SoundResetMmioResult reset(std::uint32_t poll_limit) noexcept;
+  [[nodiscard]] SoundResetMmioResult read_audio_status(std::uint32_t& status) noexcept;
   [[nodiscard]] bool initialized() const noexcept;
 
 private:
@@ -62,6 +63,7 @@ public:
   [[nodiscard]] DeviceQueueMmioResult
   enqueue_ym2151(std::uint64_t media_tick, const contracts::DeviceOperation& operation) noexcept;
   [[nodiscard]] DeviceQueueMmioResult clear_fault_flags() noexcept;
+  [[nodiscard]] DeviceQueueMmioResult read_status(std::uint32_t& status) noexcept;
 
   [[nodiscard]] bool initialized() const noexcept;
   [[nodiscard]] bool faulted() const noexcept;
