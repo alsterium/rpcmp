@@ -77,6 +77,7 @@ def find_violations(root: Path) -> list[str]:
     allowed_rtl = {
         Path("core/rtl/pocket/rpcmp_spike_regs.sv"),
         Path("core/rtl/pocket/rpcmp_device_queue.sv"),
+        Path("core/rtl/pocket/rpcmp_sound_reset.sv"),
         Path("core/rtl/pocket/rpcmp_pocket_audio.sv"),
         Path("core/rtl/pocket/rpcmp_jt51_audio.sv"),
         Path("core/rtl/pocket/rpcmp_m2_fixed_core.sv"),
