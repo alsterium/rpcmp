@@ -133,9 +133,10 @@ $(M5_ELF): $(M5_CXX_OBJECTS) $(M5_LIBRARY_OBJECT) $(CRT) $(SDK_DIR)/app.ld
 	  -Wl,--gc-sections -Wl,--no-warn-rwx-segments -Wl,-Map,$(M5_OUT_DIR)/rpcmp-m5-session.map \
 	  -o $@ $(CRT) $(M5_CXX_OBJECTS) $(M5_LIBRARY_OBJECT) $(LIBS)
 
-$(M5_BUDGET): $(M5_ELF)
+$(M5_BUDGET): $(M5_ELF) $(ROOT)/tools/elf_budget.py
 	python3 $(ROOT)/tools/elf_budget.py --elf $(M5_ELF) --size-tool $(SIZE) \
-	  --stack-root $(M5_OUT_DIR) --static-limit 56623104 --stack-limit 524288 --output $@
+	  --stack-root $(M5_OUT_DIR) --static-limit 56623104 --data-limit 4096 \
+	  --stack-limit 524288 --output $@
 
 $(SDK_INIT_OBJECT): $(SDK_DIR)/of_init.c
 	@mkdir -p $(dir $@)

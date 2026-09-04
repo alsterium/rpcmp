@@ -2,6 +2,8 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <new>
+#include <type_traits>
 
 extern "C" {
 extern const std::uint8_t _binary_m5_library_rpcmlib_start[];
@@ -14,6 +16,12 @@ constexpr std::size_t kFixtureLibraryBytes = 752;
 
 volatile std::uint64_t result_digest{};
 
+template <typename T> T& construct_in_zero_backed_storage() noexcept {
+  static_assert(std::is_trivially_destructible_v<T>);
+  alignas(T) static std::byte storage[sizeof(T)]{};
+  return *::new (static_cast<void*>(storage)) T{};
+}
+
 } // namespace
 
 int main() {
@@ -23,8 +31,8 @@ int main() {
     return 1;
   }
 
-  static rpcmp::player::MdxLibrarySession session;
-  static rpcmp::player::MdxLibrarySessionWorkspace workspace;
+  auto& session = construct_in_zero_backed_storage<rpcmp::player::MdxLibrarySession>();
+  auto& workspace = construct_in_zero_backed_storage<rpcmp::player::MdxLibrarySessionWorkspace>();
   if (!rpcmp::player::prepare_mdx_library_session(library, kFixtureTrack, session, workspace)
            .ok()) {
     return 2;

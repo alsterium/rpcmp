@@ -17,6 +17,7 @@ def main() -> int:
     parser.add_argument("--stack-root", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--static-limit", type=int, required=True)
+    parser.add_argument("--data-limit", type=int)
     parser.add_argument("--stack-limit", type=int, required=True)
     args = parser.parse_args()
 
@@ -46,10 +47,12 @@ def main() -> int:
     conservative_stack = sum(record["bytes"] for record in frames)
     static_bytes = text + data + bss
     evidence = {
-        "schema": 1,
+        "schema": 2,
         "elf": args.elf.name,
         "text_bytes": text,
         "data_bytes": data,
+        "data_limit_bytes": args.data_limit,
+        "data_headroom_bytes": None if args.data_limit is None else args.data_limit - data,
         "bss_bytes": bss,
         "static_bytes": static_bytes,
         "static_limit_bytes": args.static_limit,
@@ -61,8 +64,23 @@ def main() -> int:
         "dynamic_stack_frames": dynamic,
         "stack_record_count": len(frames),
     }
-    if evidence["static_headroom_bytes"] < 0 or evidence["stack_headroom_bytes"] < 0 or dynamic:
-        raise SystemExit("ELF exceeds static memory or contains dynamic stack usage")
+    data_exceeded = args.data_limit is not None and data > args.data_limit
+    if (
+        evidence["static_headroom_bytes"] < 0
+        or evidence["stack_headroom_bytes"] < 0
+        or data_exceeded
+        or dynamic
+    ):
+        failures = []
+        if evidence["static_headroom_bytes"] < 0:
+            failures.append("static memory limit")
+        if evidence["stack_headroom_bytes"] < 0:
+            failures.append("stack limit")
+        if data_exceeded:
+            failures.append("initialized-data limit")
+        if dynamic:
+            failures.append("dynamic stack usage")
+        raise SystemExit("ELF budget failure: " + ", ".join(failures))
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(evidence, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     print(json.dumps(evidence, sort_keys=True))

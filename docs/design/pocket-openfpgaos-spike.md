@@ -1373,6 +1373,35 @@ exceeded the terminal's visible line area. The result is recorded as an M1
 hardware pass with that display limitation, rather than as direct observation
 of those two strings.
 
+### M5 initialized-data attribution — 2026-09-05
+
+The first M5 session ELF linked one SDRAM `PT_LOAD` at `0x10400000` with
+`FileSiz=0x0c0fe0` and `MemSiz=0x0e10ec`. Its 767,712-byte initialized-data
+total was attributable from the linker map rather than inferred from aggregate
+size: the function-local `MdxLibrarySessionWorkspace` occupied 754,680 bytes,
+`MdxLibrarySession` occupied 12,240 bytes, the project-authored library fixture
+occupied 752 bytes, and the remaining 40 bytes were small-data symbols and
+alignment. A nonzero default nested inside each large C++ aggregate, including
+the historically required initial Timer B value `0xc8`, caused the complete
+object image to be stored in the ELF.
+
+Changing those public defaults would alter the MDX contract. The M5 target
+instead reserves aligned static storage in zero-backed BSS and begins each
+object's C++ lifetime with its ordinary value-initialization before use. This
+is target-local placement, performs no dynamic allocation, and retains all
+default member initialization. The loader still owns the single `PT_LOAD`
+copy and its `p_memsz - p_filesz` BSS clear; the application then performs the
+language-required construction before library admission.
+
+After this change, the ELF has `FileSiz=0x05d60`, `MemSiz=0x0e1234`,
+`text=23,112`, `data=792`, and `bss=898,260` bytes. Total static memory changes
+only from 921,836 to 922,164 bytes, while the loader's file-backed range drops
+by 766,592 bytes. The M5 build now rejects initialized data above 4,096 bytes,
+leaving room for the 752-byte fixture and small runtime data while preventing
+either workspace from silently returning to `.data`. This closes ADR-0008's
+symbol-attribution requirement for the current M5 probe; it does not yet prove
+Pocket placement stability or authorize replacing the safe-layout control.
+
 ## 7. Acceptance record
 
 Each candidate must produce one reviewable record containing:
