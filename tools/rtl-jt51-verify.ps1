@@ -29,15 +29,18 @@ try {
         (Join-Path $root 'core\rtl\pocket\rpcmp_pocket_audio.sv') `
         (Join-Path $root 'core\rtl\pocket\rpcmp_jt51_audio.sv') `
         (Join-Path $root 'core\rtl\pocket\rpcmp_device_queue.sv') `
+        (Join-Path $root 'core\rtl\pocket\rpcmp_sound_reset.sv') `
+        (Join-Path $root 'core\rtl\pocket\rpcmp_openfpgaos_sound.sv') `
         (Join-Path $root 'core\rtl\pocket\rpcmp_m2_fixed_core.sv') `
         (Join-Path $root 'core\rtl\pocket\rpcmp_m4_mdx_core.sv') `
         (Join-Path $root 'core\rtl\pocket\rpcmp_stereo_probe_core.sv') `
         (Join-Path $root 'tests\rtl\jt51_audio_tb.sv') `
+        (Join-Path $root 'tests\rtl\openfpgaos_sound_tb.sv') `
         (Join-Path $root 'tests\rtl\m2_fixed_core_tb.sv') `
         (Join-Path $root 'tests\rtl\m4_mdx_core_tb.sv') `
         (Join-Path $root 'tests\rtl\stereo_probe_core_tb.sv')
     if ($LASTEXITCODE) { throw 'vlog failed.' }
-    foreach($simulation in @(@{Top='jt51_audio_tb';Marker='jt51_audio_tb: PASS writes=30'},@{Top='m2_fixed_core_tb';Marker='m2_fixed_core_tb: PASS writes=30'},@{Top='m4_mdx_core_tb';Marker='m4_mdx_core_tb: PASS writes=66'},@{Top='stereo_probe_core_tb';Marker='stereo_probe_core_tb: PASS writes=34'})) {
+    foreach($simulation in @(@{Top='jt51_audio_tb';Marker='jt51_audio_tb: PASS writes=30'},@{Top='openfpgaos_sound_tb';Marker='openfpgaos_sound_tb: PASS'},@{Top='m2_fixed_core_tb';Marker='m2_fixed_core_tb: PASS writes=30'},@{Top='m4_mdx_core_tb';Marker='m4_mdx_core_tb: PASS writes=66'},@{Top='stereo_probe_core_tb';Marker='stereo_probe_core_tb: PASS writes=34'})) {
         $lines = @(& $vsim -c -quiet -lib work $simulation.Top -do 'onerror {quit -code 1}; run -all; quit -code 0' 2>&1)
         $code = $LASTEXITCODE; $lines | Write-Output; $text = $lines | Out-String
         if ($code -ne 0 -or $text -notmatch "(?m)^# $([regex]::Escape($simulation.Marker)).*\r?$" -or

@@ -15,6 +15,7 @@ reserved-bit behavior changes.
 | `0x04` | CAPABILITY | R | version 1 in bits 31:16; minimum audio reset cycles (256) in bits 15:0 |
 | `0x08` | STATUS | R | completed generation in bits 31:16; invalid sticky in bit 1; busy in bit 0 |
 | `0x0C` | COMMAND | W | bit 0 requests reset; bit 1 clears invalid |
+| `0x10` | AUDIO_STATUS | R | device idle bit 3; clipped bit 2; overflow bit 1; underflow bit 0 |
 
 A reset request while busy is an idempotent no-op; it never shortens the active
 reset. Unknown offsets, misalignment, reads of undefined offsets, and reserved
@@ -22,7 +23,8 @@ reset. Unknown offsets, misalignment, reads of undefined offsets, and reserved
 
 ## Clock and failure semantics
 
-The controller asserts reset in the CPU domain before accepting more queue
+The controller itself receives platform-global reset as separately synchronized
+`cpu_reset_n` and `audio_reset_n` inputs. It asserts sound reset in the CPU domain before accepting more queue
 work. A toggle request crosses to the 12.288 MHz audio domain through two
 synchronizer stages. The audio-domain reset remains asserted for at least 256
 audio clocks, then deasserts on an audio-clock edge. Its acknowledgement crosses

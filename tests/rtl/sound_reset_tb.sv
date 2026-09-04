@@ -9,7 +9,9 @@ module sound_reset_tb;
     always #5 cpu_clk = ~cpu_clk;
     always #19 audio_clk = ~audio_clk;
 
-    rpcmp_sound_reset #(.AUDIO_RESET_CYCLES(8)) dut (.*);
+    rpcmp_sound_reset #(.AUDIO_RESET_CYCLES(8)) dut (
+        .cpu_reset_n(reset_n), .audio_reset_n(reset_n), .*
+    );
 
     task automatic write_reg(input logic [31:0] address, input logic [31:0] value);
         @(negedge cpu_clk); mmio_addr=address; mmio_wr_data=value; mmio_wr=1;

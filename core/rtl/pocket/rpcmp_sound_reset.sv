@@ -4,7 +4,8 @@ module rpcmp_sound_reset #(
 ) (
     input logic cpu_clk,
     input logic audio_clk,
-    input logic reset_n,
+    input logic cpu_reset_n,
+    input logic audio_reset_n,
     input logic [31:0] mmio_addr,
     input logic [31:0] mmio_wr_data,
     input logic mmio_rd,
@@ -31,8 +32,8 @@ module rpcmp_sound_reset #(
                       (mmio_addr == BASE_ADDR + 32'h08);
     wire reset_request = mmio_wr && command_address && mmio_wr_data[0] && !busy;
 
-    always_ff @(posedge cpu_clk or negedge reset_n) begin
-        if (!reset_n) begin
+    always_ff @(posedge cpu_clk or negedge cpu_reset_n) begin
+        if (!cpu_reset_n) begin
             request_toggle <= 0;
             ack_sync_1 <= 0;
             ack_sync_2 <= 0;
@@ -64,8 +65,8 @@ module rpcmp_sound_reset #(
         end
     end
 
-    always_ff @(posedge audio_clk or negedge reset_n) begin
-        if (!reset_n) begin
+    always_ff @(posedge audio_clk or negedge audio_reset_n) begin
+        if (!audio_reset_n) begin
             request_sync_1 <= 0;
             request_sync_2 <= 0;
             request_seen <= 0;
