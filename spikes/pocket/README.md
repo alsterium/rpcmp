@@ -149,6 +149,11 @@ or numbered `M5 BSS: FAIL` is a failure; record the last visible state. This
 diagnostic deliberately uses the checksum-pinned safe-layout OS/RBF and does
 not contain the JT51/MMIO overlay, so no audio is expected.
 
+This exact diagnostic passed on Pocket firmware 2.6 on its initial launch,
+three warm relaunches, and one full power-off cold start. The result validates
+the current BSS placement configuration only; it is not JT51/MMIO or audio
+acceptance.
+
 Use Pocket firmware 2.2 or later. Replace the earlier experiment by removing
 these exact paths from the SD card, then extract
 `out/build/rpcmp-openfpgaos-probe.zip` at the SD-card root:

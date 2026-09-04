@@ -1419,6 +1419,14 @@ This diagnostic tests application load, BSS clear, C++ value initialization,
 library admission, and deterministic sequencing. Its safe-layout RBF has no
 JT51/MMIO overlay, so it is not M5 audio or queue acceptance.
 
+Pocket firmware 2.6 passed the `0.8.0-m5-bss` diagnostic on the initial launch,
+three consecutive warm relaunches, and one full power-off cold start. Each pass
+reached the exact `M5 BSS: PASS`, 33-write, and
+`f1f04f5a8695a112` digest result. This proves the approximately 899 KiB BSS
+layout and value-initialized M5 workspaces are stable in this checksum-pinned
+safe-layout configuration. It does not by itself satisfy ADR-0008's broader
+non-semantic perturbation matrix or its integrated JT51/MMIO gates.
+
 ## 7. Acceptance record
 
 Each candidate must produce one reviewable record containing:

@@ -114,6 +114,13 @@ probe. The initialized-data build gate is 4,096 bytes; the loader's file-backed
 still 733,640 bytes below the original `0x0c0fe0`, without changing the public
 MDX defaults or desktop trace.
 
+On Pocket firmware 2.6, the isolated `0.8.0-m5-bss` diagnostic reached its
+exact 33-write/digest PASS result on the initial launch, three warm relaunches,
+and one full power-off cold start. This closes the hardware check for the
+current zero-backed workspace placement. The diagnostic intentionally retains
+the safe-layout RBF without JT51/MMIO, so slice 4 integration and the broader
+ADR-0008 placement-perturbation gate remain open.
+
 This compatibility and resource evidence supported ADR-0008's conditional M5
 selection. It still does not authorize treating a changed M5 package as a
 production replacement for the hardware-proven safe-layout control.
