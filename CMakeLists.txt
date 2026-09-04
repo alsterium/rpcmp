@@ -122,6 +122,12 @@ target_include_directories(rpcmp_player PUBLIC core/player/include)
 target_link_libraries(rpcmp_player PUBLIC rpcmp_library rpcmp_runtime)
 rpcmp_production_options(rpcmp_player)
 
+add_library(rpcmp_pocket_platform STATIC
+  core/platform/pocket/src/device_queue_mmio.cpp)
+target_include_directories(rpcmp_pocket_platform PUBLIC core/platform/pocket/include)
+target_link_libraries(rpcmp_pocket_platform PUBLIC rpcmp_contracts)
+rpcmp_production_options(rpcmp_pocket_platform)
+
 add_library(rpcmp_utility STATIC
   utility/src/mdx_ingest.cpp
   utility/src/stable_id.cpp
@@ -340,6 +346,13 @@ if(BUILD_TESTING)
     rpcmp_pocket_comparison_probe)
   rpcmp_test_options(rpcmp_pocket_comparison_probe_tests)
   add_test(NAME pocket_comparison_probe COMMAND rpcmp_pocket_comparison_probe_tests)
+
+  add_executable(rpcmp_device_queue_mmio_tests
+    tests/pocket/device_queue_mmio_tests.cpp)
+  target_include_directories(rpcmp_device_queue_mmio_tests PRIVATE tests/support)
+  target_link_libraries(rpcmp_device_queue_mmio_tests PRIVATE rpcmp_pocket_platform)
+  rpcmp_test_options(rpcmp_device_queue_mmio_tests)
+  add_test(NAME device_queue_mmio COMMAND rpcmp_device_queue_mmio_tests)
 
   add_executable(rpcmp_mdx_trace_fixture_tests tests/pocket/mdx_trace_fixture_tests.cpp)
   target_include_directories(rpcmp_mdx_trace_fixture_tests PRIVATE tests/support)
