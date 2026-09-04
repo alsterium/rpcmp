@@ -10,6 +10,7 @@ namespace {
 
 using rpcmp::platform::pocket::DeviceQueueMmioResult;
 constexpr std::uintptr_t kBase = rpcmp::platform::pocket::kDeviceQueueMmioBase;
+constexpr std::uintptr_t kSoundBase = rpcmp::platform::pocket::kSoundResetMmioBase;
 
 struct Write {
   std::uintptr_t address{};
@@ -26,6 +27,8 @@ public:
   bool rollover_once{};
   std::array<Write, 16> writes{};
   std::size_t write_count{};
+  std::uint32_t sound_status{};
+  std::uint32_t sound_polls_before_complete{};
 
   std::uint32_t read(const std::uintptr_t address) noexcept override {
     if (address == kBase)
@@ -44,6 +47,18 @@ public:
     }
     if (address == kBase + 0x14U)
       return static_cast<std::uint32_t>(now >> 32U);
+    if (address == kSoundBase)
+      return rpcmp::platform::pocket::kSoundResetId;
+    if (address == kSoundBase + 4U)
+      return 0x0001'0100U;
+    if (address == kSoundBase + 8U) {
+      if ((sound_status & 1U) != 0U && sound_polls_before_complete != 0U) {
+        --sound_polls_before_complete;
+        if (sound_polls_before_complete == 0U)
+          sound_status = (sound_status + 0x0001'0000U) & 0xFFFF'0000U;
+      }
+      return sound_status;
+    }
     return 0;
   }
 
@@ -52,6 +67,8 @@ public:
       writes[write_count++] = {address, value};
     if (address == kBase + 0x0CU && (value & 3U) != 0U)
       status &= ~0x600U;
+    if (address == kSoundBase + 0x0CU && (value & 1U) != 0U)
+      sound_status |= 1U;
   }
 };
 
@@ -59,6 +76,31 @@ public:
 
 int main() {
   rpcmp::test::Suite suite;
+
+  MockMmio sound_mock;
+  sound_mock.sound_status = 0x0007'0000U;
+  sound_mock.sound_polls_before_complete = 3;
+  rpcmp::platform::pocket::SoundResetMmio sound_reset(sound_mock);
+  RPCMP_CHECK(suite,
+              sound_reset.initialize() == rpcmp::platform::pocket::SoundResetMmioResult::Complete);
+  RPCMP_CHECK(suite, sound_reset.initialized());
+  RPCMP_CHECK(suite,
+              sound_reset.reset(4) == rpcmp::platform::pocket::SoundResetMmioResult::Complete);
+  RPCMP_CHECK(suite, sound_mock.sound_status == 0x0008'0000U);
+
+  MockMmio sound_timeout_mock;
+  sound_timeout_mock.sound_polls_before_complete = 5;
+  rpcmp::platform::pocket::SoundResetMmio sound_timeout(sound_timeout_mock);
+  RPCMP_CHECK(suite, sound_timeout.initialize() ==
+                         rpcmp::platform::pocket::SoundResetMmioResult::Complete);
+  RPCMP_CHECK(suite,
+              sound_timeout.reset(4) == rpcmp::platform::pocket::SoundResetMmioResult::Timeout);
+
+  MockMmio sound_fault_mock;
+  sound_fault_mock.sound_status = 2U;
+  rpcmp::platform::pocket::SoundResetMmio sound_fault(sound_fault_mock);
+  RPCMP_CHECK(suite, sound_fault.initialize() ==
+                         rpcmp::platform::pocket::SoundResetMmioResult::DeviceFault);
 
   MockMmio mock;
   rpcmp::platform::pocket::DeviceQueueMmio queue(mock);

@@ -8,7 +8,9 @@
 namespace rpcmp::platform::pocket {
 
 inline constexpr std::uintptr_t kDeviceQueueMmioBase = 0x4000'0200U;
+inline constexpr std::uintptr_t kSoundResetMmioBase = 0x4000'0240U;
 inline constexpr std::uint32_t kDeviceQueueId = 0x5251'4D31U;
+inline constexpr std::uint32_t kSoundResetId = 0x5253'4331U;
 inline constexpr std::uint32_t kDeviceQueueVersion = 1;
 inline constexpr std::uint32_t kDeviceQueueDepth = 8;
 inline constexpr std::uint32_t kM5MediaTickRate = 48'000;
@@ -29,6 +31,27 @@ enum class DeviceQueueMmioResult : std::uint8_t {
   InvalidOperation,
   TimeOverflow,
   DeviceFault,
+};
+
+enum class SoundResetMmioResult : std::uint8_t {
+  Complete,
+  IncompatibleHardware,
+  DeviceFault,
+  Timeout,
+};
+
+class SoundResetMmio final {
+public:
+  explicit SoundResetMmio(IMmio32& mmio, std::uintptr_t base = kSoundResetMmioBase) noexcept;
+
+  [[nodiscard]] SoundResetMmioResult initialize() noexcept;
+  [[nodiscard]] SoundResetMmioResult reset(std::uint32_t poll_limit) noexcept;
+  [[nodiscard]] bool initialized() const noexcept;
+
+private:
+  IMmio32& mmio_;
+  std::uintptr_t base_{};
+  bool initialized_{};
 };
 
 class DeviceQueueMmio final {

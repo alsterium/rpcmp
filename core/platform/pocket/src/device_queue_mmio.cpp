@@ -23,7 +23,57 @@ constexpr std::uint32_t kPushValid = 1U << 31U;
 constexpr std::uint32_t kWriteKind = 1U << 16U;
 constexpr unsigned kNowReadAttempts = 4;
 
+constexpr std::uintptr_t kSoundIdOffset = 0x00;
+constexpr std::uintptr_t kSoundCapabilityOffset = 0x04;
+constexpr std::uintptr_t kSoundStatusOffset = 0x08;
+constexpr std::uintptr_t kSoundCommandOffset = 0x0C;
+constexpr std::uint32_t kSoundCapability = (1U << 16U) | 256U;
+constexpr std::uint32_t kSoundBusy = 1U;
+constexpr std::uint32_t kSoundInvalid = 1U << 1U;
+constexpr std::uint32_t kSoundResetRequest = 1U;
+
 } // namespace
+
+SoundResetMmio::SoundResetMmio(IMmio32& mmio, const std::uintptr_t base) noexcept
+    : mmio_(mmio), base_(base) {}
+
+SoundResetMmioResult SoundResetMmio::initialize() noexcept {
+  initialized_ = false;
+  if (mmio_.read(base_ + kSoundIdOffset) != kSoundResetId ||
+      mmio_.read(base_ + kSoundCapabilityOffset) != kSoundCapability) {
+    return SoundResetMmioResult::IncompatibleHardware;
+  }
+  if ((mmio_.read(base_ + kSoundStatusOffset) & kSoundInvalid) != 0U) {
+    return SoundResetMmioResult::DeviceFault;
+  }
+  initialized_ = true;
+  return SoundResetMmioResult::Complete;
+}
+
+SoundResetMmioResult SoundResetMmio::reset(const std::uint32_t poll_limit) noexcept {
+  if (!initialized_) {
+    return SoundResetMmioResult::IncompatibleHardware;
+  }
+  const auto initial_status = mmio_.read(base_ + kSoundStatusOffset);
+  if ((initial_status & kSoundInvalid) != 0U) {
+    return SoundResetMmioResult::DeviceFault;
+  }
+  const auto initial_generation = static_cast<std::uint16_t>(initial_status >> 16U);
+  mmio_.write(base_ + kSoundCommandOffset, kSoundResetRequest);
+  for (std::uint32_t poll = 0; poll < poll_limit; ++poll) {
+    const auto status = mmio_.read(base_ + kSoundStatusOffset);
+    if ((status & kSoundInvalid) != 0U) {
+      return SoundResetMmioResult::DeviceFault;
+    }
+    const auto generation = static_cast<std::uint16_t>(status >> 16U);
+    if ((status & kSoundBusy) == 0U && generation != initial_generation) {
+      return SoundResetMmioResult::Complete;
+    }
+  }
+  return SoundResetMmioResult::Timeout;
+}
+
+bool SoundResetMmio::initialized() const noexcept { return initialized_; }
 
 DeviceQueueMmio::DeviceQueueMmio(IMmio32& mmio, const std::uintptr_t base) noexcept
     : mmio_(mmio), base_(base) {}
