@@ -170,6 +170,24 @@ DeviceQueueMmioResult DeviceQueueMmio::read_status(std::uint32_t& status) noexce
 }
 
 bool DeviceQueueMmio::initialized() const noexcept { return initialized_; }
+
+DeviceQueueMmioResult DeviceQueueMmio::read_media_time(std::uint64_t& value) noexcept {
+  if (!initialized_)
+    return DeviceQueueMmioResult::NotInitialized;
+  if (faulted_)
+    return DeviceQueueMmioResult::DeviceFault;
+  std::uint64_t now{};
+  const auto result = read_now(now);
+  if (result != DeviceQueueMmioResult::Accepted)
+    return result;
+  if (now < cpu_epoch_) {
+    faulted_ = true;
+    return DeviceQueueMmioResult::DeviceFault;
+  }
+  value = (now - cpu_epoch_) / (kM5CpuTickRate / kM5MediaTickRate);
+  return DeviceQueueMmioResult::Accepted;
+}
+
 bool DeviceQueueMmio::faulted() const noexcept { return faulted_; }
 std::uint64_t DeviceQueueMmio::cpu_epoch() const noexcept { return cpu_epoch_; }
 

@@ -90,6 +90,14 @@ must be paced against the queue clock so future timestamps cannot make a
 healthy queue look stuck. Bound both lookahead and the number of driver ticks
 processed per servicing iteration. Rendering and storage must not pace audio.
 
+The application pump uses a 50 ms startup lead and at most 100 ms submission
+lookahead. Each service call performs at most four driver ticks and 512 queue
+submissions; pending batches persist across calls. Device time is monotonic
+64-bit time in the 48 kHz domain, sampled from Queue NOW relative to its epoch.
+Two seconds of continuous backpressure or overdue drain is a fault; a future
+musical event is not. Failed reset is a distinct terminal result. These are
+experimental adapter limits, not changes to MDX or queue v1 semantics.
+
 On natural FM-track completion, wait for scheduled work to drain, then reset
 sound before reporting completion. Looping tracks continue playing until the
 user exits through the Pocket menu. Report admission, queue, and audio faults

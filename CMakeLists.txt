@@ -168,6 +168,11 @@ target_include_directories(rpcmp_m5_library_loader PUBLIC spikes/pocket/common/i
 target_link_libraries(rpcmp_m5_library_loader PUBLIC rpcmp_library)
 rpcmp_production_options(rpcmp_m5_library_loader)
 
+add_library(rpcmp_m5_playback STATIC spikes/pocket/common/src/m5_playback.cpp)
+target_include_directories(rpcmp_m5_playback PUBLIC spikes/pocket/common/include)
+target_link_libraries(rpcmp_m5_playback PUBLIC rpcmp_player)
+rpcmp_production_options(rpcmp_m5_playback)
+
 add_library(rpcmp_pocket_app_compile_check OBJECT
   spikes/pocket/openfpgaos/main.cpp)
 target_link_libraries(rpcmp_pocket_app_compile_check PRIVATE
@@ -187,6 +192,11 @@ target_link_libraries(rpcmp_m5_audio_pocket_compile_check PRIVATE
   rpcmp_pocket_platform)
 rpcmp_production_options(rpcmp_m5_audio_pocket_compile_check)
 
+add_library(rpcmp_m5_file_pocket_compile_check OBJECT spikes/pocket/openfpgaos/m5_file_probe.cpp)
+target_link_libraries(rpcmp_m5_file_pocket_compile_check PRIVATE
+  rpcmp_m5_library_loader rpcmp_m5_playback rpcmp_pocket_platform)
+rpcmp_production_options(rpcmp_m5_file_pocket_compile_check)
+
 add_library(rpcmp_m5_desktop_compile_check OBJECT
   spikes/pocket/openfpgaos/m5_session_desktop.cpp)
 target_link_libraries(rpcmp_m5_desktop_compile_check PRIVATE rpcmp_player)
@@ -204,7 +214,20 @@ add_executable(rpcmp_mdx_admission spikes/pocket/host/mdx_admission_main.cpp)
 target_link_libraries(rpcmp_mdx_admission PRIVATE rpcmp_runtime)
 rpcmp_production_options(rpcmp_mdx_admission)
 
+add_executable(rpcmp_m5_file_preflight spikes/pocket/host/m5_file_preflight.cpp)
+target_link_libraries(rpcmp_m5_file_preflight PRIVATE rpcmp_m5_library_loader rpcmp_m5_playback rpcmp_utility)
+rpcmp_production_options(rpcmp_m5_file_preflight)
+
 if(BUILD_TESTING)
+  add_test(NAME m5_file_preflight
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/pocket/m5_file_preflight_tests.py
+      $<TARGET_FILE:rpcmp_mdx_pack> $<TARGET_FILE:rpcmp_m5_file_preflight>
+      ${CMAKE_SOURCE_DIR}/tests/fixtures/mdx/oracle-fm.mdx.hex)
+  add_executable(rpcmp_m5_playback_tests tests/pocket/m5_playback_tests.cpp)
+  target_include_directories(rpcmp_m5_playback_tests PRIVATE tests/support)
+  target_link_libraries(rpcmp_m5_playback_tests PRIVATE rpcmp_m5_playback)
+  rpcmp_test_options(rpcmp_m5_playback_tests)
+  add_test(NAME m5_playback COMMAND rpcmp_m5_playback_tests)
   add_test(NAME mdx_admission_cli
     COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/pocket/mdx_admission_tests.py
       $<TARGET_FILE:rpcmp_mdx_admission>

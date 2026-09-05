@@ -124,6 +124,48 @@ M5_AUDIO_LIBRARY_OBJECT := $(M5_AUDIO_OUT_DIR)/m5-library.o
 M5_AUDIO_ELF := $(M5_AUDIO_OUT_DIR)/rpcmp-m5-audio.elf
 M5_AUDIO_BUDGET := $(M5_AUDIO_OUT_DIR)/budget.json
 
+M5_FILE_OUT_DIR ?= $(ROOT)/out/build/pocket-openfpgaos-m5-file
+M5_FILE_CXX_SOURCES := \
+  $(filter-out $(ROOT)/spikes/pocket/openfpgaos/m5_audio_probe.cpp,$(M5_AUDIO_CXX_SOURCES)) \
+  $(ROOT)/spikes/pocket/common/src/m5_library_loader.cpp \
+  $(ROOT)/spikes/pocket/common/src/m5_playback.cpp \
+  $(ROOT)/spikes/pocket/openfpgaos/m5_file_probe.cpp
+M5_FILE_CXX_OBJECTS := $(patsubst $(ROOT)/%.cpp,$(M5_FILE_OUT_DIR)/%.o,$(M5_FILE_CXX_SOURCES))
+M5_FILE_C_OBJECTS := $(patsubst $(ROOT)/%.c,$(M5_FILE_OUT_DIR)/%.o,$(M5_C_SOURCES))
+M5_FILE_SDK_INIT_OBJECT := $(M5_FILE_OUT_DIR)/sdk/of_init.o
+M5_FILE_ELF := $(M5_FILE_OUT_DIR)/rpcmp-m5-file.elf
+M5_FILE_BUDGET := $(M5_FILE_OUT_DIR)/budget.json
+
+$(M5_FILE_OUT_DIR)/%.o: $(ROOT)/%.cpp
+	@mkdir -p $(dir $@)
+	$(CXX) $(CXXFLAGS) -fstack-usage -c -o $@ $<
+
+$(M5_FILE_OUT_DIR)/%.o: $(ROOT)/%.c
+	@mkdir -p $(dir $@)
+	$(CC) $(CFLAGS) -fstack-usage -c -o $@ $<
+
+$(M5_FILE_SDK_INIT_OBJECT): $(SDK_DIR)/of_init.c
+	@mkdir -p $(dir $@)
+	$(CC) $(CFLAGS) -c -o $@ $<
+
+$(M5_FILE_ELF): $(M5_FILE_CXX_OBJECTS) $(M5_FILE_C_OBJECTS) $(M5_FILE_SDK_INIT_OBJECT) $(CRT) $(SDK_DIR)/app.ld
+	$(CXX) $(ARCH) -nostdlib -static -T $(SDK_DIR)/app.ld -L$(SDK_DIR)/musl/lib \
+	  -Wl,--gc-sections -Wl,--no-warn-rwx-segments -Wl,-Map,$(M5_FILE_OUT_DIR)/rpcmp-m5-file.map \
+	  -o $@ $(CRT) $(M5_FILE_CXX_OBJECTS) $(M5_FILE_C_OBJECTS) $(M5_FILE_SDK_INIT_OBJECT) $(LIBS)
+
+$(M5_FILE_BUDGET): $(M5_FILE_ELF) $(ROOT)/tools/elf_budget.py
+	python3 $(ROOT)/tools/elf_budget.py --elf $(M5_FILE_ELF) --size-tool $(SIZE) \
+	  --stack-root $(M5_FILE_OUT_DIR) --static-limit 56623104 --data-limit 4096 \
+	  --stack-limit 524288 --output $@
+
+m5-file-budget: $(M5_FILE_BUDGET)
+	$(SIZE) $(M5_FILE_ELF)
+	$(READELF) -h $(M5_FILE_ELF) | grep -F 'Machine:' | grep -F 'RISC-V'
+	test -z "$$($(NM) --undefined-only $(M5_FILE_ELF))"
+	sha256sum $(M5_FILE_ELF) $(M5_FILE_BUDGET)
+
+.PHONY: m5-file-budget
+
 .DEFAULT_GOAL := verify
 
 $(OUT_DIR)/%.o: $(ROOT)/%.cpp

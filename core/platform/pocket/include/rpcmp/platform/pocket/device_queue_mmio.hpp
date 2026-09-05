@@ -64,6 +64,8 @@ public:
   enqueue_ym2151(std::uint64_t media_tick, const contracts::DeviceOperation& operation) noexcept;
   [[nodiscard]] DeviceQueueMmioResult clear_fault_flags() noexcept;
   [[nodiscard]] DeviceQueueMmioResult read_status(std::uint32_t& status) noexcept;
+  // Monotonic queue time since initialize(), expressed in 48 kHz media ticks.
+  [[nodiscard]] DeviceQueueMmioResult read_media_time(std::uint64_t& value) noexcept;
 
   [[nodiscard]] bool initialized() const noexcept;
   [[nodiscard]] bool faulted() const noexcept;

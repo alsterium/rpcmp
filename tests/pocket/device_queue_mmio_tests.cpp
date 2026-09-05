@@ -113,6 +113,19 @@ int main() {
                          rpcmp::platform::pocket::SoundResetMmioResult::DeviceFault);
 
   MockMmio mock;
+  MockMmio clock_mock;
+  rpcmp::platform::pocket::DeviceQueueMmio clock_queue(clock_mock);
+  std::uint64_t media_time = 77;
+  RPCMP_CHECK(suite,
+              clock_queue.read_media_time(media_time) == DeviceQueueMmioResult::NotInitialized);
+  RPCMP_CHECK(suite, media_time == 77);
+  RPCMP_CHECK(suite, clock_queue.initialize() == DeviceQueueMmioResult::Accepted);
+  clock_mock.now += 90'000'000ULL + 1874;
+  RPCMP_CHECK(suite, clock_queue.read_media_time(media_time) == DeviceQueueMmioResult::Accepted);
+  RPCMP_CHECK(suite, media_time == 48'000);
+  clock_mock.now = 0;
+  RPCMP_CHECK(suite, clock_queue.read_media_time(media_time) == DeviceQueueMmioResult::DeviceFault);
+  RPCMP_CHECK(suite, media_time == 48'000 && clock_queue.faulted());
   rpcmp::platform::pocket::DeviceQueueMmio queue(mock);
   RPCMP_CHECK(suite, queue.initialize() == DeviceQueueMmioResult::Accepted);
   RPCMP_CHECK(suite, queue.initialized());
