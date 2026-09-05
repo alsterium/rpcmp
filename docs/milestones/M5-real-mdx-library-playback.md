@@ -218,4 +218,9 @@ a locally generated FM-only `.rpcmlib` into the existing logical-library
 session. The production-promotion gates remain open, and this fixture success
 does not constitute real-MDX-file acceptance.
 
+The slice-5 application plan and explicit Pocket admission limits are in
+`docs/design/pocket-m5-deferred-playback.md`. Implementation must retain the
+accepted FPGA/OS artifacts and separately verify loading, long-rest pacing,
+real-file preflight, and the new application/package before hardware handoff.
+
 See `overlays/openfpgaos/README.md` for the repair build's reproduction steps.
