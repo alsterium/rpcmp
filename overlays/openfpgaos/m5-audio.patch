@@ -1,0 +1,194 @@
+diff --git a/src/fpga/common/axi_periph_slave.v b/src/fpga/common/axi_periph_slave.v
+index 4a57c3b..35b01c0 100644
+--- a/src/fpga/common/axi_periph_slave.v
++++ b/src/fpga/common/axi_periph_slave.v
+@@ -392,6 +392,13 @@ module axi_periph_slave #(
+     // pipeline, letting old SDK binaries run with a non-blocking
+     // kernel without losing frames to gpu_swap_req-vs-pending races.
+     output wire        fb_swap_pending_o
++`ifdef INCLUDE_RPCMP_JT51
++    , output wire        rpcmp_mmio_rd
++    , output wire        rpcmp_mmio_wr
++    , output wire [31:0] rpcmp_mmio_addr
++    , output wire [31:0] rpcmp_mmio_wdata
++    , input  wire [31:0] rpcmp_mmio_rdata
++`endif
+ );
+ 
+ wire reset = ~reset_n;
+@@ -2010,6 +2017,7 @@ localparam [3:0] REGION_UART   = 4'd6;
+ localparam [3:0] REGION_GPU    = 4'd7;
+ localparam [3:0] REGION_MIXER  = 4'd8;
+ localparam [3:0] REGION_HPS    = 4'd9;
++localparam [3:0] REGION_RPCMP  = 4'd10;
+ 
+ reg [3:0] req_region;
+ 
+@@ -2022,6 +2030,14 @@ wire req_is_uart   = (req_region == REGION_UART);
+ wire req_is_gpu    = (req_region == REGION_GPU);
+ wire req_is_mixer  = (req_region == REGION_MIXER);
+ wire req_is_hps    = (req_region == REGION_HPS);
++wire req_is_rpcmp  = (req_region == REGION_RPCMP);
++
++`ifdef INCLUDE_RPCMP_JT51
++assign rpcmp_mmio_rd    = req_is_rpcmp && (state == S_PERIPH_RD_WAIT);
++assign rpcmp_mmio_wr    = req_is_rpcmp && (state == S_PERIPH_WR) && (|req_wstrb);
++assign rpcmp_mmio_addr  = req_addr;
++assign rpcmp_mmio_wdata = req_wdata;
++`endif
+ 
+ /* HPS status block read mux (read-only; writes are ignored):
+  *   0x00 HPS_STATUS    0x04 IMG0_SIZE_LO  0x08 IMG0_SIZE_HI  0x0C BOOT_LEN
+@@ -2102,6 +2118,11 @@ function [3:0] decode_region;
+         // control block; bit 8 selects the input-hub page.
+         end else if (addr[31:9] == 23'h200000) begin
+             decode_region = REGION_SYSREG;
++`ifdef INCLUDE_RPCMP_JT51
++        // RPCMP Queue v1 + sound reset: 0x40000200-0x4000025F.
++        end else if (addr[31:8] == 24'h400002 && addr[7:0] < 8'h60) begin
++            decode_region = REGION_RPCMP;
++`endif
+         end else begin
+             case (addr[31:24])
+                 8'h48: decode_region = REGION_MIXER;
+@@ -2334,6 +2355,9 @@ always @(posedge clk or posedge reset) begin
+                 REGION_GPU:    periph_rd_data_r <= gpu_reg_rdata;
+                 REGION_MIXER:  periph_rd_data_r <= mixer_rdata;
+                 REGION_HPS:    periph_rd_data_r <= hps_rdata;
++`ifdef INCLUDE_RPCMP_JT51
++                REGION_RPCMP:  periph_rd_data_r <= rpcmp_mmio_rdata;
++`endif
+                 default:       periph_rd_data_r <= 32'h0;
+             endcase
+             state <= S_PERIPH_RD;
+diff --git a/src/fpga/targets/pocket/ap_core.qsf b/src/fpga/targets/pocket/ap_core.qsf
+index 46d92d2..9bd12d8 100644
+--- a/src/fpga/targets/pocket/ap_core.qsf
++++ b/src/fpga/targets/pocket/ap_core.qsf
+@@ -891,6 +891,12 @@ set_global_assignment -name VERILOG_FILE ../../common/gpu_core.v
+ set_global_assignment -name VERILOG_FILE ../../common/gpu_edge_walker.v
+ set_global_assignment -name VERILOG_FILE ../../common/gpu_tex_cache.v
+ set_global_assignment -name VERILOG_FILE ../../common/axi_periph_slave.v
++set_global_assignment -name SYSTEMVERILOG_FILE ../../../../../../../core/rtl/pocket/rpcmp_pocket_audio.sv
++set_global_assignment -name SYSTEMVERILOG_FILE ../../../../../../../core/rtl/pocket/rpcmp_jt51_audio.sv
++set_global_assignment -name SYSTEMVERILOG_FILE ../../../../../../../core/rtl/pocket/rpcmp_device_queue.sv
++set_global_assignment -name SYSTEMVERILOG_FILE ../../../../../../../core/rtl/pocket/rpcmp_sound_reset.sv
++set_global_assignment -name SYSTEMVERILOG_FILE ../../../../../../../core/rtl/pocket/rpcmp_openfpgaos_sound.sv
++set_global_assignment -name QIP_FILE ../../../../../../../out/research/jt51-985a573/hdl/jt51.qip
+ set_global_assignment -name VERILOG_FILE ../../common/sync_fifo.v
+ set_global_assignment -name VERILOG_FILE snac_shifter.v
+ # PSX SNAC: upstream Analogizer DualShock decoder (instantiated in axi_periph_slave.v)
+diff --git a/src/fpga/targets/pocket/core_top.v b/src/fpga/targets/pocket/core_top.v
+index 1010782..825d63c 100644
+--- a/src/fpga/targets/pocket/core_top.v
++++ b/src/fpga/targets/pocket/core_top.v
+@@ -1858,6 +1858,16 @@ end
+     wire reset_n_cpu_media = reset_cpu_media_sync[1];
+     wire reset_n_cpu_cram  = reset_cpu_cram_sync[1];
+ 
++    // RPCMP sound reset deasserts locally in the exact 12.288 MHz domain.
++    reg [1:0] reset_audio_sync;
++    wire reset_n_audio = reset_audio_sync[1];
++    always @(posedge clk_core_12288 or negedge reset_n) begin
++        if (~reset_n)
++            reset_audio_sync <= 2'b0;
++        else
++            reset_audio_sync <= {reset_audio_sync[0], 1'b1};
++    end
++
+     // Synchronize reset deassertion to clk_vid domain
+     reg [1:0] reset_vid_sync;
+     wire reset_n_vid = reset_vid_sync[1];
+@@ -2564,6 +2574,14 @@ assign video_hs = vidout_hs;
+         .int_m_timer(int_m_timer_sync)
+     );
+ 
++`ifdef INCLUDE_RPCMP_JT51
++    wire        rpcmp_mmio_rd;
++    wire        rpcmp_mmio_wr;
++    wire [31:0] rpcmp_mmio_addr;
++    wire [31:0] rpcmp_mmio_wdata;
++    wire [31:0] rpcmp_mmio_rdata;
++`endif
++
+     // AXI4 peripheral slave
+     //
+     // Every feature param is set from its INCLUDE_* build macro via the
+@@ -2801,8 +2819,19 @@ assign video_hs = vidout_hs;
+         .gpu_swap_idx(gpu_swap_idx),
+         // CMD_FLIP backpressure → gpu_core stalls until vsync clears
+         .fb_swap_pending_o(slave_swap_pending)
++`ifdef INCLUDE_RPCMP_JT51
++        , .rpcmp_mmio_rd(rpcmp_mmio_rd)
++        , .rpcmp_mmio_wr(rpcmp_mmio_wr)
++        , .rpcmp_mmio_addr(rpcmp_mmio_addr)
++        , .rpcmp_mmio_wdata(rpcmp_mmio_wdata)
++        , .rpcmp_mmio_rdata(rpcmp_mmio_rdata)
++`endif
+     );
+ 
++`ifdef INCLUDE_RPCMP_JT51
++    wire rpcmp_sound_fault;
++`endif
++
+     // DMA engine removed — apps use CPU memcpy instead
+ 
+     // Slave → io_sdram pulse adapter
+@@ -3443,6 +3472,28 @@ audio_mixer audio_mixer_inst (
+ // branch, so a stale register latched a constant DC pair into the
+ // FIFO whenever the mixer wasn't writing (observed: 00b1/0020 stuck
+ // through an entire run).
++`ifdef INCLUDE_RPCMP_JT51
++wire openfpgaos_audio_mclk;
++wire openfpgaos_audio_lrck;
++wire openfpgaos_audio_dac;
++
++rpcmp_openfpgaos_sound rpcmp_sound (
++    .cpu_clk(clk_cpu),
++    .audio_clk(clk_core_12288),
++    .cpu_reset_n(reset_n_cpu_media),
++    .audio_reset_n(reset_n_audio),
++    .mmio_addr(rpcmp_mmio_addr),
++    .mmio_wr_data(rpcmp_mmio_wdata),
++    .mmio_rd(rpcmp_mmio_rd),
++    .mmio_wr(rpcmp_mmio_wr),
++    .mmio_rd_data(rpcmp_mmio_rdata),
++    .audio_mclk(audio_mclk),
++    .audio_lrck(audio_lrck),
++    .audio_dac(audio_dac),
++    .sound_fault(rpcmp_sound_fault)
++);
++`endif
++
+ audio_output audio_out (
+     .clk_sys      (clk_cpu),
+     .clk_audio    (clk_core_12288),
+@@ -3460,9 +3511,16 @@ audio_output audio_out (
+     .fifo_level   (audio_fifo_level),
+     .fifo_full    (audio_fifo_full),
+ 
++`ifdef INCLUDE_RPCMP_JT51
++    // Preserve the existing PCM/mixer source for a future explicit mixer.
++    .audio_mclk   (openfpgaos_audio_mclk),
++    .audio_lrck   (openfpgaos_audio_lrck),
++    .audio_dac    (openfpgaos_audio_dac)
++`else
+     .audio_mclk   (audio_mclk),
+     .audio_lrck   (audio_lrck),
+     .audio_dac    (audio_dac)
++`endif
+ );
+ 
+ // ============================================================
+diff --git a/src/fpga/targets/pocket/Makefile b/src/fpga/targets/pocket/Makefile
+index 73f0c3d..2ce144d 100644
+--- a/src/fpga/targets/pocket/Makefile
++++ b/src/fpga/targets/pocket/Makefile
+@@ -165,6 +165,6 @@ USE_FIRMWARE_CONTAINER ?= 1
+ FW_MAKE = $(MAKE) -C $(FW_DIR)
+ endif
+-$(VEXII_OUT): | $(VEXII_DIR)/build.sbt $(VEXII_DIR)/ext/SpinalHDL/build.sbt
++$(VEXII_OUT):
+ 	@printf "$(C_HEAD)[cpu]$(C_RESET) Generating VexiiRiscv ($(VARIANT), file missing)...\n"
+ ifeq ($(USE_VEXII_CONTAINER),1)
+ 	@bash $(ROOT_DIR)/tools/vexii-container.sh $(VARIANT)
