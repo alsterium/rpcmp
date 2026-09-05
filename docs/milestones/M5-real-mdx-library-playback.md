@@ -223,4 +223,13 @@ The slice-5 application plan and explicit Pocket admission limits are in
 accepted FPGA/OS artifacts and separately verify loading, long-rest pacing,
 real-file preflight, and the new application/package before hardware handoff.
 
+The first slice-5 component is `spikes/pocket/common/src/m5_library_loader.cpp`:
+an injected slot reader loads bounded chunks into caller-owned storage, then
+validates the complete logical library using the profile's explicit limits.
+Only a validated one-track/one-blob library is published. Host regression cases
+cover invalid sizes/capacity, failed and short transfers, corrupt envelopes,
+multiple tracks, the exact 2 MiB transport ceiling, and decoded-size rejection.
+This component is not yet connected to the Pocket application; no new
+real-file hardware package or hardware acceptance is claimed.
+
 See `overlays/openfpgaos/README.md` for the repair build's reproduction steps.

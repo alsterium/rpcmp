@@ -162,6 +162,12 @@ target_include_directories(rpcmp_pocket_comparison_probe PUBLIC
 target_link_libraries(rpcmp_pocket_comparison_probe PUBLIC rpcmp_runtime)
 rpcmp_production_options(rpcmp_pocket_comparison_probe)
 
+add_library(rpcmp_m5_library_loader STATIC
+  spikes/pocket/common/src/m5_library_loader.cpp)
+target_include_directories(rpcmp_m5_library_loader PUBLIC spikes/pocket/common/include)
+target_link_libraries(rpcmp_m5_library_loader PUBLIC rpcmp_library)
+rpcmp_production_options(rpcmp_m5_library_loader)
+
 add_library(rpcmp_pocket_app_compile_check OBJECT
   spikes/pocket/openfpgaos/main.cpp)
 target_link_libraries(rpcmp_pocket_app_compile_check PRIVATE
@@ -195,6 +201,12 @@ target_link_libraries(rpcmp_mdx_trace_export PRIVATE rpcmp_pocket_comparison_pro
 rpcmp_production_options(rpcmp_mdx_trace_export)
 
 if(BUILD_TESTING)
+  add_executable(rpcmp_m5_library_loader_tests tests/pocket/m5_library_loader_tests.cpp)
+  target_include_directories(rpcmp_m5_library_loader_tests PRIVATE tests/support)
+  target_link_libraries(rpcmp_m5_library_loader_tests PRIVATE rpcmp_m5_library_loader rpcmp_utility)
+  rpcmp_test_options(rpcmp_m5_library_loader_tests)
+  add_test(NAME m5_library_loader COMMAND rpcmp_m5_library_loader_tests)
+
   add_executable(rpcmp_contract_tests tests/contracts/contract_tests.cpp)
   target_include_directories(rpcmp_contract_tests PRIVATE tests/support)
   target_link_libraries(rpcmp_contract_tests PRIVATE rpcmp_contracts)
