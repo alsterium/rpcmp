@@ -200,7 +200,15 @@ add_executable(rpcmp_mdx_trace_export spikes/pocket/host/mdx_trace_main.cpp)
 target_link_libraries(rpcmp_mdx_trace_export PRIVATE rpcmp_pocket_comparison_probe)
 rpcmp_production_options(rpcmp_mdx_trace_export)
 
+add_executable(rpcmp_mdx_admission spikes/pocket/host/mdx_admission_main.cpp)
+target_link_libraries(rpcmp_mdx_admission PRIVATE rpcmp_runtime)
+rpcmp_production_options(rpcmp_mdx_admission)
+
 if(BUILD_TESTING)
+  add_test(NAME mdx_admission_cli
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/pocket/mdx_admission_tests.py
+      $<TARGET_FILE:rpcmp_mdx_admission>
+      ${CMAKE_SOURCE_DIR}/tests/fixtures/mdx/oracle-fm.mdx.hex)
   add_executable(rpcmp_m5_library_loader_tests tests/pocket/m5_library_loader_tests.cpp)
   target_include_directories(rpcmp_m5_library_loader_tests PRIVATE tests/support)
   target_link_libraries(rpcmp_m5_library_loader_tests PRIVATE rpcmp_m5_library_loader rpcmp_utility)

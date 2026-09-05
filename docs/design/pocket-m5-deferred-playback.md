@@ -5,10 +5,12 @@ this is an experimental application profile, not substrate promotion.
 
 ## Real-file admission investigation
 
-The production ingestion CLI rejected all 13,140 locally supplied MDX files
-on 2026-09-05 before any candidate library was produced. This is not evidence
-that the corpus is malformed: the current FM subset is intentionally limited,
-and implementation defects must be separated from unsupported capabilities.
+An initial production-CLI sweep of 13,140 locally supplied MDX files on
+2026-09-05 produced no candidate. Its nonzero exits were initially reported
+as rejection, but that classification was incorrect: output-write failures
+also produce nonzero exits. The same local candidate later failed writing
+under the default sandbox and succeeded under approved workspace-output
+execution. Do not use the initial sweep as an engine compatibility count.
 
 Code inspection found one conflict with the existing MDX v1 contract: both
 `validate_track` and `validate_control_flow` required a later `f1 00` even
@@ -28,6 +30,14 @@ instruction boundary within that description. A truncated displacement or a
 target outside the description remains an error. Add authored regression
 fixtures with a final loop and no appended stop before repeating local input
 selection. No source music bytes are changed to manufacture compatibility.
+
+The aggregate-only `rpcmp_mdx_admission` host tool separates parse/admission
+results from output creation and uses native filesystem paths for non-ASCII
+extensions on Windows. After the loop fix, it examined all 13,140 files and
+admitted 2,521. The optional candidate-copy argument refuses existing output;
+the copy and subsequently generated `.rpcmlib` stay under ignored `out/build`.
+Admission alone is not proof of an audible, error-free playback interval;
+real-file sequencing preflight and the Pocket package remain next.
 
 ## Fixed hardware and input boundary
 
