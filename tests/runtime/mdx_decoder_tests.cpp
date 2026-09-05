@@ -182,6 +182,23 @@ int main() {
 
   const std::vector<std::uint8_t> looped{0x00, 0xf1, 0xff, 0xfc, 0xf1, 0x00};
   RPCMP_CHECK(suite, rpcmp::runtime::mdx::validate_control_flow(track(looped), scratch).ok());
+  const std::vector<std::uint8_t> final_loop{0x00, 0xf1, 0xff, 0xfc};
+  RPCMP_CHECK(suite, rpcmp::runtime::mdx::validate_track(track(final_loop), validated).ok());
+  RPCMP_CHECK(suite, validated.instruction_count == 2 && validated.terminal_byte_offset == 101);
+  RPCMP_CHECK(suite, rpcmp::runtime::mdx::validate_control_flow(track(final_loop), scratch).ok());
+  const std::vector<std::uint8_t> truncated_loop{0x00, 0xf1, 0xff};
+  RPCMP_CHECK(suite, rpcmp::runtime::mdx::validate_track(track(truncated_loop), validated).error ==
+                         DecodeError::TruncatedInstruction);
+  RPCMP_CHECK(suite,
+              rpcmp::runtime::mdx::validate_control_flow(track(truncated_loop), scratch).error ==
+                  DecodeError::TruncatedInstruction);
+  const std::vector<std::uint8_t> outside_loop{0x00, 0xf1, 0xff, 0xfb};
+  RPCMP_CHECK(suite,
+              rpcmp::runtime::mdx::validate_control_flow(track(outside_loop), scratch).error ==
+                  DecodeError::InvalidBranchTarget);
+  document.tracks[8] = track(final_loop, 8, 900);
+  RPCMP_CHECK(suite, rpcmp::runtime::mdx::validate_document(document, document_validation).error ==
+                         DecodeError::UnsupportedPcm);
   auto middle_target = looped;
   middle_target[3] = 0xfe;
   RPCMP_CHECK(suite,

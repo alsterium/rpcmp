@@ -89,5 +89,20 @@ int main() {
   RPCMP_CHECK(suite, rejected.error == rpcmp::runtime::mdx::DecodeError::UnsupportedPcm);
   RPCMP_CHECK(suite, validation.tracks[0].instruction_count == 77);
 
+  // A real looping track ends in a back edge, not an unreachable f1 00.
+  static constexpr std::array<std::uint8_t, 7> kLoop{0xfe, 0x1b, 0x02, 0x00, 0xf1, 0xff, 0xf9};
+  const auto looping = document_with({kLoop.data(), kLoop.size()}, {kEnd.data(), kEnd.size()});
+  RPCMP_CHECK(suite, rpcmp::runtime::mdx::prepare_mdx_playback(looping, validation, scratch).ok());
+  state = {};
+  std::uint64_t previous_tick{};
+  for (unsigned tick = 0; tick < 32; ++tick) {
+    RPCMP_CHECK(suite,
+                rpcmp::runtime::mdx::advance_mdx_tick(looping, 48'000, state, batch, scratch).ok());
+    RPCMP_CHECK(suite, batch.count == 1 && batch.writes[0].write.address == 0x1b);
+    RPCMP_CHECK(suite, batch.writes[0].write.value == 2);
+    RPCMP_CHECK(suite, tick == 0 || batch.writes[0].at_tick > previous_tick);
+    RPCMP_CHECK(suite, !state.document.tracks[0].ended);
+    previous_tick = batch.writes[0].at_tick;
+  }
   return suite.finish("MDX transactional engine");
 }

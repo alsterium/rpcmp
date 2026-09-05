@@ -3,6 +3,32 @@
 Status: implementation plan, 2026-09-05. Governed by M5 and ADR-0008;
 this is an experimental application profile, not substrate promotion.
 
+## Real-file admission investigation
+
+The production ingestion CLI rejected all 13,140 locally supplied MDX files
+on 2026-09-05 before any candidate library was produced. This is not evidence
+that the corpus is malformed: the current FM subset is intentionally limited,
+and implementation defects must be separated from unsupported capabilities.
+
+Code inspection found one conflict with the existing MDX v1 contract: both
+`validate_track` and `validate_control_flow` required a later `f1 00` even
+after an unconditional `f1 rel16` loop. MDX v1 already accepts infinite track
+loops. The pinned mdxtools `9c8539f` driver handles `f1 rel16` by adding the
+signed displacement plus the three-byte instruction length; it does not read
+an additional stop instruction. The pinned MXDRV-derived `portable_mdx`
+translation agrees in `L0013dc` / `L0013e6`: zero selects the stop handler;
+otherwise the two displacement bytes update the track pointer and loop state.
+Existing RPCMP runtime execution agrees, but
+its admission tests appended an unreachable stop and concealed the rejection.
+
+Resolve this as a validator bug, not by expanding opcode/PCM admission: an
+unconditional track loop terminates the linear track description just as stop
+does. The control-flow pass must still prove that its target is an admitted
+instruction boundary within that description. A truncated displacement or a
+target outside the description remains an error. Add authored regression
+fixtures with a final loop and no appended stop before repeating local input
+selection. No source music bytes are changed to manufacture compatibility.
+
 ## Fixed hardware and input boundary
 
 Reuse the hardware-accepted `0.9.1-m5-audio` RBF, safe-memset OS, boot ROM,

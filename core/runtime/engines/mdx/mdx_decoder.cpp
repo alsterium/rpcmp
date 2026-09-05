@@ -174,7 +174,8 @@ DecodeResult validate_track(const TrackView& track, TrackValidation& output,
       return result;
     }
     ++candidate.instruction_count;
-    if (instruction.kind == InstructionKind::TrackEnd) {
+    if (instruction.kind == InstructionKind::TrackEnd ||
+        instruction.kind == InstructionKind::TrackLoop) {
       candidate.terminal_byte_offset = instruction.byte_offset;
       output = candidate;
       return {};
@@ -268,7 +269,8 @@ DecodeResult validate_control_flow(const TrackView& track, ControlFlowScratch& s
     }
     ++instruction_count;
     cursor += instruction.source.size;
-    if (instruction.kind == InstructionKind::TrackEnd) {
+    if (instruction.kind == InstructionKind::TrackEnd ||
+        instruction.kind == InstructionKind::TrackLoop) {
       found_terminal = true;
       break;
     }
@@ -312,7 +314,8 @@ DecodeResult validate_control_flow(const TrackView& track, ControlFlowScratch& s
       }
     }
     cursor = after;
-    if (instruction.kind == InstructionKind::TrackEnd) {
+    if (instruction.kind == InstructionKind::TrackEnd ||
+        instruction.kind == InstructionKind::TrackLoop) {
       return {};
     }
   }
