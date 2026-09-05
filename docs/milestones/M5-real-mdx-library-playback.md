@@ -203,8 +203,19 @@ and accepted BSS control remain available at their original paths.
 Validation: 37/37 host tests, including format/tidy and architecture checks;
 9 behavioral RTL simulations; 5 real-JT51 simulations; 3 new Python regression
 tests for missing/zero ROM and missing/failed reports. After adjusting the
-flow-report completion parser, the affected Python suite passed again. No new
-hardware result is available yet. Hardware must display `M5 AUDIO: PASS`,
-with audio observed separately, on initial, warm, and power-off cold starts.
+flow-report completion parser, the affected Python suite passed again.
+
+After receiving the repair ZIP and the initial/warm/cold-start instructions,
+the user reported that it worked perfectly on 2026-09-05. Record this as an
+overall successful hardware report for `0.9.1-m5-audio` and resolution of the
+reported zero-ROM candidate's blackout. The reply did not separately enumerate
+the displayed result, audio observations, or restart cases; do not invent
+individual measurements or repeat counts. Firmware 2.6 is the previously
+reported environment, not a newly supplied version measurement.
+
+The next M5 implementation task is slice 5: bounded deferred-slot loading of
+a locally generated FM-only `.rpcmlib` into the existing logical-library
+session. The production-promotion gates remain open, and this fixture success
+does not constitute real-MDX-file acceptance.
 
 See `overlays/openfpgaos/README.md` for the repair build's reproduction steps.
