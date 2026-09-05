@@ -101,12 +101,12 @@ application with no undefined symbols. Its project-authored 752-byte library
 fixture is also executed by the openfpgaOS desktop shim for 32 driver ticks:
 33 YM2151 writes and digest `f1f04f5a8695a112`.
 
-The observable Pocket diagnostic budget is `text=55,892`, `data=964`, and
-`bss=899,292` bytes: 956,148 static bytes total and 55,666,956 bytes headroom
+The integrated Pocket diagnostic budget is `text=59,172`, `data=968`, and
+`bss=899,800` bytes: 959,940 static bytes total and 55,663,164 bytes headroom
 in the SDK's
 56,623,104-byte application SDRAM window. GCC reports no dynamic stack frames.
 The largest individual frame is 7,408 bytes; summing every emitted static
-frame gives a deliberately conservative 17,552-byte bound and 506,736 bytes of
+frame gives a deliberately conservative 17,856-byte bound and 506,432 bytes of
 headroom against the Pocket application's 524,288-byte stack. Large engine and
 batch workspaces are static and explicitly placed in zero-backed storage in the
 probe. The initialized-data build gate is 4,096 bytes; the loader's file-backed
@@ -124,3 +124,23 @@ ADR-0008 placement-perturbation gate remain open.
 This compatibility and resource evidence supported ADR-0008's conditional M5
 selection. It still does not authorize treating a changed M5 package as a
 production replacement for the hardware-proven safe-layout control.
+
+Slice 4 now has a reproducible source overlay against pinned openfpgaOS commit
+`618a3eb985759a4154115109c2c8036271252888` and JT51 commit
+`985a573`. The endpoint decodes only `0x40000200..0x4000025f`, routes queue v1
+to JT51, and drives Pocket AUDIO directly at 48 kHz. A clean overlay build with
+Quartus 25.1std.0 completed with zero errors at 13,822/18,480 ALMs (75%),
+171/308 RAM blocks (56%), and 13/66 DSP blocks (20%). All analyzed corners have
+nonnegative timing: the worst setup slack is +0.770 ns and the worst hold slack
+is +0.047 ns. The reported unconstrained ports are the unchanged upstream APF
+bridge, cartridge, debug, scaler video, and scaler audio physical I/O set; no
+RPCMP port is exposed or added to that set. RPCMP request/acknowledge CDCs are
+two-register toggle synchronizers marked for Quartus asynchronous recognition;
+the associated command bundles remain stable from request until acknowledge.
+
+The local-only `0.9.0-m5-audio` hardware package contains the safe-layout OS,
+the integrated RBF, and the 33-write project fixture probe. Its purpose is the
+slice-4 integration gate, not real-file acceptance. Hardware must next show its
+green PASS state and audible output on firmware 2.6 for an initial launch, one
+warm relaunch, and one power-off cold start. Slice 5 then replaces the fixture
+with a locally generated `.rpcmlib` supplied through a deferred APF slot.
