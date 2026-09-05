@@ -132,9 +132,9 @@ to JT51, and drives Pocket AUDIO directly at 48 kHz. A clean overlay build with
 Quartus 25.1std.0 completed with zero errors at 13,822/18,480 ALMs (75%),
 171/308 RAM blocks (56%), and 13/66 DSP blocks (20%). All analyzed corners have
 nonnegative timing: the worst setup slack is +0.770 ns and the worst hold slack
-is +0.047 ns. The reported unconstrained ports are the unchanged upstream APF
-bridge, cartridge, debug, scaler video, and scaler audio physical I/O set; no
-RPCMP port is exposed or added to that set. RPCMP request/acknowledge CDCs are
+is +0.047 ns. The report still lists unconstrained APF bridge, cartridge,
+debug, scaler video, and scaler audio physical I/O. A baseline comparison and
+the approved external-I/O constraint policy remain open. RPCMP request/acknowledge CDCs are
 two-register toggle synchronizers marked for Quartus asynchronous recognition;
 the associated command bundles remain stable from request until acknowledge.
 
@@ -169,3 +169,42 @@ paths used by Quartus, perform a clean compile, and reject missing-memory-file
 warnings before packaging. Record their identities with the replacement RBF.
 Do not request another hardware run of this unchanged candidate. The reported
 positive timing slack does not make its zero-filled boot ROM usable.
+
+### Boot-ROM repair candidate — 2026-09-05
+
+`0.9.1-m5-audio` supplies the safe-memset boot ROM and a deterministic build-ID
+MIF before synthesis. The preserved safe-control job's `firmware.mif` has
+SHA-256 `a84afd867a4cdb2cc6bb4319f7be4252a5ab2d39cb857a9735c942d7c2ead567`.
+Decoding its initialized words yields exactly 15,652 bytes with SHA-256
+`bc904414d8188d4ff8cb38b8b08202f507b3d30d04a5a48bcb09c7d42d4f43f4`,
+matching the previously hardware-accepted safe-memset boot binary. Preparation
+checks both identities. It deliberately does not use the mutable latest
+firmware build directory's `boot.bin`, whose hash differs from that control.
+
+A new `openfpgaos-m5-audio-bootfix` tree was prepared and compiled from scratch
+as job `rpcmp-m5-bootfix`. The synthesis input report resolves both MIFs;
+Critical Warning 127003 is absent. The fit uses 13,822 ALMs, 171 RAM blocks,
+and 13 DSPs. Worst analyzed setup/hold slack is +0.770/+0.047 ns, all TNS zero.
+The external-I/O/CDC production-promotion gates above remain open.
+
+The 1,775,532-byte native RBF has SHA-256
+`2444e999c0c7af162b26e4f3590f911ad78c01eb8102a5057d78adc37da7ec4a`.
+The packager pins this reviewed RBF, checks the boot/build-ID files and the
+map/fit/STA/assembler/flow completion reports, and rejects missing-memory
+initialization warnings. It records MIF and report hashes in the evidence file.
+The OS, application ELF, loader, queue/audio RTL, and APF slot behavior are
+unchanged from the failed candidate; no application rebuild is needed.
+
+The separate local ZIP is `out/build/rpcmp-m5-audio-bootfix.zip`, SHA-256
+`1b3a3082274fa2120795beb33917306fffda4b8c14637335bba29b8a0c0a1a4e`.
+All 14 ZIP members match the evidence file's sizes and hashes. The failed ZIP
+and accepted BSS control remain available at their original paths.
+
+Validation: 37/37 host tests, including format/tidy and architecture checks;
+9 behavioral RTL simulations; 5 real-JT51 simulations; 3 new Python regression
+tests for missing/zero ROM and missing/failed reports. After adjusting the
+flow-report completion parser, the affected Python suite passed again. No new
+hardware result is available yet. Hardware must display `M5 AUDIO: PASS`,
+with audio observed separately, on initial, warm, and power-off cold starts.
+
+See `overlays/openfpgaos/README.md` for the repair build's reproduction steps.

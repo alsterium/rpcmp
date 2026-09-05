@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import shutil
 import subprocess
 import tempfile
@@ -12,13 +13,43 @@ import zipfile
 from pathlib import Path, PurePosixPath
 
 import pocket_package as shared
+from pocket_m5_audio_prepare import verify_boot_mif
 
 CORE_ID = "RPCMP.M5AudioProbe"
 PLATFORM_ID = "rpcmp_m5audio"
 VARIANT = "rpcmp"
-VERSION = "0.9.0-m5-audio"
-EXPECTED_OUTPUT = Path("out/build/pocket-m5-audio-package")
-EXPECTED_ARCHIVE = Path("out/build/rpcmp-m5-audio-probe.zip")
+VERSION = "0.9.1-m5-audio"
+EXPECTED_OUTPUT = Path("out/build/pocket-m5-audio-bootfix-package")
+EXPECTED_ARCHIVE = Path("out/build/rpcmp-m5-audio-bootfix.zip")
+VERIFIED_RBF_SHA256 = "2444e999c0c7af162b26e4f3590f911ad78c01eb8102a5057d78adc37da7ec4a"
+
+
+def verify_build(repo: Path, rbf: Path) -> dict[str, str]:
+    """Reject the zero-ROM regression before creating or replacing artifacts."""
+    project = rbf.parent.parent
+    pocket = project.parent.parent
+    boot = pocket / "firmware.mif"
+    build_id = pocket / "apf" / "build_id.mif"
+    verify_boot_mif(boot)
+    if shared.sha256(build_id) != shared.sha256(repo / "overlays/openfpgaos/build_id.mif"):
+        raise ValueError("build-ID MIF identity mismatch")
+    evidence = {}
+    for suffix in ("map.rpt", "fit.rpt", "sta.rpt", "asm.rpt", "flow.rpt"):
+        report = rbf.with_suffix(f".{suffix}")
+        content = report.read_text(encoding="utf-8", errors="replace")
+        if "Critical Warning (127003)" in content or "setting all initial values to 0" in content:
+            raise ValueError("Quartus report contains missing memory initialization")
+        completed = (
+            re.search(r"Flow Status\s*;\s*Successful", content)
+            if suffix == "flow.rpt"
+            else "successful. 0 errors" in content
+        )
+        if not completed:
+            raise ValueError(f"Quartus report lacks zero-error completion: {report.name}")
+        evidence[report.name] = shared.sha256(report)
+    evidence["firmware.mif"] = shared.sha256(boot)
+    evidence["apf/build_id.mif"] = shared.sha256(build_id)
+    return evidence
 
 
 def definitions() -> dict[str, object]:
@@ -86,6 +117,9 @@ def build(repo: Path, sdk: Path, elf: Path, rbf: Path, output: Path, archive: Pa
         raise ValueError(f"SDK revision mismatch: {revision}")
     if not elf.is_file() or not rbf.is_file():
         raise ValueError("M5 audio ELF or RBF is missing")
+    if shared.sha256(rbf) != VERIFIED_RBF_SHA256:
+        raise ValueError("RBF is not the reviewed boot-ROM repair build")
+    build_evidence = verify_build(repo, rbf)
     manifest = shared.parse_manifest(sdk / "runtime" / "MANIFEST")
     loader = shared.verify_runtime_file(sdk / "runtime", manifest, "pocket/loader.bin")
     safe_os = (repo / shared.SAFE_MEMSET_OS).resolve()
@@ -121,6 +155,7 @@ def build(repo: Path, sdk: Path, elf: Path, rbf: Path, output: Path, archive: Pa
             zipped.writestr(info, source.read_bytes())
     evidence = {"schema_version": 1, "distribution_status": "local diagnostic only",
                 "core_id": CORE_ID, "version": VERSION,
+                "build_evidence": build_evidence,
                 "inputs": {"elf_sha256": shared.sha256(elf), "native_rbf_sha256": shared.sha256(rbf),
                            "os_sha256": shared.sha256(safe_os)},
                 "artifacts": {p.relative_to(output).as_posix(): {"bytes": p.stat().st_size,

@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import re
 import shutil
 import subprocess
 import tempfile
@@ -15,6 +16,18 @@ from pathlib import Path
 OPENFPGAOS_REVISION = "618a3eb985759a4154115109c2c8036271252888"
 JT51_REVISION = "985a573dcfc1ff135553a39f7eae21d18ba57cbe"
 VEXII_NETLIST_SHA256 = "266242a20fb65d91b674920db869201d100fbc31721e8df9b4dc383d24cc019b"
+BOOT_MIF_SHA256 = "a84afd867a4cdb2cc6bb4319f7be4252a5ab2d39cb857a9735c942d7c2ead567"
+BOOT_BINARY_SHA256 = "bc904414d8188d4ff8cb38b8b08202f507b3d30d04a5a48bcb09c7d42d4f43f4"
+
+
+def verify_boot_mif(path: Path) -> None:
+    """Pin the hardware-proven safe-memset ROM, including its decoded bytes."""
+    if sha256(path) != BOOT_MIF_SHA256:
+        raise ValueError("safe-memset boot MIF identity mismatch")
+    words = re.findall(r"^\d+ : ([0-9A-F]{8});", path.read_text(), re.MULTILINE)
+    binary = b"".join(int(word, 16).to_bytes(4, "little") for word in words)
+    if len(binary) != 15652 or hashlib.sha256(binary).hexdigest() != BOOT_BINARY_SHA256:
+        raise ValueError("safe-memset decoded boot ROM identity mismatch")
 
 
 def run(*args: str, cwd: Path | None = None) -> str:
@@ -43,6 +56,7 @@ def main() -> int:
     parser.add_argument("--openfpgaos", type=Path, required=True)
     parser.add_argument("--jt51", type=Path, required=True)
     parser.add_argument("--vexii-netlist", type=Path, required=True)
+    parser.add_argument("--boot-mif", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
 
@@ -50,6 +64,7 @@ def main() -> int:
     upstream = args.openfpgaos.resolve()
     jt51 = args.jt51.resolve()
     netlist = args.vexii_netlist.resolve()
+    boot_mif = args.boot_mif.resolve()
     output = args.output.resolve()
     build_root = (repo / "out" / "build").resolve()
     if output.parent != build_root or output.exists():
@@ -59,6 +74,7 @@ def main() -> int:
     verify_checkout(jt51, JT51_REVISION, "JT51")
     if sha256(netlist) != VEXII_NETLIST_SHA256:
         raise ValueError("VexiiRiscv rpcmp netlist identity mismatch")
+    verify_boot_mif(boot_mif)
 
     overlay = repo / "overlays" / "openfpgaos"
     with tempfile.TemporaryDirectory(prefix="rpcmp-m5-audio-") as temporary:
@@ -94,6 +110,8 @@ def main() -> int:
     shutil.copyfile(overlay / "rpcmp.seed", pocket / "seeds" / "rpcmp.seed")
     shutil.copyfile(overlay / "rpcmp.cfg", configs / "rpcmp.cfg")
     shutil.copyfile(netlist, vexii / "VexiiRiscv_rpcmp.v")
+    shutil.copyfile(boot_mif, pocket / "firmware.mif")
+    shutil.copyfile(overlay / "build_id.mif", pocket / "apf" / "build_id.mif")
     print(output)
     return 0
 
