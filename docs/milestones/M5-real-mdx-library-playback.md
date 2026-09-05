@@ -144,3 +144,28 @@ slice-4 integration gate, not real-file acceptance. Hardware must next show its
 green PASS state and audible output on firmware 2.6 for an initial launch, one
 warm relaunch, and one power-off cold start. Slice 5 then replaces the fixture
 with a locally generated `.rpcmlib` supplied through a deferred APF slot.
+
+### Slice 4 hardware failure — 2026-09-05
+
+The user reported a persistent black screen with the `0.9.0-m5-audio`
+candidate. Whether `Loading...` appeared was not reported. Hardware acceptance
+has failed; the previously recorded `0.8.0-m5-bss` passes remain separate.
+The failed ZIP SHA-256 is
+`c789849d5d5776d20482bfdf1d55d43987917b370636ce331b0933061d2eb3a5`.
+
+Inspection of the preserved `rpcmp-m5-repro/output_files/ap_core.map.rpt`
+found Critical Warning 127003 for both `firmware.mif` and
+`./apf/build_id.mif`: Quartus explicitly substituted zero initial contents.
+The preparation script extracts the upstream source and copies the CPU
+netlist, but does not supply the boot-ROM initialization files. The zero-filled
+boot ROM is a confirmed build defect sufficient to prevent normal CPU boot;
+this result cannot establish whether the separate placement-sensitive failure
+still affects a correctly initialized integrated build. This repeats the
+boot-ROM packaging defect documented on 2026-08-29 in
+`docs/design/pocket-openfpgaos-spike.md`.
+
+The next repair must supply and verify the boot ROM and build-ID MIFs at the
+paths used by Quartus, perform a clean compile, and reject missing-memory-file
+warnings before packaging. Record their identities with the replacement RBF.
+Do not request another hardware run of this unchanged candidate. The reported
+positive timing slack does not make its zero-filled boot ROM usable.
