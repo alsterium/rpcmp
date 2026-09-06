@@ -277,3 +277,29 @@ remain unverified. Do not mark M5 or substrate promotion complete from this
 software/package handoff.
 
 See `overlays/openfpgaos/README.md` for the repair build's reproduction steps.
+
+### Slice 5 hardware report — 2026-09-06
+
+Following the `0.10.0-m5-file` hardware handoff, the user explicitly reported:
+
+- Firmware: 2.6.
+- Initial launch: `LIBRARY: PASS`, `MDX: PASS`, and `PLAYING` displayed.
+- Music was audible from both left and right outputs.
+- One minute of playback: OK.
+- Warm relaunch: PASS.
+- Full power-off cold start: PASS.
+
+This closes the pending slice-5 initial/real-file playback/warm/cold hardware
+check for this candidate and supplies the user hardware evidence for acceptance
+criterion 7. The report establishes audible output on both channels, not an
+independent channel-mapping or audio-fidelity measurement. No additional restart
+counts, natural-completion behavior, or injected-fault observations were reported.
+
+M5 remains active: acceptance criterion 6's external-I/O constraint policy and
+integrated CDC review remain open, as do ADR-0008's broader production-promotion
+gates. Successful starts of this ELF do not explain or bound the historical
+placement-sensitive blackout. The next task is to document the memory map and
+startup copy/clear ownership and plan controlled code/BSS placement perturbations
+against the accepted control. Each perturbation requires ADR-0008's three warm
+starts and one cold start. APF lifecycle and hardware failure silence, plus an
+explicit future PCM/mixer/buffering/UI reserve, still need their own evidence.
