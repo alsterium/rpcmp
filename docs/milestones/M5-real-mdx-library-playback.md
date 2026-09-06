@@ -229,7 +229,51 @@ validates the complete logical library using the profile's explicit limits.
 Only a validated one-track/one-blob library is published. Host regression cases
 cover invalid sizes/capacity, failed and short transfers, corrupt envelopes,
 multiple tracks, the exact 2 MiB transport ceiling, and decoded-size rejection.
-This component is not yet connected to the Pocket application; no new
-real-file hardware package or hardware acceptance is claimed.
+The component is now connected to the separate real-file application described
+below. Hardware acceptance remains unclaimed.
+
+### Slice 5 hardware candidate — 2026-09-05
+
+`0.10.0-m5-file`, core `RPCMP.M5FileProbe`, uses the unchanged accepted
+`0.9.1-m5-audio` FPGA/boot/OS artifacts. A new ELF loads the one-track library
+from read-only deferred slot 4, resolves its command-line TrackId logically,
+admits the MDX, and services the bounded playback pump without rendering or
+storage on the sequencing path. The 50 ms startup lead and 100 ms lookahead
+are independent of video. Natural completion and terminal faults reset sound;
+a reset failure is explicitly distinguished rather than reported as silence.
+
+Docker/xPack 14.2.0-3 cross-build: ELF32 RISC-V, no undefined symbols,
+text 67,388 bytes, data 228 bytes, BSS 2,997,016 bytes. Static total is 3,064,632
+bytes, leaving 53,558,472 bytes in the application SDRAM window. Conservative
+stack sum is 18,288 bytes (largest frame 7,408), with no dynamic frames;
+506,000 bytes remain against the 524,288-byte stack limit. Initialized data
+remains below the 4,096-byte safe-layout gate. This is application headroom,
+not completion of ADR-0008's broader PCM/CDC/substrate promotion review.
+
+A locally supplied, unmodified MDX was ingested and preflighted for up to
+60 seconds with the same pump and engine. Primary-blob bytes equal the source;
+the library route and direct MDX route produce matching operation count and
+digest, with key-on writes and both pan output bits observed. Private track
+identity and trace measurements remain in the ignored local evidence file.
+This is deterministic sequencing evidence, not measured Pocket audio fidelity.
+
+The new local-only artifact is `out/build/rpcmp-m5-file.zip`; the adjacent
+`.evidence.json` records all inputs, preflight, budget, and ZIP member hashes.
+All 15 ZIP members passed independent size/hash/allowlist comparison. Source
+MDX is not included separately; the library contains private music and the ZIP
+must not be redistributed or committed. Earlier controls remain unchanged.
+
+Validation: 40 non-tidy CTest cases, including format and architecture checks,
+passed after correcting the authored corruption test to modify checksummed
+payload instead of a deliberately ignored reserved directory byte. Full C++
+tidy passed on the same implementation. Behavioral RTL (9) and pinned real
+JT51 simulations (5) passed sequentially. No Quartus rebuild was performed:
+the packaged native RBF is hash-identical to the reviewed accepted fit.
+
+The next required step is firmware 2.6 hardware verification following
+`docs/design/pocket-m5-file-hardware-check.md`. Initial boot, audible real-file
+playback, warm relaunch, cold start, and the changed ELF's placement behavior
+remain unverified. Do not mark M5 or substrate promotion complete from this
+software/package handoff.
 
 See `overlays/openfpgaos/README.md` for the repair build's reproduction steps.
