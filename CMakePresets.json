@@ -32,13 +32,16 @@
       "configurePreset": "host-msvc",
       "output": {
         "outputOnFailure": true
+      },
+      "execution": {
+        "noTestsAction": "error"
       }
     }
   ],
   "workflowPresets": [
     {
       "name": "host-verify",
-      "displayName": "Configure, build, and test M0 on MSVC/Ninja",
+      "displayName": "Configure, build, and verify host on MSVC/Ninja",
       "steps": [
         { "type": "configure", "name": "host-msvc" },
         { "type": "build", "name": "host-msvc" },

@@ -6,10 +6,10 @@ This repository is a specification-first handoff for Retro PC Music Player (RPCM
 
 1. `docs/PRD.md`
 2. `docs/ARCHITECTURE.md`
-3. The active milestone in `docs/milestones/`
+3. `docs/CURRENT.md`, then the active milestone it links
 4. Relevant contracts in `specs/`
 
-The documents above are the system of record. If implementation and documentation disagree, stop, identify the conflict, and resolve it explicitly rather than silently changing a public contract.
+The documents above are the system of record. If implementation and documentation disagree, identify the exact conflict and stop the affected change until it is resolved explicitly. Continue independent authorized work. Correct stale navigation against milestone evidence; do not silently change a public contract.
 
 ## Architectural invariants
 
@@ -35,6 +35,25 @@ The documents above are the system of record. If implementation and documentatio
 - Do not add a dependency without recording its license, purpose, and platform implications.
 - Keep commits small and reviewable; do not reformat unrelated files.
 
+## Setup and workflow
+
+- Follow `docs/development/harness.md` for setup, verification commands, and review criteria. Run `pwsh -File tools/host-verify.ps1 -CheckSetupOnly` on a new or changed host environment.
+- Inspect HEAD, branch, staged/unstaged changes, and applicable instructions before editing. Preserve pre-existing work; stage only owned paths or hunks.
+- State the intended outcome, active milestone/slice, and relevant checks briefly. Read relevant files once; load additional contracts and skills only when needed by the task.
+- Resolve routine, reversible implementation choices using existing contracts. Proceed through implementation and verification without repeated permission requests. Ask when an unresolved decision changes public behavior, scope, or authorization; identify the source of the blocker.
+- Start with a focused failing case for behavioral bugs. Use contract-derived assertions, independently derived traces, boundary cases, and existing fixtures. Do not add tests that merely repeat implementation details for prose-only edits.
+- Run focused checks during iteration and the completion gate once the change is stable. Repeat or broaden checks only after changes, failures, or unresolved concerns. Run RTL suites sequentially because they use shared simulator work directories.
+- Keep subagent use bounded to independent tasks when explicitly requested. Do not create agents solely to repeat the same review.
+
+## Observable quality rules
+
+- Every changed production path must serve the requested outcome or an active acceptance criterion. Remove unused helpers, speculative abstractions, duplicate validation, and unrelated cleanup introduced by the change.
+- Do not replace failures with success, defaults, ignored exceptions, disabled tests, relaxed bounds, or new warning suppressions just to pass a gate. A necessary exception needs a concrete reason and validation of the remaining guarantee.
+- Do not regenerate golden traces, hashes, or expected values solely from the implementation under test. Explain the contract or independent evidence for an expected-value change.
+- Keep one current-task pointer in `docs/CURRENT.md`; historical milestone evidence and prompts are not current instructions. Update navigation when a milestone advances, not historical results.
+- Describe measured facts separately from inference. A build, host test, simulation, synthesis report, package hash, and user hardware report establish different things; never promote one into another.
+- Cite actual commands and results from this task. Do not invent test counts, timings, hardware observations, or claim unrun checks passed. Keep private corpus identities and artifacts out of committed evidence.
+
 ## Completion gate
 
 Before declaring work complete:
@@ -44,3 +63,4 @@ Before declaring work complete:
 - Verify architecture/dependency checks still prevent Core-to-UI coupling.
 - Update docs only when behavior or an approved contract changed.
 - Report files changed, decisions made, tests run, tests not run, known risks, and the next recommended task.
+- For documentation/harness-only work, run the host gate and any affected tooling tests; RTL and hardware checks are not applicable unless their inputs or behavior changed. Explicitly report that distinction. Passing host checks does not complete a hardware milestone.

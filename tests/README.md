@@ -2,13 +2,15 @@
 
 Cross-module deterministic fixtures, architecture checks, golden traces, fuzz/property tests, RTL simulation, and host integration tests. See `docs/design/testing-strategy.md`.
 
-Run the implemented M0 host suite on Windows with:
+For current prerequisites and task routing, see the
+[development harness](../docs/development/harness.md). Run the complete host
+suite on Windows with:
 
 ```powershell
 pwsh -File tools/host-verify.ps1
 ```
 
-The workflow requires LLVM 22.1.8 and runs seven CTest gates: contract, runtime/headless, UI/mock-only, positive architecture, negative architecture, `clang-format`, and `clang-tidy`. Formatting and analysis use warnings-as-errors. After configuring `host-msvc`, their CMake targets can be run separately:
+The workflow requires LLVM 22.1.8 and runs the registered CTest gates, including contract, runtime/headless, UI/mock-only, library/MDX/M5, package, positive/negative architecture, harness, `clang-format`, and `clang-tidy` checks. Discover the current list with `ctest --preset host-msvc -N`; a listing is not an executed test result. Formatting and analysis use warnings-as-errors. After configuring `host-msvc`, their CMake targets can be run separately:
 
 ```powershell
 cmake --build --preset host-msvc --target format
@@ -27,7 +29,7 @@ The script accepts `RPCMP_QUESTA_ROOT` as the directory containing `vsim.exe`; o
 
 The HDL compiler can validate the source without that environment variable, but
 the self-checking simulation cannot run. A passing invocation requires all
-three testbench PASS markers plus Questa's zero-error, zero-warning summary.
+configured testbench PASS markers plus Questa's zero-error, zero-warning summary.
 The M2 tests cover the queue's reset, due-time hold, full/reject, sticky flags,
 backpressure, wrap/reuse, ordering, and asynchronous clocks; the AUDIO test
 covers rational sample selection, exact serial framing, silence, saturation,
@@ -62,4 +64,4 @@ pwsh -File tools/pocket-package.ps1
 
 The package gate validates APF JSON roots and bounds, Interact addresses, byte-level RBF reversal, exact file/ZIP layout, and artifact lengths/hashes. It does not install anything on an SD card or access Pocket hardware.
 
-Linux/GCC CI is currently deferred. Format parsers and real container tests remain outside M0.
+Linux/GCC CI is currently deferred. Host checks do not establish Pocket hardware acceptance.

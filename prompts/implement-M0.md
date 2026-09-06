@@ -1,5 +1,8 @@
 # Copy-ready Codex task: Implement M0
 
+Historical bootstrap prompt. For current work use `prompts/work-current.md`;
+do not apply the scope restrictions below to later milestones.
+
 Read `AGENTS.md` and every document it requires. Implement only `docs/milestones/M0-architecture.md`.
 
 Before coding, inspect the repository and available toolchain, then create ADRs for the language/build system, state transport, and test strategy. Preserve the architecture contracts: Core publishes immutable snapshots; UI sends commands; Core never depends on UI; playback time never depends on rendering.

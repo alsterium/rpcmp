@@ -21,13 +21,14 @@ The defining rule is `Core -> UI = State` and `UI -> Core = Command`. Playback m
 - Product scope: `docs/PRD.md`
 - Architecture and dependency rules: `docs/ARCHITECTURE.md`
 - Public contracts: `specs/`
-- Active implementation task: `docs/milestones/M2-ym2151-fixed-sequence.md`
+- Active task and acceptance status: [Current work](docs/CURRENT.md)
+- Setup, workflow, and evidence rules: [Development harness](docs/development/harness.md)
 - M0 executable design: `docs/design/m0-executable-design.md`
 - Pocket platform boundary: `docs/design/pocket-platform-boundary.md`
 - Pocket execution candidates: `docs/design/pocket-execution-candidates.md`
 - Pocket execution-substrate comparison spike: `docs/design/pocket-openfpgaos-spike.md`
 - Architecture decisions: `docs/adr/`
-- Copy-ready Codex prompt: `prompts/implement-M0.md`
+- Copy-ready Codex prompt: [Work on the current task](prompts/work-current.md)
 
 ## Intended repository layout
 
@@ -43,22 +44,24 @@ third_party/             vendored dependencies and notices
 M0 selects C++17 and CMake for the host architecture skeleton, and M1 freezes
 the library container. M2 starts with a platform-neutral timestamped device
 operation contract and deterministic fixed YM2151 trace. Pocket execution and
-a concrete YM2151 core remain gated by target-toolchain, audio-path, and license
-evidence; see ADR-0004 and the active milestone.
+a concrete YM2151 core were initially gated by target-toolchain, audio-path,
+and license evidence. Follow the current milestone and ADR-0008 for the later
+conditional execution-substrate decision and remaining promotion gates.
 
 ## Recommended execution
 
-1. Initialize a repository with this package at its root.
-2. Ask Codex to read `AGENTS.md` and the active milestone only.
+1. Clone the repository with its pinned submodule and check host setup.
+2. Ask Codex to read `AGENTS.md` and its required documents, starting from `docs/CURRENT.md`.
 3. Review the public contracts and architecture tests before accepting implementation.
 4. Continue milestone-by-milestone; do not jump directly to full MDX playback.
 
-## M0 host verification
+## Host verification
 
-On Windows, install Visual Studio C++ Build Tools, CMake, and the pinned LLVM development tools:
+On Windows, use PowerShell 7, Visual Studio C++ Build Tools with CMake/Ninja,
+CMake >= 3.25, Python >= 3.11, and LLVM 22.1.8. Check the environment first:
 
 ```powershell
-scoop install llvm
+pwsh -File tools/host-verify.ps1 -CheckSetupOnly
 ```
 
 The `host-msvc` preset requires LLVM 22.1.8. Run the complete build, format, static-analysis, architecture, and test workflow with:
