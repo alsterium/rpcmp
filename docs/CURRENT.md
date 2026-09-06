@@ -7,14 +7,17 @@ real-file hardware check on 2026-09-06: initial playback, both audio channels,
 one minute of playback, warm relaunch, and cold start. See the milestone record
 for the exact observations.
 
-The next product task is the remaining
-[ADR-0008 production-promotion review](adr/0008-m5-conditional-openfpgaos-substrate.md),
-starting with the memory-map/startup ownership explanation and a bounded
-code/BSS placement-perturbation verification plan. This candidate's successful
-starts do not establish general placement stability. Integrated timing/CDC and
-external-I/O constraints, APF lifecycle/failure silence, and explicit future PCM
-and UI reserves also remain open. M5 and production-substrate promotion remain
-open.
+The [placement review](design/pocket-m5-placement-review.md) records the app
+memory map, startup ownership, and a concrete ROM/OS mismatch: fixed ROM IRQ
+and syscall targets do not follow the historical OS's `+0x40` code shift.
+The next task is recovering a byte-matching control ELF/map and adding a
+ROM/OS pairing gate before the review's separate OS and app perturbations.
+The review also identifies a boot CRC fail-open conflict with ADR-0008;
+the affected boot-failure change requires explicit resolution under AGENTS.md.
+
+General placement stability, integrated timing/CDC and external-I/O constraints,
+APF lifecycle/failure silence, and explicit future PCM/UI reserves remain open.
+M5 and production-substrate promotion remain open.
 
 Use the milestone's acceptance criteria and progress evidence as the authority.
 Do not infer completion from the existence of a ZIP or passing host tests.

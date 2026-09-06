@@ -303,3 +303,27 @@ startup copy/clear ownership and plan controlled code/BSS placement perturbation
 against the accepted control. Each perturbation requires ADR-0008's three warm
 starts and one cold start. APF lifecycle and hardware failure silence, plus an
 explicit future PCM/mixer/buffering/UI reserve, still need their own evidence.
+
+### Placement and startup investigation — 2026-09-06
+
+The [placement review](../design/pocket-m5-placement-review.md) records the
+accepted app's single load segment, large BSS objects, heap boundary, source
+reservations, and the owners of OS/app copy, clear, and C++ initialization.
+The inspected app and OS bytes equal the corresponding accepted ZIP members.
+
+Accepted ROM disassembly calls IRQ at `0x10336980` and syscall dispatch at
+`0x10335e40`. The archived `0.5.36` ELF places them at `0x103369c0` and
+`0x10335e80`. OSE2 entry/BSS metadata and valid CRC do not relocate these ROM
+references. This establishes a concrete incompatible pairing to test, not a
+hardware-confirmed repair or complete explanation of every historical failure.
+The archived diagnostic ELFs do not reproduce the entire accepted ROM; recover
+the matching control ELF/map and audit all ROM-to-OS references before new
+OS-placement packages. The review defines separate code/BSS OS and app cases,
+with three warm relaunches and one cold start per perturbation.
+
+Pinned boot source also returns success after repeated OS CRC failures, in
+conflict with ADR-0008's storage-failure stop/silence requirement. The proposed
+resolution is bounded retries followed by terminal failure without OS entry;
+the affected change awaits explicit resolution per AGENTS.md. No firmware,
+ROM, RBF, or accepted package was changed by this investigation. All hardware
+and production-promotion gates remain at their previously recorded status.
