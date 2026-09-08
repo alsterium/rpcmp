@@ -4,7 +4,8 @@
 
 ユーザー承認済みの方針に従い、OS の CRC 検証に 8 回失敗したら OS を
 起動せず、音源共通リセットを要求し、診断画面で停止する候補です。
-バージョンは `0.10.1-m5-boot`。実機結果は **未確認** です。
+バージョンは `0.10.1-m5-boot`。2026-09-09 にユーザーから下記の実機項目
+すべて **PASS** の報告を受けました。以下の手順は再確認用に保持します。
 
 次の ZIP を SD カードのルートへ展開してください。コア ID と platform ID
 を分けてあるため、合格済み `RPCMP.M5FileProbe` は保持できます。
@@ -42,6 +43,25 @@ Firmware: 2.6
 停止版 通常再起動 / 電源OFF後:
 停止版から正常版への復帰:
 ```
+
+## User hardware report — 2026-09-09
+
+Firmware: 2.6. The user reported:
+
+- Normal probe: `LIBRARY: PASS`, `MDX: PASS`, `PLAYING: PASS` on initial boot.
+- Music, both audio channels, and one minute of playback: all PASS.
+- Normal probe warm relaunch and full power-off cold start: both PASS.
+- CRC-stop probe display and `SOUND RESET`: PASS.
+- One minute of silence and no progression into OS: PASS.
+- CRC-stop probe warm relaunch and full power-off cold start: PASS.
+- Return from the stopped probe to normal playback: PASS.
+
+This accepts the requested valid-boot and injected-CRC-failure hardware checks
+for this candidate. Display approval was reported collectively; the user did
+not transcribe the individual error code or diagnostic word. No additional
+restart counts, electrical audio measurements, I/O-timeout injection, failed
+reset-controller tests, or captured APF lifecycle traces were reported.
+The broader placement, lifecycle, CDC and external-I/O gates remain open.
 
 ## Software and build evidence — 2026-09-08
 

@@ -354,3 +354,20 @@ produced a larger OS. No placement perturbations have started. Next is the
 handoff's normal playback, injected-failure silence, warm/cold start and return
 to normal hardware checks on firmware 2.6. Broader placement/lifecycle, CDC,
 external-I/O and production-promotion gates remain open. M5 is not complete.
+
+### Paired boot / CRC-stop hardware report — 2026-09-09
+
+The user reported all requested `0.10.1-m5-boot` checks PASS on firmware 2.6:
+normal initial `LIBRARY`, `MDX`, and `PLAYING`; audible music on both channels
+for one minute; normal warm relaunch and full power-off cold start; CRC-stop
+display and `SOUND RESET`; one minute of silence without OS entry; CRC-stop
+warm/cold starts; and return from the stopped probe to normal playback.
+The [handoff record](../design/pocket-m5-boot-hardware-check.md) preserves the
+observations and limits without inferring unreported diagnostic values/counts.
+
+This closes the candidate's requested normal and injected-CRC-failure
+hardware acceptance. It does not establish silence under every storage/device
+fault or close general APF lifecycle, placement, CDC or external-I/O coverage.
+M5 and substrate promotion remain open. Next: recover the accepted control
+ELF/map and audit ROM-to-OS references as required by the placement review,
+before producing separate OS placement variants.

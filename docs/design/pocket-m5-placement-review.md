@@ -126,8 +126,10 @@ The user explicitly approved bounded CRC retries followed by terminal failure,
 without entry into the failed OS image and with sound reset/silence. This
 resolves the implementation decision required by `AGENTS.md`; it does not
 relax ADR-0008. The 2026-09-08 repair is a separate coherent baseline, documented
-in the [boot hardware handoff](pocket-m5-boot-hardware-check.md), with hardware
-failure silence still pending. The accepted control remains preserved.
+in the [boot hardware handoff](pocket-m5-boot-hardware-check.md). On 2026-09-09
+the user reported its normal/CRC-stop checks PASS, including one minute of
+failure silence and return to normal playback. Other failure modes remain
+unverified. The accepted control remains preserved.
 
 The clean pinned-source build plus safe-memset patch did not reproduce the old
 OS: 135,768 bytes versus the accepted 135,448. The new fail-closed build also
