@@ -1,0 +1,75 @@
+--- a/src/firmware/os/targets/pocket/boot/boot.c
++++ b/src/firmware/os/targets/pocket/boot/boot.c
+@@ -855,15 +855,8 @@
+     return 0;
+ }
+ 
+-/* Load the OS image, then verify its CRC and reload on mismatch.  The
+- * SD->CRAM0->SDRAM copy occasionally corrupts a word (CRAM0 PSRAM async path,
+- * cold-boot lost SDRAM writes); a corrupt image surfaces later as an
+- * illegal-instruction trap or silent data corruption.  Re-running the whole
+- * load almost always clears an intermittent fault, so retry FOREVER rather
+- * than ever booting a corrupt image: a visible retry loop the user can see
+- * (and power-cycle out of) is strictly better than the old proceed-anyway
+- * escape, which produced undebuggable in-game corruption on cold boots.
+- * os_load_crc_retries / pd_dbg_info keep the count visible to the OS. */
++/* RPCMP: at most eight CRC attempts; any terminal error stays in ROM.
++ * os_load_crc_retries and pd_dbg_info preserve failure diagnostics. */
+ __attribute__((section(".text.boot")))
+ static void boot_fb_hex32(int col, int row, uint32_t v) {
+     for (int i = 7; i >= 0; i--) {
+@@ -872,32 +865,17 @@
+     }
+ }
+ 
+-__attribute__((section(".text.boot")))
+-static int boot_load_os_sd(uint32_t total) {
+-    for (;;) {
+-        for (int attempt = 0; attempt < OS_LOAD_MAX_ATTEMPTS; attempt++) {
+-            int rc = boot_load_os_sd_once_to(
+-                total, (uint32_t)(uintptr_t)_osdata_init_vma_start);
+-            if (rc < 0)
+-                return rc;              /* DMA/IO failure — surface as-is */
+-            if (boot_verify_os_image_at(total,
+-                    (uint32_t)(uintptr_t)_osdata_init_vma_start))
+-                return 0;               /* image trusted */
+-            os_load_crc_retries++;      /* corruption detected — reload */
+-        }
+-        pd_dbg_info = 0xC0DE0000u | (os_load_crc_retries & 0xFFFFu);
+-        boot_fb_puts0(1, "OS CRC retry x");
+-        boot_fb_putchar(14, 1, '0' + (os_load_crc_retries & 7));
+-        if (os_load_crc_retries >= 2 * OS_LOAD_MAX_ATTEMPTS) {
+-            /* Bounded fail-open: booting a possibly-corrupt image with a
+-             * visible warning beats a boot jail — warm boots historically
+-             * load intact images, and the forensics rows carry the
+-             * evidence either way. */
+-            boot_fb_puts0(1, "BOOTING UNVERIFIED IMAGE ");
+-            return 0;
+-        }
+-    }
+-}
++static inline __attribute__((always_inline)) uint32_t rpcmp_boot_read32(uint32_t address) {
++    return *(volatile uint32_t *)(uintptr_t)address;
++}
++static inline __attribute__((always_inline)) void rpcmp_boot_write32(uint32_t address, uint32_t value) {
++    *(volatile uint32_t *)(uintptr_t)address = value;
++    __asm__ volatile("fence" ::: "memory");
++}
++__attribute__((section(".text.boot")))
++#include "boot_sound_reset.inc"
++__attribute__((section(".text.boot")))
++#include "boot_crc_retry.inc"
+ 
+ /* CRAM0 wait-until-healthy self-test (cold-boot forensics 2026-06-09).
+  * Bench data: cold starts fail the OS load with DETERMINISTIC,
+@@ -1118,7 +1096,9 @@
+ 
+     if (rc < 0) {
+         boot_fb_clear_row(0);
+-        boot_fb_puts0(0, "Load failed E");
++        int sound_reset_ok = rpcmp_boot_reset_sound(1000000u);
++        boot_fb_puts0(1, sound_reset_ok ? "SOUND RESET: PASS" : "SOUND RESET: FAILED");
++        boot_fb_puts0(0, rc == -5 ? "CRC FAILED E" : "Load failed E");
+         boot_fb_putchar(14, 0, '0' + (unsigned int)(-rc));
+         /* pd_dbg_info holds DS_STATUS captured at timeout — show the
+          * full word after the error digit so we can see which bridge

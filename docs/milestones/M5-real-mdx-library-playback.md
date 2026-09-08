@@ -327,3 +327,30 @@ resolution is bounded retries followed by terminal failure without OS entry;
 the affected change awaits explicit resolution per AGENTS.md. No firmware,
 ROM, RBF, or accepted package was changed by this investigation. All hardware
 and production-promotion gates remain at their previously recorded status.
+
+### Approved CRC stop repair and paired baseline — 2026-09-08
+
+The user approved bounded CRC retries followed by terminal failure without OS
+entry and with sound reset/silence. The overlay attempts CRC at most eight
+times, returns I/O failure immediately, requests a bounded common sound reset
+on load failure, and holds in ROM with diagnostics. A same-link ELF/MIF/OS
+checker rejects incompatible ROM references despite valid OS metadata.
+Existing public interfaces and the accepted file-playback control are preserved.
+
+The [hardware handoff](../design/pocket-m5-boot-hardware-check.md) describes
+`0.10.1-m5-boot`: separate valid-boot and one-bit CRC-fault probes. The valid
+probe preserves accepted app/config/library bytes; the fault probe contains
+no app or music. Both archives passed member readback and have distinct IDs.
+
+Executed on 2026-09-08: `pwsh -File tools/host-verify.ps1` passed 46 CTest cases
+including format, tidy and architecture checks. `pwsh -File tools/rtl-verify.ps1`
+passed 9 simulation markers, followed by `pwsh -File tools/rtl-jt51-verify.ps1`
+passing 5 real-JT51 markers. `quartus_sh.exe --flow compile ap_core` completed
+with 0 errors and 1104 warnings; the handoff records fit/timing and artifact
+identities. These results are not hardware acceptance.
+
+Exact old-control ELF/map reproduction remains unresolved: the clean rebuild
+produced a larger OS. No placement perturbations have started. Next is the
+handoff's normal playback, injected-failure silence, warm/cold start and return
+to normal hardware checks on firmware 2.6. Broader placement/lifecycle, CDC,
+external-I/O and production-promotion gates remain open. M5 is not complete.

@@ -5,12 +5,15 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import json
 import re
 import shutil
 import subprocess
 import tempfile
 import zipfile
 from pathlib import Path
+
+import pocket_firmware_pair
 
 
 OPENFPGAOS_REVISION = "618a3eb985759a4154115109c2c8036271252888"
@@ -58,6 +61,8 @@ def main() -> int:
     parser.add_argument("--vexii-netlist", type=Path, required=True)
     parser.add_argument("--boot-mif", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--firmware-elf", type=Path)
+    parser.add_argument("--os-image", type=Path)
     args = parser.parse_args()
 
     repo = args.repo.resolve()
@@ -74,7 +79,13 @@ def main() -> int:
     verify_checkout(jt51, JT51_REVISION, "JT51")
     if sha256(netlist) != VEXII_NETLIST_SHA256:
         raise ValueError("VexiiRiscv rpcmp netlist identity mismatch")
-    verify_boot_mif(boot_mif)
+    if bool(args.firmware_elf) != bool(args.os_image):
+        raise ValueError("new firmware requires both linked ELF and OS image")
+    pairing = None
+    if args.firmware_elf:
+        pairing = pocket_firmware_pair.verify(args.firmware_elf, boot_mif, args.os_image)
+    else:
+        verify_boot_mif(boot_mif)
 
     overlay = repo / "overlays" / "openfpgaos"
     with tempfile.TemporaryDirectory(prefix="rpcmp-m5-audio-") as temporary:
@@ -112,6 +123,10 @@ def main() -> int:
     shutil.copyfile(netlist, vexii / "VexiiRiscv_rpcmp.v")
     shutil.copyfile(boot_mif, pocket / "firmware.mif")
     shutil.copyfile(overlay / "build_id.mif", pocket / "apf" / "build_id.mif")
+    if pairing is not None:
+        (output / "rpcmp-firmware-pair.json").write_text(
+            json.dumps(pairing, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+        )
     print(output)
     return 0
 

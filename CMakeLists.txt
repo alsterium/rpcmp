@@ -228,6 +228,11 @@ if(BUILD_TESTING)
   target_link_libraries(rpcmp_m5_playback_tests PRIVATE rpcmp_m5_playback)
   rpcmp_test_options(rpcmp_m5_playback_tests)
   add_test(NAME m5_playback COMMAND rpcmp_m5_playback_tests)
+
+  add_executable(rpcmp_boot_crc_tests tests/pocket/boot_crc_tests.cpp)
+  target_include_directories(rpcmp_boot_crc_tests PRIVATE tests/support)
+  rpcmp_test_options(rpcmp_boot_crc_tests)
+  add_test(NAME boot_crc COMMAND rpcmp_boot_crc_tests)
   add_test(NAME mdx_admission_cli
     COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/pocket/mdx_admission_tests.py
       $<TARGET_FILE:rpcmp_mdx_admission>
@@ -445,6 +450,10 @@ if(BUILD_TESTING)
   add_test(
     NAME pocket_m5_audio_boot
     COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/pocket/m5_audio_boot_tests.py)
+  add_test(NAME pocket_boot_package
+    COMMAND "${Python3_EXECUTABLE}" -B "${CMAKE_SOURCE_DIR}/tests/pocket/boot_package_tests.py")
+  add_test(NAME pocket_firmware_pair
+    COMMAND ${Python3_EXECUTABLE} -B ${CMAKE_SOURCE_DIR}/tests/pocket/firmware_pair_tests.py)
   add_test(
     NAME m4_rtl_trace
     COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/pocket/m4_rtl_trace_tests.py)

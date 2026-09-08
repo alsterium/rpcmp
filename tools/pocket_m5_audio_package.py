@@ -24,13 +24,20 @@ EXPECTED_ARCHIVE = Path("out/build/rpcmp-m5-audio-bootfix.zip")
 VERIFIED_RBF_SHA256 = "2444e999c0c7af162b26e4f3590f911ad78c01eb8102a5057d78adc37da7ec4a"
 
 
-def verify_build(repo: Path, rbf: Path) -> dict[str, str]:
+def verify_build(repo: Path, rbf: Path, *, firmware_elf: Path | None = None,
+                 os_image: Path | None = None) -> dict[str, str]:
     """Reject the zero-ROM regression before creating or replacing artifacts."""
     project = rbf.parent.parent
     pocket = project.parent.parent
     boot = pocket / "firmware.mif"
     build_id = pocket / "apf" / "build_id.mif"
-    verify_boot_mif(boot)
+    if (firmware_elf is None) != (os_image is None):
+        raise ValueError("firmware ELF and OS image must be supplied together")
+    if firmware_elf is None:
+        verify_boot_mif(boot)
+    else:
+        import pocket_firmware_pair
+        pocket_firmware_pair.verify(firmware_elf, boot, os_image)
     if shared.sha256(build_id) != shared.sha256(repo / "overlays/openfpgaos/build_id.mif"):
         raise ValueError("build-ID MIF identity mismatch")
     evidence = {}

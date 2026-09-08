@@ -122,12 +122,18 @@ conflicts with ADR-0008's requirement that storage failures stop playback work
 and remain silent, and with the PRD's bounded failure requirement for untrusted
 input. Ordinary successful playback does not exercise this path.
 
-Per `AGENTS.md`, stop the affected boot-failure implementation/promotion change
-until the conflict is explicitly resolved. The proposed resolution is bounded
-CRC retries followed by a terminal failure, with no jump into the failed OS
-image and reset/silence maintained. Preserve the accepted control. The pairing
-investigation and test design can proceed independently; do not silently fix
-upstream behavior or relax the ADR as part of a placement-only experiment.
+The user explicitly approved bounded CRC retries followed by terminal failure,
+without entry into the failed OS image and with sound reset/silence. This
+resolves the implementation decision required by `AGENTS.md`; it does not
+relax ADR-0008. The 2026-09-08 repair is a separate coherent baseline, documented
+in the [boot hardware handoff](pocket-m5-boot-hardware-check.md), with hardware
+failure silence still pending. The accepted control remains preserved.
+
+The clean pinned-source build plus safe-memset patch did not reproduce the old
+OS: 135,768 bytes versus the accepted 135,448. The new fail-closed build also
+has a 135,768-byte OS, linked with its own boot ROM. Do not call this recovery
+of the old control or an isolated placement perturbation. Exact reproduction
+and the broader reference/placement investigation remain open.
 
 ## Bounded experiment plan
 

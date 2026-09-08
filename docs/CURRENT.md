@@ -10,10 +10,14 @@ for the exact observations.
 The [placement review](design/pocket-m5-placement-review.md) records the app
 memory map, startup ownership, and a concrete ROM/OS mismatch: fixed ROM IRQ
 and syscall targets do not follow the historical OS's `+0x40` code shift.
-The next task is recovering a byte-matching control ELF/map and adding a
-ROM/OS pairing gate before the review's separate OS and app perturbations.
-The review also identifies a boot CRC fail-open conflict with ADR-0008;
-the affected boot-failure change requires explicit resolution under AGENTS.md.
+The user approved bounded CRC retries followed by terminal failure without OS
+entry. The `0.10.1-m5-boot` candidate implements that repair, with a same-link
+ROM/OS packaging gate and separate normal/CRC-fault probes. The next task is
+firmware 2.6 hardware verification using the
+[boot check](design/pocket-m5-boot-hardware-check.md).
+Exact reproduction of the accepted control ELF/map remains unresolved;
+the new coherent firmware is not a byte-identical recovered control.
+The review's separate OS/app placement perturbations have not started.
 
 General placement stability, integrated timing/CDC and external-I/O constraints,
 APF lifecycle/failure silence, and explicit future PCM/UI reserves remain open.
