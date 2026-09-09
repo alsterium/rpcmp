@@ -454,6 +454,8 @@ if(BUILD_TESTING)
     COMMAND "${Python3_EXECUTABLE}" -B "${CMAKE_SOURCE_DIR}/tests/pocket/boot_package_tests.py")
   add_test(NAME pocket_firmware_pair
     COMMAND ${Python3_EXECUTABLE} -B ${CMAKE_SOURCE_DIR}/tests/pocket/firmware_pair_tests.py)
+  add_test(NAME pocket_control_relink
+    COMMAND ${Python3_EXECUTABLE} -B ${CMAKE_SOURCE_DIR}/tests/pocket/control_relink_tests.py)
   add_test(
     NAME m4_rtl_trace
     COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/pocket/m4_rtl_trace_tests.py)

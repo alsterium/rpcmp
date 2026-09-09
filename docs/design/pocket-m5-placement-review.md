@@ -5,6 +5,12 @@ Status: investigation and experiment plan, 2026-09-06. Governed by
 [ADR-0008](../adr/0008-m5-conditional-openfpgaos-substrate.md).
 No new hardware candidate or substrate promotion is established here.
 
+Update 2026-09-09: [retained-object recovery](pocket-m5-control-recovery.md)
+now supplies an ELF/map matching every accepted control ROM/OS byte and a
+BRAM-to-OS relocation inventory. The earlier missing-ELF findings below record
+the original investigation; clean-source reproducibility and the placement
+matrix remain open.
+
 ## Finding: the ROM contains OS addresses beyond entry and BSS
 
 The historical `0.5.32` versus `0.5.36` comparison moved later OS code and BSS

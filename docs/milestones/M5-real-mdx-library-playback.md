@@ -371,3 +371,22 @@ fault or close general APF lifecycle, placement, CDC or external-I/O coverage.
 M5 and substrate promotion remain open. Next: recover the accepted control
 ELF/map and audit ROM-to-OS references as required by the placement review,
 before producing separate OS placement variants.
+
+### Accepted-control recovery and reference audit — 2026-09-09
+
+The [recovery report](../design/pocket-m5-control-recovery.md) records a
+retained-object link whose complete ROM and OS payload/footer match the
+accepted safe-memset control. Replacing historical main/memtest diagnostic
+objects with their retained normal counterparts recovers the exact layout;
+this is not yet a clean-source reproduction recipe. ELF/map and input hashes
+are preserved locally, and the committed tool repeats the hash-checked link.
+
+The relocation audit finds 141 BRAM-to-OS records (61 distinct symbol-value /
+expression pairs), including UART state and 51 diagnostic literal addresses,
+besides IRQ/syscall and entry/BSS fallback references. Tests exclude debug
+relocation offsets and reject reuse of existing/out-of-root output paths.
+
+Next is the separate OS code/BSS placement experiment using identical objects
+from the accepted fail-closed baseline and generating ROM/OS as one pair.
+No new RTL, Quartus or hardware run was needed for this tooling investigation;
+no placement variant or production-promotion gate is declared passed.

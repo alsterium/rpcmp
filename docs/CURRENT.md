@@ -16,11 +16,13 @@ ROM/OS packaging gate and separate normal/CRC-fault probes. Both passed the
 user-reported firmware 2.6 [boot check](design/pocket-m5-boot-hardware-check.md)
 on 2026-09-09: normal playback, CRC-failure stop/silence, warm/cold starts,
 and return from the stopped probe to normal playback.
-The next task is returning to the placement review: recover the accepted
-control ELF/map and audit ROM-to-OS references before OS placement variants.
-Exact reproduction of the accepted control ELF/map remains unresolved;
-the new coherent firmware is not a byte-identical recovered control.
-The review's separate OS/app placement perturbations have not started.
+The [control recovery](design/pocket-m5-control-recovery.md) reconstructed an
+ELF/map matching every accepted old ROM/OS byte from retained objects, and
+identified 141 BRAM-to-OS relocation records, including UART state and diagnostic
+literals. Clean-source reproducibility remains unresolved.
+The next task is preparing separate OS code/BSS `+0x40` placement variants
+from the accepted fail-closed baseline, relinking ROM and OS together.
+No placement variants have been built or hardware-tested yet.
 
 General placement stability, integrated timing/CDC and external-I/O constraints,
 broader APF lifecycle/failure coverage, and explicit future PCM/UI reserves remain open.
