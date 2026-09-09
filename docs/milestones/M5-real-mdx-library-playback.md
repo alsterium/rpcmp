@@ -390,3 +390,18 @@ Next is the separate OS code/BSS placement experiment using identical objects
 from the accepted fail-closed baseline and generating ROM/OS as one pair.
 No new RTL, Quartus or hardware run was needed for this tooling investigation;
 no placement variant or production-promotion gate is declared passed.
+
+### Placement hardware handoff — 2026-09-10
+
+The [four-row handoff](../design/pocket-m5-placement-hardware-check.md) now
+provides `0.10.2-m5-placement` ZIPs for OS code/BSS and app code/BSS padding.
+Same-object control relinks reproduce the accepted loaded images. All four
+variants pass relocation-bit and exact section-layout checks. Both OS variants
+have coherent ROM/OS pairs and new full Quartus builds with nonnegative
+constrained setup/hold; the app variants retain the accepted File Probe RBF/OS.
+The handoff records artifact hashes, memory budgets, validation and limitations.
+
+Next is firmware 2.6 hardware validation of all four candidates: initial boot,
+real-file admission, stereo one-minute playback, three warm relaunches and one
+full power-off cold start per candidate. No placement hardware PASS is claimed.
+M5 and ADR-0008 production-promotion gates remain open.

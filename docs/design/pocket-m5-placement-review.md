@@ -11,6 +11,12 @@ BRAM-to-OS relocation inventory. The earlier missing-ELF findings below record
 the original investigation; clean-source reproducibility and the placement
 matrix remain open.
 
+Update 2026-09-10: all four initial padding candidates are now built and locally
+packaged. The [hardware handoff](pocket-m5-placement-hardware-check.md) records
+measured deltas, coherent OS ROMs, fixed app baselines, build evidence, and the
+pending three-warm/one-cold matrix. The original investigation below remains
+historical evidence; it does not supersede that current handoff.
+
 ## Finding: the ROM contains OS addresses beyond entry and BSS
 
 The historical `0.5.32` versus `0.5.36` comparison moved later OS code and BSS
