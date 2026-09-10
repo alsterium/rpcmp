@@ -2,7 +2,8 @@
 
 ## 今回の実機確認
 
-`0.10.3-m5-failure`。2026-09-10 時点で実機結果は未確認です。
+`0.10.3-m5-failure`。2026-09-10 にユーザーから３候補すべての
+実機項目 **PASS / OK** と、追加確認で全候補の `RESET: OK` の報告を受けました。
 実機合格済み M5 Boot の ROM・OS・アプリ・loader を固定して、入力だけを
 変えた３候補です。M5 の再生開始前の失敗停止と無音を確認します。
 
@@ -42,6 +43,24 @@ TRACK STOP 無音1分 / PLAYINGへ進まない:
 TRACK STOP 通常再起動 / 電源OFF後 / 正常版復帰:
 失敗時の最後の表示・音:
 ```
+
+## User hardware report — 2026-09-10
+
+Firmware: 2.6. Normal-probe music and both channels were reported PASS.
+
+| Candidate | FAIL code | RESET display | Silent one minute / no PLAYING | Warm restart / cold start / normal recovery |
+| --- | --- | --- | --- | --- |
+| ARGS STOP | 2 | OK | OK / OK | OK / OK / OK |
+| LIBRARY STOP | 3 | OK | OK / OK | OK / OK / OK |
+| TRACK STOP | 4 | OK | OK / OK | OK / OK / OK |
+
+The initial response supplied only the failure numbers in the combined
+FAIL/RESET fields. A follow-up explicitly confirmed `RESET: OK` for all three;
+reset success was not inferred from silence. No failure was reported.
+This accepts the requested admission-failure checks. Restart/recovery items
+were reported collectively as OK; no extra counts or instrumented timing are
+inferred. The observations do not cover APF transport timeouts, in-playback
+faults, failed reset responses or continuous heartbeat/reset lifecycle traces.
 
 ## Preparation and evidence
 

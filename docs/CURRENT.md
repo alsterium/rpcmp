@@ -29,10 +29,13 @@ starts and one cold start per variant. The [bounded explanation review](design/p
 confirms that historical packaging commits paired diagnostic OS images with
 the fixed safe RBF. Retained MIF/OS/ELF identities support the mismatch;
 exact historical ZIP attribution and old clean-source reproduction remain open.
-The next task is the firmware 2.6 [admission-failure check](design/pocket-m5-failure-hardware-check.md):
-three fixed-binary probes for invalid arguments, corrupt library and absent
-track, checking terminal reset/silence, warm/cold starts and return to normal.
-Their hardware results remain pending.
+The firmware 2.6 [admission-failure check](design/pocket-m5-failure-hardware-check.md)
+passed by user report on 2026-09-10 for all three input-only probes: FAIL codes
+2/3/4, explicitly confirmed RESET OK, one minute of silence/no PLAYING,
+warm/cold starts and return to normal playback. The next task is defining the
+bounded APF lifecycle/transport-failure observation and injection slice against
+ADR-0008. Admission-failure silence does not establish transport-timeout or
+in-playback fault handling.
 
 General placement stability, integrated timing/CDC and external-I/O constraints,
 broader APF lifecycle/failure coverage, and explicit future PCM/UI reserves remain open.

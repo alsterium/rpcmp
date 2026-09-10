@@ -439,3 +439,18 @@ format/tidy/architecture; the new package suite passed 4 tests. All three ZIPs
 passed final intended-byte and APF JSON audits. Existing accepted packages
 retain their recorded hashes. RTL/Quartus were not rerun because no executable,
 firmware or FPGA inputs changed in this packaging/documentation-only slice.
+
+### Admission-failure hardware report — 2026-09-10
+
+Firmware 2.6 user report accepts all three input-only failure probes: ARGS
+code 2, LIBRARY code 3 and TRACK code 4; one minute of silence and no PLAYING;
+warm restart, full power-off cold start and return to the normal probe all OK.
+Normal music/both channels were PASS. The follow-up explicitly confirmed
+`RESET: OK` for all three after the initial combined fields listed only codes.
+The [hardware record](../design/pocket-m5-failure-hardware-check.md) preserves
+this distinction and the observation limits.
+
+Next is the bounded APF lifecycle/transport-failure observation and injection
+slice. Transport timeouts, faults during playback, failed reset responses,
+integrated CDC/external-I/O policy and future PCM/UI reserves remain open.
+This accepts admission-failure coverage, not M5 or production promotion.
