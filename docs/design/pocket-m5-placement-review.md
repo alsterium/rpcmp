@@ -14,7 +14,11 @@ matrix remain open.
 Update 2026-09-10: all four initial padding candidates are now built and locally
 packaged. The [hardware handoff](pocket-m5-placement-hardware-check.md) records
 measured deltas, coherent OS ROMs, fixed app baselines, build evidence, and the
-pending three-warm/one-cold matrix. The original investigation below remains
+three-warm/one-cold matrix. The user subsequently reported every requested
+item PASS for all four candidates on firmware 2.6 on 2026-09-10. The bounded
+explanation still needs review against ADR-0008; arbitrary placement stability
+and historical failing-package ROM provenance are not established by this result.
+The original investigation below remains
 historical evidence; it does not supersede that current handoff.
 
 ## Finding: the ROM contains OS addresses beyond entry and BSS

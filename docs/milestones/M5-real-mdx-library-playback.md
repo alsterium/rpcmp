@@ -405,3 +405,15 @@ Next is firmware 2.6 hardware validation of all four candidates: initial boot,
 real-file admission, stereo one-minute playback, three warm relaunches and one
 full power-off cold start per candidate. No placement hardware PASS is claimed.
 M5 and ADR-0008 production-promotion gates remain open.
+
+### Placement hardware report — 2026-09-10
+
+The user reported every requested item PASS for OS CODE, OS BSS, APP CODE and
+APP BSS on firmware 2.6: initial LIBRARY/MDX/PLAYING, music/both channels/one
+minute, warm starts 1/2/3 and full power-off cold start. The
+[hardware record](../design/pocket-m5-placement-hardware-check.md) captures
+the four-row result and its limits. This accepts the initial placement matrix;
+no arbitrary-offset, instrumented timing or additional lifecycle coverage is
+inferred. Next is reviewing the bounded ROM/OS placement explanation against
+ADR-0008 and the remaining historical-package provenance/reproduction gaps.
+M5 and production-substrate promotion remain open.

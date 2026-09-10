@@ -2,9 +2,9 @@
 
 ## 実機で確認するもの
 
-`0.10.2-m5-placement` の４候補を準備しました。2026-09-10 時点で
-**実機確認は未実施**です。[配置調査](pocket-m5-placement-review.md)の
-最初の比較行列を実行します。各候補はコードか BSS に 64 バイトを追加し、
+`0.10.2-m5-placement` の４候補について、2026-09-10 にユーザーから
+**全項目 PASS** の実機報告を受けました。[配置調査](pocket-m5-placement-review.md)の
+最初の比較行列の結果を下記に記録し、手順を再確認用に保持します。各候補はコードか BSS に 64 バイトを追加し、
 元のオブジェクトから再リンクしています。
 
 次の ZIP を SD カードのルートへ展開してください。４候補はコア名と
@@ -50,6 +50,26 @@ APP BSS 音楽 / 左右 / 1分:
 APP BSS 通常再起動 1 / 2 / 3 / 電源OFF後:
 失敗時の最後の表示・症状:
 ```
+
+## User hardware report — 2026-09-10
+
+Firmware: 2.6. The user reported PASS for every cell below.
+
+| Candidate | Initial LIBRARY / MDX / PLAYING | Music / both channels / one minute | Warm starts 1 / 2 / 3 | Full power-off cold start |
+| --- | --- | --- | --- | --- |
+| OS CODE | PASS | PASS | PASS / PASS / PASS | PASS |
+| OS BSS | PASS | PASS | PASS / PASS / PASS | PASS |
+| APP CODE | PASS | PASS | PASS / PASS / PASS | PASS |
+| APP BSS | PASS | PASS | PASS / PASS / PASS | PASS |
+
+This accepts the requested first four-row placement matrix on the reported
+firmware. No failure was reported. These are user observations, not instrumented
+timing, stack, electrical audio or APF lifecycle measurements. The coherent OS
+code shift now has positive hardware evidence alongside the demonstrated
+fixed-ROM target mismatch, but this does not identify the exact embedded ROM
+of the historical failing package or prove stability at arbitrary placements.
+Next is reviewing that bounded explanation against ADR-0008, including the
+remaining historical-package provenance and clean-source reproduction gaps.
 
 ## Measured placement and limits
 
@@ -169,8 +189,8 @@ pairing, reviewed RBF identity, reports/timing, and creates a fresh ZIP.
 App probes use the accepted `openfpgaos-m5-audio-bootfix` RBF and safe OS.
 No dependency was added. Existing controls were not overwritten.
 
-Next is the four-row hardware report above. General placement stability,
+The four-row hardware report above is accepted. General placement stability,
 historical failing-package ROM provenance, clean-source reproducibility,
 broader lifecycle/failure coverage and explicit future PCM/UI reserves remain
-open. Even a passing matrix will require review of the bounded explanation
+open. The passing matrix still requires review of the bounded explanation
 under ADR-0008; it does not by itself complete M5 or substrate promotion.

@@ -23,9 +23,12 @@ literals. Clean-source reproducibility remains unresolved.
 The four [placement candidates](design/pocket-m5-placement-hardware-check.md)
 are built and packaged: separate OS code/BSS `+0x40` variants with coherent
 fail-closed ROM/OS pairs, and app code/BSS variants with the accepted File
-Probe ROM/OS/RBF fixed. The next task is their firmware 2.6 hardware matrix:
-initial playback, both channels, one minute, three warm starts and one cold
-start per variant. Hardware results remain pending.
+Probe ROM/OS/RBF fixed. On 2026-09-10 the user reported all four candidates
+PASS on firmware 2.6: initial playback, both channels, one minute, three warm
+starts and one cold start per variant. The next task is reviewing the bounded
+placement explanation against ADR-0008, including historical failing-package
+ROM provenance and clean-source reproducibility. The passing matrix alone
+does not close general placement stability or promote the substrate.
 
 General placement stability, integrated timing/CDC and external-I/O constraints,
 broader APF lifecycle/failure coverage, and explicit future PCM/UI reserves remain open.
