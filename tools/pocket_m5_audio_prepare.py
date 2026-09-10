@@ -63,6 +63,7 @@ def main() -> int:
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--firmware-elf", type=Path)
     parser.add_argument("--os-image", type=Path)
+    parser.add_argument("--apf-lifecycle", action="store_true")
     args = parser.parse_args()
 
     repo = args.repo.resolve()
@@ -109,6 +110,11 @@ def main() -> int:
     ]
     subprocess.run([*apply_args[:2], "--check", *apply_args[2:]], cwd=repo, check=True)
     subprocess.run(apply_args, cwd=repo, check=True)
+
+    if args.apf_lifecycle:
+        lifecycle_args = [*apply_args[:-1], "--unidiff-zero", str(overlay / "apf-lifecycle.patch")]
+        subprocess.run([*lifecycle_args[:2], "--check", *lifecycle_args[2:]], cwd=repo, check=True)
+        subprocess.run(lifecycle_args, cwd=repo, check=True)
 
     pocket = output / "src" / "fpga" / "targets" / "pocket"
     configs = output / "src" / "fpga" / "vendor" / "vexriscv" / "configs"

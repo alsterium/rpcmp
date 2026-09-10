@@ -450,7 +450,11 @@ Normal music/both channels were PASS. The follow-up explicitly confirmed
 The [hardware record](../design/pocket-m5-failure-hardware-check.md) preserves
 this distinction and the observation limits.
 
-Next is the bounded APF lifecycle/transport-failure observation and injection
-slice. Transport timeouts, faults during playback, failed reset responses,
+The next hardware handoff is the bounded
+[APF lifecycle/transport experiment](../design/pocket-m5-apf-hardware-check.md),
+version `0.10.4-m5-apf`: corrected status/readiness handling and separate
+normal/error/missing-completion packages. Its real command-handler simulation,
+existing RTL/JT51 suites and full Quartus build passed; Pocket results remain
+pending. Faults during playback, failed reset responses,
 integrated CDC/external-I/O policy and future PCM/UI reserves remain open.
 This accepts admission-failure coverage, not M5 or production promotion.

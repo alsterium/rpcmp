@@ -426,6 +426,8 @@ if(BUILD_TESTING)
             --root ${CMAKE_SOURCE_DIR})
   add_test(NAME harness_negative
     COMMAND ${Python3_EXECUTABLE} -B ${CMAKE_SOURCE_DIR}/tests/harness/harness_tests.py)
+  add_test(NAME pocket_apf_package
+    COMMAND ${Python3_EXECUTABLE} -B ${CMAKE_SOURCE_DIR}/tests/pocket/apf_package_tests.py)
   add_test(
     NAME architecture_negative
     COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/architecture/check_dependencies.py
