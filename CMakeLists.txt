@@ -458,6 +458,8 @@ if(BUILD_TESTING)
     COMMAND ${Python3_EXECUTABLE} -B ${CMAKE_SOURCE_DIR}/tests/pocket/control_relink_tests.py)
   add_test(NAME pocket_placement
     COMMAND ${Python3_EXECUTABLE} -B ${CMAKE_SOURCE_DIR}/tests/pocket/placement_tests.py)
+  add_test(NAME pocket_failure_package
+    COMMAND ${Python3_EXECUTABLE} -B ${CMAKE_SOURCE_DIR}/tests/pocket/failure_package_tests.py)
   add_test(
     NAME m4_rtl_trace
     COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/pocket/m4_rtl_trace_tests.py)

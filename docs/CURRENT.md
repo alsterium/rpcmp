@@ -25,10 +25,14 @@ are built and packaged: separate OS code/BSS `+0x40` variants with coherent
 fail-closed ROM/OS pairs, and app code/BSS variants with the accepted File
 Probe ROM/OS/RBF fixed. On 2026-09-10 the user reported all four candidates
 PASS on firmware 2.6: initial playback, both channels, one minute, three warm
-starts and one cold start per variant. The next task is reviewing the bounded
-placement explanation against ADR-0008, including historical failing-package
-ROM provenance and clean-source reproducibility. The passing matrix alone
-does not close general placement stability or promote the substrate.
+starts and one cold start per variant. The [bounded explanation review](design/pocket-m5-placement-explanation.md)
+confirms that historical packaging commits paired diagnostic OS images with
+the fixed safe RBF. Retained MIF/OS/ELF identities support the mismatch;
+exact historical ZIP attribution and old clean-source reproduction remain open.
+The next task is the firmware 2.6 [admission-failure check](design/pocket-m5-failure-hardware-check.md):
+three fixed-binary probes for invalid arguments, corrupt library and absent
+track, checking terminal reset/silence, warm/cold starts and return to normal.
+Their hardware results remain pending.
 
 General placement stability, integrated timing/CDC and external-I/O constraints,
 broader APF lifecycle/failure coverage, and explicit future PCM/UI reserves remain open.

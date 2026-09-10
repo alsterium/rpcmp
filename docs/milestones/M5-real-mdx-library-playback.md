@@ -417,3 +417,25 @@ no arbitrary-offset, instrumented timing or additional lifecycle coverage is
 inferred. Next is reviewing the bounded ROM/OS placement explanation against
 ADR-0008 and the remaining historical-package provenance/reproduction gaps.
 M5 and production-substrate promotion remain open.
+
+### Historical recipe review and admission-failure handoff — 2026-09-10
+
+The [bounded explanation](../design/pocket-m5-placement-explanation.md) checks
+the actual historical packaging commits and retained RBF/MIF/OS/ELF identities.
+The recipes fix the safe RBF while changing OS layout; the historical shifted
+ELF/OS fails the current same-link gate against that MIF. The original ZIPs
+were not located under `out/`, so exact old-package attribution is still open.
+No old clean-source reproduction or general placement-stability claim is added.
+
+The next [hardware handoff](../design/pocket-m5-failure-hardware-check.md)
+provides three `0.10.3-m5-failure` input-only probes using the accepted Boot
+ROM/OS/app: invalid zero argument, corrupt library magic and absent track ID.
+Expected terminal codes are 2/3/4 with `RESET: OK`; actual display, silence,
+warm/cold behavior and return to normal playback remain pending hardware.
+This does not exercise APF transport timeouts or faults during active playback.
+
+Validation: `pwsh -File tools/host-verify.ps1` passed 49/49 cases including
+format/tidy/architecture; the new package suite passed 4 tests. All three ZIPs
+passed final intended-byte and APF JSON audits. Existing accepted packages
+retain their recorded hashes. RTL/Quartus were not rerun because no executable,
+firmware or FPGA inputs changed in this packaging/documentation-only slice.
