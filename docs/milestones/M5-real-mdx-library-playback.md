@@ -510,3 +510,17 @@ the earlier small-library proposal; it does not change the current one-track
 M5 implementation, public v1 contracts, or any hardware acceptance result.
 The investigation remains closed and M5 production-promotion evidence remains
 at its previously recorded status.
+
+### Album-player specification draft — 2026-09-13
+
+The user requested continued specification work. The
+[detailed proposal](../design/pocket-library-player-spec-draft.md) covers numeric
+folder/file ordering, explicit album membership/order metadata, a 300-track /
+32 MiB resident-library profile, and proposed playback-policy commands.
+The memory budget is arithmetic based on the existing accepted app map, not a
+new ELF or fit measurement. The user answered Q9-Q11: intro once plus loop
+section twice, a five-second fade, and no repeats within one whole-library
+shuffle cycle followed by stop. No public contract, production code,
+hardware package or M5 acceptance result changes in this documentation slice.
+Q12-Q14 on mixed-input ingestion, finite-track repeat and display names remain
+pending in the detailed proposal.
