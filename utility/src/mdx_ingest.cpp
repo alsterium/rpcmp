@@ -1,5 +1,7 @@
 #include "rpcmp/utility/mdx_ingest.hpp"
 
+#include "mdx_ingest_internal.hpp"
+
 #include <utility>
 
 namespace rpcmp::utility {
@@ -55,8 +57,10 @@ MdxIngestResult ingest_single_mdx(const runtime::mdx::ByteView source,
   return write(source, metadata, std::move(result));
 }
 
-MdxIngestResult ingest_mdx(const runtime::mdx::ByteView source, const MdxSourceMetadata& metadata,
-                           MdxIngestWorkspace& workspace) {
+MdxIngestResult detail::prepare_mdx_metadata(const runtime::mdx::ByteView source,
+                                             const MdxSourceMetadata& metadata,
+                                             MdxIngestWorkspace& workspace,
+                                             MdxIngestMetadata& output) {
   auto result = admit(source, workspace);
   if (!result.ok())
     return result;
@@ -82,7 +86,17 @@ MdxIngestResult ingest_mdx(const runtime::mdx::ByteView source, const MdxSourceM
     result.metadata_error = artist.error;
     return result;
   }
-  return write(source, {selected.title.text, artist.text}, std::move(result));
+  output = {std::move(selected.title.text), artist.text};
+  return result;
+}
+
+MdxIngestResult ingest_mdx(const runtime::mdx::ByteView source, const MdxSourceMetadata& metadata,
+                           MdxIngestWorkspace& workspace) {
+  MdxIngestMetadata prepared;
+  auto result = detail::prepare_mdx_metadata(source, metadata, workspace, prepared);
+  if (!result.ok())
+    return result;
+  return write(source, prepared, std::move(result));
 }
 
 } // namespace rpcmp::utility

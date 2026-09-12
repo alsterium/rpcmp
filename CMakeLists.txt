@@ -150,7 +150,8 @@ add_custom_command(OUTPUT "${RPCMP_CP932_TABLE}"
     third_party/utf8proc/utf8proc_data.c third_party/utf8proc/LICENSE.md
   VERBATIM)
 add_library(rpcmp_utility STATIC
-  utility/src/mdx_ingest.cpp utility/src/metadata.cpp "${RPCMP_CP932_TABLE}")
+  utility/src/mdx_ingest.cpp utility/src/metadata.cpp utility/src/album_ingest.cpp
+  "${RPCMP_CP932_TABLE}")
 target_include_directories(rpcmp_utility PUBLIC utility/include)
 target_include_directories(rpcmp_utility PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/generated")
 target_link_libraries(rpcmp_utility PUBLIC rpcmp_utility_writer rpcmp_runtime PRIVATE rpcmp_utf8proc)
@@ -159,6 +160,13 @@ rpcmp_production_options(rpcmp_utility)
 add_executable(rpcmp_mdx_pack utility/src/mdx_pack_main.cpp)
 target_link_libraries(rpcmp_mdx_pack PRIVATE rpcmp_utility)
 rpcmp_production_options(rpcmp_mdx_pack)
+
+add_library(rpcmp_utility_native STATIC utility/src/album_native.cpp)
+target_link_libraries(rpcmp_utility_native PUBLIC rpcmp_utility)
+rpcmp_production_options(rpcmp_utility_native)
+add_executable(rpcmp_album_pack utility/src/album_pack_main.cpp)
+target_link_libraries(rpcmp_album_pack PRIVATE rpcmp_utility_native)
+rpcmp_production_options(rpcmp_album_pack)
 
 add_library(rpcmp_ui STATIC
   core/ui/src/text_ui.cpp)
@@ -239,6 +247,15 @@ target_link_libraries(rpcmp_m5_file_preflight PRIVATE rpcmp_m5_library_loader rp
 rpcmp_production_options(rpcmp_m5_file_preflight)
 
 if(BUILD_TESTING)
+  add_executable(rpcmp_album_ingest_tests tests/utility/album_ingest_tests.cpp)
+  target_include_directories(rpcmp_album_ingest_tests PRIVATE tests/support)
+  target_link_libraries(rpcmp_album_ingest_tests PRIVATE rpcmp_utility)
+  target_compile_definitions(rpcmp_album_ingest_tests PRIVATE RPCMP_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
+  rpcmp_test_options(rpcmp_album_ingest_tests)
+  add_test(NAME album_ingest COMMAND rpcmp_album_ingest_tests)
+  add_test(NAME album_cli
+    COMMAND ${Python3_EXECUTABLE} -B ${CMAKE_SOURCE_DIR}/tests/utility/album_cli_tests.py
+      $<TARGET_FILE:rpcmp_album_pack> ${CMAKE_SOURCE_DIR}/tests/fixtures/mdx/oracle-fm.mdx.hex)
   add_executable(rpcmp_album_catalog_tests tests/library/album_catalog_tests.cpp)
   target_include_directories(rpcmp_album_catalog_tests PRIVATE tests/support)
   target_link_libraries(rpcmp_album_catalog_tests PRIVATE rpcmp_utility_writer)

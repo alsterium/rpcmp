@@ -22,7 +22,9 @@ optional ALBM payload and bounded writer/reader. This preserves rpcmlib 1.0
 and the old writer API. The proposal's claim that identical tracks already
 failed in the old writer was incorrect: only the new album API rejects equal
 TrackIdentity input. NFC remains a host producer requirement. Folder ingestion
-and Core generation/page APIs will be adopted with their own implementations.
+adopts [album ingestion v1](../../specs/album-ingestion-v1.md), including explicit
+exclusion/global-failure and native publication rules. Core generation/page
+APIs will be adopted with their own implementation.
 
 ## Slices and acceptance
 
@@ -139,7 +141,54 @@ Executed storage evidence:
 - `python -B tests/harness/harness_tests.py`: 7/7 PASS; navigation/preset check
   `python -B tools/check_harness.py`: PASS after the progress update.
 
-Folder scanning, mixed exclusions, native transactional output and Core-owned
-generation/pages remain in slice 2. No RTL inputs or hardware package changed
+At that storage checkpoint, folder scanning, mixed exclusions, native
+transactional output and Core-owned generation/pages remained in slice 2.
+No RTL inputs or hardware package changed
 in this storage unit, so RTL simulation, synthesis and hardware tests were not
 run. The target cross-build does not establish playback or hardware acceptance.
+
+Slice 2 folder ingestion and native publication are implemented on 2026-09-13.
+`rpcmp_album_pack` groups direct folder contents, follows deterministic natural
+filename order and reports exclusions separately from skipped files and title
+fallbacks. Global failures publish nothing; a completed temporary file replaces
+the destination only after write/flush/close. Input MDX aliases, linked outputs
+and directories are rejected. OS path/access constraints still apply, and the
+source tree must stay unchanged during the operation.
+
+The host API uses injected read/output ports for failure tests; native adapters
+have a separate target. Reused MDX preparation now exposes an internal metadata
+step, avoiding per-track intermediate library serialization. No dependency,
+Core/UI schema, RTL or Pocket application input changed in this unit. Cross-
+build, RTL simulation, synthesis and hardware tests are therefore not run here.
+Core generation/pages remain in slice 2; M6 playback/UI/hardware are pending.
+
+Executed folder-ingestion evidence:
+
+- `pwsh -File tools/host-verify.ps1`: 57/57 PASS, 174.03 seconds, including
+  the batch/CLI cases, existing single-file ingestion, format, clang-tidy and
+  positive/negative architecture checks. Final log:
+  `out/build/m6-ingest-host.log` (ignored).
+- Focused album/metadata/library/writer/session/preflight checks: 16/16 PASS,
+  8.54 seconds before the final diagnostic-path guard. An additional 4097-byte
+  path case then failed because rejection copied the oversized input into the
+  diagnostic; the guard fixes that case without truncating accepted metadata.
+  The final full gate covers it. Failure evidence:
+  `out/build/m6-ingest-boundary-before.log` (ignored).
+- Offline Docker native GCC 13.3.0 with ASan/UBSan: batch tests and both real
+  native-path CLI suites PASS, without sanitizer findings. Production CLI
+  compilation uses the same no-exception/no-RTTI settings as CMake; an initial
+  script mismatch caused a typeinfo link failure and was corrected in the
+  runner. Script/log: `out/build/m6-ingest-posix.py` and
+  `out/build/m6-ingest-posix.log` (ignored).
+- Native cases verify Unicode/NFC names, parent relocation, Windows junction /
+  POSIX symlink skips, mixed/all exclusions, MDX hard-link output rejection and
+  retained destinations on global/publication errors. The Python ALBM inspector
+  is independent of the C++ writer. Unit cases cover reverse enumeration,
+  100-digit numbers, 300/301 accepted tracks and injected I/O stage failures.
+
+The first authored test helper mistakenly removed 11 instead of the literal
+12 bytes of `RPCMP ORACLE`; correcting that input construction left the intended
+order and exclusion assertions unchanged. No source fixture/golden was changed.
+Native output handles retain their OS type. The scanner reads Windows kind and
+size in one native attribute query, which also avoids a clang analyzer enum
+diagnostic inside MSVC's `filesystem::file_size`; no warning suppression was added.
