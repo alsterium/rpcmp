@@ -114,11 +114,21 @@ application from persistence. The screen proposal now includes focus adjacency,
 contextual B, input edges/repeat and ordered policy input. These remain design
 proposals; neither v1 contracts nor M5 implementation have changed.
 
-Next, settle title decoding/NFC and fonts, the physical settings adapter's
-durability/deadlines, and the sound-control port's MMIO/CDC/ACK and audible-commit
-contract. Then adopt the implementation milestone with the remaining M5 gates
-explicitly assigned. This is still specification work, not a new implementation
-milestone; the closed diagnosis is not reopened.
+The [text profile](design/pocket-text-rendering-profile.md) now proposes pinned
+CP932 decoding, host-only utf8proc NFC and a Unifont JP bitmap subset, with
+license obligations and a measured reference glyph budget. The
+[Pocket adapter proposal](design/pocket-player-platform-adapters.md) selects
+two small nonvolatile RAM slots with explicit flush/readback, and separates
+frozen sound state from continuous I2S and control. Existing SDK/RTL lacks the
+required asynchronous flush and full pause support; these are new capabilities
+to implement, not previously passing hardware claims.
+
+Next, adopt an implementation milestone with the remaining M5 gates explicitly
+assigned. Start with host-side metadata normalization; album ingestion and mock
+UI follow as separate slices. Gate sound integration on freeze, cancellable fade reservations and
+audible-commit evidence before fixing its MMIO/CDC/ACK contract. Settings also
+needs RAM/SDK/flush integration and firmware 2.6 persistence tests. This is still
+specification work; the closed diagnosis is not reopened.
 
 General placement stability, integrated timing/CDC and external-I/O constraints,
 broader APF lifecycle/failure coverage, and explicit future PCM/UI reserves remain open.

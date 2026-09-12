@@ -4,6 +4,8 @@ Status: proposal, 2026-09-13. Q19 の電源断後の設定復元と Q24 のア�
 保存方式・数値・port は設計提案であり、現行 v1 契約、APF 定義、M5 実装を変更しません。
 再生の意味は [状態遷移案](pocket-player-transition-contract.md)、操作は
 [画面案](pocket-tracker-screen-design.md) に従います。
+Pocketへの具体的な接続候補は [platform adapter案](pocket-player-platform-adapters.md) です。
+二つの小さいnonvolatile RAM slotと明示flushを使い、現行SDK/RTLに必要な追加を区別します。
 
 ## 保存対象とアイコンの値
 
@@ -85,7 +87,7 @@ resource_exhausted で拒否し、適用済み policy と演奏を維持しま�
 ## 二枠のレコード形式
 
 adapter に論理 slot A / B を用意し、それぞれ64 bytesの独立した記録とします。
-物理ファイル名、APF data slot、予約領域や filesystem flush API は本書では割り当てません。
+物理ファイル名・APF slot・flushの候補はadapter案に分離し、本書の共通portには埋め込みません。
 全整数は little-endian、レコード長は正確に64。構造体のメモリーを直接書き出しません。
 
 | offset | bytes | 値 |

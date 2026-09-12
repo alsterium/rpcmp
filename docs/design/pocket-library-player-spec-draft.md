@@ -39,6 +39,8 @@ Q9〜Q24 の回答はすべて揃っています。残る技術的な仕様案�
 表示用データは [演奏履歴契約案](pocket-performance-history-contract.md)、
 永続化は [設定保存契約案](pocket-playback-settings-contract.md)、
 フォーカス・入力表は [画面案](pocket-tracker-screen-design.md) に定義します。
+文字変換とfont候補は [文字表示profile](pocket-text-rendering-profile.md)、
+実機との接続方式は [Pocket adapter案](pocket-player-platform-adapters.md) に具体化します。
 以下は共通の前提と容量予算です。新しい API / payload は採用前の案であり、
 既存 v1 を変更せずに互換性・検証条件をレビューできるようにします。
 
@@ -307,6 +309,9 @@ Q24 は循環の各段、素早い連打、shuffleとの交互操作、保存失
 状態遷移案は schema 2、世代付き取消、複数 channel の周回、fade 取消と Pause 中の設定、
 shuffle 履歴と一巡終了を定義します。音源状態・queue を保持する Pause と sample 単位の
 gain は現行 RTL の契約にないため、音声 port の採用・実現性確認を実装の前提にします。
-残る仕様は文字変換/NFC・フォント、保存 adapter の媒体・永続化保証・deadline、
-音声 port の MMIO / CDC / ACK 上限と audible commit 通知です。各契約の
+文字表示案は固定CP932表・hostだけのutf8proc NFC・Unifont JP subsetを提案します。
+Pocket adapter案は二つの小さいnonvolatile RAM slot、明示flushとSD readback、
+音源状態のfreezeと常時動作するI2Sを分ける方式を提案します。残る採用条件は固定依存物の
+notice/生成試験、文字の判読性、保存用RAM/SDK/flushの実現、音声のfreeze・予約取消・
+audible commitのRTL証明と、それに基づくMMIO / CDC / ACK上限です。各契約の
 提案を実装完了とは扱わず、M5 残 gate の扱いと次 milestone を明示してから着手します。

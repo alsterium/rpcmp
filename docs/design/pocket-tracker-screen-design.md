@@ -22,6 +22,8 @@ Status: layout direction accepted, 2026-09-13. ユーザーは
 表示切替では主表示だけを交換し、曲情報と操作パネルの位置は変えません。
 最終の論理画面サイズ、フォント、表示行数は Pocket 上の読みやすさと描画予算で固定します。
 参照画像の解像度をそのまま実装の framebuffer サイズとしません。
+[文字表示profile](pocket-text-rendering-profile.md) は8×16の音名/16進列、16×16の日本語を
+初期候補にし、固定glyph集合の容量を確認しています。字体・密度の実機確認はこれからです。
 
 ### Tracker
 
@@ -180,5 +182,5 @@ Core / engine / audio の timing は変更しません。
 会話内のラフ案は自作ダミーデータによる配置確認です。演奏、保存、履歴取得、Pocket 上の
 可読性を検証した実装ではありません。履歴・設定保存の契約案とこの入力表に対し、速い連打、
 Stop ACK前後、表示切替、欠落を含む独立した mock trace を実装時に検証します。
-次は文字表示と具体的な保存・音声 adapter を詰め、M5 の残 gate を明記して実装 milestone を
-採用します。
+文字表示と [保存・音声adapter案](pocket-player-platform-adapters.md) の採用条件を確認し、
+M5 の残 gate を明記して実装 milestone を採用します。

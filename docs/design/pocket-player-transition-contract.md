@@ -204,6 +204,9 @@ PreviousTrack は開始済み履歴の直前を再生します。この明示操
 
 この条件は実装済み・実機確認済みではありません。音源 reset 後に表示位置だけ戻す方式や、
 CPU だけ止めて queue を鳴らし切る方式では、Pause の合格条件を満たしません。
+[Pocket adapter案](pocket-player-platform-adapters.md) は、全演奏状態のenable、常時I2S、
+音声domainのmedia queue、取消可能なfade予約に方式を絞ります。audible commitと最大latencyを
+RTLで証明した後に、具体的なMMIOとACK deadlineを採用します。
 
 ## 8. 合格例と実装順
 

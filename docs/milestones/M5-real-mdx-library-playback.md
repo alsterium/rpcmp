@@ -609,3 +609,24 @@ navigation, stop-before-back behavior, input edges/repeat and ordered rapid
 policy changes. The acceptance examples are specifications for future tests,
 not executed feature or hardware evidence. This documentation work changes no
 public v1 contract, runtime/RTL implementation, package or M5 acceptance result.
+
+### Text and platform-adapter proposals — 2026-09-13
+
+The [text profile](../design/pocket-text-rendering-profile.md) proposes pinned
+CP932 decoding and utf8proc NFC on the host, plus an OFL Unifont JP subset for
+Pocket. A reference calculation from public data found 7,488 glyphs, no missing
+glyphs in that set and 292,944 bitmap/index bytes. That calculation used Python
+UCD 14.0.0; it is not an adoption test for utf8proc's Unicode 17.0.0 or a font
+readability/framebuffer test. Licenses, source hashes and limits are recorded;
+no production dependency or font asset was added.
+
+The [platform-adapter proposal](../design/pocket-player-platform-adapters.md)
+uses current official APF documentation and the pinned runtime source. It
+selects two small nonvolatile RAM slots, explicit flush and SD readback for
+settings, and records that the current bridge/SDK needs new asynchronous flush
+support. The sound proposal separates frozen synthesis/media state from
+continuous I2S/controls and identifies cancellable fade reservations and
+audible-commit mapping as required proofs before MMIO/ACK values are adopted.
+This documentation-only result does not complete M5 timing, placement, hardware
+acceptance or production-substrate promotion. The closed investigation remains
+closed; future feature slices will require their own integration evidence.
