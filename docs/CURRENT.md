@@ -2,8 +2,9 @@
 
 Active milestone: [M6 — Album Player](milestones/M6-album-player.md)
 
-The current task is M6 slice 3: adopt and implement policy/loop/gain, then
-history/settings and mock UI/input behavior through injected ports, around the
+The current task is M6 slice 3: adopt and connect public policy commands/state,
+album/shuffle navigation and the media-policy port, then history/settings and
+mock UI/input behavior through injected ports, around the
 [Core transport](../specs/playback-transport-v1.md),
 [schema 2 ingress](../specs/player-command-v2.md) and
 [published state](../specs/player-state-v2.md).
@@ -18,7 +19,10 @@ be skipped without changing control work. Library/backend changes after
 admission interrupt the batch as an asynchronous failure.
 The MDX engine now exposes [sequencing progress](../specs/mdx-progress-v1.md):
 checked TrackLoop counts and whole-FM-tick aggregation at the write timestamp.
-This is read-ahead progress; applying it at audible commit remains to be wired.
+This is read-ahead progress. The [media loop envelope](../specs/media-loop-envelope-v1.md)
+consumes explicitly mapped progress intervals at audio-frame boundaries and
+implements live repeat decisions, fade/restoration and paused sample ownership.
+The real audible mapping, public policy ingress and sound adapter remain to be wired.
 See M6 for the executed checks; this does not establish a working Pocket audio
 adapter, playback policy, complete UI or completion of slice 3.
 Use the [transition proposal](design/pocket-player-transition-contract.md),

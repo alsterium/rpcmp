@@ -38,6 +38,11 @@ policy/history/settings/UI contracts follow in this slice.
 [MDX sequencing progress v1](../../specs/mdx-progress-v1.md) adopts checked
 TrackLoop counters and transactional, timestamped read-ahead observations.
 Audible commit, loop policy and gain integration remain subsequent work.
+[Media loop envelope v1](../../specs/media-loop-envelope-v1.md) adopts the
+executable audio-boundary model: sealed mapped progress, generation-tagged
+controls, live repeat decisions, integer stereo gain and pause/end ordering.
+Public policy ingress, navigation and the real audio mapping/adapter remain
+subsequent work; this model does not advertise a new Pocket capability.
 Hardware ACK deadlines and MMIO remain slice 4 decisions based on RTL evidence.
 
 ## Slices and acceptance
@@ -437,3 +442,54 @@ relaxing the 4,096-byte data limit. Initial log:
 `out/build/m6-progress-cross.log` (ignored).
 No RTL/APF/package inputs changed; RTL simulation, synthesis and hardware
 checks were not run. Existing host trace checks do not establish sound timing.
+
+Slice 3's audio-boundary loop/gain model is implemented on 2026-09-13.
+MediaLoopEnvelope consumes sealed progress intervals in a bounded FIFO and
+applies the current repeat target before that boundary's progress/end decision.
+It produces signed stereo samples with the specified 5-second fade and 20-ms
+restoration, freezes source consumption during pause, and reports natural end,
+RepeatOne restart intent, loop limit, Stop and failure separately. Raw future
+progress survives policy changes; it is not a stale, uncancellable fade command.
+The MDX integration test uses an authored host mapping with zero pipeline delay;
+it does not infer the Pocket mapping. Public policy ingress/state, navigation
+and the real audio adapter remain to be connected. Slice 3 is not complete.
+
+Executed loop-envelope evidence:
+
+- `pwsh -File out/build/m6-envelope-focused.ps1`: 10/10 PASS, 0.70 seconds,
+  before the final shared-fault/revision edge assertions; the full gate includes
+  them. Log: `out/build/m6-envelope-focused-fixed.log` (ignored).
+- `pwsh -File tools/host-verify.ps1`: final 67/67 PASS, 241.15 seconds,
+  including format, tidy, existing traces and architecture/harness checks.
+  Log: `out/build/m6-envelope-host.log` (ignored).
+- `python -B tools/check_harness.py`: PASS; changed Markdown local file links:
+  44 PASS (`out/build/m6-envelope-links.py`, ignored).
+- Offline Docker GCC 13.3.0 ASan/UBSan: media envelope and MDX progress suites
+  PASS. Production disables exceptions/RTTI; tests disable RTTI. Script/log:
+  `out/build/m6-envelope-posix.py`, `out/build/m6-envelope-posix.log` (ignored).
+- Offline Docker `make --file out/build/m6-envelope-cross/Makefile envelope-check`:
+  RISC-V link-only probe PASS, no undefined symbols. Text 17,428, data 184,
+  BSS 904,848 bytes; conservative stack bound 9,408 bytes. The probe explicitly
+  constructs its workspaces in BSS using the existing M5 pattern. Source,
+  Makefile and budget: `out/build/m6-envelope-cross`; log:
+  `out/build/m6-envelope-cross.log` (ignored). It was not executed on Pocket
+  and does not measure the integrated player or actual audio latency.
+
+Authored sample/interval tests cover the exact 3,360,000/3,600,000 frame example,
+signed rounding, finite Counted/RepeatOne, cancellation at the fade endpoint,
+restoration and refade, pause/end/policy races, old generations, malformed
+intervals, 256/257 FIFO retry, underrun and injected frame ceilings. The consumed
+sample stream is identical with inserted pauses and extra snapshot reads.
+Maximum generation/count/revision values are exercised; exhaustion of the
+consecutive u64 interval sequence was reviewed, not driven through UINT64_MAX
+submissions. No golden was regenerated or frame deadline moved to match code.
+
+A focused new case first failed because a delayed old-generation Stop affected
+the new stream. Generation-tagged control now returns StaleGeneration without
+altering current playback; shared faults still take priority regardless of the
+tag. Failure log: `out/build/m6-envelope-stale-before.log` (ignored). A subsequent
+test build failed on signed/unsigned optional comparison; the literal was typed
+unsigned, preserving the assertion and all warning settings.
+No RTL/APF/package inputs changed. RTL simulation, synthesis and hardware tests
+were not run. In particular, upstream FM-state retention and the physical
+write-to-sample mapping are obligations of the later adapter/RTL slices.

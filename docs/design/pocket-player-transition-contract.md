@@ -11,6 +11,9 @@ FIFO受付、重複検出、非同期実行までを採用します。曲順・p
 コピーと読み取り専用interfaceを採用します。残る観測値はその契約と実装時に追加します。
 [MDX周回観測v1](../../specs/mdx-progress-v1.md) はTrackLoopの累積回数、全FMチャンネルの
 集計と先読み時刻付き観測を採用します。実際の出力位置での適用とgain制御は後続部分です。
+[音声フレームのloop/gainモデル](../../specs/media-loop-envelope-v1.md) は、時刻対応を注入した
+周回区間、最新policyによる境界判定、整数stereo gainと一時停止の振る舞いを採用します。
+これはCoreの実行可能モデルであり、Pocketの時刻対応・真のpauseや公開policy接続は後続です。
 この文書の未採用の数値条件とAPIは引き続き設計提案であり、
 現行 [PlayerCommand v1](../../specs/player-command-api.md)、
 [UI snapshot v1](../../specs/ui-state-api.md)、M0 / M5 実装は変更しません。
