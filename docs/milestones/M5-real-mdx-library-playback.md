@@ -524,3 +524,22 @@ shuffle cycle followed by stop. No public contract, production code,
 hardware package or M5 acceptance result changes in this documentation slice.
 Q12-Q14 on mixed-input ingestion, finite-track repeat and display names remain
 pending in the detailed proposal.
+
+### Ingestion, finite-track repeat and titles accepted — 2026-09-13
+
+The user answered Q12-Q14: the future batch importer builds from admitted
+tracks and lists excluded tracks with reasons; counted loops apply only to
+looping tracks, while finite tracks play once and advance; the embedded MDX
+title is preferred, with filename fallback when unreadable or empty. The
+previously accepted numeric filename order remains the order of playback.
+This does not relax M5's existing single-file admission/output contract.
+The detailed proposal records partial-batch outcomes separately from global
+build/write failure, keeps title decoding separate from audio admission, and
+preserves RepeatOne as a distinct playback setting. Q15 was then answered:
+setting changes apply to the current track at its existing position, with
+fade-out when the newly selected loop count has already been reached. Q16 then
+selected A for play/pause/resume and B for stop, with button/context mapping
+isolated in input/UI configuration for changes after hands-on use. The draft
+adds a proposed contextual flow and command-level verification criteria.
+Q1-Q16 are answered. This is documentation work; no new
+implementation or hardware acceptance is claimed.
