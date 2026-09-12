@@ -3,7 +3,9 @@
 Status: adopted for M6 slice 2 on 2026-09-13 from
 [the catalog proposal, section 4](../docs/design/pocket-album-catalog-contract.md#4-読み取り専用カタログ-api).
 This is a separate read-only API. PlayerCommand and PlayerSnapshot v1, including
-prepare-only LoadTrack, remain unchanged. Playback schema 2 is a later slice.
+prepare-only LoadTrack, remain unchanged. Playback schema 2 is a separate profile.
+`valid_catalog_text` exposes the existing bounded UTF-8/prefix check for that
+publisher without changing catalog text admission or truncation rules.
 
 ## Ownership and lifecycle
 

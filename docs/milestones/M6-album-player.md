@@ -30,8 +30,9 @@ PlayerCommand/PlayerSnapshot schema 2 or change v1 transport behavior.
 
 Slice 3 first adopts [Core playback transport v1](../../specs/playback-transport-v1.md)
 for asynchronous preparation/audio control, cancellation and deadlines. It is
-internal Core machinery; public schema 2 ingress/snapshots and the remaining
-policy/history/settings/UI contracts are adopted with their subsequent parts.
+internal Core machinery. [Player state schema 2](../../specs/player-state-v2.md)
+adopts copied transport observations and Core-owned publication. Command ingress
+and the remaining policy/history/settings/UI contracts follow in this slice.
 Hardware ACK deadlines and MMIO remain slice 4 decisions based on RTL evidence.
 
 ## Slices and acceptance
@@ -285,3 +286,51 @@ an authored raw tag byte. The same rejection assertion remains, with no warning
 suppression. No RTL, APF configuration or hardware package changed, so RTL
 simulation, synthesis and hardware checks were not run. Real pause, output-inhibit
 latency and ACK deadline bounds still require the slice 4 adapter/RTL evidence.
+
+Slice 3's public transport observations are implemented on 2026-09-13.
+`contracts::v2::SnapshotSource` exposes fixed-capacity copied values, and
+`SnapshotPublisher` resolves the current track's title/album through catalog
+pages. Its cache is scoped to library generation and TrackId. Publication
+never polls playback ports; UI reads never drive publication or media time.
+Pending intent, preparation/cancellation, shared control ACKs and error state
+remain distinct. Public command ingress and non-transport observations remain
+the next parts of slice 3.
+
+Executed state-publication evidence:
+
+- `pwsh -File tools/host-verify.ps1`: final 63/63 PASS, 212.27 seconds,
+  including format, tidy, v1 compatibility and architecture rejection checks.
+  Log: `out/build/m6-state-host-final.log` (ignored).
+- `python -B tools/check_harness.py`: PASS; changed Markdown local file links:
+  39 PASS (`out/build/m6-state-links.py`, ignored).
+- Focused new tests: `ctest --preset host-msvc -R
+  'player_state_v2|snapshot_publisher'`: 2/2 PASS, 0.13 seconds before the final
+  metadata-cache tests. The older transport/catalog/architecture subset was
+  12/12 PASS, 7.61 seconds.
+- Final functional source under offline Docker GCC 13.3.0 ASan/UBSan:
+  schema 2 contracts, publisher and transport suites PASS. Production disables
+  exceptions/RTTI; tests disable RTTI. Script/log are
+  `out/build/m6-state-posix.py` and `out/build/m6-state-posix.log` (ignored).
+- Offline Docker `make --file out/build/m6-state-cross/Makefile state-check`:
+  RISC-V link-only probe PASS, no undefined symbols. Text 28,884, data 188,
+  BSS 1,800 bytes; conservative stack bound 17,056 bytes. Source/Makefile and
+  budget are under `out/build/m6-state-cross`; log is
+  `out/build/m6-state-cross.log` (ignored). These are test ports, not a Pocket
+  player binary, measured audible timing or hardware acceptance.
+
+A focused case first failed when terminal failure was followed by library
+close: internal `prepared` remained true without a selected track, preventing
+a consistent snapshot. The getter now requires a selection. Storage remains
+owned until quiescence exactly as before; this fix does not release it early.
+`out/build/m6-state-before.log` records the two failed assertions in that case.
+The contract-only target uses authored snapshots and tests UTF-8/count/tag/rate
+bounds, absent values, old operation generations and unchanged v1 rejection.
+Publisher tests use the independent album fixture for pause/stop, metadata
+cache invalidation, malformed pages, retained copies, read-frequency independence,
+clock reversal, sequence exhaustion and terminal fault visibility.
+
+The first full host gate passed 62 tests and failed tidy on a declaration/
+definition parameter-name mismatch. The names were aligned without suppression.
+No RTL/APF/package inputs changed: RTL simulation, synthesis and hardware checks
+were not run. The publisher remains a Core component awaiting command ingress
+and platform integration; a publication failure must be handled by that owner.

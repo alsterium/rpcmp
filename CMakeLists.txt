@@ -89,6 +89,7 @@ endfunction()
 add_library(rpcmp_contracts STATIC
   core/contracts/src/catalog_validation.cpp
   core/contracts/src/device_op.cpp
+  core/contracts/src/player_state_v2.cpp
   core/contracts/src/validation.cpp)
 target_include_directories(rpcmp_contracts PUBLIC core/contracts/include)
 rpcmp_production_options(rpcmp_contracts)
@@ -120,6 +121,7 @@ rpcmp_production_options(rpcmp_library)
 add_library(rpcmp_player STATIC
   core/player/src/catalog_session.cpp
   core/player/src/playback_transport.cpp
+  core/player/src/snapshot_publisher.cpp
   core/player/src/mdx_library_session.cpp)
 target_include_directories(rpcmp_player PUBLIC core/player/include)
 target_link_libraries(rpcmp_player PUBLIC rpcmp_library rpcmp_runtime)
@@ -315,6 +317,12 @@ if(BUILD_TESTING)
   rpcmp_test_options(rpcmp_catalog_contract_tests)
   add_test(NAME catalog_contracts COMMAND rpcmp_catalog_contract_tests)
 
+  add_executable(rpcmp_player_state_v2_tests tests/contracts/player_state_v2_tests.cpp)
+  target_include_directories(rpcmp_player_state_v2_tests PRIVATE tests/support)
+  target_link_libraries(rpcmp_player_state_v2_tests PRIVATE rpcmp_contracts)
+  rpcmp_test_options(rpcmp_player_state_v2_tests)
+  add_test(NAME player_state_v2 COMMAND rpcmp_player_state_v2_tests)
+
   add_executable(rpcmp_catalog_session_tests tests/player/catalog_session_tests.cpp)
   target_include_directories(rpcmp_catalog_session_tests PRIVATE tests/support)
   target_link_libraries(rpcmp_catalog_session_tests PRIVATE rpcmp_player rpcmp_utility_writer)
@@ -328,6 +336,13 @@ if(BUILD_TESTING)
   target_compile_definitions(rpcmp_playback_transport_tests PRIVATE RPCMP_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
   rpcmp_test_options(rpcmp_playback_transport_tests)
   add_test(NAME playback_transport COMMAND rpcmp_playback_transport_tests)
+
+  add_executable(rpcmp_snapshot_publisher_tests tests/player/snapshot_publisher_tests.cpp)
+  target_include_directories(rpcmp_snapshot_publisher_tests PRIVATE tests/support)
+  target_link_libraries(rpcmp_snapshot_publisher_tests PRIVATE rpcmp_player)
+  target_compile_definitions(rpcmp_snapshot_publisher_tests PRIVATE RPCMP_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
+  rpcmp_test_options(rpcmp_snapshot_publisher_tests)
+  add_test(NAME snapshot_publisher COMMAND rpcmp_snapshot_publisher_tests)
 
   add_executable(rpcmp_runtime_tests tests/runtime/mock_core_tests.cpp)
   target_include_directories(rpcmp_runtime_tests PRIVATE tests/support)

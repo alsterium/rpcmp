@@ -5,14 +5,15 @@
 #include <limits>
 
 namespace rpcmp::contracts {
-namespace {
 
-bool valid_text(const CatalogText& text) noexcept {
+bool valid_catalog_text(const CatalogText& text) noexcept {
   if (text.length > text.bytes.size() || (text.truncated && text.length < kMaxMetadataBytes - 3))
     return false;
   const std::string_view value{text.bytes.data(), text.length};
   return value.find('\0') == std::string_view::npos && detail::valid_utf8(value);
 }
+
+namespace {
 
 bool valid_header(const CatalogPageHeader& header) noexcept {
   if (header.schema_version != kCatalogSchemaVersion)
@@ -84,7 +85,8 @@ bool valid_catalog_page(const CatalogAlbumPage& page) noexcept {
     const auto& item = page.items[index];
     if (item.album_id.value == 0 ||
         item.display_ordinal != page.header.query.start_ordinal + index || item.track_count == 0 ||
-        item.track_count > kCatalogMaxItems || item.name.length == 0 || !valid_text(item.name))
+        item.track_count > kCatalogMaxItems || item.name.length == 0 ||
+        !valid_catalog_text(item.name))
       return false;
     for (std::uint16_t previous = 0; previous < index; ++previous)
       if (item.album_id == page.items[previous].album_id)
@@ -100,7 +102,8 @@ bool valid_catalog_page(const CatalogTrackPage& page) noexcept {
   for (std::uint16_t index = 0; index < page.header.count; ++index) {
     const auto& item = page.items[index];
     if (item.track_id.value == 0 || item.album_id != page.album_id ||
-        item.track_ordinal != page.header.query.start_ordinal + index || !valid_text(item.title))
+        item.track_ordinal != page.header.query.start_ordinal + index ||
+        !valid_catalog_text(item.title))
       return false;
     for (std::uint16_t previous = 0; previous < index; ++previous)
       if (item.track_id == page.items[previous].track_id)

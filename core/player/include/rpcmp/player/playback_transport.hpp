@@ -124,6 +124,8 @@ struct PendingAudioControl {
   std::uint64_t started_at_us{};
 };
 struct TransportSnapshot {
+  contracts::CatalogStatus catalog{};
+  bool pause_supported{};
   contracts::TransportState transport{contracts::TransportState::Empty};
   contracts::TransportState projected{contracts::TransportState::Empty};
   std::optional<PlaybackSelection> selection;

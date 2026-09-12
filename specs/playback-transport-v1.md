@@ -3,7 +3,7 @@
 Status: adopted for the transport portion of M6 slice 3, 2026-09-13, from
 [the transition proposal](../docs/design/pocket-player-transition-contract.md).
 This is an internal Core control contract, not PlayerCommand/PlayerSnapshot v1
-or the future public schema 2. UI cannot include these implementation types.
+or the [public schema 2 observations](player-state-v2.md). UI cannot include these implementation types.
 The schema 2 ingress, policy, loop/gain, history, settings and UI remain subsequent
 parts of slice 3. This unit establishes the actual asynchronous transport they
 will drive; it does not substitute mock playback for the eventual engine/RTL.
@@ -35,6 +35,10 @@ recoverable Error requires confirmed reset and quiescent ports.
 The internal snapshot reports actual transport, selected identity, current play
 generation, committed position in 48,000 Hz stereo frames, projected transport,
 last pending intent, current port operations, failure and confirmed silence.
+It also copies the catalog status synchronized by this step and declares pause
+capability for the [schema 2 publisher](player-state-v2.md). `prepared` requires
+a selected track in the prepared generation; storage retained after terminal
+failure and library close is ownership in flight, not a prepared selection.
 Projection permits Pause then Resume while Pause is in flight. Loading a new
 track still projects Loading, so Play/Pause/Resume/TogglePause there are rejected.
 No-op Play while projected Playing, Pause while projected Paused, and Stop while

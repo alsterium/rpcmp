@@ -1,10 +1,12 @@
 # Pocket 再生状態遷移の契約案
 
-Status: Core transport portion adopted for M6 slice 3, 2026-09-13.
+Status: Core transport and public transport observations adopted for M6 slice 3, 2026-09-13.
 [Core playback transport v1](../../specs/playback-transport-v1.md) に準備・音声制御の
 非同期処理、取消、故障と期限の扱いを採用しました。これはCore内部の契約です。
-[詳細仕様案](pocket-library-player-spec-draft.md) の確定済み要件に向け、公開schema 2、
-policy/loop/gain、history/settings、実際の音声ポートへの接続は後続実装です。
+[詳細仕様案](pocket-library-player-spec-draft.md) の確定済み要件に向け、公開schema 2の
+command ingress、policy/loop/gain、history/settings、実際の音声ポートへの接続は後続実装です。
+[公開状態schema 2](../../specs/player-state-v2.md) は曲の表示情報、位置、処理待ち、エラーの
+コピーと読み取り専用interfaceを採用します。残る観測値はその契約と実装時に追加します。
 この文書の未採用の数値条件とAPIは引き続き設計提案であり、
 現行 [PlayerCommand v1](../../specs/player-command-api.md)、
 [UI snapshot v1](../../specs/ui-state-api.md)、M0 / M5 実装は変更しません。

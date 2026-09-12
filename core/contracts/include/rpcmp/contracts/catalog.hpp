@@ -105,6 +105,7 @@ public:
 };
 
 [[nodiscard]] bool valid_catalog_status(const CatalogStatus& status) noexcept;
+[[nodiscard]] bool valid_catalog_text(const CatalogText& text) noexcept;
 [[nodiscard]] bool valid_catalog_page(const CatalogAlbumPage& page) noexcept;
 [[nodiscard]] bool valid_catalog_page(const CatalogTrackPage& page) noexcept;
 

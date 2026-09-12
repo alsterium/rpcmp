@@ -23,7 +23,10 @@ TransportController::TransportController(const CatalogSession& catalog,
 
 TransportSnapshot TransportController::snapshot() const noexcept {
   auto result = state_;
-  result.prepared = prepared_generation_ != 0 && prepared_generation_ == state_.play_generation;
+  result.catalog = catalog_status_;
+  result.pause_supported = audio_port_.supports_pause();
+  result.prepared = state_.selection.has_value() && prepared_generation_ != 0 &&
+                    prepared_generation_ == state_.play_generation;
   return result;
 }
 
