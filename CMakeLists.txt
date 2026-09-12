@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.25)
 
-project(rpcmp VERSION 0.1.0 LANGUAGES CXX)
+project(rpcmp VERSION 0.1.0 LANGUAGES C CXX)
 
 include(CTest)
 find_package(Python3 3.11 REQUIRED COMPONENTS Interpreter)
@@ -128,12 +128,32 @@ target_include_directories(rpcmp_pocket_platform PUBLIC core/platform/pocket/inc
 target_link_libraries(rpcmp_pocket_platform PUBLIC rpcmp_contracts)
 rpcmp_production_options(rpcmp_pocket_platform)
 
-add_library(rpcmp_utility STATIC
-  utility/src/mdx_ingest.cpp
+add_library(rpcmp_utility_writer STATIC
   utility/src/stable_id.cpp
   utility/src/writer.cpp)
+target_include_directories(rpcmp_utility_writer PUBLIC utility/include)
+target_link_libraries(rpcmp_utility_writer PUBLIC rpcmp_library)
+rpcmp_production_options(rpcmp_utility_writer)
+
+add_library(rpcmp_utf8proc STATIC third_party/utf8proc/utf8proc.c)
+target_include_directories(rpcmp_utf8proc SYSTEM PUBLIC third_party/utf8proc)
+target_compile_definitions(rpcmp_utf8proc PUBLIC UTF8PROC_STATIC)
+set_target_properties(rpcmp_utf8proc PROPERTIES C_STANDARD 99 C_STANDARD_REQUIRED ON)
+
+set(RPCMP_CP932_TABLE "${CMAKE_CURRENT_BINARY_DIR}/generated/cp932_table.inc")
+add_custom_command(OUTPUT "${RPCMP_CP932_TABLE}"
+  COMMAND ${Python3_EXECUTABLE} -B ${CMAKE_SOURCE_DIR}/tools/generate_cp932.py
+    --root ${CMAKE_SOURCE_DIR} --output "${RPCMP_CP932_TABLE}"
+  DEPENDS tools/generate_cp932.py third_party/metadata-sources.sha256
+    third_party/cp932/CP932.TXT third_party/cp932/LICENSE.txt
+    third_party/utf8proc/utf8proc.c third_party/utf8proc/utf8proc.h
+    third_party/utf8proc/utf8proc_data.c third_party/utf8proc/LICENSE.md
+  VERBATIM)
+add_library(rpcmp_utility STATIC
+  utility/src/mdx_ingest.cpp utility/src/metadata.cpp "${RPCMP_CP932_TABLE}")
 target_include_directories(rpcmp_utility PUBLIC utility/include)
-target_link_libraries(rpcmp_utility PUBLIC rpcmp_library rpcmp_runtime)
+target_include_directories(rpcmp_utility PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/generated")
+target_link_libraries(rpcmp_utility PUBLIC rpcmp_utility_writer rpcmp_runtime PRIVATE rpcmp_utf8proc)
 rpcmp_production_options(rpcmp_utility)
 
 add_executable(rpcmp_mdx_pack utility/src/mdx_pack_main.cpp)
@@ -222,6 +242,17 @@ if(BUILD_TESTING)
   add_test(NAME incremental_build
     COMMAND ${Python3_EXECUTABLE} -B ${CMAKE_SOURCE_DIR}/tests/harness/incremental_build_tests.py
       ${CMAKE_COMMAND})
+  add_test(NAME metadata_source_integrity
+    COMMAND ${Python3_EXECUTABLE} -B ${CMAKE_SOURCE_DIR}/tools/generate_cp932.py
+      --root ${CMAKE_SOURCE_DIR})
+  add_executable(rpcmp_metadata_tests tests/utility/metadata_tests.cpp)
+  target_include_directories(rpcmp_metadata_tests PRIVATE tests/support)
+  target_link_libraries(rpcmp_metadata_tests PRIVATE rpcmp_utility)
+  rpcmp_test_options(rpcmp_metadata_tests)
+  add_test(NAME metadata COMMAND rpcmp_metadata_tests)
+  add_test(NAME mdx_metadata_cli
+    COMMAND ${Python3_EXECUTABLE} -B ${CMAKE_SOURCE_DIR}/tests/utility/mdx_metadata_cli_tests.py
+      $<TARGET_FILE:rpcmp_mdx_pack> ${CMAKE_SOURCE_DIR}/tests/fixtures/mdx/oracle-fm.mdx.hex)
   add_test(NAME m5_file_preflight
     COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/pocket/m5_file_preflight_tests.py
       $<TARGET_FILE:rpcmp_mdx_pack> $<TARGET_FILE:rpcmp_m5_file_preflight>
@@ -359,13 +390,13 @@ if(BUILD_TESTING)
 
   add_executable(rpcmp_stable_id_tests tests/utility/stable_id_tests.cpp)
   target_include_directories(rpcmp_stable_id_tests PRIVATE tests/support)
-  target_link_libraries(rpcmp_stable_id_tests PRIVATE rpcmp_utility)
+  target_link_libraries(rpcmp_stable_id_tests PRIVATE rpcmp_utility_writer)
   rpcmp_test_options(rpcmp_stable_id_tests)
   add_test(NAME stable_id COMMAND rpcmp_stable_id_tests)
 
   add_executable(rpcmp_writer_tests tests/utility/writer_tests.cpp)
   target_include_directories(rpcmp_writer_tests PRIVATE tests/support)
-  target_link_libraries(rpcmp_writer_tests PRIVATE rpcmp_utility)
+  target_link_libraries(rpcmp_writer_tests PRIVATE rpcmp_utility_writer)
   target_compile_definitions(rpcmp_writer_tests PRIVATE RPCMP_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
   rpcmp_test_options(rpcmp_writer_tests)
   add_test(NAME writer COMMAND rpcmp_writer_tests)
@@ -387,7 +418,7 @@ if(BUILD_TESTING)
 
   add_executable(rpcmp_m1_acceptance_tests tests/library/m1_acceptance_tests.cpp)
   target_include_directories(rpcmp_m1_acceptance_tests PRIVATE tests/support)
-  target_link_libraries(rpcmp_m1_acceptance_tests PRIVATE rpcmp_utility)
+  target_link_libraries(rpcmp_m1_acceptance_tests PRIVATE rpcmp_utility_writer)
   rpcmp_test_options(rpcmp_m1_acceptance_tests)
   add_test(NAME m1_acceptance COMMAND rpcmp_m1_acceptance_tests)
 

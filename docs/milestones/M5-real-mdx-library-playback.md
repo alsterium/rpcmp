@@ -1,6 +1,8 @@
 # M5 — Real MDX Library Playback
 
-Status: active on 2026-09-02. M4 and the M4S stereo mapping gate are complete.
+Status: deferred on 2026-09-13; remaining gates are assigned to [M6](M6-album-player.md).
+M4 and the M4S stereo mapping gate are complete. Historical M5 results below
+are preserved; M5 is not declared complete.
 
 ## Objective
 

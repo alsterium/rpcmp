@@ -1,7 +1,8 @@
 # Pocket の曲名変換と文字表示の設計案
 
-Status: proposal, 2026-09-13. Q14 と [Tracker画面](pocket-tracker-screen-design.md) を具体化する
-設計提案です。依存ライブラリ・フォントの製品への組込みや、公開 v1 契約の変更は行いません。
+Status: host portion adopted in [M6 slice 1](../milestones/M6-album-player.md), 2026-09-13.
+ホスト部分の規範は [host metadata v1](../../specs/host-metadata-v1.md) です。
+以下の文字表示・font部分は引き続き設計提案で、Core/UIの公開 v1 契約を変更しません。
 [ADR-0005](../adr/0005-m1-utility-language-and-normalization.md) の C++17 utility / 正規化済み
 writer 境界を維持します。
 
@@ -92,8 +93,9 @@ font gzipのSHA-256は `5ba84e901b9f7fad3bce0571c7e4b4b0aef4ce0acc4ee6622ef0cfa2
 | utf8proc 2.11.3 | host ingestionのNFCのみ | [MITと同梱Unicode data notice](https://raw.githubusercontent.com/JuliaStrings/utf8proc/v2.11.3/LICENSE.md) を維持。Pocket/runtime/writerへリンクしない |
 | Unifont JP 16.0.04のglyph subset | build時生成、Pocketのread-only font | [配布元](https://unifoundry.com/unifont/index.html) が示すdual licenseから [SIL OFL 1.1](https://unifoundry.com/OFL-1.1.txt) を選ぶ。copyright/licenseを同梱し、派生fontは別名 RPCMP Bitmap JP としてOFLを維持 |
 
-生成スクリプトや工具のライセンスをglyphのライセンスと混同しません。今回は研究用データのみで、
-製品依存・font assetは追加していません。採用時にsource revision/hashと全noticeを固定します。
+生成スクリプトや工具のライセンスをglyphのライセンスと混同しません。
+M6 slice 1ではCP932とutf8procのsource hash/noticeを固定してhostに組み込みます。
+font assetは未採用で、採用時にsource revision/hashと全noticeを固定します。
 
 独立した試験例は CP932の上記３例、末尾の先行byte、空曲名、改行、半角カナ、NFC合成と
 衝突、4096-byte境界、欠字、glyph index不正、96-byte/pixel幅での省略です。

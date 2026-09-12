@@ -28,3 +28,7 @@ new dependency. ASCII fixtures are valid NFC test inputs. End-to-end ingestion
 of non-ASCII metadata remains incomplete until a normalization implementation
 is selected and tested; callers must not label unverified text as normalized.
 
+M6 slice 1 adopts [host metadata v1](../../specs/host-metadata-v1.md) and pinned
+utf8proc 2.11.3 for this ingestion responsibility. The normalized writer remains
+independent in `rpcmp_utility_writer`; the low-level normalized API retains its
+precondition. The new raw-metadata entry point performs NFC before serialization.

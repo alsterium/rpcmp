@@ -19,7 +19,7 @@ class HarnessTests(unittest.TestCase):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name)
-        for folder in ("docs", "prompts", "tests"):
+        for folder in ("docs", "prompts", "tests", "specs"):
             for source in (ROOT / folder).rglob("*.md"):
                 target = self.root / source.relative_to(ROOT)
                 target.parent.mkdir(parents=True, exist_ok=True)

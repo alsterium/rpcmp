@@ -10,3 +10,10 @@
 *.jpg binary
 *.jpeg binary
 *.png binary
+
+# Preserve the exact upstream bytes checked by metadata-sources.sha256.
+third_party/utf8proc/* -text
+third_party/cp932/* -text
+# Upstream generated Unicode data includes trailing spaces and a final blank
+# line. Preserve its pinned bytes; source integrity is checked on every build.
+third_party/utf8proc/utf8proc_data.c whitespace=-blank-at-eol,-blank-at-eof

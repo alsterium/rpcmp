@@ -2,6 +2,27 @@
 
 Record each component's source, exact revision, license, modifications, purpose, and redistribution implications. Do not add a sound core until license and toolchain suitability are reviewed in an ADR.
 
+## Host metadata dependencies
+
+M6 slice 1 adopts these dependencies before integration. Sources are vendored
+unchanged for offline host builds; `metadata-sources.sha256` pins each file.
+They do not link into the normalized byte writer, Core, UI or Pocket.
+
+| Component | Source/version | License | Purpose and distribution |
+| --- | --- | --- | --- |
+| utf8proc | [v2.11.3](https://github.com/JuliaStrings/utf8proc/tree/v2.11.3), Unicode 17.0.0 | MIT plus bundled Unicode data notice in `utf8proc/LICENSE.md` | Strict UTF-8 and bounded NFC at host ingestion; static C library, C++17 callers; ship the full notice with host binaries |
+| Microsoft CP932 mapping | [table 2.01](https://www.unicode.org/Public/MAPPINGS/VENDORS/MICSFT/WINDOWS/CP932.TXT), SHA-256 `c9bc0b0cd42e0fbcb82a09635bb5abed86afbdd4abc9e76fa5716638217cb59f` | Unicode data license in `cp932/LICENSE.txt`, original table header retained | Build-time generation of a fixed decoder table; no host code-page dependence; retain data/source notices in host distributions |
+
+Only `utf8proc.c`, `utf8proc.h`, `utf8proc_data.c` and its license are imported
+from utf8proc. Project CMake compiles the C99 static source without modifying
+it or applying project C++ warning policy to upstream C. CP932 generation is
+project-owned tooling. No font asset or font dependency is integrated here.
+The upstream generated `utf8proc_data.c` contains trailing spaces and a final
+blank line. Only those two whitespace checks are excepted for that exact file
+in `.gitattributes`, to preserve the source hash instead of rewriting upstream
+data. The build and `metadata_source_integrity` test verify its complete bytes;
+project source formatting and all other diff checks remain enabled.
+
 ## Development tools
 
 | Component | Version | Source | License | Purpose | Platform and redistribution |

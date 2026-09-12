@@ -2,7 +2,9 @@
 
 Status: proposal, 2026-09-13. [基本要件](pocket-next-requirements.md) の Q1〜Q8 と
 本書の Q9〜Q24 は確定済みです。追加の上限・データ形式・API は設計案であり、公開 v1 契約や
-実装を変更しません。[Tracker 風画面案](pocket-tracker-screen-design.md) はユーザー指定の
+実装を一括で変更しません。採用範囲と実装状況は [M6](../milestones/M6-album-player.md) に従い、
+ホスト曲名変換は [host metadata v1](../../specs/host-metadata-v1.md) として採用済みです。
+[Tracker 風画面案](pocket-tracker-screen-design.md) はユーザー指定の
 Issue #1 を配置の基準にし、設定アイコンを含む操作の整合を具体化します。
 
 ## Q9〜Q24 の確定事項
@@ -314,4 +316,4 @@ Pocket adapter案は二つの小さいnonvolatile RAM slot、明示flushとSD re
 音源状態のfreezeと常時動作するI2Sを分ける方式を提案します。残る採用条件は固定依存物の
 notice/生成試験、文字の判読性、保存用RAM/SDK/flushの実現、音声のfreeze・予約取消・
 audible commitのRTL証明と、それに基づくMMIO / CDC / ACK上限です。各契約の
-提案を実装完了とは扱わず、M5 残 gate の扱いと次 milestone を明示してから着手します。
+提案を実装完了とは扱いません。M5残gateの所有先と実装順序はM6で明示し、各sliceで採用します。
