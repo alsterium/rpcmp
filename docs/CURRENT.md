@@ -77,9 +77,8 @@ compatibility, cancellation, multi-channel loop counting, pause/fade policy
 changes and shuffle history. These are reviewable proposals, not active public
 contracts or implemented capabilities. Queue v1 and sound-reset v1 do not
 provide state-preserving pause or gain ramps; a separately reviewed sound-control
-port is a prerequisite. Next, settle the remaining input/display/normalization
-details and sound-port contract, then adopt the implementation milestone with
-explicit ownership of the remaining M5 gates. Q17 is answered: B first stops
+port is a prerequisite. The implementation milestone still needs explicit
+ownership of the remaining M5 gates. Q17 is answered: B first stops
 playback while staying on the playback screen; a new B press after confirmed
 stop returns to the track list. The second action stays in UI and sends no
 additional Core command; repeated presses before stop completes are not queued
@@ -94,8 +93,8 @@ is proposed so a second A after starting a track can pause it. Playback policy i
 to persist across power cycles (Q19), superseding the proposal that excluded
 persistence; playback-position/history restoration and automatic playback are
 not part of that decision. L/R select the previous/next track on the playback
-screen (Q20). Next, complete the screen/input table and the settings-storage
-contract alongside the existing sound-port design work.
+screen (Q20). The screen/input table and settings-storage proposal below
+concretize these decisions.
 
 Q22 confirms browsing the track list while playback continues; Q23 selects
 vertically scrolling per-channel playback history for the Tracker view. The
@@ -106,9 +105,20 @@ left and minimal controls below right. B remains the stop-then-list path; view
 switching is a separate browsing path that does not stop playback. The initial
 profile remains eight FM channels, with a combined play/pause control; the
 reference image does not introduce PCM/rhythm or speed-control implementation.
-Next, define bounded, timestamped history snapshots and focus/input behavior
-alongside text, settings storage and sound-control contracts. This is still
-specification work, not a new implementation milestone.
+Q24 confirms the repeat-icon cycle: two loops, three, five, RepeatOne, then two.
+The [history proposal](design/pocket-performance-history-contract.md) defines
+256 timestamped observations, audible commit, retriggers, generation changes and
+explicit loss. The [settings proposal](design/pocket-playback-settings-contract.md)
+defines a bounded asynchronous port and two 64-byte records, separating policy
+application from persistence. The screen proposal now includes focus adjacency,
+contextual B, input edges/repeat and ordered policy input. These remain design
+proposals; neither v1 contracts nor M5 implementation have changed.
+
+Next, settle title decoding/NFC and fonts, the physical settings adapter's
+durability/deadlines, and the sound-control port's MMIO/CDC/ACK and audible-commit
+contract. Then adopt the implementation milestone with the remaining M5 gates
+explicitly assigned. This is still specification work, not a new implementation
+milestone; the closed diagnosis is not reopened.
 
 General placement stability, integrated timing/CDC and external-I/O constraints,
 broader APF lifecycle/failure coverage, and explicit future PCM/UI reserves remain open.

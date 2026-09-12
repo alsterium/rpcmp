@@ -591,3 +591,21 @@ PCM/rhythm labels, speed and other undeclared capabilities are not promoted into
 the FM-only scope. Reliable history needs a bounded, versioned state contract
 beyond instantaneous channel snapshots. A conversation-only layout mock uses
 synthetic data and establishes no audio, persistence or hardware acceptance.
+
+### History, settings and focus proposals — 2026-09-13
+
+Q24 fixes the repeat icon's A cycle at two loops, three, five, RepeatOne, then two.
+The [history proposal](../design/pocket-performance-history-contract.md) specifies
+a 256-event immutable window at audible commit, stable ordering including
+retriggers, generation invalidation and explicit capture/retention loss.
+The [settings proposal](../design/pocket-playback-settings-contract.md) specifies
+policy revisions, separate apply/save results, a bounded asynchronous port and
+two 64-byte records with validated versions, counters and CRC. Interrupted writes,
+stale completions and unknown formats have explicit outcomes; physical storage
+durability and deadlines remain adoption prerequisites.
+
+The screen proposal now has a replaceable focus/input table, list/control
+navigation, stop-before-back behavior, input edges/repeat and ordered rapid
+policy changes. The acceptance examples are specifications for future tests,
+not executed feature or hardware evidence. This documentation work changes no
+public v1 contract, runtime/RTL implementation, package or M5 acceptance result.

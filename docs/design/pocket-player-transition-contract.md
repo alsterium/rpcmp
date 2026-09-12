@@ -44,7 +44,9 @@ Default の loop target は２、Counted は count、RepeatOne は無期限で�
 policy は曲や library の ID と独立したプレイヤー設定として、曲切替・Stop・library の変更で
 維持する案です。Q19 の回答により、旧案の「電源断保存を含めない」は撤回します。
 保存対象は上表の３フィールドで、再生位置・選択曲・shuffle 履歴の復元や自動再生は含めません。
-保存 port と形式は採用前に定義し、設定の適用・永続化の成功を別々に確認可能にします。
+[設定保存契約案](pocket-playback-settings-contract.md) に形式・非同期 port・変更番号を定義し、
+設定の適用・永続化の成功を別々に確認可能にします。Q24 の初期UIは2周→3周→5周→無限を
+循環しますが、ここで定める Counted の有効範囲は変更しません。
 コマンド queue は32、結果の replay window は
 64件、ID / stale sequence / 投影状態の検証順は M0 の規則を継承します。
 Pause/Resume 等を含む accepted command は先行 command の遷移中状態に対しても
@@ -59,6 +61,8 @@ MDX opcode や Pocket の物理ボタンは含めません。
 - phase（Steady / Fading / RestoringGain）、gain 分子、ramp 経過と全 frame 数。
   transport=Paused と phase=Fading の組合せで、フェード途中の一時停止を表せる。
 - 完了済み loop count、shuffle cycle ID / 総曲数 / 開始済み曲数、can_next / can_previous。
+- [演奏履歴](pocket-performance-history-contract.md) の時刻・世代付き optional 観測窓。
+- [設定保存](pocket-playback-settings-contract.md) の revision、適用 command の結果、保存状態。
 
 completed loop count は `u64` の内部値から、既存表示用 `u32` 範囲に収まる場合だけ
 公開し、範囲外は absent と明示的な overflow indication にします。wrap や無期限の sentinel に
@@ -223,4 +227,4 @@ CPU だけ止めて queue を鳴らし切る方式では、Pause の合格条件
 これは実装順の提案です。現在 active な M5 の acceptance 6 と ADR-0008 の未完了事項を
 合格扱いにせず、次 milestone の採用時に残 gate の所有先・必要証拠を明記します。
 過去の APF2 再試験を仕様決めの条件に戻しません。契約採用、文字変換・表示・入力表の
-残項目、音声 port の実現性を詰めてから、active milestone を明示して実装を始めます。
+残項目、保存 adapter・音声 port の実現性を詰めてから、active milestone を明示して実装を始めます。
