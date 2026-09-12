@@ -2,8 +2,10 @@
 #define RPCMP_PLAYER_PLAYBACK_TRANSPORT_HPP
 
 #include "rpcmp/contracts/playback_policy_v2.hpp"
+#include "rpcmp/contracts/player_state_v2.hpp"
 #include "rpcmp/player/catalog_session.hpp"
 #include "rpcmp/player/media_loop_envelope.hpp"
+#include "rpcmp/player/playback_navigation.hpp"
 
 #include <array>
 #include <cstdint>
@@ -26,7 +28,9 @@ enum class TransportIntentKind : std::uint8_t {
   Resume,
   TogglePause,
   Stop,
-  SetPolicy
+  SetPolicy,
+  NextTrack,
+  PreviousTrack
 };
 struct TransportIntent {
   std::uint64_t command_id{};
@@ -49,7 +53,9 @@ enum class TransportRejection : std::uint8_t {
   Busy,
   TerminalFailure,
   BatchTooLarge,
-  UnsupportedPolicy
+  UnsupportedPolicy,
+  NoNextTrack,
+  NoPreviousTrack
 };
 struct TransportDecision {
   std::uint64_t command_id{};
@@ -148,6 +154,7 @@ struct TransportSnapshot {
   std::optional<PendingAudioControl> audio_control;
   bool policy_supported{};
   contracts::v2::PlaybackPolicyObservation policy{};
+  std::optional<contracts::v2::PlaybackNavigationObservation> navigation{std::nullopt};
 };
 struct TransportTiming {
   std::uint64_t prepare_timeout_us{};
@@ -157,6 +164,7 @@ struct TransportCounters {
   std::uint64_t last_play_generation{};
   std::uint64_t last_operation_id{};
   std::uint64_t initial_policy_revision{1};
+  std::uint64_t last_shuffle_cycle_id{};
 };
 
 struct TransportProjection {
@@ -168,6 +176,10 @@ struct TransportProjection {
   bool terminal{};
   bool policy_supported{};
   contracts::v2::PlaybackPolicy policy{};
+  bool navigation_supported{};
+  bool wants_playback{};
+  bool cycle_pending{};
+  ShuffleCycle cycle{};
 };
 enum class TransportAction : std::uint8_t {
   None,
@@ -177,17 +189,21 @@ enum class TransportAction : std::uint8_t {
   Pause,
   Resume,
   Stop,
-  SetPolicy
+  SetPolicy,
+  Navigate,
+  ShuffleNext
 };
 struct TransportTransition {
   TransportRejection rejection{TransportRejection::None};
   TransportAction action{TransportAction::None};
   PlaybackSelection selection{};
+  bool rebuild_cycle{};
 };
 [[nodiscard]] TransportTransition project_transport(const CatalogSession& catalog,
                                                     bool pause_supported,
                                                     const TransportIntent& intent,
-                                                    TransportProjection& state);
+                                                    TransportProjection& state,
+                                                    const NavigationIndex* navigation = nullptr);
 
 struct TransportAdmissionContext {
   contracts::CatalogStatus catalog{};
@@ -206,7 +222,7 @@ class TransportController {
 public:
   TransportController(const CatalogSession& catalog, PreparationPort& preparation,
                       AudioTransportPort& audio, TransportTiming timing,
-                      TransportCounters counters = {}) noexcept;
+                      TransportCounters counters = {}, RandomSource* random = nullptr) noexcept;
   TransportController(const TransportController&) = delete;
   TransportController& operator=(const TransportController&) = delete;
   [[nodiscard]] TransportStepResult
@@ -224,7 +240,8 @@ private:
   void invalidate();
   void sync_catalog(bool fault_this_step);
   [[nodiscard]] TransportRejection apply(const TransportIntent& intent);
-  void select(const TransportIntent& intent, bool play);
+  void select(const TransportIntent& intent, bool play, bool new_cycle = true);
+  [[nodiscard]] bool begin_cycle(contracts::TrackId selected, bool already_started);
   void consume_audio(const AudioObservation& observation);
   void consume_preparation();
   void check_timeouts(std::uint64_t now_us);
@@ -238,6 +255,9 @@ private:
   AudioTransportPort& audio_port_;
   TransportTiming timing_{};
   TransportCounters counters_{};
+  RandomSource* random_{};
+  NavigationIndex navigation_index_{};
+  ShuffleCycle shuffle_{};
   contracts::CatalogStatus catalog_status_{};
   TransportSnapshot state_{};
   contracts::TransportState target_{contracts::TransportState::Empty};

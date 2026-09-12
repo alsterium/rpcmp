@@ -6,8 +6,9 @@ This implements the transport observations in the
 The public v1 types, validation and M0 synthetic clock remain unchanged.
 [Schema 2 transport ingress](player-command-v2.md) connects these observations
 to PlayerSession. The additive [repeat policy profile](playback-policy-v2.md)
-provides desired/applied policy observations. History, persistent settings,
-navigation and visualizations remain subsequent parts of the same slice.
+provides desired/applied policy observations. The [navigation profile](playback-navigation-v2.md)
+adds neighbour availability and shuffle-cycle counts. History, persistent
+settings and visualizations remain subsequent parts of the same slice.
 
 ## Boundary and evolution
 
@@ -39,6 +40,9 @@ All values have fixed capacity; publication and reads allocate no memory.
   observation publisher leaves that bit unset.
   Bits 3 and 4 declare policy observations and repeat control respectively,
   as defined in the repeat profile. Neither claims hardware validation.
+  Bit 5 declares the navigation profile; it requires bit 4 and the optional
+  navigation observation. The injected random port does not imply a production
+  Pocket random source.
 - `library` is a copied catalog schema 1 status. It is the status synchronized
   by the same Core transport step that produced this observation.
 - `transport` is the confirmed state; `projected` is the current command intent.
@@ -53,8 +57,10 @@ All values have fixed capacity; publication and reads allocate no memory.
 - `prepared` means the selected generation owns a prepared session;
   `silence_confirmed` reports reset acknowledgement, not merely a mute request.
 - Optional `pending_intent` contains its nonzero command ID, one of PlayTrack,
-  LoadTrack, Play, Pause, Resume, TogglePause, Stop, and a selection only for
-  PlayTrack/LoadTrack. This names the last effective intent, not every queued
+  LoadTrack, Play, Pause, Resume, TogglePause, Stop, NextTrack or PreviousTrack.
+  The pending-intent enum appends NextTrack=7 and PreviousTrack=8, independently
+  of the public command enum. Selection is required for PlayTrack/LoadTrack
+  and for the resolved destination of NextTrack/PreviousTrack. This names the last effective intent, not every queued
   command or proof that an operation completed.
 - Optional preparation and audio-control observations each contain a nonzero
   operation ID and play generation. Preparation also identifies its library
@@ -71,6 +77,10 @@ All values have fixed capacity; publication and reads allocate no memory.
 - Optional `policy` is present exactly when bit 3 is set. It contains desired
   settings/revision and optional committed media observations, with bounds
   and ACK correlation defined in the repeat profile.
+- Optional `navigation` contains can_next/can_previous and the optional
+  shuffle-cycle identity, library generation, total and started count. Presence
+  and bounds follow the navigation profile; the validator does not recompute
+  the neighbour from catalog data.
 
 Transport observation types intentionally do not expose the internal ports or
 their mutable state. Empty/Loading/Stopped can have no selected track;

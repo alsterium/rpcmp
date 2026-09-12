@@ -17,7 +17,9 @@ enum class CommandKind : std::uint8_t {
   Resume = 4,
   TogglePause = 5,
   Stop = 6,
-  SetPlaybackPolicy = 7
+  SetPlaybackPolicy = 7,
+  NextTrack = 8,
+  PreviousTrack = 9
 };
 struct PlayerCommand {
   std::uint16_t schema_version{kSchemaVersion};
@@ -43,7 +45,9 @@ enum class CommandReason : std::uint8_t {
   UnsupportedCapability = 11,
   ResourceBusy = 12,
   QueueFull = 13,
-  TerminalFailure = 14
+  TerminalFailure = 14,
+  NoNextTrack = 15,
+  NoPreviousTrack = 16
 };
 struct CommandAdmission {
   CommandOutcome outcome{CommandOutcome::Rejected};

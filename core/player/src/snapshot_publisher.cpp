@@ -24,6 +24,10 @@ std::optional<api::TransportIntentKind> intent_kind(const TransportIntentKind ki
     return api::TransportIntentKind::Stop;
   case TransportIntentKind::SetPolicy:
     return std::nullopt; // Policy command identity is published with desired settings.
+  case TransportIntentKind::NextTrack:
+    return api::TransportIntentKind::NextTrack;
+  case TransportIntentKind::PreviousTrack:
+    return api::TransportIntentKind::PreviousTrack;
   }
   return std::nullopt;
 }
@@ -138,6 +142,9 @@ PublicationResult SnapshotPublisher::publish(const std::uint64_t now_us,
   if (state.policy_supported)
     next.capabilities.bits |= api::kRepeatControl;
   next.policy = state.policy;
+  next.navigation = state.navigation;
+  if (state.navigation)
+    next.capabilities.bits |= api::kPlaybackNavigation;
   next.library = state.catalog;
   next.transport = state.transport;
   next.projected = state.projected;
@@ -159,7 +166,9 @@ PublicationResult SnapshotPublisher::publish(const std::uint64_t now_us,
       return PublicationResult::InvalidObservation;
     api::PendingIntent pending{intent.command_id, *kind, std::nullopt};
     if (intent.kind == TransportIntentKind::PlayTrack ||
-        intent.kind == TransportIntentKind::LoadTrack)
+        intent.kind == TransportIntentKind::LoadTrack ||
+        intent.kind == TransportIntentKind::NextTrack ||
+        intent.kind == TransportIntentKind::PreviousTrack)
       pending.selection = selection(intent.selection);
     else if (intent.selection.library_generation.value != 0 || intent.selection.track_id.value != 0)
       return PublicationResult::InvalidObservation;

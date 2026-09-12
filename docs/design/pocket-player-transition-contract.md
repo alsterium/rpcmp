@@ -4,12 +4,14 @@ Status: Core transport and public transport API adopted for M6 slice 3, 2026-09-
 [Core playback transport v1](../../specs/playback-transport-v1.md) に準備・音声制御の
 非同期処理、取消、故障と期限の扱いを採用しました。これはCore内部の契約です。
 [詳細仕様案](pocket-library-player-spec-draft.md) の確定済み要件に向け、
-曲順・shuffle、history/settings、実際の音声ポートへの接続は後続実装です。
+history/settings、実際の音声ポートへの接続は後続実装です。
 [公開コマンドschema 2](../../specs/player-command-v2.md) は７種類のtransport command、
 FIFO受付、重複検出、非同期実行までを採用します。
 [repeat policy profile](../../specs/playback-policy-v2.md) は公開設定コマンド、
 受付済みと音声反映済みrevision、media観測、有限曲のRepeatOne再準備を採用します。
-曲順・shuffleは次の接続部分で、現在のprofileではshuffle要求を未対応として返します。
+[navigation profile](../../specs/playback-navigation-v2.md) はアルバム内の自動送り、前後移動、
+乱数portを注入した全曲shuffle、Start確認時の履歴登録と公開観測を採用します。
+navigationを接続しない旧コンストラクターでは、shuffle要求は引き続き未対応です。
 [公開状態schema 2](../../specs/player-state-v2.md) は曲の表示情報、位置、処理待ち、エラーの
 コピーと読み取り専用interfaceを採用します。残る観測値はその契約と実装時に追加します。
 [MDX周回観測v1](../../specs/mdx-progress-v1.md) はTrackLoopの累積回数、全FMチャンネルの

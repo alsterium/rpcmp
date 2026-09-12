@@ -11,14 +11,63 @@ namespace api = contracts::v2;
 bool playback_target(const TransportState target) {
   return target == TransportState::Playing || target == TransportState::Paused;
 }
+
+TransportTransition project_navigation(const CatalogSession& catalog, const NavigationIndex* index,
+                                       const bool next, TransportProjection& state) {
+  if (!state.navigation_supported || !index)
+    return {TransportRejection::UnsupportedPolicy};
+  if (state.failure)
+    return {TransportRejection::InvalidState};
+  const auto status = catalog.status();
+  if (status.phase != CatalogPhase::Ready)
+    return {TransportRejection::LibraryUnavailable};
+  if (!state.selection)
+    return {TransportRejection::InvalidState};
+  if (state.selection->library_generation != status.generation)
+    return {TransportRejection::StaleLibrary};
+  if (state.cycle_pending || index->generation() != status.generation)
+    return {TransportRejection::Busy};
+  const auto selected = state.selection->track_id;
+  if (!index->find(selected))
+    return {TransportRejection::UnknownTrack};
+  std::optional<contracts::TrackId> destination;
+  bool rebuild_cycle = false;
+  if (state.policy.order == api::PlaybackOrder::AlbumOrder) {
+    destination = index->adjacent(selected, next);
+  } else if (state.cycle.matches(*index)) {
+    destination =
+        next ? state.cycle.next(*index, selected, false) : state.cycle.previous(*index, selected);
+    rebuild_cycle = !state.cycle.active();
+  } else if (next && index->size() > 1) {
+    state.cycle_pending = true;
+    state.state = TransportState::Loading;
+    state.prepared_for_start = false;
+    state.recovery_busy = true;
+    state.wants_playback = true;
+    return {TransportRejection::None, TransportAction::ShuffleNext};
+  }
+  if (!destination)
+    return {next ? TransportRejection::NoNextTrack : TransportRejection::NoPreviousTrack};
+  state.selection = PlaybackSelection{status.generation, *destination};
+  state.state = TransportState::Loading;
+  state.prepared_for_start = false;
+  state.recovery_busy = true;
+  state.wants_playback = true;
+  if (rebuild_cycle) {
+    state.cycle.clear();
+    state.cycle_pending = true;
+  }
+  return {TransportRejection::None, TransportAction::Navigate, *state.selection, rebuild_cycle};
+}
 } // namespace
 
 TransportController::TransportController(const CatalogSession& catalog,
                                          PreparationPort& preparation, AudioTransportPort& audio,
                                          const TransportTiming timing,
-                                         const TransportCounters counters) noexcept
+                                         const TransportCounters counters,
+                                         RandomSource* random) noexcept
     : catalog_(catalog), preparation_port_(preparation), audio_port_(audio), timing_(timing),
-      counters_(counters) {
+      counters_(counters), random_(random) {
   state_.play_generation = counters.last_play_generation;
   if (counters.initial_policy_revision != 0)
     state_.policy.revision = counters.initial_policy_revision;
@@ -29,6 +78,23 @@ TransportSnapshot TransportController::snapshot() const noexcept {
   result.catalog = catalog_status_;
   result.prepared = state_.selection.has_value() && prepared_generation_ != 0 &&
                     prepared_generation_ == state_.play_generation;
+  if (random_ && state_.policy_supported) {
+    api::PlaybackNavigationObservation navigation;
+    auto projected = projection();
+    navigation.can_next =
+        project_transport(catalog_, state_.pause_supported, {1, TransportIntentKind::NextTrack, {}},
+                          projected, &navigation_index_)
+            .rejection == TransportRejection::None;
+    projected = projection();
+    navigation.can_previous = project_transport(catalog_, state_.pause_supported,
+                                                {1, TransportIntentKind::PreviousTrack, {}},
+                                                projected, &navigation_index_)
+                                  .rejection == TransportRejection::None;
+    if (shuffle_.active())
+      navigation.cycle = api::ShuffleCycleObservation{shuffle_.id(), navigation_index_.generation(),
+                                                      shuffle_.total(), shuffle_.started()};
+    result.navigation = navigation;
+  }
   return result;
 }
 
@@ -42,7 +108,11 @@ TransportProjection TransportController::projection() const noexcept {
               state_.audio_control.has_value() || fault_observed_,
           state_.terminal,
           state_.policy_supported,
-          state_.policy.desired};
+          state_.policy.desired,
+          random_ && state_.policy_supported,
+          playback_target(target_),
+          false,
+          shuffle_};
 }
 
 TransportAdmissionContext TransportController::admission_context() const noexcept {
@@ -94,6 +164,7 @@ void TransportController::fail(const TransportFailure failure, const bool termin
   state_.policy.media.reset();
   applied_repeat_.reset();
   reset_required_ = true;
+  shuffle_.clear();
   if (!terminal)
     static_cast<void>(advance_generation());
 }
@@ -106,6 +177,8 @@ void TransportController::sync_catalog(const bool fault_this_step) {
   catalog_status_ = current;
   if (changed) {
     invalidate();
+    navigation_index_.clear();
+    shuffle_.clear();
     state_.selection.reset();
     state_.pending_intent.reset();
   }
@@ -134,7 +207,26 @@ void TransportController::sync_catalog(const bool fault_this_step) {
   state_.projected = target_;
 }
 
-void TransportController::select(const TransportIntent& intent, const bool play) {
+bool TransportController::begin_cycle(const contracts::TrackId selected,
+                                      const bool already_started) {
+  if (!random_ || !state_.policy_supported) {
+    fail(TransportFailure::Protocol, true);
+    return false;
+  }
+  const auto result = shuffle_.begin(navigation_index_, selected, already_started, *random_,
+                                     counters_.last_shuffle_cycle_id);
+  if (result != NavigationFailure::None) {
+    fail(result == NavigationFailure::InvalidSelection ? TransportFailure::Protocol
+                                                       : TransportFailure::ResourceExhausted,
+         result != NavigationFailure::RandomUnavailable);
+    return false;
+  }
+  counters_.last_shuffle_cycle_id = shuffle_.id();
+  return true;
+}
+
+void TransportController::select(const TransportIntent& intent, const bool play,
+                                 const bool new_cycle) {
   invalidate();
   if (state_.terminal)
     return;
@@ -145,15 +237,23 @@ void TransportController::select(const TransportIntent& intent, const bool play)
   target_ = play ? TransportState::Playing : TransportState::Stopped;
   state_.transport = TransportState::Loading;
   state_.projected = TransportState::Loading;
+  if (new_cycle) {
+    shuffle_.clear();
+    if (play && random_ && state_.policy_supported &&
+        state_.policy.desired.order == api::PlaybackOrder::ShuffleLibrary)
+      static_cast<void>(begin_cycle(intent.selection.track_id, false));
+  }
 }
 
 TransportTransition project_transport(const CatalogSession& catalog, const bool pause_supported,
-                                      const TransportIntent& intent, TransportProjection& state) {
+                                      const TransportIntent& intent, TransportProjection& state,
+                                      const NavigationIndex* navigation) {
   const auto kind = intent.kind;
   const bool selecting =
       kind == TransportIntentKind::PlayTrack || kind == TransportIntentKind::LoadTrack;
   if (intent.command_id == 0 ||
-      static_cast<std::uint8_t>(kind) > static_cast<std::uint8_t>(TransportIntentKind::SetPolicy) ||
+      static_cast<std::uint8_t>(kind) >
+          static_cast<std::uint8_t>(TransportIntentKind::PreviousTrack) ||
       (kind == TransportIntentKind::SetPolicy) != intent.policy.has_value() ||
       (intent.policy && !api::valid_playback_policy(*intent.policy)) ||
       (!selecting &&
@@ -162,13 +262,21 @@ TransportTransition project_transport(const CatalogSession& catalog, const bool 
   if (state.terminal)
     return {TransportRejection::TerminalFailure};
   if (intent.policy) {
-    if (!state.policy_supported || intent.policy->order != api::PlaybackOrder::AlbumOrder)
+    if (!state.policy_supported ||
+        (intent.policy->order == api::PlaybackOrder::ShuffleLibrary && !state.navigation_supported))
       return {TransportRejection::UnsupportedPolicy};
     if (state.policy == *intent.policy)
       return {};
+    if (state.policy.order != intent.policy->order) {
+      state.cycle.clear();
+      state.cycle_pending = intent.policy->order == api::PlaybackOrder::ShuffleLibrary &&
+                            state.wants_playback && state.selection.has_value();
+    }
     state.policy = *intent.policy;
     return {TransportRejection::None, TransportAction::SetPolicy};
   }
+  if (kind == TransportIntentKind::NextTrack || kind == TransportIntentKind::PreviousTrack)
+    return project_navigation(catalog, navigation, kind == TransportIntentKind::NextTrack, state);
   if (selecting) {
     library::TrackView track;
     switch (catalog.resolve_track(intent.selection.library_generation, intent.selection.track_id,
@@ -189,6 +297,10 @@ TransportTransition project_transport(const CatalogSession& catalog, const bool 
     state.prepared_for_start = false;
     state.failure = false;
     state.recovery_busy = true;
+    state.wants_playback = kind == TransportIntentKind::PlayTrack;
+    state.cycle.clear();
+    state.cycle_pending =
+        state.wants_playback && state.policy.order == api::PlaybackOrder::ShuffleLibrary;
     return {TransportRejection::None,
             kind == TransportIntentKind::PlayTrack ? TransportAction::SelectPlay
                                                    : TransportAction::SelectLoad,
@@ -210,6 +322,9 @@ TransportTransition project_transport(const CatalogSession& catalog, const bool 
     state.state = TransportState::Stopped;
     state.prepared_for_start = false;
     state.recovery_busy = true;
+    state.wants_playback = false;
+    state.cycle.stop();
+    state.cycle_pending = false;
     return {TransportRejection::None, TransportAction::Stop};
   }
   if (kind == TransportIntentKind::Play &&
@@ -218,11 +333,17 @@ TransportTransition project_transport(const CatalogSession& catalog, const bool 
       return {TransportRejection::InvalidState};
     if (projected == TransportState::Stopped && state.prepared_for_start) {
       state.state = TransportState::Playing;
+      state.wants_playback = true;
+      state.cycle.clear();
+      state.cycle_pending = state.policy.order == api::PlaybackOrder::ShuffleLibrary;
       return {TransportRejection::None, TransportAction::StartPrepared};
     }
     state.state = TransportState::Loading;
     state.prepared_for_start = false;
     state.recovery_busy = true;
+    state.wants_playback = true;
+    state.cycle.clear();
+    state.cycle_pending = state.policy.order == api::PlaybackOrder::ShuffleLibrary;
     return {TransportRejection::None, TransportAction::SelectPlay, *state.selection};
   }
   const bool pause =
@@ -245,21 +366,54 @@ TransportTransition project_transport(const CatalogSession& catalog, const bool 
 
 TransportRejection TransportController::apply(const TransportIntent& intent) {
   auto projected = projection();
-  const auto transition = project_transport(catalog_, state_.pause_supported, intent, projected);
+  const auto transition =
+      project_transport(catalog_, state_.pause_supported, intent, projected, &navigation_index_);
   if (transition.rejection != TransportRejection::None)
     return transition.rejection;
   switch (transition.action) {
   case TransportAction::None:
     return TransportRejection::None;
-  case TransportAction::SetPolicy:
+  case TransportAction::SetPolicy: {
     if (state_.policy.revision == std::numeric_limits<std::uint64_t>::max()) {
       fail(TransportFailure::ResourceExhausted, true);
       return TransportRejection::TerminalFailure;
     }
+    const auto previous_order = state_.policy.desired.order;
     state_.policy.desired = projected.policy;
     ++state_.policy.revision;
     state_.policy.last_command_id = intent.command_id;
+    if (previous_order != state_.policy.desired.order) {
+      shuffle_.clear();
+      if (state_.policy.desired.order == api::PlaybackOrder::ShuffleLibrary &&
+          playback_target(target_) && state_.selection)
+        static_cast<void>(
+            begin_cycle(state_.selection->track_id, playback_target(state_.transport)));
+    }
     return TransportRejection::None;
+  }
+  case TransportAction::Navigate: {
+    auto request = intent;
+    request.selection = transition.selection;
+    select(request, true, transition.rebuild_cycle);
+    break;
+  }
+  case TransportAction::ShuffleNext: {
+    if (!state_.selection) {
+      fail(TransportFailure::Protocol, true);
+      return TransportRejection::None;
+    }
+    if (!begin_cycle(state_.selection->track_id, false))
+      return TransportRejection::None; // Failure is asynchronous and already latched.
+    const auto next = shuffle_.next(navigation_index_, state_.selection->track_id, false);
+    if (!next) {
+      fail(TransportFailure::Protocol, true);
+      return TransportRejection::None;
+    }
+    auto request = intent;
+    request.selection = {catalog_status_.generation, *next};
+    select(request, true, false);
+    break;
+  }
   case TransportAction::SelectPlay:
   case TransportAction::SelectLoad: {
     auto request = intent;
@@ -274,8 +428,14 @@ TransportRejection TransportController::apply(const TransportIntent& intent) {
     target_ = TransportState::Stopped;
     state_.transport = TransportState::Loading;
     state_.projected = target_;
+    shuffle_.stop();
     break;
   case TransportAction::StartPrepared:
+    if (random_ && state_.policy_supported &&
+        state_.policy.desired.order == api::PlaybackOrder::ShuffleLibrary && state_.selection)
+      if (!begin_cycle(state_.selection->track_id, false))
+        return TransportRejection::None;
+    [[fallthrough]];
   case TransportAction::Resume:
     target_ = TransportState::Playing;
     state_.projected = target_;
@@ -287,7 +447,9 @@ TransportRejection TransportController::apply(const TransportIntent& intent) {
   }
   if (state_.terminal)
     return TransportRejection::TerminalFailure;
-  state_.pending_intent = intent;
+  if (transition.action != TransportAction::Navigate &&
+      transition.action != TransportAction::ShuffleNext)
+    state_.pending_intent = intent;
   return TransportRejection::None;
 }
 
@@ -338,6 +500,13 @@ void TransportController::consume_audio(const AudioObservation& observation) {
     state_.media_frame = completion.media_frame;
     if (state_.projected == TransportState::Loading)
       state_.projected = target_;
+    if (random_ && state_.policy_supported &&
+        state_.policy.desired.order == api::PlaybackOrder::ShuffleLibrary &&
+        (!state_.selection ||
+         !shuffle_.mark_started(navigation_index_, state_.selection->track_id))) {
+      fail(TransportFailure::Protocol, true);
+      return;
+    }
     break;
   case AudioControlKind::Pause:
     if (completion.media_frame < state_.media_frame) {
@@ -488,9 +657,22 @@ void TransportController::consume_position(const AudioObservation& observation) 
     if (held_end_reason_ == api::PlaybackEndReason::RepeatOne &&
         state_.policy.desired.repeat == api::RepeatMode::RepeatOne && state_.selection) {
       const TransportIntent restart{0, TransportIntentKind::PlayTrack, *state_.selection};
-      select(restart, true);
+      select(restart, true, false);
       state_.pending_intent.reset();
       return;
+    }
+    if (random_ && state_.policy_supported && state_.selection) {
+      const auto selected = state_.selection->track_id;
+      const auto next = state_.policy.desired.order == api::PlaybackOrder::ShuffleLibrary
+                            ? shuffle_.next(navigation_index_, selected, true)
+                            : navigation_index_.adjacent(selected, true);
+      if (next) {
+        const TransportIntent advance{
+            0, TransportIntentKind::PlayTrack, {catalog_status_.generation, *next}};
+        select(advance, true, false);
+        state_.pending_intent.reset();
+        return;
+      }
     }
     state_.media_frame = *held_end_frame_;
     held_end_frame_.reset();
@@ -617,6 +799,10 @@ TransportController::step(const std::uint64_t now_us, const TransportBatch& batc
   if (active_capability_change && state_.failure == TransportFailure::None)
     fail(TransportFailure::DeviceFault, false);
   sync_catalog(observation.fault || active_capability_change);
+  if (random_ && state_.policy_supported && catalog_status_.phase == CatalogPhase::Ready &&
+      navigation_index_.generation() != catalog_status_.generation &&
+      !navigation_index_.load(catalog_))
+    fail(TransportFailure::Protocol, true);
   TransportStepResult result;
   if (batch.count > kTransportBatchCapacity) {
     result.batch_error = TransportRejection::BatchTooLarge;

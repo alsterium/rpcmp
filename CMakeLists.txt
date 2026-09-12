@@ -121,6 +121,7 @@ rpcmp_production_options(rpcmp_library)
 add_library(rpcmp_player STATIC
   core/player/src/catalog_session.cpp
   core/player/src/media_loop_envelope.cpp
+  core/player/src/playback_navigation.cpp
   core/player/src/playback_transport.cpp
   core/player/src/player_session.cpp
   core/player/src/snapshot_publisher.cpp
@@ -365,6 +366,12 @@ if(BUILD_TESTING)
   target_compile_definitions(rpcmp_player_policy_tests PRIVATE RPCMP_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
   rpcmp_test_options(rpcmp_player_policy_tests)
   add_test(NAME player_policy COMMAND rpcmp_player_policy_tests)
+
+  add_executable(rpcmp_playback_navigation_tests tests/player/playback_navigation_tests.cpp)
+  target_include_directories(rpcmp_playback_navigation_tests PRIVATE tests/support)
+  target_link_libraries(rpcmp_playback_navigation_tests PRIVATE rpcmp_player)
+  rpcmp_test_options(rpcmp_playback_navigation_tests)
+  add_test(NAME playback_navigation COMMAND rpcmp_playback_navigation_tests)
 
   add_executable(rpcmp_media_loop_envelope_tests tests/player/media_loop_envelope_tests.cpp)
   target_include_directories(rpcmp_media_loop_envelope_tests PRIVATE tests/support)

@@ -12,6 +12,9 @@ using namespace rpcmp::player;
 using rpcmp::contracts::TransportState;
 namespace api = rpcmp::contracts::v2;
 constexpr rpcmp::contracts::TrackId kTrack{0x47305869eca5f89aULL};
+constexpr rpcmp::contracts::TrackId kB1{0x1379269c029ea5fcULL};
+constexpr rpcmp::contracts::TrackId kA2{0x00dc3d0692d52f4dULL};
+constexpr rpcmp::contracts::TrackId kA1{0xdfa1842e795ddea1ULL};
 
 template <typename T> T& required(std::optional<T>& value) {
   if (!value)
@@ -161,7 +164,8 @@ public:
   bool supported{true}, finite{}, reject_begin{};
 };
 struct Rig {
-  explicit Rig(rpcmp::test::Suite& checks) : suite(checks) {
+  explicit Rig(rpcmp::test::Suite& checks, RandomSource* random = nullptr)
+      : suite(checks), session(catalog, preparation, audio, {100, 20}, random) {
     const auto ticket = catalog.begin_open();
     RPCMP_CHECK(suite, bytes.size() == 1360 && ticket.ok());
     RPCMP_CHECK(suite, catalog.complete_open(ticket.generation, {bytes.data(), bytes.size()}).ok());
@@ -220,7 +224,7 @@ struct Rig {
   CatalogSession catalog;
   Preparation preparation;
   Audio audio;
-  PlayerSession session{catalog, preparation, audio, {100, 20}};
+  PlayerSession session;
   std::uint64_t id{}, now{};
 };
 
@@ -601,6 +605,344 @@ std::vector<std::tuple<AudioControlKind, std::uint64_t, std::uint64_t>> trace(Ri
                         request.repeat ? request.repeat->revision : 0);
   return result;
 }
+class Random final : public RandomSource {
+public:
+  bool next(std::uint32_t& value) override {
+    const auto ordinal = reads++;
+    if (!available)
+      return false;
+    value = reject ? std::numeric_limits<std::uint32_t>::max() : ordinal % 2;
+    return true;
+  }
+  std::uint32_t reads{};
+  bool available{true}, reject{};
+};
+
+api::PlaybackNavigationObservation navigation(const Rig& rig) {
+  return required(rig.session.latest().navigation);
+}
+rpcmp::contracts::TrackId selected(const Rig& rig) {
+  return required(rig.session.latest().track).item.track_id;
+}
+void finish_navigation(Rig& rig) {
+  for (unsigned i = 0; i < 16; ++i) {
+    if (rig.session.latest().transport == TransportState::Playing)
+      return;
+    if (rig.audio.pending)
+      rig.audio.ack();
+    else if (rig.preparation.pending && rig.preparation.progress == PreparationProgress::Pending)
+      rig.preparation.progress = PreparationProgress::Ready;
+    rig.tick();
+  }
+  RPCMP_CHECK(rig.suite, rig.session.latest().transport == TransportState::Playing);
+}
+void set_order(Rig& rig, api::PlaybackOrder order) {
+  auto command = rig.command(api::CommandKind::SetPlaybackPolicy);
+  auto policy = rig.state().desired;
+  policy.order = order;
+  command.policy = policy;
+  rig.accept(command);
+  rig.tick();
+  if (rig.audio.pending) {
+    RPCMP_CHECK(rig.suite, rig.audio.pending->kind == AudioControlKind::SetPolicy);
+    rig.audio.ack();
+    rig.tick();
+  }
+}
+void move(Rig& rig, api::CommandKind kind, rpcmp::contracts::TrackId destination) {
+  rig.accept(rig.command(kind));
+  rig.tick();
+  RPCMP_CHECK(rig.suite, selected(rig) == destination &&
+                             rig.session.latest().projected == TransportState::Loading);
+  const auto pending = required(rig.session.latest().pending_intent);
+  RPCMP_CHECK(rig.suite, required(pending.selection).track_id == destination);
+  finish_navigation(rig);
+  RPCMP_CHECK(rig.suite, selected(rig) == destination && rig.media().position_frames == 0);
+}
+void end_to(Rig& rig, rpcmp::contracts::TrackId destination) {
+  rig.audio.frames(11);
+  rig.tick();
+  RPCMP_CHECK(rig.suite, selected(rig) == destination && !rig.session.latest().pending_intent);
+  finish_navigation(rig);
+}
+
+void album_navigation(rpcmp::test::Suite& suite) {
+  Random random;
+  Rig rig(suite, &random);
+  rig.audio.finite = true;
+  rig.playing();
+  RPCMP_CHECK(suite,
+              navigation(rig).can_next && !navigation(rig).can_previous && !navigation(rig).cycle);
+  const auto before = rig.calls();
+  RPCMP_CHECK(suite, rig.session.submit(rig.command(api::CommandKind::PreviousTrack)).reason ==
+                             api::CommandReason::NoPreviousTrack &&
+                         rig.calls() == before && random.reads == 0);
+  end_to(rig, kB1);
+  RPCMP_CHECK(suite, !navigation(rig).can_next && navigation(rig).can_previous);
+  rig.audio.frames(11);
+  rig.tick();
+  rig.audio.ack();
+  rig.tick();
+  RPCMP_CHECK(suite, rig.session.latest().transport == TransportState::Ended &&
+                         rig.media().position_frames == 10 && selected(rig) == kB1);
+  RPCMP_CHECK(suite, rig.session.submit(rig.command(api::CommandKind::NextTrack)).reason ==
+                         api::CommandReason::NoNextTrack);
+  move(rig, api::CommandKind::PreviousTrack, kTrack);
+  rig.accept(rig.command(api::CommandKind::Pause));
+  rig.tick();
+  rig.audio.ack();
+  rig.tick();
+  move(rig, api::CommandKind::NextTrack, kB1);
+  RPCMP_CHECK(suite,
+              rig.session.latest().transport == TransportState::Playing && random.reads == 0);
+}
+
+void shuffle_history(rpcmp::test::Suite& suite) {
+  Random random;
+  Rig rig(suite, &random);
+  rig.audio.finite = true;
+  rig.playing();
+  auto shuffle = rig.command(api::CommandKind::SetPlaybackPolicy);
+  shuffle.policy = api::PlaybackPolicy{api::PlaybackOrder::ShuffleLibrary, api::RepeatMode::Default,
+                                       std::nullopt};
+  const auto before = rig.calls();
+  rig.accept(shuffle);
+  RPCMP_CHECK(suite, random.reads == 0 && rig.calls() == before);
+  RPCMP_CHECK(suite, rig.session.submit(rig.command(api::CommandKind::NextTrack)).reason ==
+                         api::CommandReason::ResourceBusy);
+  rig.tick();
+  rig.audio.ack();
+  rig.tick();
+  auto cycle = required(navigation(rig).cycle);
+  RPCMP_CHECK(suite, cycle.cycle_id == 1 && cycle.total_tracks == 4 && cycle.started_tracks == 1 &&
+                         random.reads == 2);
+  // Base B2/B1/A2/A1, pin B2, tail draws 0 at b=3 then 1 at b=2:
+  // B2/A1/A2/B1. These destinations are authored, not read from the planner.
+  end_to(rig, kA1);
+  move(rig, api::CommandKind::PreviousTrack, kTrack);
+  move(rig, api::CommandKind::NextTrack, kA1);
+  move(rig, api::CommandKind::PreviousTrack, kTrack);
+  RPCMP_CHECK(suite, required(navigation(rig).cycle).started_tracks == 2 && random.reads == 2);
+  end_to(rig, kA2);
+  end_to(rig, kB1);
+  RPCMP_CHECK(suite, required(navigation(rig).cycle).started_tracks == 4 && random.reads == 2);
+  rig.audio.frames(11);
+  rig.tick();
+  rig.audio.ack();
+  rig.tick();
+  RPCMP_CHECK(suite,
+              rig.session.latest().transport == TransportState::Ended && !navigation(rig).can_next);
+  rig.accept(rig.command(api::CommandKind::Play));
+  rig.tick();
+  RPCMP_CHECK(suite, required(navigation(rig).cycle).cycle_id == 2 &&
+                         required(navigation(rig).cycle).started_tracks == 0);
+  finish_navigation(rig);
+  RPCMP_CHECK(suite, required(navigation(rig).cycle).started_tracks == 1 && random.reads == 4);
+}
+
+void shuffle_lifecycle(rpcmp::test::Suite& suite) {
+  Random random;
+  Rig rig(suite, &random);
+  rig.audio.finite = true;
+  rig.playing();
+  set_order(rig, api::PlaybackOrder::ShuffleLibrary);
+  end_to(rig, kA1);
+  const auto cycle_id = required(navigation(rig).cycle).cycle_id;
+  auto repeat = rig.policy(5);
+  required(repeat.policy).order = api::PlaybackOrder::ShuffleLibrary;
+  rig.accept(repeat);
+  rig.tick();
+  rig.audio.ack();
+  rig.tick();
+  RPCMP_CHECK(suite, required(navigation(rig).cycle).cycle_id == cycle_id && random.reads == 2);
+  rig.accept(rig.command(api::CommandKind::Stop));
+  rig.tick();
+  rig.audio.ack();
+  rig.tick();
+  RPCMP_CHECK(suite, !navigation(rig).cycle && navigation(rig).can_previous);
+  move(rig, api::CommandKind::PreviousTrack, kTrack);
+  RPCMP_CHECK(suite, required(navigation(rig).cycle).cycle_id == 2 &&
+                         required(navigation(rig).cycle).started_tracks == 1);
+  set_order(rig, api::PlaybackOrder::AlbumOrder);
+  RPCMP_CHECK(suite, !navigation(rig).cycle);
+  end_to(rig, kB1);
+
+  Random fresh_random;
+  Rig fresh(suite, &fresh_random);
+  fresh.playing();
+  fresh.accept(fresh.command(api::CommandKind::Stop));
+  fresh.tick();
+  fresh.audio.ack();
+  fresh.tick();
+  set_order(fresh, api::PlaybackOrder::ShuffleLibrary);
+  RPCMP_CHECK(suite, navigation(fresh).can_next && !navigation(fresh).can_previous &&
+                         fresh_random.reads == 0);
+  move(fresh, api::CommandKind::NextTrack, kA1);
+  RPCMP_CHECK(suite,
+              required(navigation(fresh).cycle).started_tracks == 1 && fresh_random.reads == 2);
+}
+
+void shuffle_preparation(rpcmp::test::Suite& suite) {
+  Random random;
+  Rig rig(suite, &random);
+  rig.audio.finite = true;
+  rig.playing();
+  set_order(rig, api::PlaybackOrder::ShuffleLibrary);
+  rig.accept(rig.command(api::CommandKind::NextTrack));
+  rig.tick();
+  RPCMP_CHECK(suite, selected(rig) == kA1 && required(navigation(rig).cycle).started_tracks == 1);
+  rig.accept(rig.command(api::CommandKind::NextTrack));
+  rig.tick();
+  RPCMP_CHECK(suite, selected(rig) == kA2 && required(navigation(rig).cycle).started_tracks == 1);
+  finish_navigation(rig);
+  RPCMP_CHECK(suite, required(navigation(rig).cycle).started_tracks == 2);
+  end_to(rig, kA1); // Cancelled A1 remains eligible and is the first unstarted candidate.
+
+  Random loading_random;
+  Rig loading(suite, &loading_random);
+  loading.starting();
+  auto command = loading.command(api::CommandKind::SetPlaybackPolicy);
+  command.policy = api::PlaybackPolicy{api::PlaybackOrder::ShuffleLibrary, api::RepeatMode::Default,
+                                       std::nullopt};
+  loading.accept(command);
+  loading.tick();
+  RPCMP_CHECK(suite, required(navigation(loading).cycle).started_tracks == 0);
+  loading.audio.ack();
+  loading.tick();
+  RPCMP_CHECK(suite, required(navigation(loading).cycle).started_tracks == 1);
+  loading.audio.ack();
+  loading.tick();
+  loading.accept(loading.command(api::CommandKind::NextTrack));
+  loading.tick();
+  loading.audio.ack();
+  loading.tick();
+  loading.preparation.progress = PreparationProgress::Failed;
+  loading.tick();
+  RPCMP_CHECK(suite, loading.session.latest().transport == TransportState::Error &&
+                         !navigation(loading).cycle && loading.preparation.begins == 2 &&
+                         !navigation(loading).can_next);
+}
+
+void shuffle_failure(rpcmp::test::Suite& suite) {
+  for (const bool reject : {false, true}) {
+    Random random;
+    random.available = reject;
+    random.reject = reject;
+    Rig rig(suite, &random);
+    rig.playing();
+    auto command = rig.command(api::CommandKind::SetPlaybackPolicy);
+    command.policy = api::PlaybackPolicy{api::PlaybackOrder::ShuffleLibrary,
+                                         api::RepeatMode::Default, std::nullopt};
+    rig.accept(command);
+    rig.tick();
+    RPCMP_CHECK(suite, required(rig.session.latest().error).code ==
+                               api::PlaybackErrorCode::ResourceExhausted &&
+                           !required(rig.session.latest().error).terminal &&
+                           !navigation(rig).cycle && random.reads == (reject ? 32U : 1U) &&
+                           rig.audio.inhibits != 0);
+  }
+}
+
+void navigation_repeat_and_limits(rpcmp::test::Suite& suite) {
+  Random random;
+  Rig rig(suite, &random);
+  rig.audio.finite = true;
+  rig.playing();
+  set_order(rig, api::PlaybackOrder::ShuffleLibrary);
+  auto one = rig.policy(std::nullopt);
+  required(one.policy).order = api::PlaybackOrder::ShuffleLibrary;
+  rig.accept(one);
+  rig.tick();
+  rig.audio.ack();
+  rig.tick();
+  const auto generation = rig.session.latest().play_generation;
+  rig.audio.frames(11);
+  rig.tick();
+  finish_navigation(rig);
+  RPCMP_CHECK(suite, selected(rig) == kTrack &&
+                         rig.session.latest().play_generation == generation + 1 &&
+                         required(navigation(rig).cycle).started_tracks == 1 && random.reads == 2);
+  move(rig, api::CommandKind::NextTrack, kA1);
+  RPCMP_CHECK(suite, required(navigation(rig).cycle).started_tracks == 2 && random.reads == 2);
+  static_cast<void>(rig.catalog.close());
+  rig.tick();
+  RPCMP_CHECK(suite,
+              !navigation(rig).cycle && !navigation(rig).can_next && !navigation(rig).can_previous);
+
+  const auto bytes = fixture();
+  CatalogSession catalog;
+  const auto ticket = catalog.begin_open();
+  RPCMP_CHECK(suite, catalog.complete_open(ticket.generation, {bytes.data(), bytes.size()}).ok());
+  Preparation preparation;
+  Audio audio;
+  Random unused;
+  TransportController controller{
+      catalog, preparation, audio, {100, 20}, {0, 0, 1, std::numeric_limits<std::uint64_t>::max()},
+      &unused};
+  static_cast<void>(controller.step(0));
+  audio.ack();
+  static_cast<void>(controller.step(1));
+  TransportBatch batch;
+  batch.count = 2;
+  batch.intents[0] = {1,
+                      TransportIntentKind::SetPolicy,
+                      {},
+                      api::PlaybackPolicy{api::PlaybackOrder::ShuffleLibrary,
+                                          api::RepeatMode::Default, std::nullopt}};
+  batch.intents[1] = {2, TransportIntentKind::PlayTrack, {ticket.generation, kTrack}};
+  static_cast<void>(controller.step(2, batch));
+  RPCMP_CHECK(suite, controller.snapshot().failure == TransportFailure::ResourceExhausted &&
+                         controller.snapshot().terminal && unused.reads == 0 &&
+                         !preparation.pending);
+}
+
+std::vector<std::tuple<AudioControlKind, std::uint64_t, std::uint64_t>>
+navigation_trace(rpcmp::test::Suite& suite, bool publish) {
+  Random random;
+  Rig rig(suite, &random);
+  rig.audio.finite = true;
+  rig.playing();
+  auto shuffle = rig.command(api::CommandKind::SetPlaybackPolicy);
+  shuffle.policy = api::PlaybackPolicy{api::PlaybackOrder::ShuffleLibrary, api::RepeatMode::Default,
+                                       std::nullopt};
+  rig.accept(shuffle);
+  const auto step = [&]() {
+    const auto result = rig.session.step(rig.now++, publish);
+    RPCMP_CHECK(suite,
+                result.state.failure == TransportFailure::None && result.published == publish);
+    for (unsigned i = 0; i < (publish ? 25U : 0U); ++i)
+      static_cast<void>(rig.session.latest());
+    return result.state;
+  };
+  static_cast<void>(step());
+  rig.audio.ack();
+  static_cast<void>(step());
+  for (const auto target : {kA1, kA2, kB1}) {
+    rig.audio.frames(11);
+    const auto moving = step();
+    RPCMP_CHECK(suite, required(moving.selection).track_id == target && !moving.pending_intent);
+    rig.audio.ack();
+    static_cast<void>(step());
+    rig.preparation.progress = PreparationProgress::Ready;
+    static_cast<void>(step());
+    rig.audio.ack();
+    RPCMP_CHECK(suite, step().transport == TransportState::Playing);
+  }
+  rig.audio.frames(11);
+  static_cast<void>(step());
+  rig.audio.ack();
+  static_cast<void>(step());
+  rig.tick();
+  RPCMP_CHECK(suite, rig.session.latest().transport == TransportState::Ended &&
+                         selected(rig) == kB1 &&
+                         required(navigation(rig).cycle).started_tracks == 4 && random.reads == 2);
+  std::vector<std::tuple<AudioControlKind, std::uint64_t, std::uint64_t>> result;
+  result.reserve(rig.audio.trace.size());
+  for (const auto& request : rig.audio.trace)
+    result.emplace_back(request.kind, request.play_generation,
+                        request.repeat ? request.repeat->revision : 0);
+  return result;
+}
 } // namespace
 
 int main() {
@@ -613,6 +955,13 @@ int main() {
   counter_boundaries(suite);
   held_end_and_stale_media(suite);
   additional_boundaries(suite);
+  album_navigation(suite);
+  shuffle_history(suite);
+  shuffle_lifecycle(suite);
+  shuffle_preparation(suite);
+  shuffle_failure(suite);
+  navigation_repeat_and_limits(suite);
+  RPCMP_CHECK(suite, navigation_trace(suite, true) == navigation_trace(suite, false));
   Rig frequent(suite), sparse(suite);
   RPCMP_CHECK(suite, trace(frequent, true) == trace(sparse, false));
   return suite.finish("Player repeat policy connection");

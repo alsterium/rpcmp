@@ -6,8 +6,10 @@ This is an internal Core control contract, not PlayerCommand/PlayerSnapshot v1
 or the [public schema 2 observations](player-state-v2.md). UI cannot include these implementation types.
 The schema 2 ingress wraps this control contract. Its additive
 [repeat policy profile](playback-policy-v2.md) extends the intents, audio port
-and copied observations while preserving the transport rules below. Navigation,
-history, persistent settings and UI remain subsequent work. Scripted ports do
+and copied observations while preserving the transport rules below. Its
+[navigation extension](playback-navigation-v2.md) adds album/shuffle selection,
+an injected random port and Start-confirmed history. Performance history,
+persistent settings and UI remain subsequent work. Scripted ports do
 not substitute for the eventual engine/RTL integration.
 
 ## Ownership and step order
@@ -33,7 +35,8 @@ old completion/end notifications. An oversized batch is rejected before access;
 control/fault/deadline service continues. There are no busy waits or allocations.
 
 Supported intents are PlayTrack, LoadTrack, Play, Pause, Resume, TogglePause and
-Stop, plus SetPolicy in the repeat extension. Select intents carry library generation and TrackId. They check catalog
+Stop, plus SetPolicy in the repeat extension and NextTrack/PreviousTrack in
+the navigation extension. Select intents carry library generation and TrackId. They check catalog
 availability, generation and logical ID before disturbing sound. Other intents
 must not carry selection fields. Malformed/invalid/unsupported/busy/terminal
 requests leave the intended transport unchanged. A valid selection during
@@ -130,7 +133,9 @@ same constraints. Regressions or a violated freeze guarantee cause failure.
 The port, not Core's polling/render cadence, owns media timing. A committed end
 is retained during Pause and applied after Resume. Stop/reselection invalidate
 old end notifications. End requires reset, retains final position/selection and
-confirms Ended; the later order/repeat coordinator decides any next selection.
+confirms Ended when there is no next selection. The optional navigation/repeat
+extensions can instead select the next track through the same reset and
+preparation machinery, without inventing a public command ID.
 
 emergency_silence() is a nonblocking, latched output inhibit independent of the
 normal control mailbox. It does not claim reset completed or release buffers.

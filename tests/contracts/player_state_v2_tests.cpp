@@ -168,5 +168,31 @@ int main() {
   required(policy.audio_control).kind = api::AudioControlKind::SetPolicy;
   required(policy.audio_control).repeat.reset();
   RPCMP_CHECK(suite, !api::valid_player_snapshot(policy));
+  auto navigation = playing();
+  navigation.capabilities.bits |=
+      api::kPolicyObservations | api::kRepeatControl | api::kPlaybackNavigation;
+  navigation.policy = api::PlaybackPolicyObservation{};
+  required(navigation.policy).desired.order = api::PlaybackOrder::ShuffleLibrary;
+  navigation.navigation =
+      api::PlaybackNavigationObservation{true, true, api::ShuffleCycleObservation{42, {18}, 4, 2}};
+  navigation.pending_intent =
+      api::PendingIntent{19, api::TransportIntentKind::NextTrack, api::TrackSelection{{18}, {91}}};
+  RPCMP_CHECK(suite, api::valid_player_snapshot(navigation));
+  const auto reject_navigation = [&](const auto& mutate) {
+    auto value = navigation;
+    mutate(value);
+    RPCMP_CHECK(suite, !api::valid_player_snapshot(value));
+  };
+  reject_navigation([](auto& s) { s.capabilities.bits &= ~api::kPlaybackNavigation; });
+  reject_navigation([](auto& s) { s.capabilities.bits &= ~api::kRepeatControl; });
+  reject_navigation([](auto& s) { s.navigation.reset(); });
+  reject_navigation([](auto& s) { required(required(s.navigation).cycle).cycle_id = 0; });
+  reject_navigation(
+      [](auto& s) { required(required(s.navigation).cycle).library_generation = {17}; });
+  reject_navigation([](auto& s) { required(required(s.navigation).cycle).total_tracks = 3; });
+  reject_navigation([](auto& s) { required(required(s.navigation).cycle).started_tracks = 5; });
+  reject_navigation(
+      [](auto& s) { required(s.policy).desired.order = api::PlaybackOrder::AlbumOrder; });
+  reject_navigation([](auto& s) { required(s.pending_intent).selection.reset(); });
   return suite.finish("Player state schema 2 contracts");
 }

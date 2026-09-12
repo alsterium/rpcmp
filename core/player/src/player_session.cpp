@@ -36,6 +36,12 @@ std::optional<TransportIntent> translate(const api::PlayerCommand& command) {
   case api::CommandKind::SetPlaybackPolicy:
     result.kind = TransportIntentKind::SetPolicy;
     break;
+  case api::CommandKind::NextTrack:
+    result.kind = TransportIntentKind::NextTrack;
+    break;
+  case api::CommandKind::PreviousTrack:
+    result.kind = TransportIntentKind::PreviousTrack;
+    break;
   default:
     return std::nullopt;
   }
@@ -77,14 +83,20 @@ api::CommandReason reason(const TransportRejection rejection) noexcept {
     return api::CommandReason::TerminalFailure;
   case TransportRejection::BatchTooLarge:
     return api::CommandReason::QueueFull;
+  case TransportRejection::NoNextTrack:
+    return api::CommandReason::NoNextTrack;
+  case TransportRejection::NoPreviousTrack:
+    return api::CommandReason::NoPreviousTrack;
   }
   return api::CommandReason::MalformedRequest;
 }
 } // namespace
 
 PlayerSession::PlayerSession(const CatalogSession& catalog, PreparationPort& preparation,
-                             AudioTransportPort& audio, const TransportTiming timing) noexcept
-    : catalog_(catalog), transport_(catalog, preparation, audio, timing), publisher_(catalog) {}
+                             AudioTransportPort& audio, const TransportTiming timing,
+                             RandomSource* random) noexcept
+    : catalog_(catalog), transport_(catalog, preparation, audio, timing, {}, random),
+      publisher_(catalog) {}
 
 api::PlayerSnapshot PlayerSession::latest() const noexcept {
   auto result = publisher_.latest();
@@ -135,8 +147,9 @@ api::CommandResult PlayerSession::submit(const api::PlayerCommand& command) {
     } else {
       auto candidate = projected_;
       const auto& context = synchronized_;
-      result.reason = reason(
-          project_transport(catalog_, context.pause_supported, *intent, candidate).rejection);
+      result.reason = reason(project_transport(catalog_, context.pause_supported, *intent,
+                                               candidate, &transport_.navigation_index_)
+                                 .rejection);
       if (result.reason == api::CommandReason::None) {
         if (!stepped_ || context.catalog != catalog_.status()) {
           result.reason = api::CommandReason::ResourceBusy;

@@ -6,8 +6,9 @@ The v1 API and M0 implementation remain unchanged. This profile connects the
 seven transport intents to the [Core transport](playback-transport-v1.md) and
 [public state](player-state-v2.md). The additive
 [repeat policy profile](playback-policy-v2.md) now connects settings to the
-audio port. Album/shuffle navigation, persistence and history follow in this
-same milestone and are not advertised by these profiles.
+audio port. The [navigation profile](playback-navigation-v2.md) connects
+album/shuffle order and explicit neighbours. Persistence and history follow
+in this same milestone and are not advertised by these profiles.
 
 ## Public boundary
 
@@ -21,7 +22,8 @@ No command contains physical controls, UI views, engine state or file offsets.
 PlayerCommand has schema_version=2, nonzero command_id:u64, optional
 expected_snapshot_sequence:u64, CommandKind, optional TrackSelection and optional PlaybackPolicy.
 CommandKind values are PlayTrack=0, LoadTrack=1, Play=2, Pause=3, Resume=4,
-TogglePause=5, Stop=6, SetPlaybackPolicy=7. Only PlayTrack/LoadTrack require a selection, with nonzero
+TogglePause=5, Stop=6, SetPlaybackPolicy=7, NextTrack=8, PreviousTrack=9.
+Only PlayTrack/LoadTrack require a selection, with nonzero
 library generation and TrackId; all other commands prohibit that field.
 Unknown tags and malformed selection shapes are MalformedRequest.
 Only SetPlaybackPolicy requires a policy; all other kinds prohibit it. Its
@@ -38,7 +40,9 @@ Reason values are None=0, UnsupportedSchema=1, InvalidCommandId=2,
 DuplicateCommandId=3, StaleCommandId=4, StaleSnapshotSequence=5,
 MalformedRequest=6, InvalidState=7, LibraryUnavailable=8, StaleLibrary=9,
 UnknownTrack=10, UnsupportedCapability=11, ResourceBusy=12, QueueFull=13,
-TerminalFailure=14. These describe admission, not audio completion.
+TerminalFailure=14, NoNextTrack=15, NoPreviousTrack=16. These describe admission,
+not audio completion. Navigation availability and unresolved random ordering
+are defined by the navigation profile.
 
 ## Admission and replay
 

@@ -62,10 +62,12 @@ bool valid_player_snapshot(const PlayerSnapshot& snapshot) noexcept {
   if (snapshot.pending_intent) {
     const auto& intent = *snapshot.pending_intent;
     const bool selecting = intent.kind == TransportIntentKind::PlayTrack ||
-                           intent.kind == TransportIntentKind::LoadTrack;
+                           intent.kind == TransportIntentKind::LoadTrack ||
+                           intent.kind == TransportIntentKind::NextTrack ||
+                           intent.kind == TransportIntentKind::PreviousTrack;
     if (intent.command_id == 0 ||
         static_cast<std::uint8_t>(intent.kind) >
-            static_cast<std::uint8_t>(TransportIntentKind::Stop) ||
+            static_cast<std::uint8_t>(TransportIntentKind::PreviousTrack) ||
         selecting != intent.selection.has_value() ||
         (intent.selection && !valid_selection(*intent.selection)))
       return false;
@@ -105,6 +107,23 @@ bool valid_player_snapshot(const PlayerSnapshot& snapshot) noexcept {
            media.applied != repeat_application(policy.desired, policy.revision)))
         return false;
     }
+  }
+  const bool navigation_observed = (snapshot.capabilities.bits & kPlaybackNavigation) != 0;
+  if (navigation_observed != snapshot.navigation.has_value() ||
+      (navigation_observed && (snapshot.capabilities.bits & kRepeatControl) == 0))
+    return false;
+  if (snapshot.navigation && (snapshot.navigation->can_next || snapshot.navigation->can_previous) &&
+      (!snapshot.track || snapshot.library.phase != CatalogPhase::Ready || snapshot.error))
+    return false;
+  if (snapshot.navigation && snapshot.navigation->cycle) {
+    const auto& cycle = *snapshot.navigation->cycle;
+    if (!snapshot.track || snapshot.error || snapshot.transport == TransportState::Stopped ||
+        !snapshot.policy || snapshot.policy->desired.order != PlaybackOrder::ShuffleLibrary ||
+        snapshot.library.phase != CatalogPhase::Ready || cycle.cycle_id == 0 ||
+        cycle.library_generation != snapshot.library.generation || cycle.total_tracks == 0 ||
+        cycle.total_tracks != snapshot.library.track_count ||
+        cycle.started_tracks > cycle.total_tracks)
+      return false;
   }
   return true;
 }

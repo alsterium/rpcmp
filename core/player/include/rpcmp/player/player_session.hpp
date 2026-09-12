@@ -18,7 +18,8 @@ class PlayerSession final : public contracts::v2::CommandIngress,
                             public contracts::v2::SnapshotSource {
 public:
   PlayerSession(const CatalogSession& catalog, PreparationPort& preparation,
-                AudioTransportPort& audio, TransportTiming timing) noexcept;
+                AudioTransportPort& audio, TransportTiming timing,
+                RandomSource* random = nullptr) noexcept;
   PlayerSession(const PlayerSession&) = delete;
   PlayerSession& operator=(const PlayerSession&) = delete;
   [[nodiscard]] contracts::v2::CommandResult

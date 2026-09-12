@@ -43,8 +43,11 @@ executable audio-boundary model: sealed mapped progress, generation-tagged
 controls, live repeat decisions, integer stereo gain and pause/end ordering.
 [Repeat policy schema 2](../../specs/playback-policy-v2.md) adopts the public
 setting command, desired/applied revisions, coherent audio observations and
-finite RepeatOne restart through a capability-gated port extension. Album/shuffle
-navigation and the real audio mapping/adapter remain subsequent work; this
+finite RepeatOne restart through a capability-gated port extension.
+[Navigation schema 2](../../specs/playback-navigation-v2.md) adopts the bounded
+album index, Start-confirmed shuffle history, injected rejection-sampled random
+input, neighbour commands and automatic selection through normal transport.
+Performance history/settings/UI and the real audio mapping/adapter remain subsequent work; this
 does not advertise a new capability on the existing Pocket backend.
 Hardware ACK deadlines and MMIO remain slice 4 decisions based on RTL evidence.
 
@@ -550,3 +553,49 @@ Initial logs: `out/build/m6-policy-host.log`, `out/build/m6-policy-posix.log`
 No RTL/APF/package inputs changed. RTL simulation, synthesis and hardware
 tests were not run; host traces and link success do not prove audible mapping,
 actual FM-state freeze or hardware silence.
+
+Slice 3's album/shuffle navigation is implemented on 2026-09-13. A Core-owned
+index copies at most 300 logical IDs in display order. Next/Previous and
+committed ends select through the existing reset/preparation machinery.
+Shuffle pins the current track, uses injected bounded rejection sampling,
+registers successful current-generation Starts, preserves unstarted cancelled
+candidates, and distinguishes manual history replay from automatic selection.
+It stops after one cycle. RepeatOne restart preserves the cycle; explicit
+neighbours override repeat. Desired/applied repeat state remains independent.
+
+The navigation profile requires an injected random port and repeat capability.
+Existing constructors/backends retain their prior behavior. Public observations
+copy neighbour availability and cycle identity/counts, without exposing the
+mutable order or requiring UI/render activity. Performance history, durable
+settings, mock UI/input and the real Pocket adapters remain in M6.
+
+Executed navigation evidence:
+
+- `pwsh -File tools/host-verify.ps1`: 69/69 PASS, 324.03 seconds, including
+  formatting, clang-tidy and positive/negative architecture checks.
+  Log: `out/build/m6-navigation-host.log` (ignored).
+- `pwsh -File out/build/m6-navigation-focused.ps1`: 13/13 PASS, 0.71 seconds.
+  Log: `out/build/m6-navigation-focused-final.log` (ignored).
+- Offline Docker GCC 13.3.0 ASan/UBSan: seven suites PASS (schema 2 command/state,
+  ingress, transport, publisher, repeat/navigation integration and navigation
+  order/bounds). Script/log: `out/build/m6-navigation-posix.py`,
+  `out/build/m6-navigation-posix.log` (ignored).
+- Offline Docker `make --file out/build/m6-navigation-cross/Makefile navigation-check`:
+  RISC-V link-only probe PASS, no undefined symbols. Text 43,220, data 188,
+  BSS 1,800 bytes; conservative stack bound 63,216 bytes. Probe and budget:
+  `out/build/m6-navigation-cross`; log: `out/build/m6-navigation-cross.log`
+  (ignored). This is not an executed or integrated Pocket player budget.
+- `python -B tools/check_harness.py`: PASS; changed Markdown local file links:
+  72 PASS (`out/build/m6-navigation-links.py`, ignored).
+
+The four-track permutation is authored from the tail swaps (draws 0 for bound 3,
+then 1 for bound 2), independently of planner output. Generated 1/300-track
+metadata verifies cardinality/uniqueness, and 301/duplicate catalogs preserve
+the previous index on rejection. Tests cover the 31-reject/32nd-accept and
+32-reject limits, missing random input, checked cycle exhaustion, album edges,
+paused/manual selection, cancellation before Start, preparation failure, live
+order changes, finite RepeatOne, Stop/restart, and identical control traces
+with dense versus skipped publication. No golden was regenerated.
+No RTL/APF/package inputs changed. RTL simulation, synthesis and hardware
+tests were not run; actual audio timing, source freeze and production resource
+headroom remain integration gates.

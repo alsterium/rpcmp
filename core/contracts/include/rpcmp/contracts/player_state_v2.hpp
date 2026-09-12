@@ -10,6 +10,7 @@ inline constexpr std::uint16_t kSchemaVersion = 2;
 inline constexpr std::uint32_t kFrameRate = 48'000;
 inline constexpr std::uint64_t kTransportObservations = 1ULL << 0U;
 inline constexpr std::uint64_t kStatePreservingPause = 1ULL << 1U;
+inline constexpr std::uint64_t kPlaybackNavigation = 1ULL << 5U;
 
 enum class TransportIntentKind : std::uint8_t {
   PlayTrack = 0,
@@ -18,7 +19,9 @@ enum class TransportIntentKind : std::uint8_t {
   Pause = 3,
   Resume = 4,
   TogglePause = 5,
-  Stop = 6
+  Stop = 6,
+  NextTrack = 7,
+  PreviousTrack = 8
 };
 struct TrackSelection {
   LibraryGeneration library_generation{};
@@ -69,6 +72,17 @@ struct PlaybackError {
   PlaybackErrorCode code{PlaybackErrorCode::Protocol};
   bool terminal{};
 };
+struct ShuffleCycleObservation {
+  std::uint64_t cycle_id{};
+  LibraryGeneration library_generation{};
+  std::uint32_t total_tracks{};
+  std::uint32_t started_tracks{};
+};
+struct PlaybackNavigationObservation {
+  bool can_next{};
+  bool can_previous{};
+  std::optional<ShuffleCycleObservation> cycle;
+};
 struct PlayerSnapshot {
   std::uint16_t schema_version{kSchemaVersion};
   std::uint64_t sequence{};
@@ -88,6 +102,7 @@ struct PlayerSnapshot {
   std::optional<PendingAudioControl> audio_control;
   std::optional<PlaybackError> error;
   std::optional<PlaybackPolicyObservation> policy{std::nullopt};
+  std::optional<PlaybackNavigationObservation> navigation{std::nullopt};
 };
 
 class SnapshotSource {

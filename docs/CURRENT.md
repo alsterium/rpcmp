@@ -2,8 +2,8 @@
 
 Active milestone: [M6 — Album Player](milestones/M6-album-player.md)
 
-The current task is M6 slice 3: adopt and connect album/shuffle navigation,
-then history/settings and mock UI/input behavior through injected ports, around the
+The current task is M6 slice 3: adopt and connect performance history/settings
+and mock UI/input behavior through injected ports, around the
 [Core transport](../specs/playback-transport-v1.md),
 [schema 2 ingress](../specs/player-command-v2.md) and
 [published state](../specs/player-state-v2.md).
@@ -11,7 +11,7 @@ The internal transport now handles asynchronous preparation/reset/start/pause/
 resume, cancellation, fault priority and deadlines with scripted host ports.
 The public state publisher copies selection metadata, committed position,
 pending operations and errors without polling audio or depending on UI reads.
-PlayerSession connects the seven public transport commands and repeat policy with a 32-command
+PlayerSession connects transport, repeat policy and navigation with a 32-command
 queue, 64-result replay window and shared projection/execution validation.
 Submission and public reads perform no playback-port calls; publication can
 be skipped without changing control work. Library/backend changes after
@@ -24,12 +24,15 @@ implements live repeat decisions, fade/restoration and paused sample ownership.
 The [repeat policy profile](../specs/playback-policy-v2.md) now connects
 SetPlaybackPolicy to the transport and audio boundary, with desired/applied
 revisions, coherent media observations and finite RepeatOne restart.
-Only declared repeat-capable ports accept it; shuffle remains explicitly
-unsupported until the navigation unit. Next connect album/shuffle navigation,
-then history/settings and mock UI/input. The real audible mapping and sound
-adapter remain to be wired.
+Only declared repeat-capable ports accept it. The optional
+[navigation profile](../specs/playback-navigation-v2.md) now connects album
+auto-advance, explicit neighbours and whole-library shuffle through an injected
+random port. Shuffle counts successful starts, keeps cancelled candidates
+eligible and avoids automatic replay of visited history. Next connect performance
+history/settings and mock UI/input. The real audible mapping and sound adapter
+remain to be wired.
 See M6 for the executed checks; this does not establish a working Pocket audio
-adapter, complete album/shuffle policy, complete UI or completion of slice 3.
+adapter, complete UI or completion of slice 3.
 Use the [transition proposal](design/pocket-player-transition-contract.md),
 preserve v1 compatibility and adopt each contract before its implementation.
 Slices 1–2 implement [host metadata](../specs/host-metadata-v1.md),

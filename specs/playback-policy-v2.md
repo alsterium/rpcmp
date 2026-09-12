@@ -3,9 +3,9 @@
 Status: adopted for M6 slice 3. This extends the source-level
 [command](player-command-v2.md), [state](player-state-v2.md) and
 [transport](playback-transport-v1.md) contracts; v1 is unchanged. These C++
-types are not a serialized ABI. The remaining album/shuffle navigation in the
-[transition proposal](../docs/design/pocket-player-transition-contract.md)
-is still required by M6.
+types are not a serialized ABI. The additive
+[navigation profile](playback-navigation-v2.md) now connects album/shuffle order
+when the Core owner supplies its random port.
 
 ## Commands and desired state
 
@@ -18,9 +18,10 @@ and Counted to its count. Natural finite tracks play once except RepeatOne,
 which prepares the same track again after an audible end.
 
 Capability bit 3 declares policy observations; bit 4 declares repeat control.
-This profile accepts AlbumOrder only. A valid ShuffleLibrary request returns
-UnsupportedCapability until the navigation extension is adopted and connected;
-it must never be accepted and ignored. Existing backends default to no repeat
+Without the navigation extension, this profile accepts AlbumOrder only and a
+valid ShuffleLibrary request returns UnsupportedCapability. The navigation
+extension accepts it and implements its order; it must never be accepted and
+ignored. Existing backends default to no repeat
 capability and retain their existing behavior. Bit 4 requires bit 3.
 
 The existing command identity, replay, sequence, payload, projection and queue
@@ -70,8 +71,9 @@ cancel an end already committed at an audio boundary. Finite RepeatOne
 restarts only for an observed RepeatOne end while the desired mode is still
 RepeatOne. End held during pause is acted on after resume. Internal restart
 uses a new play generation and normal reset/preparation ownership, without
-fabricating a public command ID. Automatic next-album-track and shuffle remain
-the next navigation unit; this repeat profile does not claim their completion.
+fabricating a public command ID. Automatic next-album-track and shuffle are
+specified by the optional navigation extension; they are not implied merely
+by the repeat capability.
 
 ## Verification
 
