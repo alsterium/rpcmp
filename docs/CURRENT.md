@@ -69,8 +69,21 @@ Q15 is answered: apply playback-setting changes to the current track without
 resetting its position; start fading when the new loop count has already been
 reached. Q16 selects A for play/pause/resume and B for stop, with an easily
 replaceable input/UI mapping so later usability changes do not alter Player,
-MDX or audio code. Q1-Q16 are answered; next is concrete contract and state-machine
-design, not another pass over the same preference questions.
+MDX or audio code. Q1-Q16 are answered. The concrete
+[catalog proposal](design/pocket-album-catalog-contract.md) now defines ALBM bytes,
+IDs, deterministic ordering, validation and generation-scoped pages. The
+[transport proposal](design/pocket-player-transition-contract.md) defines schema-2
+compatibility, cancellation, multi-channel loop counting, pause/fade policy
+changes and shuffle history. These are reviewable proposals, not active public
+contracts or implemented capabilities. Queue v1 and sound-reset v1 do not
+provide state-preserving pause or gain ramps; a separately reviewed sound-control
+port is a prerequisite. Next, settle the remaining input/display/normalization
+details and sound-port contract, then adopt the implementation milestone with
+explicit ownership of the remaining M5 gates. Q17 is answered: B first stops
+playback while staying on the playback screen; a new B press after confirmed
+stop returns to the track list. The second action stays in UI and sends no
+additional Core command; repeated presses before stop completes are not queued
+as navigation. A retains play/pause/resume.
 
 General placement stability, integrated timing/CDC and external-I/O constraints,
 broader APF lifecycle/failure coverage, and explicit future PCM/UI reserves remain open.

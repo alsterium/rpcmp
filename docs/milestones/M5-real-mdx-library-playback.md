@@ -543,3 +543,26 @@ isolated in input/UI configuration for changes after hands-on use. The draft
 adds a proposed contextual flow and command-level verification criteria.
 Q1-Q16 are answered. This is documentation work; no new
 implementation or hardware acceptance is claimed.
+
+### Concrete catalog and transport proposals — 2026-09-13
+
+Continued specification work produced the
+[ALBM catalog proposal](../design/pocket-album-catalog-contract.md) and
+[playback-transition proposal](../design/pocket-player-transition-contract.md).
+They define deterministic album identity/order, bounded binary validation and
+generation-scoped catalog pages, then schema-2 command/snapshot evolution,
+stale-completion cancellation, whole-track loop observations, sample-based fade,
+policy changes while paused/fading, and one-cycle shuffle with explicit history.
+The v1 build ID continues to cover only the required six sections; it is not
+used as an identity for optional album/order changes.
+
+The existing queue/reset contracts do not offer state-preserving pause or gain
+control. The proposal records that gap and the required audio guarantees without
+repurposing v1 registers or claiming new RTL support. Remaining design work is
+input/display/normalization detail, the sound-control port and adoption of a
+next milestone with explicit M5 gate ownership. The user answered Q17: B stops
+while staying on the playback screen, then a new B press after confirmed stop
+returns to the track list. This is contextual UI navigation and does not change
+the Core Stop command into Back. No implementation, test oracle, package,
+dependency or active public contract changed; M5 acceptance and the closed
+investigation retain their previous status.
