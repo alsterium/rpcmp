@@ -33,9 +33,10 @@ The firmware 2.6 [admission-failure check](design/pocket-m5-failure-hardware-che
 passed by user report on 2026-09-10 for all three input-only probes: FAIL codes
 2/3/4, explicitly confirmed RESET OK, one minute of silence/no PLAYING,
 warm/cold starts and return to normal playback. The next task is the
-[APF lifecycle/transport hardware check](design/pocket-m5-apf-hardware-check.md):
-normal, injected error and missing-completion candidates are packaged with
-corrected status/readiness handling. Their hardware results are pending.
+[APF2 primer repair check](design/pocket-m5-apf-primer-hardware-check.md):
+the old APF candidates passed reported playback/silence/recovery, but TIMEOUT
+also stalled OS filesystem initialization for about 40 seconds. The repaired
+injection excludes offset-zero OS primers; its hardware results are pending.
 Admission-failure silence does not establish transport-timeout or in-playback
 fault handling; these candidates retain that distinction.
 

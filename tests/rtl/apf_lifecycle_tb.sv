@@ -27,6 +27,7 @@ module apf_lifecycle_tb;
     reg rd = 0, wr = 0, boot_done = 0;
     reg target_read = 0;
     reg [15:0] slot_id = 4;
+    reg [31:0] read_offset = 0, read_length = 4096;
     wire target_ack, target_done;
     wire [2:0] target_error;
     wire [31:0] read_data;
@@ -57,8 +58,8 @@ module apf_lifecycle_tb;
         .savestate_load_ok(1'b0), .savestate_load_err(1'b0),
         .target_dataslot_read(target_read), .target_dataslot_write(1'b0),
         .target_dataslot_getfile(1'b0), .target_dataslot_openfile(1'b0),
-        .target_dataslot_id(slot_id), .target_dataslot_slotoffset(32'd80),
-        .target_dataslot_bridgeaddr(32'h20100000), .target_dataslot_length(32'd128),
+        .target_dataslot_id(slot_id), .target_dataslot_slotoffset(read_offset),
+        .target_dataslot_bridgeaddr(32'h20100000), .target_dataslot_length(read_length),
         .target_buffer_param_struct(32'd0), .target_buffer_resp_struct(32'd0),
         .datatable_addr(10'd0), .datatable_wren(1'b0), .datatable_data(32'd0)
     );
@@ -109,11 +110,11 @@ module apf_lifecycle_tb;
         read_reg(32'hf8001020, value);
         if (value !== {16'd0,id}) $fatal(1, "wrong slot");
         read_reg(32'hf8001024, value);
-        if (value !== 80) $fatal(1, "wrong offset");
+        if (value !== read_offset) $fatal(1, "wrong offset");
         read_reg(32'hf8001028, value);
         if (value !== 32'h20100000) $fatal(1, "wrong DMA destination");
         read_reg(32'hf800102c, value);
-        if (value !== 128) $fatal(1, "wrong bounded length");
+        if (value !== read_length) $fatal(1, "wrong bounded length");
         write_reg(32'hf8001000, 32'h62750000);
         repeat (3) @(negedge clk);
         if (!target_ack || target_done) $fatal(1, "wrong busy handshake");
@@ -137,8 +138,19 @@ module apf_lifecycle_tb;
             write_reg(32'hf7000020, mode);
             load_and_run(0); // no second RTC notification
             transfer(1, 1, 0); // OS/config/app transport must remain normal
-            transfer(4, 1, 0); // first library read completes normally
+            read_offset = 0; read_length = 4;
+            repeat (8) transfer(4, 1, 0); // GETFILE primer/retries before app entry
+            read_length = 80; // even a minimum-size, single-read library must fault
             transfer(4, mode == 1, mode == 1 ? 3 : 0);
+            read_length = 4096;
+            transfer(4, mode == 1, mode == 1 ? 3 : 0);
+            read_offset = 4096;
+            transfer(4, mode == 1, mode == 1 ? 3 : 0);
+            read_length = 4;
+            transfer(4, mode == 1, mode == 1 ? 3 : 0); // short tail is not a primer
+            read_offset = 0; read_length = 4;
+            transfer(4, 1, 0); // metadata primers remain usable even after a fault
+            read_length = 4096;
             command(0, 4); // APF Host command handling survives the injected fault
         end
         command(16'h0010, 0);

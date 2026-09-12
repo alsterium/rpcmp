@@ -450,11 +450,24 @@ Normal music/both channels were PASS. The follow-up explicitly confirmed
 The [hardware record](../design/pocket-m5-failure-hardware-check.md) preserves
 this distinction and the observation limits.
 
-The next hardware handoff is the bounded
+The initial APF hardware handoff was the bounded
 [APF lifecycle/transport experiment](../design/pocket-m5-apf-hardware-check.md),
 version `0.10.4-m5-apf`: corrected status/readiness handling and separate
 normal/error/missing-completion packages. Its real command-handler simulation,
-existing RTL/JT51 suites and full Quartus build passed; Pocket results remain
-pending. Faults during playback, failed reset responses,
+existing RTL/JT51 suites and full Quartus build passed; Pocket results are
+reported below. Faults during playback, failed reset responses,
 integrated CDC/external-I/O policy and future PCM/UI reserves remain open.
 This accepts admission-failure coverage, not M5 or production promotion.
+
+### APF hardware report and primer repair
+
+The user confirmed old APF NORMAL playback/stereo/one minute, three warm starts
+and cold start, plus ERROR/TIMEOUT FAIL 3 / RESET OK, silence and recovery.
+TIMEOUT additionally stalled at Filesystem init for about 40 seconds with
+`bridge timeout DONE #19 st=21`; READING-to-FAIL took about two seconds.
+The old read-count injection also targets repeated OS filename primers.
+The [APF2 repair handoff](../design/pocket-m5-apf-primer-hardware-check.md)
+excludes slot-4 offset-zero four-byte primers, then faults the first app read,
+including a library that fits in one chunk. It does not claim partial admission.
+An actual-handler regression fails on the old RTL and passes on the repair.
+Hardware verification of the repaired candidates remains pending.

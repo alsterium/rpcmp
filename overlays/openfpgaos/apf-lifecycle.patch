@@ -6,7 +6,7 @@
 +            .rise(), .fall());
 @@ -185 +185,0 @@
 -    reg             warm_reset_ready_pending;
-@@ -191,0 +192,15 @@
+@@ -191,0 +192,14 @@
 +    wire    [31:0]  b_datatable_q;
 +    reg     [9:0]   b_datatable_addr;
 +    reg             b_datatable_wren;
@@ -20,65 +20,64 @@
 +    // 0: normal, 1: result error, 2: hide completion after a partial library read.
 +    reg [1:0] rpcmp_fault_mode = 0;
 +    reg [1:0] rpcmp_active_fault = 0;
-+    reg rpcmp_library_read_seen = 0;
 +
-@@ -192,0 +208,4 @@
+@@ -192,0 +207,4 @@
 +    hstate <= ST_IDLE;
 +    tstate <= TARG_ST_IDLE;
 +    host_cmd_start <= 0;
 +    status_setup_done_1 <= 0;
-@@ -205 +223,0 @@
+@@ -205 +222,0 @@
 -    warm_reset_ready_pending <= 0;
-@@ -248,0 +267,3 @@
+@@ -248,0 +266,3 @@
 +        32'hF7000020: begin
 +            if (!reset_n) rpcmp_fault_mode <= bridge_wr_data_in[1:0];
 +        end
-@@ -351 +372,3 @@
+@@ -351 +371,3 @@
 -                if(status_setup_done) begin
 +                if(status_running) begin
 +                    host_resultcode <= 4; // running
 +                end else if(status_setup_done || reset_idle) begin
-@@ -353,2 +375,0 @@
+@@ -353,2 +374,0 @@
 -                end else if(status_running) begin
 -                    host_resultcode <= 4; // running
-@@ -368,0 +390,4 @@
+@@ -368,0 +389,3 @@
 +                reset_idle <= 1;
 +                rpcmp_fault_mode <= 0;
 +                rpcmp_active_fault <= 0;
-+                rpcmp_library_read_seen <= 0;
-@@ -375,5 +400 @@
+@@ -375,5 +398 @@
 -                // A menu "Load Game" / instance switch can reset and reload
 -                // slots without reconfiguring the FPGA.  In that warm path
 -                // status_setup_done is already high, so its edge detector will
 -                // not fire again.  Delay the fresh Ready-To-Run until after
 -                // stale read-only datatable entries have been cleared.
 +                // Wait for fresh slots; the boot-time RTC remains valid on reload.
-@@ -381 +401,0 @@
+@@ -381 +399,0 @@
 -                warm_reset_ready_pending <= reset_n && status_setup_done;
-@@ -415,0 +436 @@
+@@ -415,0 +434 @@
 +            reset_idle <= 0;
-@@ -427,0 +449 @@
+@@ -427,0 +447 @@
 +            reset_idle <= 0;
-@@ -434,0 +457 @@
+@@ -434,0 +455 @@
 +            reset_idle <= 0;
-@@ -529,2 +551,0 @@
+@@ -529,2 +549,0 @@
 -            status_setup_done_queue <= warm_reset_ready_pending;
 -            warm_reset_ready_pending <= 0;
-@@ -551,0 +573 @@
+@@ -551,0 +571 @@
 +        rpcmp_active_fault <= 0;
-@@ -560,0 +583,4 @@
-+            if (target_dataslot_id == 16'd4) begin
-+                if (rpcmp_library_read_seen) rpcmp_active_fault <= rpcmp_fault_mode;
-+                rpcmp_library_read_seen <= 1;
-+            end
-@@ -622 +648 @@
+@@ -560,0 +581,5 @@
++            // Exclude every OS GETFILE primer, including retries. M5's admitted
++            // library is at least 80 bytes; its first data read is not a primer.
++            if (target_dataslot_id == 16'd4 &&
++                !(target_dataslot_slotoffset == 0 && target_dataslot_length == 4))
++                rpcmp_active_fault <= rpcmp_fault_mode;
+@@ -622 +646 @@
 -            target_dataslot_err <= target_0[2:0];
 +            target_dataslot_err <= rpcmp_active_fault == 1 ? 3'd3 : target_0[2:0];
-@@ -624 +650,2 @@
+@@ -624 +648,2 @@
 -            target_dataslot_done <= 1;
 +            // Host/DMA really completed; timeout mode withholds only CPU DONE.
 +            target_dataslot_done <= rpcmp_active_fault != 2;
-@@ -640,7 +666,0 @@
+@@ -640,7 +664,0 @@
 -    wire    [31:0]  b_datatable_q;
 -    reg     [9:0]   b_datatable_addr;
 -    reg             b_datatable_wren;

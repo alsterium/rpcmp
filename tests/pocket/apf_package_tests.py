@@ -35,7 +35,7 @@ class ApfPackageTests(unittest.TestCase):
                     self.assertEqual(len(root), 1)
                     if "platform" in root:
                         # Platform metadata has its own schema, without magic.
-                        self.assertEqual(root["platform"]["name"], f"RPCMP M5 APF {name.upper()}")
+                        self.assertEqual(root["platform"]["name"], f"RPCMP M5 APF2 {name.upper()}")
                     else:
                         self.assertEqual(next(iter(root.values()))["magic"], "APF_VER_1")
         self.assertEqual(source, before)
@@ -48,6 +48,18 @@ class ApfPackageTests(unittest.TestCase):
         source[path] = json.dumps(value).encode()
         with self.assertRaises(ValueError):
             package.probe_files(source, "normal")
+
+    def test_m5_size_limits_include_single_chunk(self):
+        path = PurePosixPath("Assets/rpcmp_m5boot/common/music.rpcmlib")
+        for size in (0, 4, 79, 2 * 1024 * 1024 + 1):
+            source = normal_source()
+            source[path] = bytes(size)
+            with self.assertRaisesRegex(ValueError, "size limits"):
+                package.probe_files(source, "timeout")
+        for size in (80, 4096, 4097):
+            source = normal_source()
+            source[path] = bytes(size)
+            package.probe_files(source, "timeout")
 
 
 if __name__ == "__main__":

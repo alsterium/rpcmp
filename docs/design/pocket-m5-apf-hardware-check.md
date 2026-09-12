@@ -1,9 +1,17 @@
 # M5 APF lifecycle and transport — hardware handoff
 
+Superseded for new testing by the [APF2 primer repair](pocket-m5-apf-primer-hardware-check.md).
+The user confirmed NORMAL playback/restarts and both faults' FAIL 3 / RESET OK,
+silence and recovery. TIMEOUT also caused about 40 seconds in Filesystem init
+with `bridge timeout DONE #19 st=21`, then about two seconds from READING to
+FAIL. Thus the intended pre-app fault isolation did not hold; this is not an
+unqualified acceptance of the old injection. The linked record preserves the
+report and its timing distinction.
+
 ## Scope
 
-Version `0.10.4-m5-apf`, local firmware 2.6 experiment. Hardware results are
-pending. The user explicitly approved correcting APF status handling on
+Version `0.10.4-m5-apf`, local firmware 2.6 experiment. Hardware results were
+pending at handoff; the subsequent report is summarized above. The user explicitly approved correcting APF status handling on
 2026-09-10. These candidates retain the accepted fail-closed boot ROM, OS,
 application, loader and private library; they change the FPGA command handler.
 
