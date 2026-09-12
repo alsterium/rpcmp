@@ -219,6 +219,9 @@ target_link_libraries(rpcmp_m5_file_preflight PRIVATE rpcmp_m5_library_loader rp
 rpcmp_production_options(rpcmp_m5_file_preflight)
 
 if(BUILD_TESTING)
+  add_test(NAME incremental_build
+    COMMAND ${Python3_EXECUTABLE} -B ${CMAKE_SOURCE_DIR}/tests/harness/incremental_build_tests.py
+      ${CMAKE_COMMAND})
   add_test(NAME m5_file_preflight
     COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/pocket/m5_file_preflight_tests.py
       $<TARGET_FILE:rpcmp_mdx_pack> $<TARGET_FILE:rpcmp_m5_file_preflight>

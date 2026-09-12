@@ -43,11 +43,11 @@ if (-not $rpcmpVsInstall) {
 
 $rpcmpDevCmd = Join-Path $rpcmpVsInstall 'Common7/Tools/VsDevCmd.bat'
 $rpcmpCmake = (Get-Command cmake -ErrorAction Stop).Source
-$rpcmpInvocation = 'call "{0}" -arch=x64 -host_arch=x64 >nul && set VSLANG=1033 && "{1}" --workflow --preset host-verify' -f `
+$rpcmpInvocation = 'call "{0}" -arch=x64 -host_arch=x64 >nul && chcp 65001 >nul && set "VSLANG=1033" && "{1}" --workflow --preset host-verify' -f `
     $rpcmpDevCmd, $rpcmpCmake
 
 if ($CheckSetupOnly) {
-    $rpcmpInvocation = 'call "{0}" -arch=x64 -host_arch=x64 >nul && where cl && ninja --version' -f $rpcmpDevCmd
+    $rpcmpInvocation = 'call "{0}" -arch=x64 -host_arch=x64 >nul && chcp 65001 >nul && set "VSLANG=1033" && where cl && ninja --version' -f $rpcmpDevCmd
 }
 
 Push-Location $rpcmpRoot

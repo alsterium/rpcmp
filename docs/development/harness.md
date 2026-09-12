@@ -45,7 +45,23 @@ After configuration, discover tests with `ctest --preset host-msvc -N` and run
 a relevant subset with `ctest --preset host-msvc -R '<test-name-pattern>'`.
 Use the full wrapper for completion. Build changes must be rebuilt before
 testing. Never treat a filtered run as the full suite or a listing as execution.
-The preset rejects empty test selections.
+The preset rejects empty test selections. The `incremental_build` test compiles
+an isolated fixture, changes only its header, and requires changed executable
+output on the next build. It catches broken compiler include-dependency parsing.
+
+On 2026-09-13, a minimal compiled fixture reproduced stale consumers after
+header changes: MSVC emitted UTF-8 Japanese include messages while CMake/Ninja
+stored a misdecoded include prefix. Quoting the old trailing-space `VSLANG`
+assignment alone did not fix it (only the Japanese compiler resources were
+installed). Running the child command with `chcp 65001` made the fixture pass.
+The wrapper now sets that code page and quotes the language assignment. This
+does not install language packs or change global machine settings.
+
+Existing build trees created under the old environment need a one-time
+`cmake --fresh --preset host-msvc`, followed by
+`cmake --build --preset host-msvc --clean-first`, in the VS developer environment
+after `chcp 65001` and `set "VSLANG=1033"`. Then run the full wrapper. This repairs
+cached prefix detection and rebuilds objects whose dependencies were missing.
 
 For RTL/audio integration changes, also run `tools/rtl-verify.ps1` followed by
 `tools/rtl-jt51-verify.ps1`; see [test setup](../../tests/README.md) for simulator
