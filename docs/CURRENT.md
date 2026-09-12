@@ -32,13 +32,23 @@ exact historical ZIP attribution and old clean-source reproduction remain open.
 The firmware 2.6 [admission-failure check](design/pocket-m5-failure-hardware-check.md)
 passed by user report on 2026-09-10 for all three input-only probes: FAIL codes
 2/3/4, explicitly confirmed RESET OK, one minute of silence/no PLAYING,
-warm/cold starts and return to normal playback. The next task is the
-[APF2 primer repair check](design/pocket-m5-apf-primer-hardware-check.md):
-the old APF candidates passed reported playback/silence/recovery, but TIMEOUT
-also stalled OS filesystem initialization for about 40 seconds. The repaired
-injection excludes offset-zero OS primers; its hardware results are pending.
+warm/cold starts and return to normal playback. The old APF candidates passed
+reported playback/silence/recovery, but TIMEOUT also stalled OS filesystem
+initialization for about 40 seconds. The [APF2 repair](design/pocket-m5-apf-primer-hardware-check.md)
+excludes offset-zero OS primers; its hardware results remain unverified.
 Admission-failure silence does not establish transport-timeout or in-playback
 fault handling; these candidates retain that distinction.
+
+On 2026-09-12 the user closed the current bug-investigation workstream and
+directed that new failures be diagnosed when observed. Do not require APF2
+hardware confirmation or more placement experiments before defining the next
+requirements. Preserve the existing results and unverified items as recorded;
+this decision does not turn an unrun check into a pass.
+
+The current task is [next feature requirements](design/pocket-next-requirements.md).
+Define the next user-visible scope and acceptance criteria before implementation.
+The proposed direction is track selection and basic playback controls; feature
+priority is not yet confirmed. M5 remains active while this planning takes place.
 
 General placement stability, integrated timing/CDC and external-I/O constraints,
 broader APF lifecycle/failure coverage, and explicit future PCM/UI reserves remain open.

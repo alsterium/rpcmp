@@ -471,3 +471,23 @@ excludes slot-4 offset-zero four-byte primers, then faults the first app read,
 including a library that fits in one chunk. It does not claim partial admission.
 An actual-handler regression fails on the old RTL and passes on the repair.
 Hardware verification of the repaired candidates remains pending.
+
+### Investigation closure and requirements planning — 2026-09-12
+
+The user explicitly closed the current investigation and chose to analyze new
+failures when they occur, then move to deciding the next requirements. The
+ROM/OS mismatch and the primer-injection defect have concrete source/artifact
+evidence; coherent placement variants and the previously reported normal and
+failure checks retain their accepted results. APF2 hardware confirmation and
+historical provenance gaps remain unverified, not newly passed or disproved.
+
+Do not extend the placement matrix, recover more historical packages, or request
+another APF2 hardware cycle as a prerequisite to requirements planning. Reopen
+bug investigation for a new observed failure with a focused reproduction.
+Required verification of a future implementation still follows its acceptance
+criteria; this is not a waiver of architecture, timing, or failure guarantees.
+
+The current planning task is [next feature requirements](../design/pocket-next-requirements.md).
+M5 acceptance item 6 and ADR-0008's outstanding production-promotion evidence
+remain open. Planning a later feature does not mark M5 complete, promote the
+substrate, or authorize speculative implementation of another milestone.
