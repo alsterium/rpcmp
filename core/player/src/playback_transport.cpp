@@ -6,6 +6,7 @@ namespace rpcmp::player {
 namespace {
 using contracts::CatalogPhase;
 using contracts::TransportState;
+namespace api = contracts::v2;
 
 bool playback_target(const TransportState target) {
   return target == TransportState::Playing || target == TransportState::Paused;
@@ -19,6 +20,8 @@ TransportController::TransportController(const CatalogSession& catalog,
     : catalog_(catalog), preparation_port_(preparation), audio_port_(audio), timing_(timing),
       counters_(counters) {
   state_.play_generation = counters.last_play_generation;
+  if (counters.initial_policy_revision != 0)
+    state_.policy.revision = counters.initial_policy_revision;
 }
 
 TransportSnapshot TransportController::snapshot() const noexcept {
@@ -37,12 +40,14 @@ TransportProjection TransportController::projection() const noexcept {
           state_.failure != TransportFailure::None,
           reset_required_ || !state_.silence_confirmed || state_.preparation.has_value() ||
               state_.audio_control.has_value() || fault_observed_,
-          state_.terminal};
+          state_.terminal,
+          state_.policy_supported,
+          state_.policy.desired};
 }
 
 TransportAdmissionContext TransportController::admission_context() const noexcept {
-  return {catalog_status_, state_.play_generation, state_.failure, state_.terminal,
-          state_.pause_supported};
+  return {catalog_status_, state_.play_generation, state_.failure,
+          state_.terminal, state_.pause_supported, state_.policy_supported};
 }
 
 bool TransportController::advance_generation() {
@@ -70,6 +75,8 @@ void TransportController::invalidate() {
   reset_required_ = true;
   need_prepare_ = false;
   held_end_frame_.reset();
+  state_.policy.media.reset();
+  applied_repeat_.reset();
   state_.media_frame = 0;
 }
 
@@ -84,6 +91,8 @@ void TransportController::fail(const TransportFailure failure, const bool termin
   state_.projected = TransportState::Error;
   need_prepare_ = false;
   held_end_frame_.reset();
+  state_.policy.media.reset();
+  applied_repeat_.reset();
   reset_required_ = true;
   if (!terminal)
     static_cast<void>(advance_generation());
@@ -144,12 +153,22 @@ TransportTransition project_transport(const CatalogSession& catalog, const bool 
   const bool selecting =
       kind == TransportIntentKind::PlayTrack || kind == TransportIntentKind::LoadTrack;
   if (intent.command_id == 0 ||
-      static_cast<std::uint8_t>(kind) > static_cast<std::uint8_t>(TransportIntentKind::Stop) ||
+      static_cast<std::uint8_t>(kind) > static_cast<std::uint8_t>(TransportIntentKind::SetPolicy) ||
+      (kind == TransportIntentKind::SetPolicy) != intent.policy.has_value() ||
+      (intent.policy && !api::valid_playback_policy(*intent.policy)) ||
       (!selecting &&
        (intent.selection.library_generation.value != 0 || intent.selection.track_id.value != 0)))
     return {TransportRejection::Malformed};
   if (state.terminal)
     return {TransportRejection::TerminalFailure};
+  if (intent.policy) {
+    if (!state.policy_supported || intent.policy->order != api::PlaybackOrder::AlbumOrder)
+      return {TransportRejection::UnsupportedPolicy};
+    if (state.policy == *intent.policy)
+      return {};
+    state.policy = *intent.policy;
+    return {TransportRejection::None, TransportAction::SetPolicy};
+  }
   if (selecting) {
     library::TrackView track;
     switch (catalog.resolve_track(intent.selection.library_generation, intent.selection.track_id,
@@ -232,6 +251,15 @@ TransportRejection TransportController::apply(const TransportIntent& intent) {
   switch (transition.action) {
   case TransportAction::None:
     return TransportRejection::None;
+  case TransportAction::SetPolicy:
+    if (state_.policy.revision == std::numeric_limits<std::uint64_t>::max()) {
+      fail(TransportFailure::ResourceExhausted, true);
+      return TransportRejection::TerminalFailure;
+    }
+    state_.policy.desired = projected.policy;
+    ++state_.policy.revision;
+    state_.policy.last_command_id = intent.command_id;
+    return TransportRejection::None;
   case TransportAction::SelectPlay:
   case TransportAction::SelectLoad: {
     auto request = intent;
@@ -271,7 +299,7 @@ void TransportController::consume_audio(const AudioObservation& observation) {
   if (completion.request.operation_id != expected.operation_id)
     return;
   if (completion.request.play_generation != expected.play_generation ||
-      completion.request.kind != expected.kind ||
+      completion.request.kind != expected.kind || completion.request.repeat != expected.repeat ||
       (completion.outcome != AudioControlOutcome::Success &&
        completion.outcome != AudioControlOutcome::Failed)) {
     fail(TransportFailure::Protocol, true);
@@ -291,6 +319,7 @@ void TransportController::consume_audio(const AudioObservation& observation) {
     }
     state_.silence_confirmed = true;
     started_generation_ = 0;
+    applied_repeat_.reset();
     if (expected.play_generation == state_.play_generation)
       reset_required_ = false;
   }
@@ -325,7 +354,18 @@ void TransportController::consume_audio(const AudioObservation& observation) {
     }
     state_.transport = TransportState::Playing;
     break;
+  case AudioControlKind::SetPolicy:
+    if (completion.media_frame < state_.media_frame ||
+        (state_.transport == TransportState::Paused &&
+         completion.media_frame != state_.media_frame)) {
+      fail(TransportFailure::Protocol, true);
+      return;
+    }
+    state_.media_frame = completion.media_frame;
+    break;
   }
+  if (expected.repeat)
+    applied_repeat_ = expected.repeat;
 }
 
 void TransportController::consume_preparation() {
@@ -370,20 +410,88 @@ void TransportController::check_timeouts(const std::uint64_t now_us) {
     fail(TransportFailure::PreparationTimeout, false);
 }
 
+bool TransportController::consume_media(const AudioObservation& observation) {
+  if (!state_.policy_supported)
+    return true;
+  if (!observation.media || !applied_repeat_)
+    return false;
+  const auto& source = *observation.media;
+  api::PlaybackMediaObservation media;
+  media.play_generation = source.play_generation;
+  media.position_frames = source.frame;
+  media.applied = {source.policy_revision, source.target};
+  if (source.completed_loops <= std::numeric_limits<std::uint32_t>::max())
+    media.completed_loops = static_cast<std::uint32_t>(source.completed_loops);
+  else
+    media.loop_count_overflow = true;
+  switch (source.phase) {
+  case MediaPhase::Steady:
+    media.phase = api::PlaybackPhase::Steady;
+    break;
+  case MediaPhase::Fading:
+    media.phase = api::PlaybackPhase::Fading;
+    break;
+  case MediaPhase::RestoringGain:
+    media.phase = api::PlaybackPhase::RestoringGain;
+    break;
+  default:
+    return false;
+  }
+  switch (source.end) {
+  case MediaEnd::None:
+    break;
+  case MediaEnd::NaturalEnd:
+    media.end = api::PlaybackEndReason::NaturalEnd;
+    break;
+  case MediaEnd::RepeatOne:
+    media.end = api::PlaybackEndReason::RepeatOne;
+    break;
+  case MediaEnd::LoopLimit:
+    media.end = api::PlaybackEndReason::LoopLimit;
+    break;
+  default:
+    return false;
+  }
+  media.gain = source.gain;
+  media.ramp_elapsed = source.ramp_elapsed;
+  media.ramp_duration = source.ramp_duration;
+  if (source.failure != MediaFailure::None ||
+      media.play_generation != observation.play_generation ||
+      media.position_frames != observation.media_frame || media.applied != *applied_repeat_ ||
+      observation.ended != (media.end != api::PlaybackEndReason::None) ||
+      (media.end == api::PlaybackEndReason::None &&
+       source.paused != (state_.transport == TransportState::Paused)) ||
+      !api::valid_media_observation(media))
+    return false;
+  state_.policy.media = media;
+  return true;
+}
+
 void TransportController::consume_position(const AudioObservation& observation) {
   if (state_.terminal || state_.failure != TransportFailure::None || reset_required_ ||
       !playback_target(state_.transport) || observation.play_generation != state_.play_generation)
     return;
   if (observation.media_frame < state_.media_frame ||
       (state_.transport == TransportState::Paused &&
-       observation.media_frame != state_.media_frame)) {
+       observation.media_frame != state_.media_frame) ||
+      !consume_media(observation)) {
     fail(TransportFailure::Protocol, true);
     return;
   }
   state_.media_frame = observation.media_frame;
-  if (observation.ended)
+  if (observation.ended) {
     held_end_frame_ = observation.media_frame;
+    held_end_reason_ =
+        state_.policy.media ? state_.policy.media->end : api::PlaybackEndReason::None;
+  }
   if (held_end_frame_ && state_.transport == TransportState::Playing) {
+    if (held_end_reason_ == api::PlaybackEndReason::RepeatOne &&
+        state_.policy.desired.repeat == api::RepeatMode::RepeatOne && state_.selection) {
+      const TransportIntent restart{0, TransportIntentKind::PlayTrack, *state_.selection};
+      select(restart, true);
+      state_.pending_intent.reset();
+      return;
+    }
     state_.media_frame = *held_end_frame_;
     held_end_frame_.reset();
     target_ = TransportState::Ended;
@@ -398,7 +506,9 @@ void TransportController::start_audio(const AudioControlKind kind, const std::ui
   const auto operation = next_operation();
   if (!operation)
     return;
-  const AudioControlRequest request{*operation, state_.play_generation, kind};
+  AudioControlRequest request{*operation, state_.play_generation, kind};
+  if (state_.policy_supported && kind != AudioControlKind::Reset)
+    request.repeat = api::repeat_application(state_.policy.desired, state_.policy.revision);
   if (!audio_port_.begin(request)) {
     fail(kind == AudioControlKind::Reset ? TransportFailure::ResetFailed
                                          : TransportFailure::AudioControl,
@@ -471,6 +581,10 @@ void TransportController::pump(const std::uint64_t now_us) {
       start_audio(AudioControlKind::Pause, now_us);
     else if (target_ == TransportState::Playing && state_.transport == TransportState::Paused)
       start_audio(AudioControlKind::Resume, now_us);
+    else if (state_.policy_supported &&
+             applied_repeat_ !=
+                 api::repeat_application(state_.policy.desired, state_.policy.revision))
+      start_audio(AudioControlKind::SetPolicy, now_us);
   }
   settle();
 }
@@ -478,7 +592,8 @@ void TransportController::pump(const std::uint64_t now_us) {
 TransportStepResult
 TransportController::step(const std::uint64_t now_us, const TransportBatch& batch,
                           const std::optional<TransportAdmissionContext>& admitted) {
-  if (timing_.prepare_timeout_us == 0 || timing_.control_timeout_us == 0)
+  if (timing_.prepare_timeout_us == 0 || timing_.control_timeout_us == 0 ||
+      counters_.initial_policy_revision == 0)
     fail(TransportFailure::InvalidConfiguration, true);
   if (clock_started_ && now_us < last_now_us_)
     fail(TransportFailure::Clock, true);
@@ -486,6 +601,12 @@ TransportController::step(const std::uint64_t now_us, const TransportBatch& batc
   clock_started_ = true;
   const auto observation = audio_port_.observe();
   state_.pause_supported = audio_port_.supports_pause();
+  const bool policy_supported = audio_port_.supports_policy();
+  const bool active_capability_change =
+      policy_supported != state_.policy_supported &&
+      (started_generation_ != 0 ||
+       (state_.audio_control && state_.audio_control->request.kind != AudioControlKind::Reset));
+  state_.policy_supported = policy_supported;
   const bool new_fault =
       observation.fault && (!fault_observed_ || state_.failure != TransportFailure::DeviceFault);
   fault_observed_ = observation.fault;
@@ -493,7 +614,9 @@ TransportController::step(const std::uint64_t now_us, const TransportBatch& batc
     fail(TransportFailure::DeviceFault, false);
   else if (observation.fault)
     audio_port_.emergency_silence();
-  sync_catalog(observation.fault);
+  if (active_capability_change && state_.failure == TransportFailure::None)
+    fail(TransportFailure::DeviceFault, false);
+  sync_catalog(observation.fault || active_capability_change);
   TransportStepResult result;
   if (batch.count > kTransportBatchCapacity) {
     result.batch_error = TransportRejection::BatchTooLarge;
@@ -501,7 +624,9 @@ TransportController::step(const std::uint64_t now_us, const TransportBatch& batc
       fail(TransportFailure::Protocol, true);
   } else {
     const bool catalog_changed = admitted && admitted->catalog != catalog_status_;
-    const bool capability_changed = admitted && admitted->pause_supported != state_.pause_supported;
+    const bool capability_changed =
+        admitted && (admitted->pause_supported != state_.pause_supported ||
+                     admitted->policy_supported != state_.policy_supported);
     const bool interrupted =
         admitted && batch.count != 0 &&
         (observation.fault || catalog_changed || capability_changed ||

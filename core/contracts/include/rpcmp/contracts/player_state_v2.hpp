@@ -2,6 +2,7 @@
 #define RPCMP_CONTRACTS_PLAYER_STATE_V2_HPP
 
 #include "rpcmp/contracts/catalog.hpp"
+#include "rpcmp/contracts/playback_policy_v2.hpp"
 
 namespace rpcmp::contracts::v2 {
 
@@ -38,11 +39,18 @@ struct PendingPreparation {
   TrackSelection selection{};
   bool cancel_requested{};
 };
-enum class AudioControlKind : std::uint8_t { Reset = 0, Start = 1, Pause = 2, Resume = 3 };
+enum class AudioControlKind : std::uint8_t {
+  Reset = 0,
+  Start = 1,
+  Pause = 2,
+  Resume = 3,
+  SetPolicy = 4
+};
 struct PendingAudioControl {
   std::uint64_t operation_id{};
   std::uint64_t play_generation{};
   AudioControlKind kind{AudioControlKind::Reset};
+  std::optional<RepeatApplication> repeat{std::nullopt};
 };
 enum class PlaybackErrorCode : std::uint8_t {
   Library = 1,
@@ -79,6 +87,7 @@ struct PlayerSnapshot {
   std::optional<PendingPreparation> preparation;
   std::optional<PendingAudioControl> audio_control;
   std::optional<PlaybackError> error;
+  std::optional<PlaybackPolicyObservation> policy{std::nullopt};
 };
 
 class SnapshotSource {

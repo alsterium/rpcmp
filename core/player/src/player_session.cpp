@@ -33,13 +33,19 @@ std::optional<TransportIntent> translate(const api::PlayerCommand& command) {
   case api::CommandKind::Stop:
     result.kind = TransportIntentKind::Stop;
     break;
+  case api::CommandKind::SetPlaybackPolicy:
+    result.kind = TransportIntentKind::SetPolicy;
+    break;
   default:
     return std::nullopt;
   }
   const bool selecting =
       command.kind == api::CommandKind::PlayTrack || command.kind == api::CommandKind::LoadTrack;
-  if (selecting != command.selection.has_value())
+  if (selecting != command.selection.has_value() ||
+      (command.kind == api::CommandKind::SetPlaybackPolicy) != command.policy.has_value() ||
+      (command.policy && !api::valid_playback_policy(*command.policy)))
     return std::nullopt;
+  result.policy = command.policy;
   if (command.selection) {
     if (command.selection->library_generation.value == 0 || command.selection->track_id.value == 0)
       return std::nullopt;
@@ -63,6 +69,7 @@ api::CommandReason reason(const TransportRejection rejection) noexcept {
   case TransportRejection::UnknownTrack:
     return api::CommandReason::UnknownTrack;
   case TransportRejection::UnsupportedPause:
+  case TransportRejection::UnsupportedPolicy:
     return api::CommandReason::UnsupportedCapability;
   case TransportRejection::Busy:
     return api::CommandReason::ResourceBusy;

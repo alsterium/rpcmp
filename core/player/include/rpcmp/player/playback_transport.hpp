@@ -1,7 +1,9 @@
 #ifndef RPCMP_PLAYER_PLAYBACK_TRANSPORT_HPP
 #define RPCMP_PLAYER_PLAYBACK_TRANSPORT_HPP
 
+#include "rpcmp/contracts/playback_policy_v2.hpp"
 #include "rpcmp/player/catalog_session.hpp"
+#include "rpcmp/player/media_loop_envelope.hpp"
 
 #include <array>
 #include <cstdint>
@@ -23,12 +25,14 @@ enum class TransportIntentKind : std::uint8_t {
   Pause,
   Resume,
   TogglePause,
-  Stop
+  Stop,
+  SetPolicy
 };
 struct TransportIntent {
   std::uint64_t command_id{};
   TransportIntentKind kind{TransportIntentKind::Stop};
   PlaybackSelection selection{};
+  std::optional<contracts::v2::PlaybackPolicy> policy{std::nullopt};
 };
 struct TransportBatch {
   std::array<TransportIntent, kTransportBatchCapacity> intents{};
@@ -44,7 +48,8 @@ enum class TransportRejection : std::uint8_t {
   UnsupportedPause,
   Busy,
   TerminalFailure,
-  BatchTooLarge
+  BatchTooLarge,
+  UnsupportedPolicy
 };
 struct TransportDecision {
   std::uint64_t command_id{};
@@ -72,11 +77,12 @@ public:
   virtual void release() = 0;
 };
 
-enum class AudioControlKind : std::uint8_t { Reset, Start, Pause, Resume };
+enum class AudioControlKind : std::uint8_t { Reset, Start, Pause, Resume, SetPolicy };
 struct AudioControlRequest {
   std::uint64_t operation_id{};
   std::uint64_t play_generation{};
   AudioControlKind kind{AudioControlKind::Reset};
+  std::optional<contracts::v2::RepeatApplication> repeat{std::nullopt};
 };
 enum class AudioControlOutcome : std::uint8_t { Success, Failed };
 struct AudioControlCompletion {
@@ -90,11 +96,13 @@ struct AudioObservation {
   std::uint64_t media_frame{};
   bool ended{};
   std::optional<AudioControlCompletion> completion;
+  std::optional<MediaEnvelopeSnapshot> media{std::nullopt};
 };
 class AudioTransportPort {
 public:
   virtual ~AudioTransportPort() = default;
   [[nodiscard]] virtual bool supports_pause() const noexcept = 0;
+  [[nodiscard]] virtual bool supports_policy() const noexcept { return false; }
   [[nodiscard]] virtual bool begin(const AudioControlRequest& request) = 0;
   [[nodiscard]] virtual AudioObservation observe() = 0;
   virtual void emergency_silence() = 0;
@@ -138,6 +146,8 @@ struct TransportSnapshot {
   std::optional<TransportIntent> pending_intent;
   std::optional<PendingPreparation> preparation;
   std::optional<PendingAudioControl> audio_control;
+  bool policy_supported{};
+  contracts::v2::PlaybackPolicyObservation policy{};
 };
 struct TransportTiming {
   std::uint64_t prepare_timeout_us{};
@@ -146,6 +156,7 @@ struct TransportTiming {
 struct TransportCounters {
   std::uint64_t last_play_generation{};
   std::uint64_t last_operation_id{};
+  std::uint64_t initial_policy_revision{1};
 };
 
 struct TransportProjection {
@@ -155,6 +166,8 @@ struct TransportProjection {
   bool failure{};
   bool recovery_busy{};
   bool terminal{};
+  bool policy_supported{};
+  contracts::v2::PlaybackPolicy policy{};
 };
 enum class TransportAction : std::uint8_t {
   None,
@@ -163,7 +176,8 @@ enum class TransportAction : std::uint8_t {
   StartPrepared,
   Pause,
   Resume,
-  Stop
+  Stop,
+  SetPolicy
 };
 struct TransportTransition {
   TransportRejection rejection{TransportRejection::None};
@@ -181,6 +195,7 @@ struct TransportAdmissionContext {
   TransportFailure failure{TransportFailure::None};
   bool terminal{};
   bool pause_supported{};
+  bool policy_supported{};
 };
 
 class PlayerSession;
@@ -214,6 +229,7 @@ private:
   void consume_preparation();
   void check_timeouts(std::uint64_t now_us);
   void consume_position(const AudioObservation& observation);
+  [[nodiscard]] bool consume_media(const AudioObservation& observation);
   void pump(std::uint64_t now_us);
   void start_audio(AudioControlKind kind, std::uint64_t now_us);
   void settle();
@@ -229,6 +245,8 @@ private:
   std::uint64_t prepared_generation_{};
   std::uint64_t started_generation_{};
   std::optional<std::uint64_t> held_end_frame_;
+  contracts::v2::PlaybackEndReason held_end_reason_{contracts::v2::PlaybackEndReason::None};
+  std::optional<contracts::v2::RepeatApplication> applied_repeat_;
   bool clock_started_{};
   bool catalog_seen_{};
   bool reset_required_{true};

@@ -41,8 +41,11 @@ Audible commit, loop policy and gain integration remain subsequent work.
 [Media loop envelope v1](../../specs/media-loop-envelope-v1.md) adopts the
 executable audio-boundary model: sealed mapped progress, generation-tagged
 controls, live repeat decisions, integer stereo gain and pause/end ordering.
-Public policy ingress, navigation and the real audio mapping/adapter remain
-subsequent work; this model does not advertise a new Pocket capability.
+[Repeat policy schema 2](../../specs/playback-policy-v2.md) adopts the public
+setting command, desired/applied revisions, coherent audio observations and
+finite RepeatOne restart through a capability-gated port extension. Album/shuffle
+navigation and the real audio mapping/adapter remain subsequent work; this
+does not advertise a new capability on the existing Pocket backend.
 Hardware ACK deadlines and MMIO remain slice 4 decisions based on RTL evidence.
 
 ## Slices and acceptance
@@ -493,3 +496,57 @@ unsigned, preserving the assertion and all warning settings.
 No RTL/APF/package inputs changed. RTL simulation, synthesis and hardware tests
 were not run. In particular, upstream FM-state retention and the physical
 write-to-sample mapping are obligations of the later adapter/RTL slices.
+
+Slice 3's repeat policy connection is implemented on 2026-09-13.
+PlayerSession accepts capability-gated SetPlaybackPolicy commands and publishes
+desired settings/revision separately from audio-applied settings/revision.
+Start, Pause, Resume and SetPolicy capture their policy; acknowledgements must
+echo it and current media must agree with the acknowledged generation/frame.
+Changing policy preserves selection, position and transport intent. Finite
+RepeatOne uses normal reset/preparation with a new generation, and a paused end
+waits for resume. Settings survive Stop, catalog changes and failures in memory.
+The existing Pocket backend does not declare the extension. Album/shuffle
+navigation, durable settings, history and UI remain incomplete in slice 3.
+
+Executed repeat-connection evidence:
+
+- `pwsh -File tools/host-verify.ps1`: final 68/68 PASS, 295.43 seconds,
+  including formatting, clang-tidy and positive/negative architecture checks.
+  Log: `out/build/m6-policy-host-final.log` (ignored).
+- `pwsh -File out/build/m6-policy-focused.ps1`: 12/12 PASS, 0.99 seconds after
+  the capability-fault correction. Log: `out/build/m6-policy-focused-fixed.log`
+  (ignored); the later full gate includes the final checked test observation.
+- Offline Docker GCC 13.3.0 ASan/UBSan: six suites PASS (schema 2 command/state,
+  ingress, transport, publisher and repeat-policy connection). Production
+  disables exceptions/RTTI; tests disable RTTI. Script/log:
+  `out/build/m6-policy-posix.py`, `out/build/m6-policy-posix-final.log` (ignored).
+- Offline Docker `make --file out/build/m6-policy-cross/Makefile policy-check`:
+  RISC-V link-only probe PASS with no undefined symbols. Text 35,980, data 188,
+  BSS 1,800 bytes; conservative stack bound 37,744 bytes. Probe and budget:
+  `out/build/m6-policy-cross`; log: `out/build/m6-policy-cross-final.log`
+  (ignored). This is not an executed or integrated Pocket player budget.
+- `python -B tools/check_harness.py`: PASS; changed Markdown local file links:
+  62 PASS (`out/build/m6-policy-links.py`, ignored).
+
+The scripted audio port runs the real envelope against independently authored
+frame intervals. Tests cover captured/in-flight revisions, coalescing and no-op
+settings, preparation/pause changes, exact 240,000-frame fade, restoration,
+finite RepeatOne restart, held end, stale media/ACK, missing/malformed media,
+unsupported capabilities, queue capacity, revision/count bounds, failures and
+publication-frequency independence. No expected trace was regenerated.
+
+A focused additional case first failed because a simultaneous catalog close
+erased a newly detected loss of audio capability. Catalog synchronization now
+preserves that failure with the same priority as a shared fault. The failing
+log is `out/build/m6-policy-capability-before.log` (ignored).
+The first full gate failed tidy on six redundant optional initializers,
+seven unchecked optional accesses and one unreserved test vector. Explicit
+absence defaults preserve GCC aggregate-source compatibility; checked access
+and a known-capacity reservation address the other diagnostics. The first
+Linux run also caught the old scripted port's missing new enum branch; that
+port now fails explicitly if sent repeat control. No check was suppressed.
+Initial logs: `out/build/m6-policy-host.log`, `out/build/m6-policy-posix.log`
+(ignored).
+No RTL/APF/package inputs changed. RTL simulation, synthesis and hardware
+tests were not run; host traces and link success do not prove audible mapping,
+actual FM-state freeze or hardware silence.

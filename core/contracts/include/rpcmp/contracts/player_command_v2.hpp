@@ -16,7 +16,8 @@ enum class CommandKind : std::uint8_t {
   Pause = 3,
   Resume = 4,
   TogglePause = 5,
-  Stop = 6
+  Stop = 6,
+  SetPlaybackPolicy = 7
 };
 struct PlayerCommand {
   std::uint16_t schema_version{kSchemaVersion};
@@ -24,6 +25,7 @@ struct PlayerCommand {
   std::optional<std::uint64_t> expected_snapshot_sequence;
   CommandKind kind{CommandKind::Stop};
   std::optional<TrackSelection> selection;
+  std::optional<PlaybackPolicy> policy{std::nullopt};
 };
 enum class CommandOutcome : std::uint8_t { Accepted, Rejected, Duplicate };
 enum class CommandReason : std::uint8_t {

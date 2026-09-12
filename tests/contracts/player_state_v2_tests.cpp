@@ -124,5 +124,49 @@ int main() {
   PlayerSnapshot old;
   old.schema_version = 2;
   RPCMP_CHECK(suite, validate_snapshot(old).error == ContractError::UnsupportedSchema);
+
+  auto policy = playing();
+  policy.capabilities.bits |= api::kPolicyObservations | api::kRepeatControl;
+  policy.policy = api::PlaybackPolicyObservation{
+      {api::PlaybackOrder::AlbumOrder, api::RepeatMode::Counted, 3},
+      5,
+      12,
+      api::PlaybackMediaObservation{
+          72, 96'000, {4, 2}, 2, false, api::PlaybackPhase::Fading, 120'000, 120'000, 240'000}};
+  RPCMP_CHECK(suite, api::valid_player_snapshot(policy));
+  const auto reject_policy = [&](const auto& mutate) {
+    auto copy_policy = policy;
+    mutate(copy_policy);
+    RPCMP_CHECK(suite, !api::valid_player_snapshot(copy_policy));
+  };
+  reject_policy([](auto& s) { s.capabilities.bits &= ~api::kPolicyObservations; });
+  reject_policy([](auto& s) { s.policy.reset(); });
+  reject_policy([](auto& s) { required(s.policy).revision = 0; });
+  reject_policy([](auto& s) { required(s.policy).last_command_id = 0; });
+  reject_policy([](auto& s) { required(s.policy).desired.count = 0; });
+  reject_policy([](auto& s) { invalid_tag(required(s.policy).desired.order); });
+  reject_policy([](auto& s) { invalid_tag(required(s.policy).desired.repeat); });
+  reject_policy([](auto& s) { required(required(s.policy).media).applied.revision = 6; });
+  reject_policy([](auto& s) { required(required(s.policy).media).applied.revision = 5; });
+  reject_policy([](auto& s) { required(required(s.policy).media).position_frames = 0; });
+  reject_policy([](auto& s) { required(required(s.policy).media).play_generation = 71; });
+  reject_policy([](auto& s) { required(required(s.policy).media).loop_count_overflow = true; });
+  reject_policy([](auto& s) { required(required(s.policy).media).completed_loops.reset(); });
+  reject_policy([](auto& s) { required(required(s.policy).media).gain = 240'001; });
+  reject_policy([](auto& s) { required(required(s.policy).media).ramp_elapsed = 240'001; });
+  reject_policy([](auto& s) { required(required(s.policy).media).ramp_duration = 960; });
+  reject_policy([](auto& s) { invalid_tag(required(required(s.policy).media).phase); });
+  reject_policy([](auto& s) { invalid_tag(required(required(s.policy).media).end); });
+  required(required(policy.policy).media).completed_loops.reset();
+  required(required(policy.policy).media).loop_count_overflow = true;
+  RPCMP_CHECK(suite, api::valid_player_snapshot(policy));
+  policy.audio_control = api::PendingAudioControl{29, 72, api::AudioControlKind::SetPolicy,
+                                                  api::RepeatApplication{5, 3}};
+  RPCMP_CHECK(suite, api::valid_player_snapshot(policy));
+  required(policy.audio_control).kind = api::AudioControlKind::Reset;
+  RPCMP_CHECK(suite, !api::valid_player_snapshot(policy));
+  required(policy.audio_control).kind = api::AudioControlKind::SetPolicy;
+  required(policy.audio_control).repeat.reset();
+  RPCMP_CHECK(suite, !api::valid_player_snapshot(policy));
   return suite.finish("Player state schema 2 contracts");
 }

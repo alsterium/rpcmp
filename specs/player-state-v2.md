@@ -5,8 +5,9 @@ This implements the transport observations in the
 [transition proposal](../docs/design/pocket-player-transition-contract.md).
 The public v1 types, validation and M0 synthetic clock remain unchanged.
 [Schema 2 transport ingress](player-command-v2.md) connects these observations
-to PlayerSession. Policy, history, settings and visualizations remain subsequent
-parts of the same slice. This observation profile does not claim those features.
+to PlayerSession. The additive [repeat policy profile](playback-policy-v2.md)
+provides desired/applied policy observations. History, persistent settings,
+navigation and visualizations remain subsequent parts of the same slice.
 
 ## Boundary and evolution
 
@@ -36,6 +37,8 @@ All values have fixed capacity; publication and reads allocate no memory.
   The latter reports the backend declaration, not a hardware test result.
   PlayerSession adds bit 2 for its transport command ingress; the standalone
   observation publisher leaves that bit unset.
+  Bits 3 and 4 declare policy observations and repeat control respectively,
+  as defined in the repeat profile. Neither claims hardware validation.
 - `library` is a copied catalog schema 1 status. It is the status synchronized
   by the same Core transport step that produced this observation.
 - `transport` is the confirmed state; `projected` is the current command intent.
@@ -56,7 +59,8 @@ All values have fixed capacity; publication and reads allocate no memory.
 - Optional preparation and audio-control observations each contain a nonzero
   operation ID and play generation. Preparation also identifies its library
   generation/track and cancellation request. Audio kind is Reset/Start/Pause/
-  Resume. Their generations may be older than the selected generation while
+  Resume/SetPolicy. The repeat profile adds an optional captured policy to
+  audio controls. Their generations may be older than the selected generation while
   cancellation or a shared control acknowledgement is outstanding.
 - Optional `error` has a stable typed code and `terminal` flag. Codes are
   Library=1, Preparation=2, PreparationTimeout=3, AudioControl=4, DeviceFault=5,
@@ -64,6 +68,9 @@ All values have fixed capacity; publication and reads allocate no memory.
   InvalidConfiguration=10, ResourceExhausted=11. Error transport requires an
   error value; other transports have none. Nonterminal does not mean a new
   track can already start: quiescence/reset requirements still apply.
+- Optional `policy` is present exactly when bit 3 is set. It contains desired
+  settings/revision and optional committed media observations, with bounds
+  and ACK correlation defined in the repeat profile.
 
 Transport observation types intentionally do not expose the internal ports or
 their mutable state. Empty/Loading/Stopped can have no selected track;

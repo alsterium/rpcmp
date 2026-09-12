@@ -113,6 +113,8 @@ public:
     case AudioControlKind::Resume:
       name = "Resume";
       break;
+    case AudioControlKind::SetPolicy:
+      throw std::logic_error("repeat control sent to a legacy port");
     }
     trace_.push_back(name);
     if (reject_begin) {

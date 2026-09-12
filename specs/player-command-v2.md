@@ -4,9 +4,10 @@ Status: adopted for M6 slice 3, 2026-09-13, from the
 [transition proposal](../docs/design/pocket-player-transition-contract.md).
 The v1 API and M0 implementation remain unchanged. This profile connects the
 seven transport intents to the [Core transport](playback-transport-v1.md) and
-[public state](player-state-v2.md). Album navigation, playback policy, settings
-and history follow in this same milestone; their commands are not implemented
-or advertised by this transport-only profile.
+[public state](player-state-v2.md). The additive
+[repeat policy profile](playback-policy-v2.md) now connects settings to the
+audio port. Album/shuffle navigation, persistence and history follow in this
+same milestone and are not advertised by these profiles.
 
 ## Public boundary
 
@@ -18,11 +19,13 @@ The UI receives this interface and const SnapshotSource/CatalogReader only.
 No command contains physical controls, UI views, engine state or file offsets.
 
 PlayerCommand has schema_version=2, nonzero command_id:u64, optional
-expected_snapshot_sequence:u64, CommandKind and optional TrackSelection.
+expected_snapshot_sequence:u64, CommandKind, optional TrackSelection and optional PlaybackPolicy.
 CommandKind values are PlayTrack=0, LoadTrack=1, Play=2, Pause=3, Resume=4,
-TogglePause=5, Stop=6. Only PlayTrack/LoadTrack require a selection, with nonzero
+TogglePause=5, Stop=6, SetPlaybackPolicy=7. Only PlayTrack/LoadTrack require a selection, with nonzero
 library generation and TrackId; all other commands prohibit that field.
 Unknown tags and malformed selection shapes are MalformedRequest.
+Only SetPlaybackPolicy requires a policy; all other kinds prohibit it. Its
+shape and capability rules are defined in the repeat policy profile.
 
 CommandResult has response schema_version=2, command ID, outcome
 Accepted/Rejected/Duplicate, stable reason, the latest published sequence

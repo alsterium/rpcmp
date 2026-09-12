@@ -22,6 +22,8 @@ std::optional<api::TransportIntentKind> intent_kind(const TransportIntentKind ki
     return api::TransportIntentKind::TogglePause;
   case TransportIntentKind::Stop:
     return api::TransportIntentKind::Stop;
+  case TransportIntentKind::SetPolicy:
+    return std::nullopt; // Policy command identity is published with desired settings.
   }
   return std::nullopt;
 }
@@ -35,6 +37,8 @@ std::optional<api::AudioControlKind> control_kind(const AudioControlKind kind) n
     return api::AudioControlKind::Pause;
   case AudioControlKind::Resume:
     return api::AudioControlKind::Resume;
+  case AudioControlKind::SetPolicy:
+    return api::AudioControlKind::SetPolicy;
   }
   return std::nullopt;
 }
@@ -130,6 +134,10 @@ PublicationResult SnapshotPublisher::publish(const std::uint64_t now_us,
   next.published_at_us = now_us;
   if (state.pause_supported)
     next.capabilities.bits |= api::kStatePreservingPause;
+  next.capabilities.bits |= api::kPolicyObservations;
+  if (state.policy_supported)
+    next.capabilities.bits |= api::kRepeatControl;
+  next.policy = state.policy;
   next.library = state.catalog;
   next.transport = state.transport;
   next.projected = state.projected;
@@ -167,7 +175,7 @@ PublicationResult SnapshotPublisher::publish(const std::uint64_t now_us,
     const auto kind = control_kind(pending.kind);
     if (!kind)
       return PublicationResult::InvalidObservation;
-    next.audio_control = {pending.operation_id, pending.play_generation, *kind};
+    next.audio_control = {pending.operation_id, pending.play_generation, *kind, pending.repeat};
   }
   const auto error = error_code(state.failure);
   if (error)

@@ -359,6 +359,13 @@ if(BUILD_TESTING)
   rpcmp_test_options(rpcmp_player_session_tests)
   add_test(NAME player_session COMMAND rpcmp_player_session_tests)
 
+  add_executable(rpcmp_player_policy_tests tests/player/player_policy_tests.cpp)
+  target_include_directories(rpcmp_player_policy_tests PRIVATE tests/support)
+  target_link_libraries(rpcmp_player_policy_tests PRIVATE rpcmp_player)
+  target_compile_definitions(rpcmp_player_policy_tests PRIVATE RPCMP_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
+  rpcmp_test_options(rpcmp_player_policy_tests)
+  add_test(NAME player_policy COMMAND rpcmp_player_policy_tests)
+
   add_executable(rpcmp_media_loop_envelope_tests tests/player/media_loop_envelope_tests.cpp)
   target_include_directories(rpcmp_media_loop_envelope_tests PRIVATE tests/support)
   target_link_libraries(rpcmp_media_loop_envelope_tests PRIVATE rpcmp_player)

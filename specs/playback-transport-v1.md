@@ -4,9 +4,11 @@ Status: adopted for the transport portion of M6 slice 3, 2026-09-13, from
 [the transition proposal](../docs/design/pocket-player-transition-contract.md).
 This is an internal Core control contract, not PlayerCommand/PlayerSnapshot v1
 or the [public schema 2 observations](player-state-v2.md). UI cannot include these implementation types.
-The schema 2 ingress wraps this control contract; policy, loop/gain, history,
-settings and UI remain subsequent parts of slice 3. This establishes the asynchronous transport they
-will drive; it does not substitute mock playback for the eventual engine/RTL.
+The schema 2 ingress wraps this control contract. Its additive
+[repeat policy profile](playback-policy-v2.md) extends the intents, audio port
+and copied observations while preserving the transport rules below. Navigation,
+history, persistent settings and UI remain subsequent work. Scripted ports do
+not substitute for the eventual engine/RTL integration.
 
 ## Ownership and step order
 
@@ -31,7 +33,7 @@ old completion/end notifications. An oversized batch is rejected before access;
 control/fault/deadline service continues. There are no busy waits or allocations.
 
 Supported intents are PlayTrack, LoadTrack, Play, Pause, Resume, TogglePause and
-Stop. Select intents carry library generation and TrackId. They check catalog
+Stop, plus SetPolicy in the repeat extension. Select intents carry library generation and TrackId. They check catalog
 availability, generation and logical ID before disturbing sound. Other intents
 must not carry selection fields. Malformed/invalid/unsupported/busy/terminal
 requests leave the intended transport unchanged. A valid selection during
@@ -111,7 +113,7 @@ The port declares whether true state-preserving pause is available. Unsupported
 Pause/Resume/TogglePause, including Play used as Resume, are rejected.
 Capability is sampled by a control step, not by snapshot reads or submission.
 begin(control) is nonblocking; false means
-no request was started. Controls are Reset, Start, Pause and Resume, each with
+no request was started. Base controls are Reset, Start, Pause and Resume, each with
 operation ID and play generation. Start uses the successfully prepared session.
 observe() is nonblocking and returns shared fault, committed play generation,
 media frame, committed natural-end flag and at most one consumed completion.
