@@ -491,3 +491,22 @@ The current planning task is [next feature requirements](../design/pocket-next-r
 M5 acceptance item 6 and ADR-0008's outstanding production-promotion evidence
 remain open. Planning a later feature does not mark M5 complete, promote the
 substrate, or authorize speculative implementation of another milestone.
+
+### Basic playback requirements accepted — 2026-09-13
+
+The user completed Q1-Q8 and selected the next feature scope:
+100-300 FM-only tracks; album-first browsing; immediate playback after track
+confirmation and successful preparation; folder names as album names with
+numeric filename ordering; normal advance within the album and stop at its end;
+two loop passes followed by fade-out by default; explicit single-track repeat,
+count-limited repeat, and shuffle across the entire library. The later default
+album-order answer does not withdraw the explicitly requested playback modes.
+
+The [requirements record](../design/pocket-next-requirements.md) now distinguishes
+accepted user behavior from detailed-design work. Next is album/order metadata,
+Pocket capacity/loading, playback-policy and pause/fade contracts, then the
+implementation acceptance plan. This extends the planned feature scope beyond
+the earlier small-library proposal; it does not change the current one-track
+M5 implementation, public v1 contracts, or any hardware acceptance result.
+The investigation remains closed and M5 production-promotion evidence remains
+at its previously recorded status.

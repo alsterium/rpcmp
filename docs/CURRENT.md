@@ -45,10 +45,16 @@ hardware confirmation or more placement experiments before defining the next
 requirements. Preserve the existing results and unverified items as recorded;
 this decision does not turn an unrun check into a pass.
 
-The current task is [next feature requirements](design/pocket-next-requirements.md).
-Define the next user-visible scope and acceptance criteria before implementation.
-The proposed direction is track selection and basic playback controls; feature
-priority is not yet confirmed. M5 remains active while this planning takes place.
+The current task is detailed design for the accepted
+[track selection and playback requirements](design/pocket-next-requirements.md).
+The user's Q1-Q8 answers, completed on 2026-09-13, select 100-300 FM-only tracks,
+album-first browsing, play on track confirmation, folder-derived albums and
+numeric filename order. Normal playback advances within the album and stops at
+its end; looping tracks default to two passes followed by fade-out. Explicit
+single-track repeat, count-limited repeat and whole-library shuffle are included.
+Define album/order metadata, Pocket loading budgets, playback-policy contracts,
+pause/fade behavior and implementation acceptance before coding. Do not reopen
+the settled feature-priority questions. M5 remains active during this planning.
 
 General placement stability, integrated timing/CDC and external-I/O constraints,
 broader APF lifecycle/failure coverage, and explicit future PCM/UI reserves remain open.
