@@ -16,6 +16,9 @@ queue, 64-result replay window and shared projection/execution validation.
 Submission and public reads perform no playback-port calls; publication can
 be skipped without changing control work. Library/backend changes after
 admission interrupt the batch as an asynchronous failure.
+The MDX engine now exposes [sequencing progress](../specs/mdx-progress-v1.md):
+checked TrackLoop counts and whole-FM-tick aggregation at the write timestamp.
+This is read-ahead progress; applying it at audible commit remains to be wired.
 See M6 for the executed checks; this does not establish a working Pocket audio
 adapter, playback policy, complete UI or completion of slice 3.
 Use the [transition proposal](design/pocket-player-transition-contract.md),

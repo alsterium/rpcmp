@@ -35,6 +35,9 @@ adopts copied transport observations and Core-owned publication.
 [Transport command schema 2](../../specs/player-command-v2.md) adopts the bounded
 ingress, replay/projection and PlayerSession boundary. The remaining
 policy/history/settings/UI contracts follow in this slice.
+[MDX sequencing progress v1](../../specs/mdx-progress-v1.md) adopts checked
+TrackLoop counters and transactional, timestamped read-ahead observations.
+Audible commit, loop policy and gain integration remain subsequent work.
 Hardware ACK deadlines and MMIO remain slice 4 decisions based on RTL evidence.
 
 ## Slices and acceptance
@@ -388,3 +391,49 @@ and the assertion was corrected before isolating the actual reassertion bug.
 No RTL, APF definition or hardware package changed. RTL simulation, synthesis
 and hardware checks were not run; these host/link results do not establish
 physical pause, output-inhibit latency or real ACK deadlines.
+
+Slice 3's MDX sequencing progress is implemented on 2026-09-13. TrackLoop
+increments checked u64 counters, the whole FM tick aggregates active tracks
+after all channels succeed, and the engine stamps the result at that tick's
+write timestamp. Waiting tracks remain active; short repeats do not count.
+This remains read-ahead state, not audible loop completion or a public snapshot.
+The bounded audible-commit adapter, policy/gain and automatic navigation remain
+subsequent parts of slice 3 and the sound-port integration.
+
+Executed MDX-progress evidence:
+
+- `pwsh -File out/build/m6-progress-focused.ps1`: 29/29 PASS, 3.02 seconds;
+  MDX, M3/M4/M5 host and architecture subset. Log:
+  `out/build/m6-progress-focused-final.log` (ignored).
+- `pwsh -File tools/host-verify.ps1`: 66/66 PASS, 231.14 seconds, including
+  format, tidy, existing semantic/register traces and architecture/harness.
+  Log: `out/build/m6-progress-host.log` (ignored).
+- `python -B tools/check_harness.py`: PASS; changed Markdown local file links:
+  42 PASS (`out/build/m6-progress-links.py`, ignored).
+- Offline Docker GCC 13.3.0 ASan/UBSan: progress, track, document and engine
+  suites PASS. Production disables exceptions/RTTI; tests disable RTTI.
+  Script/log: `out/build/m6-progress-posix.py` and
+  `out/build/m6-progress-posix.log` (ignored).
+- Offline Docker `make --file out/build/m6-progress-cross/Makefile progress-check`:
+  final RISC-V link-only probe PASS, no undefined symbols. Text 13,912,
+  data 184, BSS 892,432 bytes; conservative stack bound 9,024 bytes.
+  Source/Makefile/budget: `out/build/m6-progress-cross`; log:
+  `out/build/m6-progress-cross-final.log` (ignored). The probe was not run on
+  Pocket and is not the integrated player's total memory budget.
+
+Authored exact-byte cases verify unequal loop periods, same-tick end/removal,
+indefinite wait, nested repeat/escape, all-ended state, inert P exclusion,
+zero-write timestamps, u32/u64 boundaries and rollback after later channel,
+routing and timeline failures. Expected counts and timestamps come from these
+small byte sequences and the existing Timer B rational formula. No golden was
+regenerated. The first build failed on two test references to logical_channel;
+they were corrected to the existing DecodeResult field logical_track.
+
+The first link probe exceeded the initialized-data limit because its direct
+static declarations placed default-initialized engine workspaces in .data
+(753,088 bytes). Matching the existing M5 probe's explicit construction in
+zero-backed BSS storage fixed the probe, without changing production code or
+relaxing the 4,096-byte data limit. Initial log:
+`out/build/m6-progress-cross.log` (ignored).
+No RTL/APF/package inputs changed; RTL simulation, synthesis and hardware
+checks were not run. Existing host trace checks do not establish sound timing.

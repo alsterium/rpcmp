@@ -1,5 +1,8 @@
 #include "rpcmp/runtime/mdx_document_machine.hpp"
 
+#include <algorithm>
+#include <limits>
+
 namespace rpcmp::runtime::mdx {
 namespace {
 
@@ -41,6 +44,18 @@ DecodeResult advance_document_tick(const MdxDocument& document, DocumentPlayback
     }
   }
 
+  auto minimum = std::numeric_limits<std::uint64_t>::max();
+  bool active = false;
+  for (std::size_t index = 0; index < kMdxFmTrackCount; ++index) {
+    const auto& track = scratch.candidate_state.tracks[index];
+    if (!track.ended) {
+      active = true;
+      minimum = std::min(minimum, track.completed_loops);
+    }
+  }
+  scratch.candidate_state.ended = !active;
+  if (active)
+    scratch.candidate_state.completed_loops = minimum;
   state = scratch.candidate_state;
   batch = scratch.pending_batch;
   return {};

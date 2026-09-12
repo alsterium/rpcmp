@@ -1,5 +1,7 @@
 #include "rpcmp/runtime/mdx_track_machine.hpp"
 
+#include <limits>
+
 namespace rpcmp::runtime::mdx {
 namespace {
 
@@ -159,6 +161,11 @@ DecodeResult advance_track_tick(const TrackView& track, TrackPlaybackState& stat
                        track.logical_channel);
       }
       ++branches;
+      if (candidate.completed_loops == std::numeric_limits<std::uint64_t>::max()) {
+        return failure(DecodeError::ArithmeticOverflow, instruction.byte_offset,
+                       track.logical_channel);
+      }
+      ++candidate.completed_loops;
       candidate.cursor = target;
       break;
     }

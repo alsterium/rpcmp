@@ -435,6 +435,12 @@ if(BUILD_TESTING)
   rpcmp_test_options(rpcmp_mdx_engine_tests)
   add_test(NAME mdx_engine COMMAND rpcmp_mdx_engine_tests)
 
+  add_executable(rpcmp_mdx_progress_tests tests/runtime/mdx_progress_tests.cpp)
+  target_include_directories(rpcmp_mdx_progress_tests PRIVATE tests/support)
+  target_link_libraries(rpcmp_mdx_progress_tests PRIVATE rpcmp_runtime)
+  rpcmp_test_options(rpcmp_mdx_progress_tests)
+  add_test(NAME mdx_progress COMMAND rpcmp_mdx_progress_tests)
+
   add_executable(rpcmp_mdx_oracle_tests tests/runtime/mdx_oracle_tests.cpp)
   target_include_directories(rpcmp_mdx_oracle_tests PRIVATE tests/support)
   target_link_libraries(rpcmp_mdx_oracle_tests PRIVATE rpcmp_runtime)

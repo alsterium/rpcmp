@@ -38,6 +38,9 @@ DecodeResult advance_mdx_tick(const MdxDocument& document, const std::uint32_t s
   if (!stamped.ok()) {
     return stamped;
   }
+  scratch.candidate_state.progress = {state.timeline.scheduler_tick,
+                                      scratch.candidate_state.document.completed_loops,
+                                      scratch.candidate_state.document.ended};
   state = scratch.candidate_state;
   batch = scratch.pending_batch;
   return {};

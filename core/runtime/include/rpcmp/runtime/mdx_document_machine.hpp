@@ -19,6 +19,8 @@ struct SemanticAction {
 
 struct DocumentPlaybackState {
   std::array<TrackPlaybackState, kMdxTrackCount> tracks{};
+  std::uint64_t completed_loops{};
+  bool ended{};
 };
 
 struct DocumentTickBatch {

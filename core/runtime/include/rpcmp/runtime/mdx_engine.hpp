@@ -7,10 +7,18 @@
 
 namespace rpcmp::runtime::mdx {
 
+// Read-ahead result at the serviced tick's start, not audible completion.
+struct SequencedProgress {
+  std::uint64_t at_tick{};
+  std::uint64_t completed_loops{};
+  bool ended{};
+};
+
 struct MdxEngineState {
   DocumentPlaybackState document{};
   Ym2151RouterState ym2151{};
   MdxTimelineState timeline{};
+  SequencedProgress progress{};
 };
 
 struct MdxEngineScratch {

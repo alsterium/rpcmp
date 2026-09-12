@@ -31,6 +31,7 @@ struct TrackPlaybackState {
   std::size_t repeat_depth{};
   bool waiting{};
   bool ended{};
+  std::uint64_t completed_loops{};
 };
 
 struct TrackTickTrace {

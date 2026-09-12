@@ -201,6 +201,10 @@ instruction, branch, batch, or call budget returns `budget_exhausted` without
 hang or unchecked partial commit. Runtime repeat counters and sync state belong
 to one playback instance and reset on stop/reload.
 
+M6 adds internal [sequencing progress](mdx-progress-v1.md): checked TrackLoop
+counts, post-batch FM aggregation and a timestamped read-ahead observation.
+It does not change instruction interpretation or claim audible completion.
+
 ## Stable results and diagnostics
 
 The v1 result set distinguishes at least:
