@@ -6,12 +6,6 @@ namespace rpcmp::player {
 namespace {
 namespace api = contracts::v2;
 
-bool same_catalog(const contracts::CatalogStatus& a, const contracts::CatalogStatus& b) noexcept {
-  return a.schema_version == b.schema_version && a.generation == b.generation &&
-         a.phase == b.phase && a.failure == b.failure && a.album_count == b.album_count &&
-         a.track_count == b.track_count;
-}
-
 std::optional<api::TransportIntentKind> intent_kind(const TransportIntentKind kind) noexcept {
   switch (kind) {
   case TransportIntentKind::PlayTrack:
@@ -127,7 +121,7 @@ PublicationResult SnapshotPublisher::publish(const std::uint64_t now_us,
     return PublicationResult::ClockReversed;
   if (latest_.sequence == std::numeric_limits<std::uint64_t>::max())
     return PublicationResult::SequenceExhausted;
-  if (!same_catalog(state.catalog, catalog_.status()))
+  if (state.catalog != catalog_.status())
     return PublicationResult::CatalogChanged;
   if (!contracts::valid_catalog_status(state.catalog))
     return PublicationResult::InvalidObservation;

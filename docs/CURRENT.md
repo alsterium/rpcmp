@@ -2,16 +2,22 @@
 
 Active milestone: [M6 — Album Player](milestones/M6-album-player.md)
 
-The current task is M6 slice 3: adopt and implement public schema 2 command
-ingress around the [Core transport](../specs/playback-transport-v1.md) and
-[published state](../specs/player-state-v2.md),
-then policy/history/settings and mock UI/input behavior through injected ports.
+The current task is M6 slice 3: adopt and implement policy/loop/gain, then
+history/settings and mock UI/input behavior through injected ports, around the
+[Core transport](../specs/playback-transport-v1.md),
+[schema 2 ingress](../specs/player-command-v2.md) and
+[published state](../specs/player-state-v2.md).
 The internal transport now handles asynchronous preparation/reset/start/pause/
 resume, cancellation, fault priority and deadlines with scripted host ports.
 The public state publisher copies selection metadata, committed position,
 pending operations and errors without polling audio or depending on UI reads.
+PlayerSession connects the seven public transport commands with a 32-command
+queue, 64-result replay window and shared projection/execution validation.
+Submission and public reads perform no playback-port calls; publication can
+be skipped without changing control work. Library/backend changes after
+admission interrupt the batch as an asynchronous failure.
 See M6 for the executed checks; this does not establish a working Pocket audio
-adapter, command ingress, complete UI or completion of slice 3.
+adapter, playback policy, complete UI or completion of slice 3.
 Use the [transition proposal](design/pocket-player-transition-contract.md),
 preserve v1 compatibility and adopt each contract before its implementation.
 Slices 1–2 implement [host metadata](../specs/host-metadata-v1.md),

@@ -24,10 +24,25 @@ TransportController::TransportController(const CatalogSession& catalog,
 TransportSnapshot TransportController::snapshot() const noexcept {
   auto result = state_;
   result.catalog = catalog_status_;
-  result.pause_supported = audio_port_.supports_pause();
   result.prepared = state_.selection.has_value() && prepared_generation_ != 0 &&
                     prepared_generation_ == state_.play_generation;
   return result;
+}
+
+TransportProjection TransportController::projection() const noexcept {
+  return {state_.projected,
+          state_.selection,
+          prepared_generation_ != 0 && prepared_generation_ == state_.play_generation &&
+              !reset_required_,
+          state_.failure != TransportFailure::None,
+          reset_required_ || !state_.silence_confirmed || state_.preparation.has_value() ||
+              state_.audio_control.has_value() || fault_observed_,
+          state_.terminal};
+}
+
+TransportAdmissionContext TransportController::admission_context() const noexcept {
+  return {catalog_status_, state_.play_generation, state_.failure, state_.terminal,
+          state_.pause_supported};
 }
 
 bool TransportController::advance_generation() {
@@ -123,7 +138,8 @@ void TransportController::select(const TransportIntent& intent, const bool play)
   state_.projected = TransportState::Loading;
 }
 
-TransportRejection TransportController::apply(const TransportIntent& intent) {
+TransportTransition project_transport(const CatalogSession& catalog, const bool pause_supported,
+                                      const TransportIntent& intent, TransportProjection& state) {
   const auto kind = intent.kind;
   const bool selecting =
       kind == TransportIntentKind::PlayTrack || kind == TransportIntentKind::LoadTrack;
@@ -131,65 +147,64 @@ TransportRejection TransportController::apply(const TransportIntent& intent) {
       static_cast<std::uint8_t>(kind) > static_cast<std::uint8_t>(TransportIntentKind::Stop) ||
       (!selecting &&
        (intent.selection.library_generation.value != 0 || intent.selection.track_id.value != 0)))
-    return TransportRejection::Malformed;
-  if (state_.terminal)
-    return TransportRejection::TerminalFailure;
+    return {TransportRejection::Malformed};
+  if (state.terminal)
+    return {TransportRejection::TerminalFailure};
   if (selecting) {
     library::TrackView track;
-    switch (catalog_.resolve_track(intent.selection.library_generation, intent.selection.track_id,
-                                   track)) {
+    switch (catalog.resolve_track(intent.selection.library_generation, intent.selection.track_id,
+                                  track)) {
     case CatalogTrackError::Unavailable:
-      return TransportRejection::LibraryUnavailable;
+      return {TransportRejection::LibraryUnavailable};
     case CatalogTrackError::StaleLibrary:
-      return TransportRejection::StaleLibrary;
+      return {TransportRejection::StaleLibrary};
     case CatalogTrackError::UnknownTrack:
-      return TransportRejection::UnknownTrack;
+      return {TransportRejection::UnknownTrack};
     case CatalogTrackError::None:
       break;
     }
-    if (state_.failure != TransportFailure::None && (reset_required_ || !state_.silence_confirmed ||
-                                                     state_.preparation || state_.audio_control))
-      return TransportRejection::Busy;
-    select(intent, kind == TransportIntentKind::PlayTrack);
-    return state_.terminal ? TransportRejection::TerminalFailure : TransportRejection::None;
+    if (state.failure && state.recovery_busy)
+      return {TransportRejection::Busy};
+    state.state = TransportState::Loading;
+    state.selection = intent.selection;
+    state.prepared_for_start = false;
+    state.failure = false;
+    state.recovery_busy = true;
+    return {TransportRejection::None,
+            kind == TransportIntentKind::PlayTrack ? TransportAction::SelectPlay
+                                                   : TransportAction::SelectLoad,
+            intent.selection};
   }
   if ((kind == TransportIntentKind::Pause || kind == TransportIntentKind::Resume ||
-       kind == TransportIntentKind::TogglePause) &&
-      !audio_port_.supports_pause())
-    return TransportRejection::UnsupportedPause;
-  const auto projected = state_.projected;
-  if (state_.failure != TransportFailure::None)
-    return TransportRejection::InvalidState;
+       kind == TransportIntentKind::TogglePause ||
+       (kind == TransportIntentKind::Play && state.state == TransportState::Paused)) &&
+      !pause_supported)
+    return {TransportRejection::UnsupportedPause};
+  const auto projected = state.state;
+  if (state.failure)
+    return {TransportRejection::InvalidState};
   if (kind == TransportIntentKind::Stop) {
     if (projected == TransportState::Stopped)
-      return TransportRejection::None;
-    if (!state_.selection)
-      return TransportRejection::InvalidState;
-    invalidate();
-    if (state_.terminal)
-      return TransportRejection::TerminalFailure;
-    target_ = TransportState::Stopped;
-    state_.transport = TransportState::Loading;
-    state_.projected = target_;
-    state_.pending_intent = intent;
-    return TransportRejection::None;
+      return {};
+    if (!state.selection)
+      return {TransportRejection::InvalidState};
+    state.state = TransportState::Stopped;
+    state.prepared_for_start = false;
+    state.recovery_busy = true;
+    return {TransportRejection::None, TransportAction::Stop};
   }
   if (kind == TransportIntentKind::Play &&
       (projected == TransportState::Stopped || projected == TransportState::Ended)) {
-    if (!state_.selection)
-      return TransportRejection::InvalidState;
-    if (projected == TransportState::Stopped && prepared_generation_ == state_.play_generation &&
-        !reset_required_) {
-      target_ = TransportState::Playing;
-      state_.projected = target_;
-      state_.pending_intent = intent;
-    } else {
-      auto restart = intent;
-      restart.selection = *state_.selection;
-      select(restart, true);
-      state_.pending_intent = intent;
+    if (!state.selection)
+      return {TransportRejection::InvalidState};
+    if (projected == TransportState::Stopped && state.prepared_for_start) {
+      state.state = TransportState::Playing;
+      return {TransportRejection::None, TransportAction::StartPrepared};
     }
-    return state_.terminal ? TransportRejection::TerminalFailure : TransportRejection::None;
+    state.state = TransportState::Loading;
+    state.prepared_for_start = false;
+    state.recovery_busy = true;
+    return {TransportRejection::None, TransportAction::SelectPlay, *state.selection};
   }
   const bool pause =
       kind == TransportIntentKind::Pause ||
@@ -198,17 +213,54 @@ TransportRejection TransportController::apply(const TransportIntent& intent) {
       kind == TransportIntentKind::Resume || kind == TransportIntentKind::Play ||
       (kind == TransportIntentKind::TogglePause && projected == TransportState::Paused);
   if (pause && projected == TransportState::Paused)
-    return TransportRejection::None;
+    return {};
   if (kind == TransportIntentKind::Play && projected == TransportState::Playing)
-    return TransportRejection::None;
+    return {};
   if ((pause && projected == TransportState::Playing) ||
       (resume && projected == TransportState::Paused)) {
-    target_ = pause ? TransportState::Paused : TransportState::Playing;
-    state_.projected = target_;
-    state_.pending_intent = intent;
-    return TransportRejection::None;
+    state.state = pause ? TransportState::Paused : TransportState::Playing;
+    return {TransportRejection::None, pause ? TransportAction::Pause : TransportAction::Resume};
   }
-  return TransportRejection::InvalidState;
+  return {TransportRejection::InvalidState};
+}
+
+TransportRejection TransportController::apply(const TransportIntent& intent) {
+  auto projected = projection();
+  const auto transition = project_transport(catalog_, state_.pause_supported, intent, projected);
+  if (transition.rejection != TransportRejection::None)
+    return transition.rejection;
+  switch (transition.action) {
+  case TransportAction::None:
+    return TransportRejection::None;
+  case TransportAction::SelectPlay:
+  case TransportAction::SelectLoad: {
+    auto request = intent;
+    request.selection = transition.selection;
+    select(request, transition.action == TransportAction::SelectPlay);
+    break;
+  }
+  case TransportAction::Stop:
+    invalidate();
+    if (state_.terminal)
+      return TransportRejection::TerminalFailure;
+    target_ = TransportState::Stopped;
+    state_.transport = TransportState::Loading;
+    state_.projected = target_;
+    break;
+  case TransportAction::StartPrepared:
+  case TransportAction::Resume:
+    target_ = TransportState::Playing;
+    state_.projected = target_;
+    break;
+  case TransportAction::Pause:
+    target_ = TransportState::Paused;
+    state_.projected = target_;
+    break;
+  }
+  if (state_.terminal)
+    return TransportRejection::TerminalFailure;
+  state_.pending_intent = intent;
+  return TransportRejection::None;
 }
 
 void TransportController::consume_audio(const AudioObservation& observation) {
@@ -423,8 +475,9 @@ void TransportController::pump(const std::uint64_t now_us) {
   settle();
 }
 
-TransportStepResult TransportController::step(const std::uint64_t now_us,
-                                              const TransportBatch& batch) {
+TransportStepResult
+TransportController::step(const std::uint64_t now_us, const TransportBatch& batch,
+                          const std::optional<TransportAdmissionContext>& admitted) {
   if (timing_.prepare_timeout_us == 0 || timing_.control_timeout_us == 0)
     fail(TransportFailure::InvalidConfiguration, true);
   if (clock_started_ && now_us < last_now_us_)
@@ -432,16 +485,50 @@ TransportStepResult TransportController::step(const std::uint64_t now_us,
   last_now_us_ = now_us;
   clock_started_ = true;
   const auto observation = audio_port_.observe();
-  if (observation.fault && state_.failure != TransportFailure::DeviceFault && !state_.terminal)
+  state_.pause_supported = audio_port_.supports_pause();
+  const bool new_fault =
+      observation.fault && (!fault_observed_ || state_.failure != TransportFailure::DeviceFault);
+  fault_observed_ = observation.fault;
+  if (new_fault && !state_.terminal)
     fail(TransportFailure::DeviceFault, false);
+  else if (observation.fault)
+    audio_port_.emergency_silence();
   sync_catalog(observation.fault);
   TransportStepResult result;
   if (batch.count > kTransportBatchCapacity) {
     result.batch_error = TransportRejection::BatchTooLarge;
+    if (admitted && state_.failure == TransportFailure::None)
+      fail(TransportFailure::Protocol, true);
   } else {
-    result.count = batch.count;
-    for (std::uint16_t i = 0; i < batch.count; ++i)
-      result.decisions[i] = {batch.intents[i].command_id, apply(batch.intents[i])};
+    const bool catalog_changed = admitted && admitted->catalog != catalog_status_;
+    const bool capability_changed = admitted && admitted->pause_supported != state_.pause_supported;
+    const bool interrupted =
+        admitted && batch.count != 0 &&
+        (observation.fault || catalog_changed || capability_changed ||
+         admitted->play_generation != state_.play_generation ||
+         admitted->failure != state_.failure || admitted->terminal != state_.terminal);
+    if (interrupted) {
+      if (state_.failure == TransportFailure::None) {
+        if (catalog_changed)
+          fail(TransportFailure::Library, false);
+        else if (capability_changed)
+          fail(TransportFailure::DeviceFault, false);
+        else
+          fail(TransportFailure::Protocol, true);
+      }
+      result.batch_error = TransportRejection::Busy;
+    } else {
+      result.count = batch.count;
+      for (std::uint16_t i = 0; i < batch.count; ++i) {
+        result.decisions[i] = {batch.intents[i].command_id, apply(batch.intents[i])};
+        if (admitted && !result.decisions[i].accepted()) {
+          if (state_.failure == TransportFailure::None)
+            fail(TransportFailure::Protocol, true);
+          result.count = static_cast<std::uint16_t>(i + 1);
+          break;
+        }
+      }
+    }
   }
   consume_audio(observation);
   consume_preparation();

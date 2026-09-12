@@ -577,6 +577,34 @@ void protocol_and_limits(rpcmp::test::Suite& suite) {
 void failure_ownership(rpcmp::test::Suite& suite) {
   {
     Rig rig(suite);
+    rig.playing();
+    rig.audio.observation.fault = true;
+    static_cast<void>(rig.tick());
+    rig.ack(); // Reset completed, but the shared device fault is still asserted.
+    const auto result = rig.tick({rig.intent(TransportIntentKind::PlayTrack, kB1)});
+    RPCMP_CHECK(suite, result.decisions[0].rejection == TransportRejection::TerminalFailure);
+    RPCMP_CHECK(suite, rig.state().failure == TransportFailure::ResetFailed &&
+                           rig.state().terminal && required(rig.state().selection).track_id == kB2);
+    RPCMP_CHECK(suite, !rig.audio.pending && rig.audio.inhibited);
+  }
+  {
+    Rig rig(suite);
+    rig.playing();
+    rig.audio.observation.fault = true;
+    static_cast<void>(rig.tick());
+    rig.audio.observation.fault = false;
+    rig.ack(); // This reset really succeeds with the fault cleared.
+    const auto recovered_generation = rig.state().play_generation;
+    rig.audio.observation.fault = true; // A new fault must not be hidden by the old error code.
+    const auto result = rig.tick({rig.intent(TransportIntentKind::PlayTrack, kB1)});
+    RPCMP_CHECK(suite, result.decisions[0].rejection == TransportRejection::Busy);
+    RPCMP_CHECK(suite, rig.state().failure == TransportFailure::DeviceFault &&
+                           required(rig.state().selection).track_id == kB2 && rig.audio.inhibited);
+    RPCMP_CHECK(suite, rig.state().play_generation > recovered_generation &&
+                           required(rig.audio.pending).kind == AudioControlKind::Reset);
+  }
+  {
+    Rig rig(suite);
     rig.boot();
     const auto loading = rig.catalog.begin_open();
     static_cast<void>(rig.tick());
@@ -619,6 +647,29 @@ void failure_ownership(rpcmp::test::Suite& suite) {
 }
 
 void additional_port_edges(rpcmp::test::Suite& suite) {
+  {
+    Rig rig(suite);
+    rig.boot();
+    TransportBatch supposedly_admitted;
+    supposedly_admitted.count = 1;
+    supposedly_admitted.intents[0] = rig.intent(TransportIntentKind::Play);
+    const auto result =
+        rig.controller.step(rig.now++, supposedly_admitted, rig.controller.admission_context());
+    RPCMP_CHECK(suite, result.count == 1 && !result.decisions[0].accepted());
+    RPCMP_CHECK(suite, rig.state().terminal && rig.state().failure == TransportFailure::Protocol &&
+                           rig.audio.inhibited);
+  }
+  {
+    Rig rig(suite);
+    rig.boot();
+    TransportBatch oversized;
+    oversized.count = 33;
+    const auto result =
+        rig.controller.step(rig.now++, oversized, rig.controller.admission_context());
+    RPCMP_CHECK(suite, result.batch_error == TransportRejection::BatchTooLarge &&
+                           rig.state().terminal &&
+                           rig.state().failure == TransportFailure::Protocol);
+  }
   {
     Rig rig(suite);
     rig.boot();

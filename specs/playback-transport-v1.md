@@ -4,8 +4,8 @@ Status: adopted for the transport portion of M6 slice 3, 2026-09-13, from
 [the transition proposal](../docs/design/pocket-player-transition-contract.md).
 This is an internal Core control contract, not PlayerCommand/PlayerSnapshot v1
 or the [public schema 2 observations](player-state-v2.md). UI cannot include these implementation types.
-The schema 2 ingress, policy, loop/gain, history, settings and UI remain subsequent
-parts of slice 3. This unit establishes the actual asynchronous transport they
+The schema 2 ingress wraps this control contract; policy, loop/gain, history,
+settings and UI remain subsequent parts of slice 3. This establishes the asynchronous transport they
 will drive; it does not substitute mock playback for the eventual engine/RTL.
 
 ## Ownership and step order
@@ -17,6 +17,11 @@ receives monotonic real microseconds and at most 32 already-admitted Core intent
 It returns one decision per intent, in FIFO order. Public command IDs, replay,
 optimistic snapshot sequencing and queuing remain the schema 2 ingress's job.
 Intent IDs are nonzero provenance, not a second duplicate detector.
+The [schema 2 ingress](player-command-v2.md) uses the same pure transport
+projection as execution and supplies an optional admission context for its
+already accepted batches. That mode interrupts a batch on catalog/backend
+context change and reports an unexplained disagreement as terminal Protocol;
+it never turns an accepted public command into a second public rejection.
 
 A step samples audio once, handles shared device faults and catalog changes,
 applies intents, consumes control/preparation completions, checks deadlines,
@@ -103,7 +108,9 @@ does not start playback. Recovery stays busy while that ownership is unresolved.
 ## Audio port
 
 The port declares whether true state-preserving pause is available. Unsupported
-Pause/Resume/TogglePause are rejected. begin(control) is nonblocking; false means
+Pause/Resume/TogglePause, including Play used as Resume, are rejected.
+Capability is sampled by a control step, not by snapshot reads or submission.
+begin(control) is nonblocking; false means
 no request was started. Controls are Reset, Start, Pause and Resume, each with
 operation ID and play generation. Start uses the successfully prepared session.
 observe() is nonblocking and returns shared fault, committed play generation,
@@ -131,6 +138,9 @@ reset failure, protocol/resource/clock failure latch terminal Error and inhibit
 output; no new normal controls are issued. A timely non-reset control failure
 or device fault requests reset and remains recoverable only after success and
 fault clearance. Failure of an old shared operation has the same consequences.
+A Reset ACK observed with a shared fault is terminal ResetFailed. Reassertion
+after a successfully cleared/reset fault starts a new failure/reset generation,
+even while the earlier DeviceFault error still awaits recovery selection.
 Stop cannot turn a failed reset into a successful-looking state.
 
 ## Deadlines and verification

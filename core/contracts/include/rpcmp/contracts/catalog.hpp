@@ -47,6 +47,14 @@ struct CatalogStatus {
   std::uint32_t album_count{};
   std::uint32_t track_count{};
 };
+constexpr bool operator==(const CatalogStatus& left, const CatalogStatus& right) noexcept {
+  return left.schema_version == right.schema_version && left.generation == right.generation &&
+         left.phase == right.phase && left.failure == right.failure &&
+         left.album_count == right.album_count && left.track_count == right.track_count;
+}
+constexpr bool operator!=(const CatalogStatus& left, const CatalogStatus& right) noexcept {
+  return !(left == right);
+}
 
 struct CatalogPageQuery {
   std::uint16_t schema_version{kCatalogSchemaVersion};

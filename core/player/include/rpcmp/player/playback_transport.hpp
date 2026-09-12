@@ -148,6 +148,43 @@ struct TransportCounters {
   std::uint64_t last_operation_id{};
 };
 
+struct TransportProjection {
+  contracts::TransportState state{contracts::TransportState::Empty};
+  std::optional<PlaybackSelection> selection;
+  bool prepared_for_start{};
+  bool failure{};
+  bool recovery_busy{};
+  bool terminal{};
+};
+enum class TransportAction : std::uint8_t {
+  None,
+  SelectPlay,
+  SelectLoad,
+  StartPrepared,
+  Pause,
+  Resume,
+  Stop
+};
+struct TransportTransition {
+  TransportRejection rejection{TransportRejection::None};
+  TransportAction action{TransportAction::None};
+  PlaybackSelection selection{};
+};
+[[nodiscard]] TransportTransition project_transport(const CatalogSession& catalog,
+                                                    bool pause_supported,
+                                                    const TransportIntent& intent,
+                                                    TransportProjection& state);
+
+struct TransportAdmissionContext {
+  contracts::CatalogStatus catalog{};
+  std::uint64_t play_generation{};
+  TransportFailure failure{TransportFailure::None};
+  bool terminal{};
+  bool pause_supported{};
+};
+
+class PlayerSession;
+
 // Core-only state machine. The public command ingress will translate into these
 // intents and copy this state into versioned UI snapshots.
 class TransportController {
@@ -157,10 +194,15 @@ public:
                       TransportCounters counters = {}) noexcept;
   TransportController(const TransportController&) = delete;
   TransportController& operator=(const TransportController&) = delete;
-  [[nodiscard]] TransportStepResult step(std::uint64_t now_us, const TransportBatch& batch = {});
+  [[nodiscard]] TransportStepResult
+  step(std::uint64_t now_us, const TransportBatch& batch = {},
+       const std::optional<TransportAdmissionContext>& admitted = std::nullopt);
   [[nodiscard]] TransportSnapshot snapshot() const noexcept;
+  [[nodiscard]] TransportProjection projection() const noexcept;
+  [[nodiscard]] TransportAdmissionContext admission_context() const noexcept;
 
 private:
+  friend class PlayerSession;
   [[nodiscard]] bool advance_generation();
   [[nodiscard]] std::optional<std::uint64_t> next_operation();
   void fail(TransportFailure failure, bool terminal);
@@ -191,6 +233,7 @@ private:
   bool catalog_seen_{};
   bool reset_required_{true};
   bool need_prepare_{};
+  bool fault_observed_{};
 };
 
 } // namespace rpcmp::player

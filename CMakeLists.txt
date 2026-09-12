@@ -121,6 +121,7 @@ rpcmp_production_options(rpcmp_library)
 add_library(rpcmp_player STATIC
   core/player/src/catalog_session.cpp
   core/player/src/playback_transport.cpp
+  core/player/src/player_session.cpp
   core/player/src/snapshot_publisher.cpp
   core/player/src/mdx_library_session.cpp)
 target_include_directories(rpcmp_player PUBLIC core/player/include)
@@ -323,6 +324,12 @@ if(BUILD_TESTING)
   rpcmp_test_options(rpcmp_player_state_v2_tests)
   add_test(NAME player_state_v2 COMMAND rpcmp_player_state_v2_tests)
 
+  add_executable(rpcmp_player_command_v2_tests tests/contracts/player_command_v2_tests.cpp)
+  target_include_directories(rpcmp_player_command_v2_tests PRIVATE tests/support)
+  target_link_libraries(rpcmp_player_command_v2_tests PRIVATE rpcmp_contracts)
+  rpcmp_test_options(rpcmp_player_command_v2_tests)
+  add_test(NAME player_command_v2 COMMAND rpcmp_player_command_v2_tests)
+
   add_executable(rpcmp_catalog_session_tests tests/player/catalog_session_tests.cpp)
   target_include_directories(rpcmp_catalog_session_tests PRIVATE tests/support)
   target_link_libraries(rpcmp_catalog_session_tests PRIVATE rpcmp_player rpcmp_utility_writer)
@@ -343,6 +350,13 @@ if(BUILD_TESTING)
   target_compile_definitions(rpcmp_snapshot_publisher_tests PRIVATE RPCMP_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
   rpcmp_test_options(rpcmp_snapshot_publisher_tests)
   add_test(NAME snapshot_publisher COMMAND rpcmp_snapshot_publisher_tests)
+
+  add_executable(rpcmp_player_session_tests tests/player/player_session_tests.cpp)
+  target_include_directories(rpcmp_player_session_tests PRIVATE tests/support)
+  target_link_libraries(rpcmp_player_session_tests PRIVATE rpcmp_player)
+  target_compile_definitions(rpcmp_player_session_tests PRIVATE RPCMP_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
+  rpcmp_test_options(rpcmp_player_session_tests)
+  add_test(NAME player_session COMMAND rpcmp_player_session_tests)
 
   add_executable(rpcmp_runtime_tests tests/runtime/mock_core_tests.cpp)
   target_include_directories(rpcmp_runtime_tests PRIVATE tests/support)

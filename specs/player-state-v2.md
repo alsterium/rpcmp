@@ -4,8 +4,9 @@ Status: adopted for the observation portion of M6 slice 3, 2026-09-13.
 This implements the transport observations in the
 [transition proposal](../docs/design/pocket-player-transition-contract.md).
 The public v1 types, validation and M0 synthetic clock remain unchanged.
-Schema 2 command ingress, policy, history, settings and visualizations remain
-subsequent parts of the same slice. This profile does not claim those features.
+[Schema 2 transport ingress](player-command-v2.md) connects these observations
+to PlayerSession. Policy, history, settings and visualizations remain subsequent
+parts of the same slice. This observation profile does not claim those features.
 
 ## Boundary and evolution
 
@@ -33,6 +34,8 @@ All values have fixed capacity; publication and reads allocate no memory.
   microseconds. Equal timestamps are allowed. It is independent of media time.
 - Capability bit 0 is transport observations; bit 1 is state-preserving pause.
   The latter reports the backend declaration, not a hardware test result.
+  PlayerSession adds bit 2 for its transport command ingress; the standalone
+  observation publisher leaves that bit unset.
 - `library` is a copied catalog schema 1 status. It is the status synchronized
   by the same Core transport step that produced this observation.
 - `transport` is the confirmed state; `projected` is the current command intent.

@@ -6,6 +6,8 @@ This is a separate read-only API. PlayerCommand and PlayerSnapshot v1, including
 prepare-only LoadTrack, remain unchanged. Playback schema 2 is a separate profile.
 `valid_catalog_text` exposes the existing bounded UTF-8/prefix check for that
 publisher without changing catalog text admission or truncation rules.
+CatalogStatus value equality compares every published field; consumers use it
+to detect an unsynchronized catalog without changing the status representation.
 
 ## Ownership and lifecycle
 

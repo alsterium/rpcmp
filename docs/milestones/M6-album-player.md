@@ -31,8 +31,10 @@ PlayerCommand/PlayerSnapshot schema 2 or change v1 transport behavior.
 Slice 3 first adopts [Core playback transport v1](../../specs/playback-transport-v1.md)
 for asynchronous preparation/audio control, cancellation and deadlines. It is
 internal Core machinery. [Player state schema 2](../../specs/player-state-v2.md)
-adopts copied transport observations and Core-owned publication. Command ingress
-and the remaining policy/history/settings/UI contracts follow in this slice.
+adopts copied transport observations and Core-owned publication.
+[Transport command schema 2](../../specs/player-command-v2.md) adopts the bounded
+ingress, replay/projection and PlayerSession boundary. The remaining
+policy/history/settings/UI contracts follow in this slice.
 Hardware ACK deadlines and MMIO remain slice 4 decisions based on RTL evidence.
 
 ## Slices and acceptance
@@ -334,3 +336,55 @@ definition parameter-name mismatch. The names were aligned without suppression.
 No RTL/APF/package inputs changed: RTL simulation, synthesis and hardware checks
 were not run. The publisher remains a Core component awaiting command ingress
 and platform integration; a publication failure must be handled by that owner.
+
+Slice 3's public transport command ingress is implemented on 2026-09-13.
+PlayerSession connects the seven schema 2 commands to the transport and state
+publisher. Admission uses a 32-command FIFO, a 64-result replay window and the
+same pure transition as execution. Submission and snapshot reads make no
+playback-port calls. Catalog/fault changes after admission interrupt the batch
+as an asynchronous failure; accepted receipts are not retroactively rejected.
+Policy/loop/gain, history/settings and mock UI/input remain in slice 3.
+
+Executed command-ingress evidence:
+
+- `pwsh -File tools/host-verify.ps1`: final 65/65 PASS, 228.58 seconds,
+  including format, tidy, v1 compatibility and architecture/harness checks.
+  Log: `out/build/m6-ingress-host.log` (ignored).
+- `python -B tools/check_harness.py`: PASS; changed Markdown local file links:
+  47 PASS (`out/build/m6-ingress-links.py`, ignored).
+- `pwsh -File out/build/m6-ingress-focused.ps1`: 16/16 PASS, 7.64 seconds
+  before the final admission-context and malformed-batch boundary additions;
+  those additions are covered by the full gate above. Log:
+  `out/build/m6-ingress-after.log` (ignored).
+- Offline Docker GCC 13.3.0 ASan/UBSan: command/state contract, PlayerSession,
+  transport and publisher suites PASS. Production disables exceptions/RTTI;
+  tests disable RTTI. Script/log: `out/build/m6-ingress-posix.py` and
+  `out/build/m6-ingress-posix.log` (ignored).
+- Offline Docker `make --file out/build/m6-ingress-cross/Makefile ingress-check`:
+  RISC-V link-only probe PASS, no undefined symbols. Text 32,124, data 188,
+  BSS 1,800 bytes; conservative stack bound 22,912 bytes. Source/Makefile and
+  budget are under `out/build/m6-ingress-cross`; log is
+  `out/build/m6-ingress-cross.log` (ignored). This probe uses scripted ports,
+  was not executed on Pocket and is not an integrated player memory budget.
+
+The independent tests cover replay/ID/sequence ordering, 32/33 queue and 64/65
+history boundaries, projected pause/resume, T/U/Stop, fault/closure after
+acceptance, natural-end ordering and identical port traces with different
+publication/read frequencies. They also cover first-step/catalog synchronization,
+unsupported pause aliases and admitted execution disagreements. Public sequence
+exhaustion remains directly tested at the publisher boundary; PlayerSession's
+last-sequence reservation was reviewed but not injected end to end.
+
+A baseline compiled from HEAD 0812bd4 reproduced a reasserted device fault after
+a successful reset being cleared by reselection. The fix tracks the fault edge,
+inhibits output and starts a fresh reset generation. The current-source focused
+failure also exposed Play from Paused bypassing the pause-capability check;
+it now follows Resume. Logs: `out/build/m6-ingress-baseline.log` and
+`out/build/m6-ingress-before.log` (ignored). No golden was regenerated.
+An earlier test incorrectly expected recovery when Reset ACK arrived while the
+fault stayed asserted: the existing terminal ResetFailed behavior was correct,
+and the assertion was corrected before isolating the actual reassertion bug.
+
+No RTL, APF definition or hardware package changed. RTL simulation, synthesis
+and hardware checks were not run; these host/link results do not establish
+physical pause, output-inhibit latency or real ACK deadlines.
