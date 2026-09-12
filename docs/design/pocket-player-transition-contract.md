@@ -1,7 +1,11 @@
 # Pocket 再生状態遷移の契約案
 
-Status: proposal, 2026-09-13. [詳細仕様案](pocket-library-player-spec-draft.md) の
-確定済みの選曲・再生要件を実現する Core の動作案です。数値的な制御条件と API は設計提案であり、
+Status: Core transport portion adopted for M6 slice 3, 2026-09-13.
+[Core playback transport v1](../../specs/playback-transport-v1.md) に準備・音声制御の
+非同期処理、取消、故障と期限の扱いを採用しました。これはCore内部の契約です。
+[詳細仕様案](pocket-library-player-spec-draft.md) の確定済み要件に向け、公開schema 2、
+policy/loop/gain、history/settings、実際の音声ポートへの接続は後続実装です。
+この文書の未採用の数値条件とAPIは引き続き設計提案であり、
 現行 [PlayerCommand v1](../../specs/player-command-api.md)、
 [UI snapshot v1](../../specs/ui-state-api.md)、M0 / M5 実装は変更しません。
 
@@ -227,7 +231,8 @@ RTLで証明した後に、具体的なMMIOとACK deadlineを採用します。
 (5) Pocket 統合・100/300曲での容量と操作確認、の依存順に分割します。
 各段を別の小さな slice とし、全機能を一度に変更しません。
 
-これは実装順の提案です。現在 active な M5 の acceptance 6 と ADR-0008 の未完了事項を
-合格扱いにせず、次 milestone の採用時に残 gate の所有先・必要証拠を明記します。
-過去の APF2 再試験を仕様決めの条件に戻しません。契約採用、文字変換・表示・入力表の
-残項目、保存 adapter・音声 port の実現性を詰めてから、active milestone を明示して実装を始めます。
+実装の現在地は [CURRENT](../CURRENT.md)、受入と実行結果は
+[M6](../milestones/M6-album-player.md) を参照してください。M5の未完了gateはM6の
+sound/storage、統合、実機sliceへ引き継いでおり、合格扱いにはしません。
+過去のAPF2再試験を仕様決めの条件に戻しません。公開schema 2と残りの契約を段階的に採用し、
+音声ポートの具体的なMMIO・ACK期限はRTLの根拠を得てから固定します。

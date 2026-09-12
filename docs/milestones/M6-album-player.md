@@ -28,6 +28,12 @@ adopt [catalog query v1](../../specs/catalog-query-v1.md): copied bounded pages,
 Core-owned invalidation and a separate read-only interface. This does not adopt
 PlayerCommand/PlayerSnapshot schema 2 or change v1 transport behavior.
 
+Slice 3 first adopts [Core playback transport v1](../../specs/playback-transport-v1.md)
+for asynchronous preparation/audio control, cancellation and deadlines. It is
+internal Core machinery; public schema 2 ingress/snapshots and the remaining
+policy/history/settings/UI contracts are adopted with their subsequent parts.
+Hardware ACK deadlines and MMIO remain slice 4 decisions based on RTL evidence.
+
 ## Slices and acceptance
 
 1. **Host metadata:** strict CP932 embedded titles, filename fallback with
@@ -237,3 +243,45 @@ CMake link declarations. No RTL, APF definition or hardware package changed in
 this unit, so RTL simulation, synthesis and hardware tests were not run.
 Continue with slice 3; the platform's borrowed-buffer lifetime and serialized
 control context remain integration responsibilities, not guarantees of the API.
+
+Slice 3's internal asynchronous transport is implemented on 2026-09-13. It
+validates catalog identity before selection, separates projected intent from
+confirmed sound state, serializes generation-tagged resets and keeps cancelled
+preparation storage owned until quiescence. Committed 48 kHz media positions
+come from the audio port, not UI cadence. Unsupported pause is rejected; ACK
+timeouts and failed resets never become success. Public schema 2 ingress and
+snapshots, policy/loop/gain/history/settings and UI remain in slice 3.
+
+Executed transport evidence:
+
+- `pwsh -File out/build/m6-transport-focused.ps1`: 12/12 PASS, 7.21 seconds
+  before the final test-only optional guards/invalid-tag construction change.
+- `pwsh -File tools/host-verify.ps1`: final 61/61 PASS, 186.58 seconds, including
+  format, clang-tidy, v1 and architecture checks. Log:
+  `out/build/m6-transport-host.log` (ignored).
+- Offline Docker GCC 13.3.0, ASan/UBSan: final scripted transport suite PASS.
+  Production objects have no exceptions/RTTI; tests also disable RTTI for the
+  polymorphic port boundary. Script/log: `out/build/m6-transport-posix.py` and
+  `out/build/m6-transport-posix.log` (ignored).
+- Offline Docker `make --file out/build/m6-transport-cross/Makefile transport-check`:
+  RISC-V link-only probe PASS, with no undefined symbols. Text 25,020, data 188,
+  BSS 1,800 bytes; conservative stack bound 11,680 bytes. Probe source, makefile
+  and budget are under `out/build/m6-transport-cross`; log is
+  `out/build/m6-transport-cross.log` (ignored). Its test ports are not real
+  Pocket adapters, and the executable was not run on hardware.
+
+Independent scripted traces cover rapid T/U/Stop, old Reset/Start ACKs, Pause/
+Resume projection, end held during pause, command/end ordering, catalog reload,
+start/poll failures, exact deadlines, clock/counter limits and buffer ownership.
+Three additional failure cases first failed: a library completion replaced an
+existing device Error, a malformed late Reset ACK lifted terminal inhibition,
+and a valid late Reset ACK retained storage unnecessarily. The fixes preserve
+Error/inhibition and release only proven-quiescent storage. Failure log:
+`out/build/m6-transport-failure-before.log` (ignored). No golden was regenerated.
+
+Initial tidy findings were in test code: optional observations now fail explicitly
+when absent instead of being dereferenced unchecked; the malformed enum case uses
+an authored raw tag byte. The same rejection assertion remains, with no warning
+suppression. No RTL, APF configuration or hardware package changed, so RTL
+simulation, synthesis and hardware checks were not run. Real pause, output-inhibit
+latency and ACK deadline bounds still require the slice 4 adapter/RTL evidence.

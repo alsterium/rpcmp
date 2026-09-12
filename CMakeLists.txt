@@ -119,6 +119,7 @@ rpcmp_production_options(rpcmp_library)
 
 add_library(rpcmp_player STATIC
   core/player/src/catalog_session.cpp
+  core/player/src/playback_transport.cpp
   core/player/src/mdx_library_session.cpp)
 target_include_directories(rpcmp_player PUBLIC core/player/include)
 target_link_libraries(rpcmp_player PUBLIC rpcmp_library rpcmp_runtime)
@@ -320,6 +321,13 @@ if(BUILD_TESTING)
   target_compile_definitions(rpcmp_catalog_session_tests PRIVATE RPCMP_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
   rpcmp_test_options(rpcmp_catalog_session_tests)
   add_test(NAME catalog_session COMMAND rpcmp_catalog_session_tests)
+
+  add_executable(rpcmp_playback_transport_tests tests/player/playback_transport_tests.cpp)
+  target_include_directories(rpcmp_playback_transport_tests PRIVATE tests/support)
+  target_link_libraries(rpcmp_playback_transport_tests PRIVATE rpcmp_player)
+  target_compile_definitions(rpcmp_playback_transport_tests PRIVATE RPCMP_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
+  rpcmp_test_options(rpcmp_playback_transport_tests)
+  add_test(NAME playback_transport COMMAND rpcmp_playback_transport_tests)
 
   add_executable(rpcmp_runtime_tests tests/runtime/mock_core_tests.cpp)
   target_include_directories(rpcmp_runtime_tests PRIVATE tests/support)
