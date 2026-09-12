@@ -23,8 +23,10 @@ and the old writer API. The proposal's claim that identical tracks already
 failed in the old writer was incorrect: only the new album API rejects equal
 TrackIdentity input. NFC remains a host producer requirement. Folder ingestion
 adopts [album ingestion v1](../../specs/album-ingestion-v1.md), including explicit
-exclusion/global-failure and native publication rules. Core generation/page
-APIs will be adopted with their own implementation.
+exclusion/global-failure and native publication rules. Core generation/pages
+adopt [catalog query v1](../../specs/catalog-query-v1.md): copied bounded pages,
+Core-owned invalidation and a separate read-only interface. This does not adopt
+PlayerCommand/PlayerSnapshot schema 2 or change v1 transport behavior.
 
 ## Slices and acceptance
 
@@ -192,3 +194,46 @@ order and exclusion assertions unchanged. No source fixture/golden was changed.
 Native output handles retain their OS type. The scanner reads Windows kind and
 size in one native attribute query, which also avoids a clang analyzer enum
 diagnostic inside MSVC's `filesystem::file_size`; no warning suppression was added.
+
+Slice 2 Core generation/catalog pages are implemented on 2026-09-13, completing
+the slice's host acceptance. `CatalogSession` invalidates references at open/
+reload/close start, rejects obsolete completions and exposes copied 16-item pages
+through the separate const `CatalogReader` interface. Names use complete UTF-8
+prefixes up to 96 bytes with explicit truncation. Core-only track resolution
+checks generation and ID without changing transport. Playback command integration
+and actual browsing UI remain slice 3; v1 behavior is preserved.
+
+Executed catalog-query evidence:
+
+- `pwsh -File out/build/m6-catalog-focused.ps1`: 13/13 PASS, 7.76 seconds
+  (contracts, catalog, library/session and architecture subset).
+- `pwsh -File tools/host-verify.ps1`: 60/60 PASS, 183.06 seconds, including
+  format, clang-tidy and architecture/harness checks. Log:
+  `out/build/m6-catalog-host.log` (ignored).
+- Offline Docker GCC 13.3.0 with ASan/UBSan: contract-only mock pages and Core
+  session tests PASS. Production objects use no exceptions/RTTI; tests also
+  disable RTTI consistently with the polymorphic read port. Script/log:
+  `out/build/m6-catalog-posix.py`, `out/build/m6-catalog-posix.log` (ignored).
+- Offline Docker `make --file out/build/m6-catalog-cross/Makefile catalog-check`:
+  PASS for a link-only probe exercising the new paths with the pinned Pocket SDK.
+  RISC-V ELF has no undefined symbols; text 21,660, data 188, BSS 1,800 bytes;
+  conservative stack bound 13,040 bytes. This is not the integrated player and
+  was not executed on hardware. Script/source/budget under
+  `out/build/m6-catalog-cross`, log `out/build/m6-catalog-cross.log` (ignored).
+
+Tests use the original independently encoded album fixture and literal IDs,
+300-item pagination, stale/duplicate/failed loads, unchanged-build-ID reorder,
+counter exhaustion, copied-page lifetime and authored UTF-8/mock boundaries.
+An initial test helper violated the existing folder-basename/name rule; fixing
+the helper preserved the storage contract. A focused NUL case then reproduced
+one missing mock-page rejection (12/13 subset tests passed); the page validator
+now follows rpcmlib v1's embedded-NUL prohibition. The new draft's contrary
+sentence was corrected explicitly to that existing rule. Failure log:
+`out/build/m6-catalog-nul-before.log` (ignored). No golden was regenerated.
+
+Dependency checks now reject player-to-UI, UI-to-player/library and contracts-to-
+implementation edges, with independent negative cases for includes and repeated
+CMake link declarations. No RTL, APF definition or hardware package changed in
+this unit, so RTL simulation, synthesis and hardware tests were not run.
+Continue with slice 3; the platform's borrowed-buffer lifetime and serialized
+control context remain integration responsibilities, not guarantees of the API.

@@ -87,6 +87,7 @@ function(rpcmp_test_options target)
 endfunction()
 
 add_library(rpcmp_contracts STATIC
+  core/contracts/src/catalog_validation.cpp
   core/contracts/src/device_op.cpp
   core/contracts/src/validation.cpp)
 target_include_directories(rpcmp_contracts PUBLIC core/contracts/include)
@@ -117,6 +118,7 @@ target_link_libraries(rpcmp_library PUBLIC rpcmp_contracts)
 rpcmp_production_options(rpcmp_library)
 
 add_library(rpcmp_player STATIC
+  core/player/src/catalog_session.cpp
   core/player/src/mdx_library_session.cpp)
 target_include_directories(rpcmp_player PUBLIC core/player/include)
 target_link_libraries(rpcmp_player PUBLIC rpcmp_library rpcmp_runtime)
@@ -306,6 +308,19 @@ if(BUILD_TESTING)
   rpcmp_test_options(rpcmp_contract_tests)
   add_test(NAME contracts COMMAND rpcmp_contract_tests)
 
+  add_executable(rpcmp_catalog_contract_tests tests/contracts/catalog_contract_tests.cpp)
+  target_include_directories(rpcmp_catalog_contract_tests PRIVATE tests/support)
+  target_link_libraries(rpcmp_catalog_contract_tests PRIVATE rpcmp_contracts)
+  rpcmp_test_options(rpcmp_catalog_contract_tests)
+  add_test(NAME catalog_contracts COMMAND rpcmp_catalog_contract_tests)
+
+  add_executable(rpcmp_catalog_session_tests tests/player/catalog_session_tests.cpp)
+  target_include_directories(rpcmp_catalog_session_tests PRIVATE tests/support)
+  target_link_libraries(rpcmp_catalog_session_tests PRIVATE rpcmp_player rpcmp_utility_writer)
+  target_compile_definitions(rpcmp_catalog_session_tests PRIVATE RPCMP_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
+  rpcmp_test_options(rpcmp_catalog_session_tests)
+  add_test(NAME catalog_session COMMAND rpcmp_catalog_session_tests)
+
   add_executable(rpcmp_runtime_tests tests/runtime/mock_core_tests.cpp)
   target_include_directories(rpcmp_runtime_tests PRIVATE tests/support)
   target_link_libraries(rpcmp_runtime_tests PRIVATE rpcmp_runtime)
@@ -478,6 +493,8 @@ if(BUILD_TESTING)
     NAME architecture_positive
     COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/architecture/check_dependencies.py
             --root ${CMAKE_SOURCE_DIR})
+  add_test(NAME architecture_catalog_boundary
+    COMMAND ${Python3_EXECUTABLE} -B ${CMAKE_SOURCE_DIR}/tests/architecture/catalog_boundary_tests.py)
   add_test(NAME harness
     COMMAND ${Python3_EXECUTABLE} -B ${CMAKE_SOURCE_DIR}/tools/check_harness.py
             --root ${CMAKE_SOURCE_DIR})

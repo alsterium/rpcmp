@@ -45,6 +45,18 @@ def find_violations(root: Path) -> list[str]:
         if "rpcmp/spike/" in text or "spikes/" in text.replace("\\", "/"):
             violations.append(f"contracts depend on feasibility spike: {path.relative_to(root)}")
 
+    catalog_boundaries = {
+        "player": ("ui",),
+        "ui": ("player", "library"),
+        "contracts": ("player", "library", "runtime", "ui"),
+    }
+    for owner, forbidden in catalog_boundaries.items():
+        for path in source_files(root / "core" / owner):
+            text = path.read_text(encoding="utf-8").replace("\\", "/")
+            for dependency in forbidden:
+                if f"rpcmp/{dependency}/" in text or f"core/{dependency}" in text:
+                    violations.append(f"{owner} depends on {dependency}: {path.relative_to(root)}")
+
     library_root = root / "core" / "library"
     for path in source_files(library_root):
         text = path.read_text(encoding="utf-8")
@@ -73,6 +85,16 @@ def find_violations(root: Path) -> list[str]:
         )
         if ui_link and "rpcmp_runtime" in ui_link.group("body"):
             violations.append("rpcmp_ui links rpcmp_runtime")
+
+        for owner, forbidden in catalog_boundaries.items():
+            links = re.finditer(
+                rf"target_link_libraries\s*\(\s*rpcmp_{owner}\b(?P<body>.*?)\)",
+                text, flags=re.DOTALL,
+            )
+            for link in links:
+                for dependency in forbidden:
+                    if re.search(rf"\brpcmp_{dependency}\b", link.group("body")):
+                        violations.append(f"rpcmp_{owner} links rpcmp_{dependency}")
 
     allowed_rtl = {
         Path("core/rtl/pocket/rpcmp_spike_regs.sv"),

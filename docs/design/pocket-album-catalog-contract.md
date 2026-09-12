@@ -1,9 +1,11 @@
 # Pocket アルバムカタログ契約案
 
-Status: storage profile adopted for M6 slice 2, 2026-09-13.
-規範は [album catalog v1](../../specs/album-catalog-v1.md) です。
+Status: storage and read-only query profiles adopted for M6 slice 2, 2026-09-13.
+規範は [album catalog v1](../../specs/album-catalog-v1.md) と
+[catalog query v1](../../specs/catalog-query-v1.md) です。
 現行 [Container v1](../../specs/rpcmlib-v1.md) と M5 一曲 profile の互換性を維持し、
-追加のwriter/reader入口でアルバムprofileを扱います。Coreの世代付きページAPIは後続実装です。
+追加のwriter/reader入口でアルバムprofileを扱います。Coreの世代付きページAPIも実装済みで、
+再生コマンドへの統合はM6 slice 3です。
 
 ## 1. 互換性と識別
 
@@ -118,7 +120,9 @@ STRS のキー・名前と header/directory は別途32 MiB全体上限へ算入
 
 ## 4. 読み取り専用カタログ API
 
-これは新 profile の論理 API 案であり、既存 `LogicalLibrary` の ABI を固定しません。
+この節の要件は [catalog query v1](../../specs/catalog-query-v1.md) で採用しました。
+具体的な型、拒否順、読込完了の世代確認、コピーの寿命は採用契約を参照してください。
+既存 `LogicalLibrary` の ABI を固定しません。
 
 ```text
 AlbumPage(generation, start_display_ordinal:u32, limit:u16)
@@ -155,7 +159,7 @@ library の検証中 / Empty / library Error では unavailable、別 generation
 | page 16/17件、末尾、stale generation | bounded なページと拒否理由。UI に保存位置を漏らさない |
 
 上表は試験設計です。保存形式のfixtureと実行結果は
-[M6の進捗](../milestones/M6-album-player.md#progress) に記録し、未実装の走査・ページAPIを
-含む表全体の合格とは区別します。
+[M6の進捗](../milestones/M6-album-player.md#progress) に、走査・ページAPIの実行結果と
+合わせて記録しています。ホスト試験と実機の再生・UI統合の合格は区別します。
 文字コード変換/NFC の依存、重複入力の将来の複数配置、同名アルバムの見分け方は
 この保存形式で対応済みとは主張しません。
