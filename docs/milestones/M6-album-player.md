@@ -17,6 +17,13 @@ Pocket runtime and current v1 Core/UI/device protocols remain independent.
 Subsequent contract proposals must be adopted explicitly at their slice entry;
 this milestone does not silently adopt unresolved MMIO or hardware deadlines.
 
+Slice 2 adopts [album catalog v1](../../specs/album-catalog-v1.md) for the
+optional ALBM payload and bounded writer/reader. This preserves rpcmlib 1.0
+and the old writer API. The proposal's claim that identical tracks already
+failed in the old writer was incorrect: only the new album API rejects equal
+TrackIdentity input. NFC remains a host producer requirement. Folder ingestion
+and Core generation/page APIs will be adopted with their own implementations.
+
 ## Slices and acceptance
 
 1. **Host metadata:** strict CP932 embedded titles, filename fallback with
@@ -97,4 +104,42 @@ No expected trace or golden value was regenerated to conceal the failure.
 
 No RTL, synthesis, cross-build, font rendering or hardware inputs changed in
 slice 1; those checks were not run. No M6 hardware capability or production
-promotion has been established. Slice 2 is next.
+promotion has been established.
+
+Slice 2 storage and logical lookup are implemented on 2026-09-13. The optional
+ALBM section retains explicit album/member order independently of stored ID
+order. Validation checks ownership, references, key syntax/uniqueness and the
+300-track/album, 1 MiB string-data and 32 MiB file limits before publishing a
+borrowed view. Failed opens preserve the previous view. Old writer goldens and
+old-reader compatibility are retained.
+
+The independently encoded [fixture](../../tests/fixtures/rpcmlib/README.md)
+predates the writer/reader implementation. Tests compare its complete bytes,
+mutate CRC-correct logical conditions, and exercise exact/over-limit capacities.
+Executed storage evidence:
+
+- `pwsh -File tools/host-verify.ps1`: 55/55 PASS, 160.72 seconds, including
+  formatting, clang-tidy and positive/negative architecture checks. The first
+  run passed functional tests but failed tidy on 13 type/style/reserve
+  diagnostics; these were corrected without suppression. Final log:
+  `out/build/m6-album-host.log` (ignored).
+- Focused Windows catalog/library/writer/session/preflight tests: 14/14 PASS,
+  7.99 seconds before the final extra owner/key and 300-album cases.
+- Offline native GCC 13.3.0 with ASan/UBSan: album catalog, old writer and
+  stable-ID tests PASS, without sanitizer findings. Script/log:
+  `out/build/m6-album-posix.py`, `out/build/m6-album-posix.log` (ignored).
+- Offline Docker `make --file spikes/pocket/openfpgaos/Makefile
+  M5_FILE_OUT_DIR=/repo/out/build/m6-album-legacy-cross m5-file-budget`: PASS.
+  Final RISC-V ELF has no undefined symbols, text 67,396, data 228 and BSS
+  2,997,016 bytes; conservative stack bound 24,848 bytes. An initial `substr`
+  call pulled an unavailable exception runtime into the bare target link;
+  checked pointer/length views removed that dependency without runtime stubs.
+  This builds the existing M5 app, not an integrated M6 player. Script output:
+  `out/build/m6-album-legacy-cross.log` and its `budget.json` (ignored).
+- `python -B tests/harness/harness_tests.py`: 7/7 PASS; navigation/preset check
+  `python -B tools/check_harness.py`: PASS after the progress update.
+
+Folder scanning, mixed exclusions, native transactional output and Core-owned
+generation/pages remain in slice 2. No RTL inputs or hardware package changed
+in this storage unit, so RTL simulation, synthesis and hardware tests were not
+run. The target cross-build does not establish playback or hardware acceptance.

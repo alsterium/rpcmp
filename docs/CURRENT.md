@@ -2,8 +2,10 @@
 
 Active milestone: [M6 — Album Player](milestones/M6-album-player.md)
 
-The current task is M6 slice 2: adopt ALBM and implement folder/album ingestion
-with deterministic ordering, bounded capacity and explicit exclusions.
+The current task is M6 slice 2: implement folder/album ingestion with
+deterministic ordering, bounded capacity and explicit exclusions, then
+Core-owned generation/catalog pages. The [ALBM storage profile](../specs/album-catalog-v1.md)
+has a writer and validated logical reader; folder scanning is not implemented yet.
 Slice 1 implements [host metadata v1](../specs/host-metadata-v1.md); Windows host
 checks and Linux metadata/writer checks passed. See the milestone for evidence.
 The [accepted Q1–Q24 requirements](design/pocket-library-player-spec-draft.md)

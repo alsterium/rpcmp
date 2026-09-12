@@ -239,6 +239,12 @@ target_link_libraries(rpcmp_m5_file_preflight PRIVATE rpcmp_m5_library_loader rp
 rpcmp_production_options(rpcmp_m5_file_preflight)
 
 if(BUILD_TESTING)
+  add_executable(rpcmp_album_catalog_tests tests/library/album_catalog_tests.cpp)
+  target_include_directories(rpcmp_album_catalog_tests PRIVATE tests/support)
+  target_link_libraries(rpcmp_album_catalog_tests PRIVATE rpcmp_utility_writer)
+  target_compile_definitions(rpcmp_album_catalog_tests PRIVATE RPCMP_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
+  rpcmp_test_options(rpcmp_album_catalog_tests)
+  add_test(NAME album_catalog COMMAND rpcmp_album_catalog_tests)
   add_test(NAME incremental_build
     COMMAND ${Python3_EXECUTABLE} -B ${CMAKE_SOURCE_DIR}/tests/harness/incremental_build_tests.py
       ${CMAKE_COMMAND})

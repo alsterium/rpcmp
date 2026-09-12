@@ -39,6 +39,12 @@ struct NormalizedLibrary {
   std::vector<NormalizedTrack> tracks;
 };
 
+struct NormalizedAlbum {
+  std::string folder_key;
+  std::string name;
+  std::vector<std::size_t> track_indices;
+};
+
 enum class WriterError : std::uint8_t {
   None = 0,
   InvalidInput,
@@ -46,6 +52,7 @@ enum class WriterError : std::uint8_t {
   EmbeddedNul,
   DuplicateTrack,
   SizeLimitExceeded,
+  IdentifierExhausted,
 };
 
 struct WriterResult {
@@ -56,6 +63,8 @@ struct WriterResult {
 };
 
 [[nodiscard]] WriterResult write_rpcmlib(const NormalizedLibrary& input);
+[[nodiscard]] WriterResult write_album_rpcmlib(const NormalizedLibrary& input,
+                                               const std::vector<NormalizedAlbum>& albums);
 
 } // namespace rpcmp::utility
 

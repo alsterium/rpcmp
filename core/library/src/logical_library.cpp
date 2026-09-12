@@ -1,8 +1,13 @@
 #include "rpcmp/library/logical_library.hpp"
 
+#include "rpcmp/library/album_catalog.hpp"
+#include "rpcmp/library/formats.hpp"
+
+#include <algorithm>
 #include <cstddef>
 #include <cstdint>
 #include <limits>
+#include <string_view>
 
 namespace rpcmp::library {
 namespace {
@@ -478,6 +483,215 @@ bool LogicalLibrary::dependency(const contracts::TrackId track_id, const std::ui
   output.role = read_u32(record + 8);
   output.blob_id = contracts::BlobId{read_u64(record + 16)};
   return true;
+}
+
+bool valid_album_key(const Utf8View key) noexcept {
+  if (key.data == nullptr || key.size == 0 || key.size > 4096)
+    return false;
+  const std::string_view text{key.data, key.size};
+  if (text == ".")
+    return true;
+  if (text.front() == '/' || text.back() == '/' || text.find('\\') != std::string_view::npos ||
+      text.find('\0') != std::string_view::npos)
+    return false;
+  if (text.size() >= 2 && text[1] == ':' &&
+      ((text[0] >= 'a' && text[0] <= 'z') || (text[0] >= 'A' && text[0] <= 'Z')))
+    return false;
+  std::size_t start = 0;
+  while (start < text.size()) {
+    const auto end = text.find('/', start);
+    const std::string_view component{
+        text.data() + start, end == std::string_view::npos ? text.size() - start : end - start};
+    if (component.empty() || component == "." || component == "..")
+      return false;
+    if (end == std::string_view::npos)
+      break;
+    start = end + 1;
+  }
+  return true;
+}
+
+CatalogResult AlbumCatalog::open(const ByteView file, AlbumCatalog& output) {
+  if (file.size > kAlbumMaxFileBytes)
+    return {CatalogError::Capacity};
+  AlbumCatalog candidate;
+  ValidationLimits limits;
+  limits.max_sections = 16;
+  limits.max_file_size = kAlbumMaxFileBytes;
+  limits.max_records_per_section = 4096;
+  limits.max_total_decoded_bytes = kAlbumMaxFileBytes;
+  const auto result = LogicalLibrary::open(file, candidate.library_, limits);
+  if (result != LibraryError::None)
+    return {CatalogError::Library, result};
+  const auto& logical = candidate.library_;
+  if (logical.track_count_ == 0 || logical.track_count_ > kAlbumMaxTracks ||
+      logical.blob_count_ == 0 || logical.blob_count_ > kAlbumMaxTracks ||
+      logical.string_count_ > 4096)
+    return {CatalogError::Capacity};
+  std::uint64_t string_bytes = 0;
+  for (std::uint32_t i = 0; i < logical.string_count_; ++i) {
+    string_bytes += read_u32(logical.strings_.data + 16 + static_cast<std::size_t>(i) * 16 + 12);
+    if (string_bytes > kAlbumMaxStringBytes)
+      return {CatalogError::Capacity};
+  }
+  for (std::uint32_t i = 0; i < logical.blob_count_; ++i) {
+    const auto* record = logical.blobs_.data + 16 + static_cast<std::size_t>(i) * 48;
+    if (read_u64(record + 16) > kAlbumMaxBlobBytes)
+      return {CatalogError::Capacity};
+    if (read_u32(record + 8) != kMdxFourcc)
+      return {CatalogError::InvalidReference};
+  }
+  for (std::uint32_t i = 0; i < logical.track_count_; ++i) {
+    const auto* record = logical.tracks_.data + 8 + static_cast<std::size_t>(i) * 96;
+    if (read_u32(record + 8) != kMdxFourcc || read_u32(record + 84) != 0)
+      return {CatalogError::InvalidReference};
+  }
+  ByteView payload;
+  const auto directory = read_u64(file.data + 40);
+  const auto sections = read_u32(file.data + 48);
+  for (std::uint32_t i = 0; i < sections; ++i) {
+    const auto* entry = file.data + directory + static_cast<std::size_t>(i) * 40;
+    if (read_u32(entry) == 0x4d424c41U) {
+      if (read_u32(entry + 4) != 0 || read_u32(entry + 28) != 8)
+        return {CatalogError::InvalidHeader};
+      payload = {file.data + read_u64(entry + 8), static_cast<std::size_t>(read_u64(entry + 16))};
+    }
+  }
+  if (payload.data == nullptr)
+    return {CatalogError::MissingSection};
+  if (payload.size < 32)
+    return {CatalogError::InvalidHeader};
+  if (read_u16(payload.data) != 1 || read_u16(payload.data + 2) != 0)
+    return {CatalogError::UnsupportedVersion};
+  if (read_u16(payload.data + 4) != 32 || read_u16(payload.data + 6) != 40 ||
+      read_u16(payload.data + 8) != 16)
+    return {CatalogError::InvalidHeader};
+  const auto albums = read_u32(payload.data + 12);
+  const auto members = read_u32(payload.data + 16);
+  if (albums == 0 || albums > kAlbumMaxAlbums || members == 0 || members > kAlbumMaxTracks)
+    return {CatalogError::Capacity};
+  const auto member_offset = 32ULL + 40ULL * albums;
+  if (read_u64(payload.data + 24) != member_offset ||
+      payload.size != member_offset + 16ULL * members)
+    return {CatalogError::InvalidHeader};
+  if (members != logical.track_count_)
+    return {CatalogError::InvalidMembership};
+  candidate.album_count_ = albums;
+  candidate.albums_ = payload.data + 32;
+  candidate.members_ = payload.data + member_offset;
+  std::array<bool, kAlbumMaxAlbums> ordinals{};
+  std::array<std::string_view, kAlbumMaxAlbums> keys{};
+  std::array<std::uint64_t, kAlbumMaxTracks> track_ids{};
+  std::uint64_t previous_id = 0;
+  std::uint32_t next_member = 0;
+  for (std::uint32_t i = 0; i < albums; ++i) {
+    const auto* record = candidate.albums_ + static_cast<std::size_t>(i) * 40;
+    const auto id = read_u64(record);
+    if (id <= previous_id)
+      return {CatalogError::InvalidAlbum};
+    previous_id = id;
+    const auto name_id = read_u64(record + 8);
+    const auto key_id = read_u64(record + 16);
+    if (name_id == 0 || key_id == 0 ||
+        find_string_record(logical.strings_.data, logical.string_count_, name_id) == nullptr ||
+        find_string_record(logical.strings_.data, logical.string_count_, key_id) == nullptr)
+      return {CatalogError::InvalidReference};
+    const auto name = string_view(logical.strings_.data, logical.string_count_, name_id);
+    const auto key = string_view(logical.strings_.data, logical.string_count_, key_id);
+    if (name.size == 0 || !valid_album_key(key))
+      return {CatalogError::InvalidAlbum};
+    const std::string_view key_text{key.data, key.size};
+    keys[i] = key_text;
+    const auto slash = key_text.find_last_of('/');
+    const auto component_start = slash == std::string_view::npos ? 0 : slash + 1;
+    const std::string_view component{key_text.data() + component_start,
+                                     key_text.size() - component_start};
+    if (key_text != "." && component != std::string_view{name.data, name.size})
+      return {CatalogError::InvalidAlbum};
+    const auto display = read_u32(record + 24);
+    if (display >= albums || ordinals[display])
+      return {CatalogError::InvalidOrder};
+    ordinals[display] = true;
+    candidate.display_indices_[display] = static_cast<std::uint16_t>(i);
+    const auto count = read_u32(record + 32);
+    if (read_u32(record + 28) != next_member || count == 0 || count > members - next_member)
+      return {CatalogError::InvalidMembership};
+    for (std::uint32_t j = 0; j < count; ++j) {
+      const auto* member = candidate.members_ + static_cast<std::size_t>(next_member + j) * 16;
+      if (read_u32(member + 8) != j)
+        return {CatalogError::InvalidOrder};
+      const auto track_id = read_u64(member);
+      const auto* index = find_index_record(logical.index_.data, read_u32(logical.index_.data),
+                                            kTrackEntity, track_id);
+      if (index == nullptr)
+        return {CatalogError::InvalidReference};
+      const auto* track =
+          logical.tracks_.data + 8 + static_cast<std::size_t>(read_u32(index + 16)) * 96;
+      if (read_u64(track + 40) != name_id)
+        return {CatalogError::InvalidReference};
+      track_ids[next_member + j] = track_id;
+    }
+    next_member += count;
+  }
+  if (next_member != members)
+    return {CatalogError::InvalidMembership};
+  std::sort(keys.begin(), keys.begin() + albums);
+  if (std::adjacent_find(keys.begin(), keys.begin() + albums) != keys.begin() + albums)
+    return {CatalogError::InvalidAlbum};
+  std::sort(track_ids.begin(), track_ids.begin() + members);
+  if (std::adjacent_find(track_ids.begin(), track_ids.begin() + members) !=
+      track_ids.begin() + members)
+    return {CatalogError::InvalidMembership};
+  output = candidate;
+  return {};
+}
+
+const std::uint8_t* AlbumCatalog::album_record(const contracts::AlbumId id) const {
+  std::uint32_t first = 0;
+  std::uint32_t last = album_count_;
+  while (first < last) {
+    const auto middle = first + (last - first) / 2;
+    const auto* record = albums_ + static_cast<std::size_t>(middle) * 40;
+    if (read_u64(record) < id.value)
+      first = middle + 1;
+    else
+      last = middle;
+  }
+  if (first == album_count_)
+    return nullptr;
+  const auto* record = albums_ + static_cast<std::size_t>(first) * 40;
+  return read_u64(record) == id.value ? record : nullptr;
+}
+
+void AlbumCatalog::album_view(const std::uint8_t* record, AlbumView& output) const {
+  output = {{read_u64(record)},
+            read_u32(record + 24),
+            string_view(library_.strings_.data, library_.string_count_, read_u64(record + 8)),
+            read_u32(record + 32)};
+}
+
+bool AlbumCatalog::album_at(const std::uint32_t display_ordinal, AlbumView& output) const {
+  if (display_ordinal >= album_count_)
+    return false;
+  album_view(albums_ + static_cast<std::size_t>(display_indices_[display_ordinal]) * 40, output);
+  return true;
+}
+
+bool AlbumCatalog::find_album(const contracts::AlbumId id, AlbumView& output) const {
+  const auto* record = album_record(id);
+  if (record == nullptr)
+    return false;
+  album_view(record, output);
+  return true;
+}
+
+bool AlbumCatalog::track_at(const contracts::AlbumId album, const std::uint32_t ordinal,
+                            TrackView& output) const {
+  const auto* record = album_record(album);
+  if (record == nullptr || ordinal >= read_u32(record + 32))
+    return false;
+  const auto member = read_u32(record + 28) + ordinal;
+  return library_.find_track({read_u64(members_ + static_cast<std::size_t>(member) * 16)}, output);
 }
 
 } // namespace rpcmp::library

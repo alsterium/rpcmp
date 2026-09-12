@@ -1,9 +1,9 @@
 # Pocket アルバムカタログ契約案
 
-Status: proposal, 2026-09-13. [詳細仕様案](pocket-library-player-spec-draft.md) の
-保存形式を具体化する設計文書です。以下のバイト配置は提案であり、現行の
-[Container v1](../../specs/rpcmlib-v1.md)、writer、M5 一曲 profile は変更しません。
-契約採用時に `specs/` へ移し、実装と独立した fixture を先に定義します。
+Status: storage profile adopted for M6 slice 2, 2026-09-13.
+規範は [album catalog v1](../../specs/album-catalog-v1.md) です。
+現行 [Container v1](../../specs/rpcmlib-v1.md) と M5 一曲 profile の互換性を維持し、
+追加のwriter/reader入口でアルバムprofileを扱います。Coreの世代付きページAPIは後続実装です。
 
 ## 1. 互換性と識別
 
@@ -52,7 +52,7 @@ counter の枯渇は全体エラーです。reader は解決済み ID を使い�
 
 同名の別フォルダーは別 AlbumId です。ただし既存 TrackId は音楽とメタデータから
 決まるので、別入力でも同じ TrackId になる場合があります。この初期 profile では
-同一 TrackId の複数配置を表現しません。重複 TrackId は既存 writer 通り全体エラーとし、
+同一 TrackId の複数配置を表現しません。重複 TrackIdentity は新しいalbum writerで全体エラーとし、
 ローカル報告で該当する入力を示します。曲を黙って落としたり、既存 ID 規則に
 ファイル名を足したりしません。これは未対応・破損曲の個別除外とは別のエラーです。
 
@@ -104,7 +104,8 @@ reserved は writer が０にし、reader は v1 の拡張規則に合わせて�
 - 計算の加算・乗算・整数変換を検査し、A/T は1〜300、T は TRAK count と一致。
   範囲検査と上限検査を allocation / access より先に行う。
 - AlbumId は非ゼロかつ strict ascending。名前・キーは存在する非空 STRS 参照で、
-  キーは正規形かつ重複なし。ルート以外の名前はキーの最終 component と一致。
+  キーは相対パス構文を満たし重複なし。NFCはホスト側の入力前提で、Pocketには
+  Unicode正規化器を持ち込みません。ルート以外の名前はキーの最終 component と一致。
   ルートの名前は取り込み元ルート名として格納し、Pocket でホスト名を推測しない。
 - album display ordinal は `[0,A)` の重複なし全要素。保存位置と表示位置を混同しない。
 - 各 album の track count は正、範囲は array 全体を隙間・重複なく分割。
@@ -153,6 +154,8 @@ library の検証中 / Empty / library Error では unavailable、別 generation
 | ALBM なし / 未対応 version | 旧 M5 は旧契約通り、新 profile は明示的に拒否 |
 | page 16/17件、末尾、stale generation | bounded なページと拒否理由。UI に保存位置を漏らさない |
 
-これらは試験設計であり、fixture 実装や実行済みの合格結果ではありません。
+上表は試験設計です。保存形式のfixtureと実行結果は
+[M6の進捗](../milestones/M6-album-player.md#progress) に記録し、未実装の走査・ページAPIを
+含む表全体の合格とは区別します。
 文字コード変換/NFC の依存、重複入力の将来の複数配置、同名アルバムの見分け方は
 この保存形式で対応済みとは主張しません。

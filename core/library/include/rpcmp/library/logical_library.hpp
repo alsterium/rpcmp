@@ -57,6 +57,7 @@ public:
                                 DependencyView& output) const;
 
 private:
+  friend class AlbumCatalog;
   struct Section {
     const std::uint8_t* data{};
     std::size_t size{};

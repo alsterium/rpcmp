@@ -1,6 +1,7 @@
 #ifndef RPCMP_UTILITY_STABLE_ID_HPP
 #define RPCMP_UTILITY_STABLE_ID_HPP
 
+#include "rpcmp/contracts/catalog.hpp"
 #include "rpcmp/contracts/types.hpp"
 #include "rpcmp/library/container.hpp"
 
@@ -33,6 +34,9 @@ struct TrackIdentity {
 [[nodiscard]] contracts::StringId stable_string_id(library::ByteView normalized_utf8,
                                                    std::uint32_t collision_counter = 0);
 [[nodiscard]] contracts::TrackId stable_track_id(const TrackIdentity& track,
+                                                 std::uint32_t collision_counter = 0);
+// Caller supplies a validated NFC album key (1..4096 bytes).
+[[nodiscard]] contracts::AlbumId stable_album_id(library::ByteView normalized_key,
                                                  std::uint32_t collision_counter = 0);
 
 } // namespace rpcmp::utility

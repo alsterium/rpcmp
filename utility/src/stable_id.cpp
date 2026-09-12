@@ -158,4 +158,13 @@ contracts::TrackId stable_track_id(const TrackIdentity& track,
   return {digest_id(identity)};
 }
 
+contracts::AlbumId stable_album_id(const library::ByteView normalized_key,
+                                   const std::uint32_t collision_counter) {
+  std::vector<std::uint8_t> identity{'a', 'l', 'b', 'u', 'm', 0};
+  append_u32(identity, static_cast<std::uint32_t>(normalized_key.size));
+  append_view(identity, normalized_key);
+  append_counter(identity, collision_counter);
+  return {digest_id(identity)};
+}
+
 } // namespace rpcmp::utility
