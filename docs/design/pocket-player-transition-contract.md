@@ -1,7 +1,7 @@
 # Pocket 再生状態遷移の契約案
 
 Status: proposal, 2026-09-13. [詳細仕様案](pocket-library-player-spec-draft.md) の
-確定済み Q1〜Q16 を実現する Core の動作案です。数値的な制御条件と API は設計提案であり、
+確定済みの選曲・再生要件を実現する Core の動作案です。数値的な制御条件と API は設計提案であり、
 現行 [PlayerCommand v1](../../specs/player-command-api.md)、
 [UI snapshot v1](../../specs/ui-state-api.md)、M0 / M5 実装は変更しません。
 
@@ -31,7 +31,8 @@ UI publication の時刻は別の monotonic clock とし、Pause 中も UI / 入
 Stopped に入り、暗黙には再生しません。不明 ID / 古い generation は現在の再生を
 止める前に拒否します。既存の accepted は完了を意味せず、最終状態は snapshot で読みます。
 
-`SetPlaybackPolicy` は次の全体を１回で置き換えます。初期値は AlbumOrder / Default。
+`SetPlaybackPolicy` は次の全体を１回で置き換えます。初回の既定値は AlbumOrder / Default。
+Q19 により、次回起動時には保存済みの有効な policy を復元します。
 
 | フィールド | 値 |
 | --- | --- |
@@ -40,8 +41,11 @@ Stopped に入り、暗黙には再生しません。不明 ID / 古い generati
 | count | Counted のときだけ `u32` の1〜4,294,967,295。それ以外は absent |
 
 Default の loop target は２、Counted は count、RepeatOne は無期限です。
-policy は同じ library 内の曲切替・Stop で維持し、新 library を開いたら初期値へ戻します。
-設定の電源断保存はこの profile に含めません。コマンド queue は32、結果の replay window は
+policy は曲や library の ID と独立したプレイヤー設定として、曲切替・Stop・library の変更で
+維持する案です。Q19 の回答により、旧案の「電源断保存を含めない」は撤回します。
+保存対象は上表の３フィールドで、再生位置・選択曲・shuffle 履歴の復元や自動再生は含めません。
+保存 port と形式は採用前に定義し、設定の適用・永続化の成功を別々に確認可能にします。
+コマンド queue は32、結果の replay window は
 64件、ID / stale sequence / 投影状態の検証順は M0 の規則を継承します。
 Pause/Resume 等を含む accepted command は先行 command の遷移中状態に対しても
 検証し、非同期完了に伴う実行時失敗は snapshot error に出します。

@@ -85,6 +85,31 @@ stop returns to the track list. The second action stays in UI and sends no
 additional Core command; repeated presses before stop completes are not queued
 as navigation. A retains play/pause/resume.
 
+Q18-Q20 are now answered. Settings use on-screen icons selected with the d-pad,
+with each selection toggling the value, rather than a dedicated settings-screen
+button. Q21 confirms d-pad focus plus A confirmation: moving focus alone changes
+neither policy nor playback. A on a settings icon changes that setting; A on the
+playback control retains play/pause/resume. Initial focus on that playback control
+is proposed so a second A after starting a track can pause it. Playback policy is
+to persist across power cycles (Q19), superseding the proposal that excluded
+persistence; playback-position/history restoration and automatic playback are
+not part of that decision. L/R select the previous/next track on the playback
+screen (Q20). Next, complete the screen/input table and the settings-storage
+contract alongside the existing sound-port design work.
+
+Q22 confirms browsing the track list while playback continues; Q23 selects
+vertically scrolling per-channel playback history for the Tracker view. The
+user adopted [Issue #1](https://github.com/alsterium/rpcmp/issues/1) as the initial
+layout reference. The [screen proposal](design/pocket-tracker-screen-design.md)
+uses one large switchable Tracker/keyboard/library pane, song information below
+left and minimal controls below right. B remains the stop-then-list path; view
+switching is a separate browsing path that does not stop playback. The initial
+profile remains eight FM channels, with a combined play/pause control; the
+reference image does not introduce PCM/rhythm or speed-control implementation.
+Next, define bounded, timestamped history snapshots and focus/input behavior
+alongside text, settings storage and sound-control contracts. This is still
+specification work, not a new implementation milestone.
+
 General placement stability, integrated timing/CDC and external-I/O constraints,
 broader APF lifecycle/failure coverage, and explicit future PCM/UI reserves remain open.
 M5 and production-substrate promotion remain open.

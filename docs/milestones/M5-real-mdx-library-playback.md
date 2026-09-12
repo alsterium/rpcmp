@@ -566,3 +566,28 @@ returns to the track list. This is contextual UI navigation and does not change
 the Core Stop command into Back. No implementation, test oracle, package,
 dependency or active public contract changed; M5 acceptance and the closed
 investigation retain their previous status.
+
+### Settings interaction and previous/next controls accepted — 2026-09-13
+
+Q18 replaces the dedicated settings-screen button proposal with on-screen icons
+selected using the d-pad, toggling on selection. Q21 confirms A as the trigger;
+focus movement alone changes neither policy nor playback. The initial-focus
+proposal keeps the playback control selected after starting a track so a second
+A can pause it; A on a settings icon changes only that setting.
+Q19 requires playback-policy settings to survive power cycles, explicitly
+superseding the previous no-persistence proposal. It does not request position
+or shuffle-history restoration, or automatic playback. Q20 assigns L/R to
+previous/next track on the playback screen. The detailed design and transport
+proposal record these decisions; persistence format/port and the remaining UI
+contexts still need specification. This is documentation only and changes no
+public v1 contract, implementation or hardware acceptance result.
+
+Q22 then confirmed browsing while playback continues; Q23 selected scrolling
+per-channel history. The user adopted [Issue #1](https://github.com/alsterium/rpcmp/issues/1)
+as the initial screen reference. The [screen design](../design/pocket-tracker-screen-design.md)
+records the shared Tracker/keyboard/library pane, lower information/control
+panels and contextual input proposal. The reference image was inspected; its
+PCM/rhythm labels, speed and other undeclared capabilities are not promoted into
+the FM-only scope. Reliable history needs a bounded, versioned state contract
+beyond instantaneous channel snapshots. A conversation-only layout mock uses
+synthetic data and establishes no audio, persistence or hardware acceptance.
