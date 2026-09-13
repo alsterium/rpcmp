@@ -923,3 +923,81 @@ RTL simulation, synthesis, packaging and hardware checks were not run for this
 unit. Next is slice 4 sound/storage feasibility and the real audible-commit,
 pending-observation and asynchronous persistence adapters, followed by Pocket
 font/input/framebuffer integration. M6 hardware acceptance remains pending.
+
+Slice 4's native JT51 hold feasibility fixture is implemented on 2026-09-13.
+The [experiment profile](../../specs/jt51-hold-experiment-v1.md) retains the clean
+pinned checkout and generates a separate module namespace under ignored `out/`.
+Native enables freeze their existing consumers; four enable-independent
+processes get explicit hold with reset priority. The original shift-register
+process shapes preserve RAM inference. Source/output/recipe hashes, process
+counts and the upstream license are recorded with generated source. No GPL HDL,
+bitstream or new third-party dependency is committed.
+
+The comparison oracle is the unmodified JT51 receiving only retained media clock
+edges in the testbench. The candidate always receives the fabric clock. Native
+stereo, extended samples, sample strobe, status/IRQ/control outputs and the
+selected-address register are compared, without generating a new golden.
+This is not an I2S-output or complete-pause proof. Resampler/pending ownership,
+zero-frame insertion, gain/commit, queue/CDC/ACK and fit remain to be connected.
+
+Executed native-hold evidence:
+
+- `pwsh -File tools/rtl-jt51-hold-verify.ps1 -CenOnly`: expected negative control
+  reproduced. The bench fails with `MMR changed while held` at media cycle 2049,
+  hold=1, before the first address reaches a retained oracle edge. The script
+  requires this exact failure and the one-error/zero-warning summary, never a
+  positive PASS marker. Log: `out/build/m6-hold-negative-ce.log` (ignored).
+- `pwsh -File tools/rtl-jt51-hold-verify.ps1`: PASS against real pinned JT51,
+  zero simulator errors/warnings. 745 native stereo sample pairs, including
+  273 nonzero left and 505 nonzero right, match; 260 register writes and 855
+  automatic pauses cover all 256 media sub-tick phases. There are 8,563 held
+  cycles, including the explicit initial-address hold; 107 coincide with an
+  address pulse, 40 with a data pulse and 2,224 with busy. Noise, four LFO
+  waveforms, timers, retriggers and reset while held are exercised. Log:
+  `out/build/m6-hold-positive-ce.log` (ignored). These are simulation counts,
+  not physical Pocket samples or elapsed playback time.
+- `pwsh -File tools/rtl-verify.ps1`, followed by
+  `pwsh -File tools/rtl-jt51-verify.ps1`: 9 boundary/model and 5 real-JT51 legacy
+  benches PASS, each with zero simulator errors/warnings. Logs:
+  `out/build/m6-hold-rtl.log`, `out/build/m6-hold-legacy-jt51.log` (ignored).
+- `python -B tests/rtl/jt51_hold_prepare_test.py`: 5/5 host guards PASS.
+  Offline Docker `python3 -B /repo/tests/rtl/jt51_hold_prepare_test.py`: the same
+  5/5 PASS on Linux; log: `out/build/m6-hold-posix-final.log` (ignored).
+- `pwsh -File tools/host-verify.ps1`: final host gate 76/76 PASS in 424.25 s,
+  including format, tidy and architecture rejection fixtures. Log:
+  `out/build/m6-hold-host-final.log` (ignored).
+- `python -B tools/check_harness.py`: PASS;
+  `python -B out/build/m6-hold-links.py`: 50 local file links PASS.
+
+Host generation guards use authored metadata and mocked Git responses, without
+vendor HDL. They reject an output outside `out/`, existing output, a wrong
+revision and dirty pinned input before publication, and check that comments
+cannot create clock ports. Real source transformation is covered by the RTL
+comparison rather than expected text copied from the generator.
+
+The first single-engine synthesis rejected the initial outer guard around an
+asynchronous reset (Quartus error 10200 in the timer flag). Keeping the reset
+branch first resolved it. A first synthesizable version then expanded the
+shift-register storage into 3,999 registers and zero block-memory bits.
+The final recipe gates existing native enables and only four independent
+processes, retaining RAM inference. The same native comparison still passes.
+These failures prompted the implementation changes; no expected trace or
+warning suppression was altered. Logs: `out/build/m6-hold-synthesis.log` and
+`out/build/m6-hold-synthesis-fixed.log` (ignored).
+
+`python -B out/build/m6-hold-synth.py`, then Quartus 25.1std.0 Build 1129
+`quartus_map.exe out/research/m6-jt51-hold-synth-ce/jt51_hold_probe
+--read_settings_files=on --write_settings_files=off`: final single-engine
+Analysis & Synthesis PASS for Cyclone V 5CEBA4F23C8, zero errors and 17 warnings.
+The report gives 1,091 registers, 2,974 block-memory bits and one DSP; it does
+not report placed ALMs or timing. The warnings are the same categories as the
+existing unmodified-engine report: nine unused write-side nets in initialized
+ROMs, constant dout[6:2], and the upstream unused cen input. No suppression is
+added. Final log: `out/build/m6-hold-synthesis-ce.log`; project and source/hash
+manifest: `out/research/m6-jt51-hold-synth-ce` (ignored).
+
+The default legacy audio path and APF/package inputs are unchanged. Full fitting,
+timing/CDC, cross-build, packaging and hardware checks were not run for this fixture;
+there is no new player image or advertised pause capability. Next connect this
+hold to the output boundary and prove that removing inserted stereo-zero frames
+recovers the unpaused sample stream, including in-flight writes and reset.

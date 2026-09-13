@@ -48,6 +48,20 @@ not copy GPL source or generated output into the repository. It also runs the
 complete fixed-sequence state machine through the production MMIO queue and
 requires 30 ordered JT51 address/data writes plus native audio samples.
 
+M6's native-engine hold experiment has a separate generated-copy comparison:
+
+```powershell
+pwsh -File tools/rtl-jt51-hold-verify.ps1 -CenOnly
+pwsh -File tools/rtl-jt51-hold-verify.ps1
+```
+
+The first command requires the specific expected register-hold failure; the
+second requires sample/status equivalence and zero simulator errors/warnings.
+Run these and other RTL suites sequentially. The [fixture contract](../specs/jt51-hold-experiment-v1.md)
+defines the source recipe, reset/hold semantics, coverage and remaining I2S/
+queue/gain/CDC work. Host `jt51_hold_prepare` checks generation guards without
+requiring vendor HDL; it does not replace that real-JT51 simulation.
+
 Run the reproducible Quartus template-integration build separately with:
 
 ```powershell

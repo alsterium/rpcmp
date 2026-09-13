@@ -582,6 +582,9 @@ if(BUILD_TESTING)
     COMMAND "${Python3_EXECUTABLE}" "${CMAKE_SOURCE_DIR}/tests/ui/player_ui_svg_test.py"
             "$<TARGET_FILE:rpcmp_player_ui_mock>")
 
+  add_test(NAME jt51_hold_prepare
+    COMMAND "${Python3_EXECUTABLE}" -B "${CMAKE_SOURCE_DIR}/tests/rtl/jt51_hold_prepare_test.py")
+
   add_executable(rpcmp_pocket_comparison_probe_tests
     tests/pocket/comparison_probe_tests.cpp)
   target_include_directories(rpcmp_pocket_comparison_probe_tests PRIVATE tests/support)

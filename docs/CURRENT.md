@@ -2,9 +2,14 @@
 
 Active milestone: [M6 — Album Player](milestones/M6-album-player.md)
 
-The current task is M6 slice 4: establish state-preserving sound pause,
-frame-boundary fade and audible-commit feasibility in RTL, then adopt the
-sound-control/CDC/ACK contract from that evidence. The headless player and
+The current task is M6 slice 4: connect native-engine hold to frame-boundary
+pause with retained resampler/pending samples and continuous silent I2S, then
+prove gain/audible commit and adopt sound-control/CDC/ACK from that evidence.
+The [JT51 hold fixture](../specs/jt51-hold-experiment-v1.md) now compares a generated
+hold-capable engine with unmodified JT51 at retained clock edges. Its authored
+trace passes; a cen-only negative control reproduces an in-flight register
+update during hold. This is native-engine evidence, not Pocket pause acceptance.
+The headless player and
 three mock views now connect around the
 [Core transport](../specs/playback-transport-v1.md),
 [schema 2 ingress](../specs/player-command-v2.md) and

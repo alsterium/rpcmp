@@ -15,6 +15,13 @@ AUDIO adapter. The ordinary RTL suite uses a behavioral JT51 boundary model;
 `tools/rtl-jt51-verify.ps1` separately requires and compiles the clean pinned
 GPL checkout from ignored research output.
 
+M6's [JT51 hold fixture](../../specs/jt51-hold-experiment-v1.md) generates a
+separate hold-capable copy under `out/`, preserving the original checkout and
+existing path. `tools/rtl-jt51-hold-verify.ps1` compares it with unmodified JT51
+under retained clock edges; `-CenOnly` must reproduce the in-flight-register
+hold failure. This proves native-engine behavior for an authored trace, not
+frame-boundary Pocket pause, output-buffer ownership or a new MMIO capability.
+
 `pocket/rpcmp_m2_fixed_core.sv` is the ADR-0007 hardware-validation substrate.
 It reproduces the frozen 17-operation fixture as MMIO transactions into the v1
 queue and exposes completion/fault diagnostics. It is deliberately not a
