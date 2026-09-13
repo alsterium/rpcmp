@@ -8,6 +8,17 @@ namespace rpcmp::contracts::v2 {
 
 inline constexpr std::uint64_t kPolicyObservations = 1ULL << 3U;
 inline constexpr std::uint64_t kRepeatControl = 1ULL << 4U;
+inline constexpr std::uint64_t kPolicyCommandResults = 1ULL << 8U;
+
+enum class PolicyCommandOutcome : std::uint8_t { Applied, Failed };
+struct PolicyCommandResult {
+  std::uint64_t command_id{};
+  std::uint64_t policy_revision{};
+  PolicyCommandOutcome outcome{PolicyCommandOutcome::Failed};
+};
+struct PolicyCommandObservation {
+  std::optional<PolicyCommandResult> last;
+};
 enum class PlaybackOrder : std::uint8_t { AlbumOrder, ShuffleLibrary };
 enum class RepeatMode : std::uint8_t { Default, RepeatOne, Counted };
 struct PlaybackPolicy {

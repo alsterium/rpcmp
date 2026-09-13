@@ -2,8 +2,8 @@
 
 Active milestone: [M6 — Album Player](milestones/M6-album-player.md)
 
-The current task is M6 slice 3: connect mock UI/input
-behavior through injected ports, around the
+The current task is M6 slice 3: render and inspect the three mock main views
+and shared information/control panel, around the
 [Core transport](../specs/playback-transport-v1.md),
 [schema 2 ingress](../specs/player-command-v2.md) and
 [published state](../specs/player-state-v2.md).
@@ -40,10 +40,16 @@ boundary; future observations are deferred.
 record validation, asynchronous restore/commit and copied save observations.
 Startup restores policy without autoplay; failures preserve the current policy
 and transport. A retry after uncertain I/O first waits for quiescence and
-rereads both slots. Next connect mock UI/input. The real audible mapping,
+rereads both slots. The [UI controller](../specs/player-ui-v1.md) now connects
+replaceable input/focus tables, paged album/track browsing, transport waits,
+serialized setting actions and bounded Tracker row projection using contracts
+alone. Policy commands publish Applied/Failed execution results independently
+of audio/save completion, including no-ops and interrupted batches. Next connect
+the mock canvas and visually inspect the Tracker, keyboard and library layouts.
+The real audible mapping,
 pending observation storage and sound/storage adapters remain to be wired.
 See M6 for the executed checks; this does not establish a working Pocket audio
-adapter, complete UI or completion of slice 3.
+adapter, rendered Pocket UI or completion of slice 3.
 Use the [transition proposal](design/pocket-player-transition-contract.md),
 preserve v1 compatibility and adopt each contract before its implementation.
 Slices 1–2 implement [host metadata](../specs/host-metadata-v1.md),

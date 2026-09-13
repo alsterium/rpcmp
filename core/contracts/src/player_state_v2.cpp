@@ -109,6 +109,18 @@ bool valid_player_snapshot(const PlayerSnapshot& snapshot) noexcept {
     }
   }
   const bool navigation_observed = (snapshot.capabilities.bits & kPlaybackNavigation) != 0;
+  const bool policy_results = (snapshot.capabilities.bits & kPolicyCommandResults) != 0;
+  if (policy_results != snapshot.policy_commands.has_value() ||
+      (policy_results && !snapshot.policy))
+    return false;
+  if (snapshot.policy_commands && snapshot.policy_commands->last) {
+    const auto& result = *snapshot.policy_commands->last;
+    if (result.command_id == 0 || result.policy_revision == 0 ||
+        result.policy_revision > snapshot.policy->revision ||
+        static_cast<std::uint8_t>(result.outcome) >
+            static_cast<std::uint8_t>(PolicyCommandOutcome::Failed))
+      return false;
+  }
   if (navigation_observed != snapshot.navigation.has_value() ||
       (navigation_observed && (snapshot.capabilities.bits & kRepeatControl) == 0))
     return false;

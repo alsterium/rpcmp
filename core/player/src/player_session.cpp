@@ -179,7 +179,18 @@ PlayerStepResult PlayerSession::step(const std::uint64_t now_us, const bool publ
   const auto maximum = std::numeric_limits<std::uint64_t>::max();
   if (previous_sequence == maximum || (publish && previous_sequence == maximum - 1))
     transport_.fail(TransportFailure::ResourceExhausted, true);
-  static_cast<void>(transport_.step(now_us, queue_, admission_));
+  const auto execution = transport_.step(now_us, queue_, admission_);
+  for (std::uint16_t i = 0; i < queue_.count; ++i) {
+    const auto& intent = queue_.intents[i];
+    if (intent.kind != TransportIntentKind::SetPolicy)
+      continue;
+    const bool applied = i < execution.count &&
+                         execution.decisions[i].command_id == intent.command_id &&
+                         execution.decisions[i].accepted();
+    policy_commands_.last = {intent.command_id, transport_.state_.policy.revision,
+                             applied ? api::PolicyCommandOutcome::Applied
+                                     : api::PolicyCommandOutcome::Failed};
+  }
   queue_.count = 0;
   admission_.reset();
   stepped_ = true;
@@ -200,8 +211,8 @@ PlayerStepResult PlayerSession::step(const std::uint64_t now_us, const bool publ
     const auto publication_time = std::max(now_us, publisher_.published_at_us());
     const auto settings = settings_.snapshot();
     const auto* settings_value = settings_.enabled() ? &settings : nullptr;
-    const auto outcome =
-        publisher_.publish(publication_time, transport_.snapshot(), settings_value);
+    const auto outcome = publisher_.publish(publication_time, transport_.snapshot(), settings_value,
+                                            &policy_commands_);
     result.publication = outcome;
     result.published = outcome == PublicationResult::Ok;
     if (outcome != PublicationResult::Ok) {
@@ -211,8 +222,9 @@ PlayerStepResult PlayerSession::step(const std::uint64_t now_us, const bool publ
                       true);
       projected_ = transport_.projection();
       if (outcome != PublicationResult::SequenceExhausted)
-        result.published = publisher_.publish(publication_time, transport_.snapshot(),
-                                              settings_value) == PublicationResult::Ok;
+        result.published =
+            publisher_.publish(publication_time, transport_.snapshot(), settings_value,
+                               &policy_commands_) == PublicationResult::Ok;
     }
   }
   synchronized_ = transport_.admission_context();

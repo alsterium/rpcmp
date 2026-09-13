@@ -12,6 +12,8 @@ adds neighbour availability and shuffle-cycle counts. The optional
 history and current FM channels. The [MDX observation profile](mdx-performance-v1.md)
 connects engine extraction through injected commit boundaries. The optional
 [settings profile](playback-settings-v2.md) adds copied restore/save observations.
+The [UI profile](player-ui-v1.md) adds optional policy execution feedback for
+serialized setting actions, independently of storage support.
 Visualizations remain subsequent parts of the same slice; actual audio/storage
 adapters belong to slice 4.
 
@@ -50,6 +52,8 @@ All values have fixed capacity; publication and reads allocate no memory.
   Pocket random source.
   Bit 6 declares performance history, with its own bounded captured/unknown
   states. This does not claim an actual Pocket audible-commit adapter.
+  Bit 7 declares [persistent settings](playback-settings-v2.md). Bit 8 declares
+  [policy execution feedback](player-ui-v1.md#policy-execution-feedback).
 - `library` is a copied catalog schema 1 status. It is the status synchronized
   by the same Core transport step that produced this observation.
 - `transport` is the confirmed state; `projected` is the current command intent.
@@ -88,6 +92,10 @@ All values have fixed capacity; publication and reads allocate no memory.
   shuffle-cycle identity, library generation, total and started count. Presence
   and bounds follow the navigation profile; the validator does not recompute
   the neighbour from catalog data.
+- Optional `policy_commands` is present exactly when bit 8 is set and requires
+  `policy`. It distinguishes no result yet from the last consumed policy
+  command's Applied/Failed outcome, including no-ops and interrupted batches.
+  This does not acknowledge audio application or durable saving.
 - Optional `performance_history` follows the performance profile, including
   independent current channels at the same generation and position. Malformed
   source observations are sanitized to Invalid before transport publication.

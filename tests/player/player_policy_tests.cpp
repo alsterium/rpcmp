@@ -945,8 +945,74 @@ navigation_trace(rpcmp::test::Suite& suite, bool publish) {
 }
 } // namespace
 
+void policy_execution_feedback(rpcmp::test::Suite& suite) {
+  Rig rig(suite);
+  rig.boot();
+  auto snapshot = rig.session.latest();
+  RPCMP_CHECK(suite, (snapshot.capabilities.bits & api::kPolicyCommandResults) != 0);
+  if (!snapshot.policy_commands) {
+    RPCMP_CHECK(suite, snapshot.policy_commands.has_value());
+    return;
+  }
+  RPCMP_CHECK(suite, !snapshot.policy_commands->last && !snapshot.settings);
+  const auto first = rig.policy(3);
+  rig.accept(first);
+  RPCMP_CHECK(suite, !required(rig.session.latest().policy_commands).last);
+  rig.tick(false);
+  RPCMP_CHECK(suite, !required(rig.session.latest().policy_commands).last);
+  rig.tick();
+  snapshot = rig.session.latest();
+  auto receipt = required(required(snapshot.policy_commands).last);
+  RPCMP_CHECK(suite, receipt.command_id == first.command_id && receipt.policy_revision == 2 &&
+                         receipt.outcome == api::PolicyCommandOutcome::Applied);
+  const auto same = rig.policy(3);
+  rig.accept(same);
+  rig.tick();
+  snapshot = rig.session.latest();
+  receipt = required(required(snapshot.policy_commands).last);
+  RPCMP_CHECK(suite, receipt.command_id == same.command_id && receipt.policy_revision == 2 &&
+                         receipt.outcome == api::PolicyCommandOutcome::Applied &&
+                         required(snapshot.policy).last_command_id == first.command_id);
+  auto rejected = rig.policy(0);
+  RPCMP_CHECK(suite, rig.session.submit(rejected).reason == api::CommandReason::MalformedRequest);
+  rig.accept(rig.command(api::CommandKind::Stop));
+  rig.tick();
+  RPCMP_CHECK(suite, required(required(rig.session.latest().policy_commands).last).command_id ==
+                         same.command_id);
+  const auto interrupted = rig.policy(5);
+  rig.accept(interrupted);
+  rig.audio.supported = false;
+  rig.tick();
+  receipt = required(required(rig.session.latest().policy_commands).last);
+  RPCMP_CHECK(suite, receipt.command_id == interrupted.command_id && receipt.policy_revision == 2 &&
+                         receipt.outcome == api::PolicyCommandOutcome::Failed &&
+                         rig.session.latest().error.has_value());
+
+  Rig batch(suite);
+  batch.boot();
+  batch.accept(batch.policy(3));
+  const auto last = batch.policy(5);
+  batch.accept(last);
+  batch.tick();
+  receipt = required(required(batch.session.latest().policy_commands).last);
+  RPCMP_CHECK(suite, receipt.command_id == last.command_id && receipt.policy_revision == 3 &&
+                         receipt.outcome == api::PolicyCommandOutcome::Applied);
+
+  Rig failed_audio(suite);
+  failed_audio.playing();
+  const auto applied = failed_audio.policy(5);
+  failed_audio.accept(applied);
+  failed_audio.audio.reject_begin = true;
+  failed_audio.tick();
+  snapshot = failed_audio.session.latest();
+  receipt = required(required(snapshot.policy_commands).last);
+  RPCMP_CHECK(suite, receipt.command_id == applied.command_id &&
+                         receipt.outcome == api::PolicyCommandOutcome::Applied && snapshot.error);
+}
+
 int main() {
   rpcmp::test::Suite suite;
+  policy_execution_feedback(suite);
   asynchronous_revisions(suite);
   fade_pause_restore(suite);
   finite_restart(suite);

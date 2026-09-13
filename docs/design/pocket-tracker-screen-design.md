@@ -7,6 +7,9 @@ Status: layout direction accepted, 2026-09-13. ユーザーは
 入力フォーカスの細部は以下の設計案、履歴と保存は
 [演奏履歴契約案](pocket-performance-history-contract.md)・
 [設定保存契約案](pocket-playback-settings-contract.md) で具体化します。
+[Album UI v1](../../specs/player-ui-v1.md) で入力・フォーカス・一覧・結果待ち・履歴行を
+採用しました。Core の Stop は停止済みなら同値受付になるため、その世代の停止確認を使います。
+操作モデルのホスト検証と実際の画面描画・実機での読みやすさは別の到達点です。
 
 ## 共通フレームと切替対象
 

@@ -182,7 +182,9 @@ target_link_libraries(rpcmp_album_pack PRIVATE rpcmp_utility_native)
 rpcmp_production_options(rpcmp_album_pack)
 
 add_library(rpcmp_ui STATIC
-  core/ui/src/text_ui.cpp)
+  core/ui/src/text_ui.cpp
+  core/ui/src/player_input.cpp
+  core/ui/src/player_ui.cpp)
 target_include_directories(rpcmp_ui PUBLIC core/ui/include)
 target_link_libraries(rpcmp_ui PUBLIC rpcmp_contracts)
 rpcmp_production_options(rpcmp_ui)
@@ -554,6 +556,12 @@ if(BUILD_TESTING)
   target_link_libraries(rpcmp_ui_tests PRIVATE rpcmp_ui)
   rpcmp_test_options(rpcmp_ui_tests)
   add_test(NAME ui COMMAND rpcmp_ui_tests)
+
+  add_executable(rpcmp_player_ui_tests tests/ui/player_ui_tests.cpp)
+  target_include_directories(rpcmp_player_ui_tests PRIVATE tests/support)
+  target_link_libraries(rpcmp_player_ui_tests PRIVATE rpcmp_ui)
+  rpcmp_test_options(rpcmp_player_ui_tests)
+  add_test(NAME player_ui COMMAND rpcmp_player_ui_tests)
 
   add_executable(rpcmp_pocket_comparison_probe_tests
     tests/pocket/comparison_probe_tests.cpp)

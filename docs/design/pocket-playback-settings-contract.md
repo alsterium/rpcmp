@@ -2,7 +2,9 @@
 
 Status: proposal, 2026-09-13. Q19 の電源断後の設定復元と Q24 のアイコン操作を具体化します。
 保存・復元と公開観測は [settings profile](../../specs/playback-settings-v2.md) で採用しました。
-採用仕様を優先し、実機 adapter とアイコン操作は後続です。
+アイコン操作の直列化と結果通知は [Album UI v1](../../specs/player-ui-v1.md) で採用しました。
+`settings.last_policy_result` 案は保存対応に依存しない `policy_commands.last` として実装します。
+採用仕様を優先し、実機 adapter とアイコンの描画は後続です。
 保存方式・数値・port は設計提案であり、現行 v1 契約、APF 定義、M5 実装を変更しません。
 再生の意味は [状態遷移案](pocket-player-transition-contract.md)、操作は
 [画面案](pocket-tracker-screen-design.md) に従います。

@@ -107,6 +107,7 @@ struct PlayerSnapshot {
   std::optional<PlaybackNavigationObservation> navigation{std::nullopt};
   std::optional<PerformanceHistorySnapshot> performance_history{std::nullopt};
   std::optional<PlaybackSettingsObservation> settings{std::nullopt};
+  std::optional<PolicyCommandObservation> policy_commands{std::nullopt};
 };
 
 class SnapshotSource {

@@ -181,6 +181,23 @@ int main() {
   reject_policy([](auto& s) { required(required(s.policy).media).ramp_duration = 960; });
   reject_policy([](auto& s) { invalid_tag(required(required(s.policy).media).phase); });
   reject_policy([](auto& s) { invalid_tag(required(required(s.policy).media).end); });
+  policy.capabilities.bits |= api::kPolicyCommandResults;
+  policy.policy_commands = api::PolicyCommandObservation{};
+  RPCMP_CHECK(suite, api::valid_player_snapshot(policy));
+  required(policy.policy_commands).last = {15, 5, api::PolicyCommandOutcome::Applied};
+  RPCMP_CHECK(suite, api::valid_player_snapshot(policy));
+  reject_policy([](auto& s) { s.capabilities.bits &= ~api::kPolicyCommandResults; });
+  reject_policy([](auto& s) { s.policy_commands.reset(); });
+  reject_policy([](auto& s) {
+    s.capabilities.bits &= ~(api::kPolicyObservations | api::kRepeatControl);
+    s.policy.reset();
+  });
+  reject_policy([](auto& s) { required(required(s.policy_commands).last).command_id = 0; });
+  reject_policy([](auto& s) { required(required(s.policy_commands).last).policy_revision = 0; });
+  reject_policy([](auto& s) { required(required(s.policy_commands).last).policy_revision = 6; });
+  reject_policy([](auto& s) { invalid_tag(required(required(s.policy_commands).last).outcome); });
+  required(required(policy.policy_commands).last) = {19, 3, api::PolicyCommandOutcome::Failed};
+  RPCMP_CHECK(suite, api::valid_player_snapshot(policy));
   required(required(policy.policy).media).completed_loops.reset();
   required(required(policy.policy).media).loop_count_overflow = true;
   RPCMP_CHECK(suite, api::valid_player_snapshot(policy));

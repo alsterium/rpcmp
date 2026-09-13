@@ -152,7 +152,8 @@ void SnapshotPublisher::describe_performance(api::PlayerSnapshot& output) const 
 
 PublicationResult SnapshotPublisher::publish(const std::uint64_t now_us,
                                              const TransportSnapshot& state,
-                                             const api::PlaybackSettingsObservation* settings) {
+                                             const api::PlaybackSettingsObservation* settings,
+                                             const api::PolicyCommandObservation* policy_commands) {
   if (now_us < latest_.published_at_us)
     return PublicationResult::ClockReversed;
   if (latest_.sequence == std::numeric_limits<std::uint64_t>::max())
@@ -170,6 +171,10 @@ PublicationResult SnapshotPublisher::publish(const std::uint64_t now_us,
   if (state.policy_supported)
     next.capabilities.bits |= api::kRepeatControl;
   next.policy = state.policy;
+  if (policy_commands) {
+    next.capabilities.bits |= api::kPolicyCommandResults;
+    next.policy_commands = *policy_commands;
+  }
   if (settings) {
     next.capabilities.bits |= api::kPlaybackSettings;
     next.settings = *settings;

@@ -55,7 +55,10 @@ effective output clock is explicit; the MDX timer model does not select it.
 [Persistent settings](../../specs/playback-settings-v2.md) adopts two checked
 records, asynchronous ownership, startup gating and copied storage observations.
 It preserves the adopted policy-exhaustion behavior over the earlier proposal.
-UI and the real audio/storage adapters remain subsequent work; this
+[Album UI v1](../../specs/player-ui-v1.md) adopts replaceable input/focus tables,
+bounded browsing, Tracker/keyboard projection and the host mock canvas. Its
+additive policy-command result closes the UI's ordered-setting feedback loop.
+The real audio/storage/input/framebuffer adapters remain subsequent work; this
 does not advertise a new capability on the existing Pocket backend.
 Hardware ACK deadlines and MMIO remain slice 4 decisions based on RTL evidence.
 
@@ -799,3 +802,65 @@ No expected value or golden was regenerated from implementation output.
 RTL/APF definitions are unchanged. RTL simulation, synthesis, packaging and
 hardware tests were not run. Real flush durability, timeout bounds, power-cycle
 recovery and complete UI/resource/timing acceptance remain M6 integration work.
+
+Slice 3's UI controller/input and Tracker row projection are implemented on
+2026-09-13. [Album UI v1](../../specs/player-ui-v1.md) adopts replaceable button
+and focus tables, catalog pages, immutable snapshot consumption, selection/stop
+guards and an eight-action policy queue. Core now publishes the last consumed
+policy command's Applied/Failed result, including same-value commands and
+interrupted batches, independently of audio ACK and settings durability.
+
+The UI links only contracts. Tests use authored snapshots and a generated
+catalog, without runtime, player or library implementations. Browse metadata
+does not replace current-track metadata, accepted selection blocks a pause
+against the old snapshot, and held B cannot navigate after a stop completes.
+Stop remains idempotent: already-Stopped observations confirm that generation
+instead of awaiting an impossible new one. A settled Ended state retires an
+obsolete pause/play wait. Tracker projection preserves same-frame retriggers,
+distinguishes retention from missed/capture events, and keeps current keyboard
+channels independent of the retained rows.
+
+Executed UI evidence:
+
+- `pwsh -File tools/host-verify.ps1`: final 73/73 PASS, 396.04 seconds, including
+  formatting, clang-tidy and positive/negative architecture checks.
+  Log: `out/build/m6-ui-host-final.log` (ignored).
+- `pwsh -File out/build/m6-ui-focused.ps1`: final 17/17 PASS, 0.91 seconds, including
+  schema/transport/policy/settings regressions, both UI suites and architecture
+  positive/negative checks. Log: `out/build/m6-ui-focused-final.log` (ignored).
+- Offline Docker `python3 -B /repo/out/build/m6-ui-posix.py`: GCC 13.3.0
+  ASan/UBSan, the contracts-only album UI suite PASS. Production disables
+  exceptions/RTTI; tests disable RTTI. Log: `out/build/m6-ui-posix-final.log` (ignored).
+- Offline Docker `python3 -B /repo/out/build/m6-settings-posix.py`: eight affected
+  Core/contract suites PASS with GCC ASan/UBSan. This reruns settings, state,
+  ingress, session, policy, transport, publisher and performance checks after
+  adding execution receipts. Log: `out/build/m6-ui-core-posix.log` (ignored).
+- Offline Docker `make --file out/build/m6-ui-cross/Makefile ui-check`: RISC-V
+  link-only PASS, no undefined symbols. Combined MDX/performance/settings/session
+  and UI probe: text 72,768, data 188, BSS 904,176 bytes; conservative stack bound
+  160,768 and largest frame 78,928 bytes. Budget/log: `out/build/m6-ui-cross`
+  and `out/build/m6-ui-cross-final.log` (ignored). This is not an executed player image
+  or the complete Pocket memory budget.
+
+The new feedback test initially failed in `player_policy` (14/15, 1.02 seconds,
+`out/build/m6-ui-feedback-before.log`). Connecting execution receipts made the
+same focused run pass (15/15, 1.14 seconds, `out/build/m6-ui-feedback-focused.log`).
+Additional authored cases cover input edge priority/repeat/rebinding, full
+300-album return lookup, stale/malformed pages, eight/nine queued settings,
+rejection/failure/no-ACK duplicates, invalid observations and counter limits.
+No golden was generated from implementation output.
+
+Review found a UI transaction bug: a newer snapshot with regressed history
+sequence could replace the last good view and consume a policy result before
+being rejected; rereading it could re-enable input. Three authored assertions
+failed (`out/build/m6-ui-regression-before.log`, 16/17 PASS, 0.85 seconds).
+Continuity is now checked before copying any state or consuming acknowledgements.
+The final focused and sanitizer runs above include this case. Focused clang-tidy
+passed after checked optional access and byte-authored invalid tags in tests;
+logs: `out/build/m6-ui-tidy-fixed.log` and `out/build/m6-ui-tidy-final.log` (ignored).
+No suppression was added. `python -B tools/check_harness.py` passed;
+`python -B out/build/m6-ui-links.py` checked 66 local file links.
+
+Canvas rendering, reviewable host images, Pocket fonts/input/framebuffers and
+the real adapters are still pending. RTL/APF inputs are unchanged; RTL simulation,
+synthesis, packaging and hardware tests were not run for this controller unit.

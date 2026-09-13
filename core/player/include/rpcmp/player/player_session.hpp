@@ -35,6 +35,7 @@ private:
   TransportController transport_;
   SnapshotPublisher publisher_;
   PlaybackSettings settings_;
+  contracts::v2::PolicyCommandObservation policy_commands_{};
   TransportProjection projected_{};
   TransportAdmissionContext synchronized_{};
   TransportBatch queue_{};
