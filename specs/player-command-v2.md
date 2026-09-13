@@ -7,8 +7,12 @@ seven transport intents to the [Core transport](playback-transport-v1.md) and
 [public state](player-state-v2.md). The additive
 [repeat policy profile](playback-policy-v2.md) now connects settings to the
 audio port. The [navigation profile](playback-navigation-v2.md) connects
-album/shuffle order and explicit neighbours. Persistence and history follow
-in this same milestone and are not advertised by these profiles.
+album/shuffle order and explicit neighbours. The optional
+[settings profile](playback-settings-v2.md) connects persistence and startup
+gating; [performance history](performance-history-v2.md) has a separate capability.
+Before an injected settings controller finishes startup, syntactically valid
+commands other than Stop receive ResourceBusy. No storage port is called by
+submission or public reads.
 
 ## Public boundary
 

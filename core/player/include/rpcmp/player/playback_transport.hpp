@@ -234,6 +234,7 @@ public:
 
 private:
   friend class PlayerSession;
+  [[nodiscard]] bool restore_policy(const contracts::v2::PlaybackPolicy& policy) noexcept;
   [[nodiscard]] bool advance_generation();
   [[nodiscard]] std::optional<std::uint64_t> next_operation();
   void fail(TransportFailure failure, bool terminal);

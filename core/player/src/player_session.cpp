@@ -94,9 +94,10 @@ api::CommandReason reason(const TransportRejection rejection) noexcept {
 
 PlayerSession::PlayerSession(const CatalogSession& catalog, PreparationPort& preparation,
                              AudioTransportPort& audio, const TransportTiming timing,
-                             RandomSource* random, const PerformanceReader* performance) noexcept
+                             RandomSource* random, const PerformanceReader* performance,
+                             const SettingsConfiguration settings) noexcept
     : catalog_(catalog), transport_(catalog, preparation, audio, timing, {}, random),
-      publisher_(catalog, 0, performance) {}
+      publisher_(catalog, 0, performance), settings_(settings) {}
 
 api::PlayerSnapshot PlayerSession::latest() const noexcept {
   auto result = publisher_.latest();
@@ -144,6 +145,9 @@ api::CommandResult PlayerSession::submit(const api::PlayerCommand& command) {
     const auto intent = translate(command);
     if (!intent) {
       result.reason = api::CommandReason::MalformedRequest;
+    } else if (settings_.enabled() && !settings_.ready() &&
+               intent->kind != TransportIntentKind::Stop) {
+      result.reason = api::CommandReason::ResourceBusy;
     } else {
       auto candidate = projected_;
       const auto& context = synchronized_;
@@ -179,10 +183,25 @@ PlayerStepResult PlayerSession::step(const std::uint64_t now_us, const bool publ
   queue_.count = 0;
   admission_.reset();
   stepped_ = true;
+  if (settings_.enabled()) {
+    const auto& policy = transport_.state_.policy;
+    if (settings_loaded_)
+      settings_.observe(policy.desired, policy.revision, now_us);
+    settings_.step(now_us);
+    if (settings_.ready() && !settings_loaded_) {
+      if (!transport_.restore_policy(settings_.policy()))
+        settings_.unsupported_backend();
+      settings_loaded_ = true;
+      settings_.observe(policy.desired, policy.revision, now_us);
+    }
+  }
   projected_ = transport_.projection();
   if (publish) {
     const auto publication_time = std::max(now_us, publisher_.published_at_us());
-    const auto outcome = publisher_.publish(publication_time, transport_.snapshot());
+    const auto settings = settings_.snapshot();
+    const auto* settings_value = settings_.enabled() ? &settings : nullptr;
+    const auto outcome =
+        publisher_.publish(publication_time, transport_.snapshot(), settings_value);
     result.publication = outcome;
     result.published = outcome == PublicationResult::Ok;
     if (outcome != PublicationResult::Ok) {
@@ -192,8 +211,8 @@ PlayerStepResult PlayerSession::step(const std::uint64_t now_us, const bool publ
                       true);
       projected_ = transport_.projection();
       if (outcome != PublicationResult::SequenceExhausted)
-        result.published =
-            publisher_.publish(publication_time, transport_.snapshot()) == PublicationResult::Ok;
+        result.published = publisher_.publish(publication_time, transport_.snapshot(),
+                                              settings_value) == PublicationResult::Ok;
     }
   }
   synchronized_ = transport_.admission_context();

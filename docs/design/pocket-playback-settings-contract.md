@@ -1,6 +1,8 @@
 # Pocket 再生設定の保存契約案
 
 Status: proposal, 2026-09-13. Q19 の電源断後の設定復元と Q24 のアイコン操作を具体化します。
+保存・復元と公開観測は [settings profile](../../specs/playback-settings-v2.md) で採用しました。
+採用仕様を優先し、実機 adapter とアイコン操作は後続です。
 保存方式・数値・port は設計提案であり、現行 v1 契約、APF 定義、M5 実装を変更しません。
 再生の意味は [状態遷移案](pocket-player-transition-contract.md)、操作は
 [画面案](pocket-tracker-screen-design.md) に従います。
@@ -82,7 +84,8 @@ timeout 後に古い I/O がまだ書き得る間は次の write を始めませ
 その session の保存を Unavailable にして音声・操作は継続します。単なる UI の待ち時間を
 I/O キャンセル成功と扱いません。revision / request ID / 保存番号は wrap させません。
 保存番号枯渇は保存を Unavailable にします。policy revision 枯渇時は設定変更を
-resource_exhausted で拒否し、適用済み policy と演奏を維持します。
+採用済み [policy profile](../../specs/playback-policy-v2.md) の通り terminal
+ResourceExhausted とします。以前の「演奏を維持する」という本提案の記述は採用されていません。
 
 ## 二枠のレコード形式
 

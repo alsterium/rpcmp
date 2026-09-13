@@ -2,6 +2,7 @@
 #define RPCMP_PLAYER_PLAYER_SESSION_HPP
 
 #include "rpcmp/contracts/player_command_v2.hpp"
+#include "rpcmp/player/playback_settings.hpp"
 #include "rpcmp/player/snapshot_publisher.hpp"
 
 namespace rpcmp::player {
@@ -19,7 +20,8 @@ class PlayerSession final : public contracts::v2::CommandIngress,
 public:
   PlayerSession(const CatalogSession& catalog, PreparationPort& preparation,
                 AudioTransportPort& audio, TransportTiming timing, RandomSource* random = nullptr,
-                const PerformanceReader* performance = nullptr) noexcept;
+                const PerformanceReader* performance = nullptr,
+                SettingsConfiguration settings = {}) noexcept;
   PlayerSession(const PlayerSession&) = delete;
   PlayerSession& operator=(const PlayerSession&) = delete;
   [[nodiscard]] contracts::v2::CommandResult
@@ -32,6 +34,7 @@ private:
   const CatalogSession& catalog_;
   TransportController transport_;
   SnapshotPublisher publisher_;
+  PlaybackSettings settings_;
   TransportProjection projected_{};
   TransportAdmissionContext synchronized_{};
   TransportBatch queue_{};
@@ -41,6 +44,7 @@ private:
   std::uint16_t history_next_{};
   std::uint64_t command_high_water_{};
   bool stepped_{};
+  bool settings_loaded_{};
 };
 
 } // namespace rpcmp::player

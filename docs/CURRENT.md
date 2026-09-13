@@ -2,7 +2,7 @@
 
 Active milestone: [M6 — Album Player](milestones/M6-album-player.md)
 
-The current task is M6 slice 3: connect persistent settings and mock UI/input
+The current task is M6 slice 3: connect mock UI/input
 behavior through injected ports, around the
 [Core transport](../specs/playback-transport-v1.md),
 [schema 2 ingress](../specs/player-command-v2.md) and
@@ -35,9 +35,13 @@ read-only injected port to public snapshots. Display loss/invalid observations
 do not stop transport. [MDX observations](../specs/mdx-performance-v1.md) now
 follow emitted key/pitch/voice writes transactionally. Their Core mapper uses
 an explicit output-clock declaration and an injected source-tick/audio-frame
-boundary; future observations are deferred. Next connect settings and mock
-UI/input. The real audible mapping, pending observation storage and sound
-adapter remain to be wired.
+boundary; future observations are deferred.
+[Persistent settings](../specs/playback-settings-v2.md) now connect bounded
+record validation, asynchronous restore/commit and copied save observations.
+Startup restores policy without autoplay; failures preserve the current policy
+and transport. A retry after uncertain I/O first waits for quiescence and
+rereads both slots. Next connect mock UI/input. The real audible mapping,
+pending observation storage and sound/storage adapters remain to be wired.
 See M6 for the executed checks; this does not establish a working Pocket audio
 adapter, complete UI or completion of slice 3.
 Use the [transition proposal](design/pocket-player-transition-contract.md),

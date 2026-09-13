@@ -10,9 +10,10 @@ provides desired/applied policy observations. The [navigation profile](playback-
 adds neighbour availability and shuffle-cycle counts. The optional
 [performance profile](performance-history-v2.md) connects copied committed
 history and current FM channels. The [MDX observation profile](mdx-performance-v1.md)
-connects engine extraction through injected commit boundaries. Persistent settings
-and visualizations remain subsequent parts of the same slice; actual audio
-mapping belongs to slice 4.
+connects engine extraction through injected commit boundaries. The optional
+[settings profile](playback-settings-v2.md) adds copied restore/save observations.
+Visualizations remain subsequent parts of the same slice; actual audio/storage
+adapters belong to slice 4.
 
 ## Boundary and evolution
 

@@ -126,6 +126,11 @@ bool valid_player_snapshot(const PlayerSnapshot& snapshot) noexcept {
       return false;
   }
   const bool history_observed = (snapshot.capabilities.bits & kPerformanceHistory) != 0;
+  const bool settings_observed = (snapshot.capabilities.bits & kPlaybackSettings) != 0;
+  if (settings_observed != snapshot.settings.has_value() ||
+      (snapshot.settings && (!snapshot.policy || !valid_settings_observation(*snapshot.settings) ||
+                             snapshot.settings->policy_revision != snapshot.policy->revision)))
+    return false;
   if (history_observed != snapshot.performance_history.has_value())
     return false;
   if (snapshot.performance_history) {

@@ -52,7 +52,10 @@ collector/read port and optional current-channel/history publication.
 [MDX performance observations](../../specs/mdx-performance-v1.md) adopt emitted-write
 observations and conversion at an injected, correlated audio boundary. The
 effective output clock is explicit; the MDX timer model does not select it.
-Settings/UI and the real audio mapping/adapter remain subsequent work; this
+[Persistent settings](../../specs/playback-settings-v2.md) adopts two checked
+records, asynchronous ownership, startup gating and copied storage observations.
+It preserves the adopted policy-exhaustion behavior over the earlier proposal.
+UI and the real audio/storage adapters remain subsequent work; this
 does not advertise a new capability on the existing Pocket backend.
 Hardware ACK deadlines and MMIO remain slice 4 decisions based on RTL evidence.
 
@@ -735,3 +738,64 @@ RTL/APF definitions are unchanged. RTL simulation, synthesis, packaging and
 hardware checks were not run. The engine used by Pocket probes has changed;
 host/link evidence does not establish accurate Pocket pitch, audible commit,
 hardware gate state or final player resource headroom.
+
+Slice 3's persistent-settings controller and public connection are implemented
+on 2026-09-13. The [settings profile](../../specs/playback-settings-v2.md)
+adopts fixed 64-byte records, two-slot validation/selection and an injected
+asynchronous port. PlayerSession gates startup commands, restores only the
+initial desired policy, observes subsequent revisions before starting I/O and
+publishes copied restore/save results. There is no automatic playback or
+automatic overwrite of failed/unknown startup records.
+
+Writes capture their record/revision. A later policy change remains pending;
+old completion cannot mark it Saved. Failures preserve current policy/transport,
+and retry first confirms quiescence and rereads both slots to determine the
+next sequence. Unknown formats and exhausted counters disable saving without
+changing the playback error. Policy revision exhaustion retains its already
+adopted terminal behavior. The actual APF storage adapter remains slice 4.
+
+Executed settings evidence:
+
+- `pwsh -File tools/host-verify.ps1`: 72/72 PASS, 369.25 seconds, including
+  formatting, clang-tidy and positive/negative architecture checks.
+  Log: `out/build/m6-settings-host.log` (ignored).
+- `pwsh -File out/build/m6-settings-focused.ps1`: final 15/15 PASS, 0.69 seconds.
+  Log: `out/build/m6-settings-focused-final.log` (ignored).
+- Focused clang-tidy on the six changed implementation/test files: PASS.
+  Log: `out/build/m6-settings-tidy.log` (ignored); no suppression was added.
+- Offline Docker `python3 -B /repo/out/build/m6-settings-posix.py`: GCC 13.3.0
+  ASan/UBSan, eight suites PASS (settings, schema 2 state/command, PlayerSession,
+  policy, transport, publisher and performance collector). Production disables
+  exceptions/RTTI; tests disable RTTI. Log: `out/build/m6-settings-posix.log`
+  (ignored).
+- Offline Docker `make --file out/build/m6-settings-cross/Makefile settings-check`:
+  RISC-V link-only PASS, no undefined symbols. The combined MDX/performance/
+  PlayerSession probe injects a scripted storage port. Text 64,520, data 188,
+  BSS 904,176 bytes; conservative stack bound 130,832 and largest frame 60,864
+  bytes. Probe/budget: `out/build/m6-settings-cross`; log:
+  `out/build/m6-settings-cross.log` (ignored). This is not an executed or
+  integrated Pocket player image/budget.
+- `python -B tools/check_harness.py`: PASS;
+  `python -B out/build/m6-settings-links.py`: 81 local file links PASS.
+
+The exact record fixture was independently packed with Python struct/zlib.
+Tests cover valid and malformed lengths/CRC/fields, conflicting copies,
+unknown-version protection, all 65 overwrite-prefix boundaries, initial read
+failure/no autoplay, captured versus latest revisions, 10,001 changes while
+one write is active, durability/readback failure, rescan after uncertain writes,
+wrong/stale completions, deadline priority, quiescence timeout and counter/time
+bounds. A paused PlayerSession preserves position/policy on storage failure;
+dense and absent publication produce identical scripted audio-control order.
+These are generated metadata/control data, not private music or hardware trials.
+
+A focused race first failed one assertion: a policy command arriving exactly
+when the old debounce expired started a write of the old revision. PlayerSession
+now supplies the just-applied policy before stepping storage. The new revision
+restarts the debounce and is the next captured write. Failing/corrected logs:
+`out/build/m6-settings-deadline-before.log` (14/15, 0.73 seconds) and
+`out/build/m6-settings-deadline-fixed.log` (15/15, 0.96 seconds), both ignored.
+No expected value or golden was regenerated from implementation output.
+
+RTL/APF definitions are unchanged. RTL simulation, synthesis, packaging and
+hardware tests were not run. Real flush durability, timeout bounds, power-cycle
+recovery and complete UI/resource/timing acceptance remain M6 integration work.

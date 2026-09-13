@@ -23,7 +23,9 @@ public:
                              const PerformanceReader* performance = nullptr) noexcept;
   SnapshotPublisher(const SnapshotPublisher&) = delete;
   SnapshotPublisher& operator=(const SnapshotPublisher&) = delete;
-  [[nodiscard]] PublicationResult publish(std::uint64_t now_us, const TransportSnapshot& state);
+  [[nodiscard]] PublicationResult
+  publish(std::uint64_t now_us, const TransportSnapshot& state,
+          const contracts::v2::PlaybackSettingsObservation* settings = nullptr);
   [[nodiscard]] contracts::v2::PlayerSnapshot latest() const noexcept override { return latest_; }
   [[nodiscard]] std::uint64_t sequence() const noexcept { return latest_.sequence; }
   [[nodiscard]] std::uint64_t published_at_us() const noexcept { return latest_.published_at_us; }

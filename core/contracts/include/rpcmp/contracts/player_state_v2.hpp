@@ -4,6 +4,7 @@
 #include "rpcmp/contracts/catalog.hpp"
 #include "rpcmp/contracts/performance_history_v2.hpp"
 #include "rpcmp/contracts/playback_policy_v2.hpp"
+#include "rpcmp/contracts/playback_settings_v2.hpp"
 
 namespace rpcmp::contracts::v2 {
 
@@ -105,6 +106,7 @@ struct PlayerSnapshot {
   std::optional<PlaybackPolicyObservation> policy{std::nullopt};
   std::optional<PlaybackNavigationObservation> navigation{std::nullopt};
   std::optional<PerformanceHistorySnapshot> performance_history{std::nullopt};
+  std::optional<PlaybackSettingsObservation> settings{std::nullopt};
 };
 
 class SnapshotSource {

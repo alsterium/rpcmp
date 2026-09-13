@@ -98,6 +98,15 @@ TransportSnapshot TransportController::snapshot() const noexcept {
   return result;
 }
 
+bool TransportController::restore_policy(const api::PlaybackPolicy& policy) noexcept {
+  if (!api::valid_playback_policy(policy) || !state_.policy_supported || state_.selection ||
+      state_.policy.revision != 1 || state_.policy.last_command_id ||
+      (policy.order == api::PlaybackOrder::ShuffleLibrary && !random_))
+    return false;
+  state_.policy.desired = policy;
+  return true;
+}
+
 TransportProjection TransportController::projection() const noexcept {
   return {state_.projected,
           state_.selection,
