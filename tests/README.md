@@ -75,7 +75,11 @@ The converter oracle is the unchanged v1 implementation at retained test clock
 edges. It covers all 256 request phases, held source pulses, old/new pending
 ordering, empty holds, clipping/overflow/underflow and urgent reset. The native
 bench covers both write halves, reset of a retained write and silence after
-reset. These local synchronous tests do not establish CPU/CDC/ACK or Pocket
+reset. A third bench submits back-to-back writes using only `dev_ready`, then
+reads the native operator scan to check TL, DT1/MUL and KS/AR values across all
+32 slots. Different starting phases and inserted holds must preserve all
+accepted values; counting accepted bus operations alone is not sufficient.
+These local synchronous tests do not establish CPU/CDC/ACK or Pocket
 hardware acceptance; see [the contract](../specs/pocket-media-audio-v1.md).
 
 The mapped-progress and gain controller has a vendor-independent RTL suite:

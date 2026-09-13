@@ -78,6 +78,12 @@ for shared native/output ownership, gain before serialization and locally owned
 physical reset after terminal states. Already-mapped progress remains an input;
 this does not adopt the producer mapping or sound-control/CDC protocol.
 
+The M6 write owner also requires its data pulse to reach JT51's `cen_p1` busy
+latch edge. This remains a `cen` edge and preserves the existing port contract;
+no exact pulse length or public maximum write latency was previously promised.
+It corrects accepted burst writes being overwritten before their native scan,
+not a product-policy choice or a change to legacy v1 MMIO/audio semantics.
+
 ## Slices and acceptance
 
 1. **Host metadata:** strict CP932 embedded titles, filename fallback with
@@ -1242,3 +1248,74 @@ producer's source-tick mapping, CPU/media queue and CDC/ACK protocol remain
 the next slice 4 work. This does not establish a Pocket-controlled player or
 firmware 2.6 acceptance. No JSON, APF shell, package or hardware input changed;
 cross-build, APF lifecycle/CDC and hardware checks were not run for this unit.
+
+While establishing the audible mapper's prerequisites on 2026-09-13, a native
+burst test found accepted operator writes could be lost. The source released
+its data pulse at the next `cen` edge, while JT51's busy latch uses `cen_p1`.
+If that edge was the other half, busy was never asserted, and following data
+replaced the pending operator update before its scan slot. The earlier paced
+audio comparisons did not prove burst write reflection.
+
+The corrected M6 source holds data through `cen_p1`, still a `cen` edge, so
+JT51 observes busy before the adapter can start the next bus transaction.
+This preserves public ports, clock rate, pause/reset ownership and the existing
+write guarantee. No previously specified exact pulse length or maximum write
+latency changes. The frozen legacy v1 source/MMIO and hardware packages remain
+unchanged; this finding is not evidence about a firmware 2.6 failure.
+
+Executed burst evidence:
+
+- `pwsh -File out/build/m6-native-burst-probe.ps1`: the initial 32-TL-write
+  probe accepted all 32 but reflected only the last operator, with 62/64 final
+  scan-value mismatches. Log: `out/build/m6-native-burst-before.log`. This
+  exploratory runner's native exit was zero despite simulator Fatal; the log's
+  failure, not process success, is the evidence.
+- `pwsh -File tools/rtl-media-audio-verify.ps1` before the fix: FAIL in the new
+  checked burst bench after 96 accepted operations: operator 14 TL expected 15,
+  actual reset value 127. The production runner correctly returned failure.
+  Log: `out/build/m6-media-burst-before.log`.
+- The same command after the fix: all three benches PASS, zero simulator
+  errors/warnings. The new native-bank test checks 3,072 writes and 2,048 scan
+  observations across 32 reset/start offsets, including 45,044 held edges, 466
+  address-held, 529 data-held and 41,644 busy-held observations. It checks TL,
+  DT1/MUL and KS/AR independently from the accepted bytes and documented native
+  scan-stage offsets; no waveform golden or expected register value changed.
+  Log: `out/build/m6-media-burst-fixed.log`.
+- `pwsh -File tools/rtl-enveloped-audio-verify.ps1`, then
+  `pwsh -File tools/rtl-verify.ps1`, then
+  `pwsh -File tools/rtl-jt51-verify.ps1`: composed output and all 9 boundary/model
+  plus 5 real-JT51 legacy benches PASS, zero simulator errors/warnings.
+  The composed output still matches 3,200 analytically scaled frames and passes
+  all nine reset/terminal scenarios. Logs: `out/build/m6-burst-enveloped.log`,
+  `out/build/m6-burst-rtl.log`, `out/build/m6-burst-legacy.log`.
+- `pwsh -File tools/host-verify.ps1`: 76/76 PASS in 428.29 seconds, including
+  format, tidy and architecture rejection fixtures. Log:
+  `out/build/m6-burst-host.log`. `python -B tools/check_harness.py` and
+  `python -B out/build/m6-burst-links.py`: PASS, with 57 local file links.
+  The final fitted production-source and wrapper byte hashes match the worktree.
+
+`python -B out/build/m6-burst-timing.py`, followed by Quartus 25.1std.0
+Build 1129 `quartus_map.exe`, `quartus_fit.exe` and `quartus_sta.exe` on
+`out/research/m6-burst-timing/enveloped_probe`: fit and all four timing models
+PASS using the previous 81.380 ns registered-data probe, same device and seed.
+Worst setup is 11.468 ns, hold 0.126 ns; recovery/removal/pulse-width slack is
+positive and all TNS zero. Resources including the fixture are 3,845 ALMs,
+3,475 registers, 52,424 memory bits in 16 RAM blocks and three DSPs. Map has
+the same nine reviewed upstream ROM-net warnings, fit the same three reviewed
+probe pin/LogicLock warnings, and STA zero errors/warnings. No false path,
+multicycle, warning suppression or constraint relaxation was introduced. Logs:
+`out/build/m6-burst-{map,fit,sta}.log`; source hashes/reports are in that project.
+This is not full-player placement, Pocket I/O/CDC or hardware acceptance.
+
+An additional latency observation (`pwsh -File out/build/m6-native-latency-probe.ps1`,
+log `out/build/m6-native-latency.log`) sees TL bank output change 33–40 retained
+audio-clock edges after busy clears in its 32 single-write cases. Its ring
+update-to-bank-output interval is 32 `cen_p1` edges. These sampled cases are
+not an exhaustive latency bound or a PCM-output measurement; they disprove
+using busy-clear alone as the audible checkpoint. The source-progress mapper
+must also account for the native pipeline and output conversion/serialization.
+
+The mapper, CPU/CDC transport and real Pocket integration remain pending.
+Cross-build, APF/package and hardware inputs did not change in this fix, so
+those checks were not run. All exploratory sources, logs and GPL derivatives
+remain ignored.

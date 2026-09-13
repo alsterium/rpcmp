@@ -61,6 +61,15 @@ enables, and every in-flight bus signal/state. `dev_ready` is false on frozen
 edges, including the pause boundary. Input payload must stay stable until
 accepted; an accepted write remains owned by this module until completion/reset.
 
+The data pulse must include a `cen_p1` edge, which is also a `cen` edge. JT51's
+busy latch and operator scan use that half-rate enable. Releasing data on an
+earlier `cen`-only edge can miss busy entirely, allowing later writes to replace
+an operator update before its scan slot. Waiting for `cen_p1` is a compatible
+correction to the write-completion guarantee; no public maximum write latency
+or exact pulse length was specified. Address still completes on `cen`; accepted
+payload ownership and pause/reset priority are unchanged. This correction is
+for the M6 source; it does not change the frozen legacy v1 wrapper.
+
 During stream reset the write state is cleared and JT51 remains reset, while
 its clock-enable generator continues to clock the reset stages. The owner must
 hold stream reset for at least 2,048 audio edges before first playback or after

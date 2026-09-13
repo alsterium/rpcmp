@@ -56,7 +56,10 @@ module rpcmp_jt51_media_source (
                 WAIT_DATA: if (!jt_dout[7]) begin
                     jt_a0 <= 1; jt_din <= command_value; jt_wr_n <= 0; state <= HOLD_DATA;
                 end
-                HOLD_DATA: if (cen) begin jt_wr_n <= 1; state <= IDLE; end
+                // Busy and the native register scan use cen_p1. A cen-only
+                // pulse can miss busy and let the next write overwrite data
+                // before its operator slot is visited.
+                HOLD_DATA: if (cen_p1) begin jt_wr_n <= 1; state <= IDLE; end
                 default: state <= IDLE;
             endcase
         end

@@ -4,6 +4,10 @@ Active milestone: [M6 — Album Player](milestones/M6-album-player.md)
 
 The current task is M6 slice 4: prove the source-progress to audible-frame
 mapping, then adopt sound-control/CDC/ACK and connect the sound/storage adapters.
+The native source now keeps data asserted through the half-rate busy-latch
+edge. A back-to-back burst reproduced accepted but unreflected operator writes;
+the corrected path passes native bank-value checks across all 32 operator slots.
+Earlier paced PCM comparisons did not cover this burst condition.
 The [enveloped output](../specs/pocket-enveloped-audio-v1.md) now connects native
 hold, gain and serialization with physical reset after terminal states. Its
 decoded stereo stream matches the analytically scaled uninterrupted reference
