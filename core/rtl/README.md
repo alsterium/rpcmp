@@ -29,8 +29,8 @@ continue, then consume the retained edge at a stereo boundary. Stream reset
 clears sound without stopping serial timing. The new serializer has the APF
 one-bit delay; legacy v1's phase is unchanged. `tools/rtl-media-audio-verify.ps1`
 checks converter equivalence against v1 and decoded real-JT51 output against
-uninterrupted playback. CPU controls, media queue/CDC and envelope/tag integration
-are pending.
+uninterrupted playback. CPU controls, media queue/CDC and producer-progress
+mapping are pending.
 
 `pocket/rpcmp_media_envelope.sv` implements the separate
 [RTL envelope](../../specs/media-envelope-rtl-v1.md): 256 mapped progress
@@ -38,8 +38,18 @@ intervals, generation/policy checks, exact five-second fade and 20 ms restore.
 Controls apply before due progress or completion; no immutable old-policy fade
 command survives a cancellation. `tools/rtl-media-envelope-verify.ps1` checks
 the full 70/75-second frame numbers, signed output, pauses, cancellation and
-FIFO/error boundaries against analytical expectations. Output/native integration
-and the audible mapper remain required.
+FIFO/error boundaries against analytical expectations.
+
+`pocket/rpcmp_jt51_enveloped_audio.sv` connects that envelope to the shared
+`rpcmp_jt51_media_source` and `rpcmp_media_output`. The latter loads scaled old
+pending samples at consuming boundaries; the source uses the same enable for
+native state and bus writes. Terminal states initiate a 2,048-edge native reset
+while preserving serial clocks and the envelope's reason/position. The old
+pause wrappers use these shared internals with their existing public behavior.
+`tools/rtl-enveloped-audio-verify.ps1` checks decoded stereo against an unscaled
+native reference and analytical gain, including reset/restart cases. This is
+the [local integration contract](../../specs/pocket-enveloped-audio-v1.md), not
+CPU control, CDC or the still-required audible-progress mapper.
 
 `pocket/rpcmp_m2_fixed_core.sv` is the ADR-0007 hardware-validation substrate.
 It reproduces the frozen 17-operation fixture as MMIO transactions into the v1

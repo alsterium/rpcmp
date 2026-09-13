@@ -42,17 +42,17 @@ module pocket_media_audio_tb;
                 media=media+1;
             end else held=held+1;
             if (frame_boundary && pause_request && !paused) begin
-                if (dut.pending) pending_holds=pending_holds+1;
+                if (dut.output_media.pending) pending_holds=pending_holds+1;
                 else empty_holds=empty_holds+1;
                 if (src_valid) source_holds=source_holds+1;
-                phases_seen[dut.rate_phase]=1;
+                phases_seen[dut.output_media.rate_phase]=1;
             end
         end
         #1;
         if (audio_mclk !== clk_audio || audio_lrck !== (phase>=128))
             $fatal(1,"continuous clock/serial phase");
         if (reset_n && compare) begin
-            if ({dut.rate_phase,dut.pending,dut.pending_left,dut.pending_right,selected_count,
+            if ({dut.output_media.rate_phase,dut.output_media.pending,dut.output_media.pending_left,dut.output_media.pending_right,selected_count,
                  underflow,overflow,clipped} !==
                 {reference_audio.rate_phase,reference_audio.pending,reference_audio.pending_left,
                  reference_audio.pending_right,reference_audio.selected_count,
@@ -103,13 +103,13 @@ module pocket_media_audio_tb;
         if (underflow || overflow || clipped) $fatal(1,"paused flag clear");
         at_phase(73); stream_reset=1;
         @(negedge clk_audio);
-        if (audio_dac!==0 || selected_count!==0 || dut.pending!==0 || !paused)
+        if (audio_dac!==0 || selected_count!==0 || dut.output_media.pending!==0 || !paused)
             $fatal(1,"urgent stream reset failed during hold");
         repeat(513) @(negedge clk_audio);
         stream_reset=0; src_valid=0;
         at_phase(12); pause_request=0;
         wait(!paused); repeat(300) @(negedge clk_audio);
-        if (dut.frame_left!==0 || dut.frame_right!==0 || underflow || selected_count!==0)
+        if (dut.output_media.frame_left!==0 || dut.output_media.frame_right!==0 || underflow || selected_count!==0)
             $fatal(1,"old pending sample survived reset");
         $display("pocket_media_audio_tb: PASS requests=256 frames=%0d held=%0d pending=%0d empty=%0d source=%0d coincidence=%0d rate_phases=7",
                  boundaries,held,pending_holds,empty_holds,source_holds,coincidences);

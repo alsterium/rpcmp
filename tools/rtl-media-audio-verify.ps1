@@ -16,6 +16,7 @@ $env:SALT_LICENSE_SERVER = $license
 $output = Join-Path $root 'out/sim/media-audio'
 New-Item -ItemType Directory -Force $output | Out-Null
 $sources = @('core/rtl/pocket/rpcmp_pocket_audio.sv',
+             'core/rtl/pocket/rpcmp_media_output.sv',
              'core/rtl/pocket/rpcmp_pocket_media_audio.sv',
              'tests/rtl/pocket_media_audio_tb.sv') | ForEach-Object { Join-Path $root $_ }
 $tops = @('pocket_media_audio_tb')
@@ -25,6 +26,7 @@ if (-not $OutputOnly) {
     if ($LASTEXITCODE) { throw 'JT51 hold generation failed.' }
     $manifest = Get-Content (Join-Path $generated 'manifest.json') -Raw | ConvertFrom-Json
     $sources += @($manifest.files | ForEach-Object { Join-Path $generated $_.file })
+    $sources += Join-Path $root 'core/rtl/pocket/rpcmp_jt51_media_source.sv'
     $sources += Join-Path $root 'core/rtl/pocket/rpcmp_jt51_media_audio.sv'
     $sources += Join-Path $root 'tests/rtl/jt51_media_audio_tb.sv'
     $tops += 'jt51_media_audio_tb'

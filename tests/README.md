@@ -92,6 +92,20 @@ epoch/policy failures, pause, natural end, fault priority and counter ceilings
 are checked. Frame ticks are accelerated; this is not elapsed Pocket playback
 or proof that the offered progress has been mapped to audible output correctly.
 
+The composed native/gain/output path has a real-JT51 suite:
+
+```powershell
+pwsh -File tools/rtl-enveloped-audio-verify.ps1
+```
+
+It decodes external I2S and compares with uninterrupted unscaled native output
+multiplied by an analytical policy timeline, removing pause frames. Both signs
+and channels, completed restoration, interrupted restoration, stale controls,
+Stop, natural end, protocol/coverage faults and post-reset silence are checked.
+Converter fault routing is tested by explicit sticky-register injection; the
+converter's actual overflow/underflow cases remain in the existing output
+suite. This does not prove the source-progress mapper or CPU/CDC transport.
+
 Run the reproducible Quartus template-integration build separately with:
 
 ```powershell

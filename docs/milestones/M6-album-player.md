@@ -73,6 +73,11 @@ for the 256-entry mapped-progress queue, policy/epoch validation, frame-boundary
 gain and cancellation. Its inputs require an independently proven audible
 mapping. This local controller does not adopt new MMIO or CPU ACK deadlines.
 
+Slice 4 adopts [Pocket enveloped audio v1](../../specs/pocket-enveloped-audio-v1.md)
+for shared native/output ownership, gain before serialization and locally owned
+physical reset after terminal states. Already-mapped progress remains an input;
+this does not adopt the producer mapping or sound-control/CDC protocol.
+
 ## Slices and acceptance
 
 1. **Host metadata:** strict CP932 embedded titles, filename fallback with
@@ -1150,3 +1155,90 @@ controller fixture, not the complete player or an APF image. Cross-build,
 integrated placement/CDC/board timing, packaging and hardware checks were not
 run for this unit. Next connect the envelope to the retained native/output
 path and prove audible commit before adopting the real sound-control port.
+
+Slice 4's local native/envelope/output integration is implemented on 2026-09-13.
+`rpcmp_jt51_enveloped_audio` gives the envelope the old pending resampled sample,
+loads scaled stereo on the same boundary that increments media position, and
+uses that consuming decision to retain native, write and converter state.
+`rpcmp_media_output` and `rpcmp_jt51_media_source` share the existing internals
+with the old pause wrappers; their public behavior remains unchanged.
+
+The integrated owner holds physical reset for at least 2,048 edges after each
+terminal state or reset/fault trigger. Begin requires completed reset and no
+active generation. Stop/end position and failure reasons survive physical
+reset; a newer Begin is required to reopen playback. Explicit reset during
+active playback is a failure, preventing resume of an old position against
+cleared native state. Serial clocks remain continuous.
+
+Executed integration evidence:
+
+- `pwsh -File tools/rtl-media-audio-verify.ps1`: both existing pause/output
+  benches PASS after sharing their internals. The converter still matches v1;
+  real-JT51 comparison remains 1,484 stereo frames, 512 writes and all 16 rate
+  buckets, with zero simulator errors/warnings. Only private test hierarchy
+  paths changed; no behavioral expectations were regenerated. Log:
+  `out/build/m6-envelope-output-shared.log`.
+- `pwsh -File tools/rtl-enveloped-audio-verify.ps1`: PASS, zero simulator
+  errors/warnings. External I2S decoding matches 3,200 consumed frames against
+  uninterrupted native output multiplied by an analytical policy timeline.
+  Of these, 2,758 differ from the unscaled samples. Left/right positive counts
+  are 1,597/1,554 and negative counts 1,545/1,532. All 56 authored two-tone
+  writes complete; 37 nonconsuming frames are silent. The trace exercises a
+  paused policy change, full 960-frame restoration, partial restoration
+  interrupted by a new fade, reached-to-reached policy, stale-generation Stop
+  and another paused fade. This reference shares the native implementation;
+  equivalence to unmodified JT51 remains the separate earlier hold-fixture test.
+  Log: `out/build/m6-enveloped-final.log`.
+- Nine terminal/reset scenarios cover Stop, finite end, sealed-coverage failure,
+  explicit reset during hold, simultaneous fault/Stop, injected converter
+  underflow/overflow, finite RepeatOne intent and a future-generation protocol
+  error. Each checks physical reset duration and quiescence. A subsequent
+  silent generation verifies old tone/pending samples cannot return. Converter
+  fault injection tests wiring from the sticky registers, not the physical
+  cause of starvation/overflow; those causes remain in the converter suite.
+- `pwsh -File tools/rtl-media-envelope-verify.ps1`, then
+  `pwsh -File tools/rtl-verify.ps1`, then
+  `pwsh -File tools/rtl-jt51-verify.ps1`: full 4,243,649-boundary envelope and
+  9 boundary/model plus 5 real-JT51 legacy benches PASS, with zero simulator
+  errors/warnings. Logs: `out/build/m6-enveloped-envelope.log`,
+  `out/build/m6-enveloped-rtl.log`, `out/build/m6-enveloped-legacy.log`.
+- `pwsh -File tools/host-verify.ps1`: 76/76 PASS in 461.27 seconds, including
+  format, tidy and architecture rejection fixtures. Log:
+  `out/build/m6-enveloped-host.log`. `python -B tools/check_harness.py` and
+  `python -B out/build/m6-enveloped-links.py`: PASS, with 60 local file links.
+
+The first integrated registered probe fitted but failed hold timing. Detailed
+inspection found one violating path from `clk_audio` to `captured[357]`, worst
+-0.388 ns. The generic probe was sampling the directly forwarded `audio_mclk`
+as data on that same clock's edge. The final probe excludes that forwarding
+wire from its data capture; every other output, including LRCK and DAC, remains
+captured. MCLK continuity remains checked in serial simulation. No production
+RTL, clock period, false/multicycle path or warning suppression was changed to
+resolve this fixture error. Initial project/report:
+`out/research/m6-enveloped-timing`, `out/build/m6-enveloped-hold-paths.rpt`.
+
+`python -B out/build/m6-enveloped-timing.py`, followed by Quartus 25.1std.0
+Build 1129 `quartus_map.exe`, `quartus_fit.exe` and `quartus_sta.exe` on
+`out/research/m6-enveloped-timing-final/enveloped_probe`: final fit and all
+four timing models PASS for 5CEBA4F23C8, seed 1, period 81.380 ns. Worst setup
+is 12.739 ns and hold 0.052 ns; recovery/removal/pulse-width slack is also
+positive, all TNS zero, and setup/hold are fully constrained within this probe.
+The probe includes 669 input and 426 output data bits with shift/capture
+registers and the same falling-edge reset-release fixture as the earlier
+envelope probe. It is not a CPU CDC or Pocket board timing result.
+
+Resources including this fixture are 3,834 ALMs, 3,453 registers, 52,424 memory
+bits in 16 RAM blocks and three DSPs. The progress FIFO and native shift storage
+still infer RAM. Analysis & Synthesis has zero errors and nine reviewed upstream
+ROM write-side-net warnings. Fitting has zero errors and the same three reviewed
+probe warnings (LogicLock and automatic/incomplete pin assignments). STA has
+zero errors/warnings. The five probe pins do not establish Pocket I/O timing.
+Source hashes and reports are in that final project; logs are
+`out/build/m6-enveloped-final-{map,fit,sta}.log`. All generated projects,
+GPL derivatives and logs remain ignored.
+
+Already-mapped progress is still an input to this local composition. The
+producer's source-tick mapping, CPU/media queue and CDC/ACK protocol remain
+the next slice 4 work. This does not establish a Pocket-controlled player or
+firmware 2.6 acceptance. No JSON, APF shell, package or hardware input changed;
+cross-build, APF lifecycle/CDC and hardware checks were not run for this unit.

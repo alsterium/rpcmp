@@ -43,10 +43,10 @@ module jt51_media_audio_tb;
     end
     always @(posedge clk_audio) begin
         enabled_before=media_enable;
-        bus_before={player[1].dut.cen_accum,player[1].dut.cen,player[1].dut.cen_p1,
-                    player[1].dut.cen_phase,player[1].dut.state,player[1].dut.jt_wr_n,
-                    player[1].dut.jt_a0,player[1].dut.jt_din,
-                    player[1].dut.command_address,player[1].dut.command_value};
+        bus_before={player[1].dut.source_media.cen_accum,player[1].dut.source_media.cen,player[1].dut.source_media.cen_p1,
+                    player[1].dut.source_media.cen_phase,player[1].dut.source_media.state,player[1].dut.source_media.jt_wr_n,
+                    player[1].dut.source_media.jt_a0,player[1].dut.source_media.jt_din,
+                    player[1].dut.source_media.command_address,player[1].dut.source_media.command_value};
         if (!reset_n) begin wall=0; phase=0; end
         else begin
             wall=wall+1; phase=(phase+1)%256;
@@ -55,22 +55,22 @@ module jt51_media_audio_tb;
                 if (media_enable[n]) ticks[n]=ticks[n]+1;
             end
             if (!stream_reset && frame_boundary[1] && pause_request[1]) begin
-                if (!player[1].dut.jt_wr_n && !player[1].dut.jt_a0) held_address=held_address+1;
-                if (!player[1].dut.jt_wr_n && player[1].dut.jt_a0) held_data=held_data+1;
-                if (player[1].dut.jt_dout[7]) held_busy=held_busy+1;
+                if (!player[1].dut.source_media.jt_wr_n && !player[1].dut.source_media.jt_a0) held_address=held_address+1;
+                if (!player[1].dut.source_media.jt_wr_n && player[1].dut.source_media.jt_a0) held_data=held_data+1;
+                if (player[1].dut.source_media.jt_dout[7]) held_busy=held_busy+1;
                 if (player[1].dut.jt_sample) held_sample=held_sample+1;
-                if (player[1].dut.output_audio.pending) held_pending=held_pending+1;
-                rate_buckets[player[1].dut.output_audio.rate_phase*16/3579545]=1;
+                if (player[1].dut.output_audio.output_media.pending) held_pending=held_pending+1;
+                rate_buckets[player[1].dut.output_audio.output_media.rate_phase*16/3579545]=1;
             end
         end
         #1;
         if (audio_mclk!=={2{clk_audio}} || audio_lrck!=={2{phase>=128}})
             $fatal(1,"JT51 output clocks stopped or moved");
         if (reset_n && !stream_reset && !enabled_before[1] &&
-            bus_before !== {player[1].dut.cen_accum,player[1].dut.cen,player[1].dut.cen_p1,
-                            player[1].dut.cen_phase,player[1].dut.state,player[1].dut.jt_wr_n,
-                            player[1].dut.jt_a0,player[1].dut.jt_din,
-                            player[1].dut.command_address,player[1].dut.command_value})
+            bus_before !== {player[1].dut.source_media.cen_accum,player[1].dut.source_media.cen,player[1].dut.source_media.cen_p1,
+                            player[1].dut.source_media.cen_phase,player[1].dut.source_media.state,player[1].dut.source_media.jt_wr_n,
+                            player[1].dut.source_media.jt_a0,player[1].dut.source_media.jt_din,
+                            player[1].dut.source_media.command_address,player[1].dut.source_media.command_value})
             $fatal(1,"write/clock state moved during hold");
         if (reset_n && compare) begin
             if (phase==0) active_frame=~paused & {2{!stream_reset}};
@@ -161,15 +161,15 @@ module jt51_media_audio_tb;
         at_phase(251); #2;
         operations[0]={8'h28,8'h60}; operation_count=1; next_op[1]=0;
         pause_request[1]=1; wait(paused[1]); send_operations=0;
-        if (player[1].dut.state===0) $fatal(1,"reset case has no retained write");
+        if (player[1].dut.source_media.state===0) $fatal(1,"reset case has no retained write");
         at_phase(73); stream_reset=1;
         repeat(2048) @(negedge clk_audio);
-        if (player[1].dut.state!==0 || player[1].dut.sound.u_mmr.reg_sel!==0 || dev_ready[1])
+        if (player[1].dut.source_media.state!==0 || player[1].dut.source_media.sound.u_mmr.reg_sel!==0 || dev_ready[1])
             $fatal(1,"stream reset failed during native hold");
         stream_reset=0; repeat(512) @(negedge clk_audio);
-        if (!paused[1] || player[1].dut.output_audio.pending) $fatal(1,"reset pending survived");
+        if (!paused[1] || player[1].dut.output_audio.output_media.pending) $fatal(1,"reset pending survived");
         pause_request[1]=0; wait(!paused[1]); repeat(2048) @(negedge clk_audio);
-        if ({player[1].dut.output_audio.frame_left,player[1].dut.output_audio.frame_right}!==32'd0)
+        if ({player[1].dut.output_audio.output_media.frame_left,player[1].dut.output_audio.output_media.frame_right}!==32'd0)
             $fatal(1,"old sound returned after reset");
         $display("jt51_media_audio_tb: PASS frames=%0d left=%0d right=%0d writes=%0d address=%0d data=%0d busy=%0d sample=%0d pending=%0d rate_buckets=16",
                  read_frames,left_nonzero,right_nonzero,completed_writes,held_address,held_data,
