@@ -68,6 +68,11 @@ from ordinary frame-boundary pause and retains source/pending ownership. The
 new serializer uses the official one-bit I2S delay; old v1 serial behavior and
 queue/reset APIs remain unchanged. This does not adopt CPU control or CDC/ACK.
 
+Slice 4 also adopts [media envelope RTL v1](../../specs/media-envelope-rtl-v1.md)
+for the 256-entry mapped-progress queue, policy/epoch validation, frame-boundary
+gain and cancellation. Its inputs require an independently proven audible
+mapping. This local controller does not adopt new MMIO or CPU ACK deadlines.
+
 ## Slices and acceptance
 
 1. **Host metadata:** strict CP932 embedded titles, filename fallback with
@@ -1072,3 +1077,76 @@ This proves the exercised local pause/output behavior, not complete player
 acceptance. Full fitting/timing, CDC, cross-build, packaging and hardware were
 not run for this unit. Next are cancellable gain reservations and audible
 commit, followed by CPU control, media queue/CDC and asynchronous storage.
+
+Slice 4's mapped-progress and gain RTL controller is implemented on 2026-09-13.
+`rpcmp_media_envelope` owns a 256-entry synchronous RAM queue, validates epochs,
+sequences and policy revisions, and evaluates the current policy before due
+progress or completion. A quotient/remainder recurrence implements the adopted
+240,000-frame fade and 960-frame restore exactly. The inputs must already have
+been mapped to audible frames; no CPU-to-audio latency or identity mapping is
+assumed. The controller is not yet connected to the native/I2S output.
+
+Executed envelope evidence:
+
+- `pwsh -File tools/rtl-media-envelope-verify.ps1`: PASS, zero simulator errors
+  or warnings. The final reviewed bench checks 4,243,649 boundaries across 15
+  scenario streams, including exact fade start at 3,360,000 and completion at
+  3,600,000, cancellation on the reserved-loop and zero-gain boundaries,
+  partial-gain restart, one-unit restoration, paused policy changes and signed
+  rounding. These are accelerated logical frame ticks, not Pocket elapsed time.
+  FIFO tests cover 256/257 capacity, retry, full/pop priority and 300 consecutive
+  one-entry pop/push collisions across pointer wrap. Epoch/policy errors,
+  natural end, fault priority and a three-frame counter ceiling are checked.
+  Sequence exhaustion injects a UINT64_MAX register state rather than claiming
+  to execute that many admissions. Log: `out/build/m6-envelope-final-reviewed.log`.
+- The interpolation oracle uses the analytical product/division from the
+  adopted contract, independently of the RTL recurrence. Signed half-gain also
+  has literal +1/-1 expectations for +3/-3 inputs. The initial bench read the
+  combinational control result after its edge; sampling it before that edge
+  corrected the observation, without changing the Protocol failure expectation.
+  Initial log: `out/build/m6-envelope-first.log`.
+- `pwsh -File tools/rtl-verify.ps1`, then
+  `pwsh -File tools/rtl-jt51-verify.ps1`, then
+  `pwsh -File tools/rtl-media-audio-verify.ps1`: 9 boundary/model, 5 real-JT51
+  legacy and 2 pause/output benches PASS, with zero simulator errors/warnings.
+  Logs: `out/build/m6-envelope-rtl.log`, `out/build/m6-envelope-legacy-jt51.log`,
+  `out/build/m6-envelope-media-audio.log`.
+- `pwsh -File tools/host-verify.ps1`: 76/76 PASS in 422.05 seconds, including
+  format, tidy and architecture rejection fixtures. Log:
+  `out/build/m6-envelope-host.log`. `python -B tools/check_harness.py` and
+  `python -B out/build/m6-envelope-links.py`: PASS, with 56 local file links.
+
+The first registered timing probe fitted but failed timing: worst setup
+-2.731 ns and removal -0.274 ns. Path inspection found generation/control
+validation ahead of the stereo multiplication/division. Every consuming frame
+uses its already-registered gain, including the first frame of a newly anchored
+ramp. Evaluating scaling from that register moves validation to the final
+zero/output selection without changing the arithmetic. The removal failure was
+the probe's raw input reset reaching asynchronous clears at the active edge;
+the final probe supplies reset release through a falling-edge register, meeting
+the controller's synchronous-release precondition. This is a fixture reset
+source, not the eventual APF reset/CDC adapter. Initial reports and paths:
+`out/research/m6-envelope-timing-probe`, `out/build/m6-envelope-setup-paths.rpt`,
+`out/build/m6-envelope-removal-paths.rpt`.
+
+`python -B out/build/m6-envelope-timing-prepare.py`, followed by Quartus
+25.1std.0 Build 1129 `quartus_map.exe`, `quartus_fit.exe` and `quartus_sta.exe`
+on `out/research/m6-envelope-timing-final/envelope_probe`: final registered-probe
+fit and multicorner timing PASS for 5CEBA4F23C8, seed 1. The 81.380 ns constraint
+is conservatively rounded down from the 12.288 MHz period. No false paths,
+multicycle paths or warning suppressions were added. All four models have
+nonnegative setup/hold/recovery/removal/pulse-width slack, with worst setup
+12.615 ns and hold 0.094 ns; setup and hold are fully constrained in this probe.
+STA reports zero errors/warnings. Fitting has zero errors and three reviewed
+warnings: unavailable LogicLock and two messages about the five automatically
+assigned probe pins. Those pins are not a Pocket pinout or I/O sign-off.
+The probe, including input/output shift registers, uses 2,446 ALMs, 2,099
+registers, 49,408 memory bits in five RAM blocks, and two DSPs. Source/wrapper
+hashes and reports are in that project; logs are
+`out/build/m6-envelope-timing-final-{map,fit,sta}.log`.
+
+All generated logs/probes remain ignored. The fit is for this registered
+controller fixture, not the complete player or an APF image. Cross-build,
+integrated placement/CDC/board timing, packaging and hardware checks were not
+run for this unit. Next connect the envelope to the retained native/output
+path and prove audible commit before adopting the real sound-control port.

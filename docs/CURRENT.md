@@ -2,8 +2,12 @@
 
 Active milestone: [M6 — Album Player](milestones/M6-album-player.md)
 
-The current task is M6 slice 4: prove cancellable gain reservations and audible
-commit, then adopt sound-control/CDC/ACK and connect the sound/storage adapters.
+The current task is M6 slice 4: connect the proven reservation/gain controller
+to the media output, prove audible commit, then adopt sound-control/CDC/ACK
+and connect the sound/storage adapters. The [RTL envelope](../specs/media-envelope-rtl-v1.md)
+now evaluates mapped progress against the current policy and implements exact
+fade/restoration arithmetic. Its analytical tests and registered timing probe
+pass; it is not yet connected to I2S or a proven audible-progress mapper.
 The [local media output](../specs/pocket-media-audio-v1.md) now connects native
 hold, in-flight writes and retained resampler/pending samples to continuous I2S.
 Its decoded stereo stream matches uninterrupted execution after removing pause

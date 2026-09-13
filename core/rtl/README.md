@@ -29,7 +29,17 @@ continue, then consume the retained edge at a stereo boundary. Stream reset
 clears sound without stopping serial timing. The new serializer has the APF
 one-bit delay; legacy v1's phase is unchanged. `tools/rtl-media-audio-verify.ps1`
 checks converter equivalence against v1 and decoded real-JT51 output against
-uninterrupted playback. CPU controls, queue/CDC, gain and audible tags are pending.
+uninterrupted playback. CPU controls, media queue/CDC and envelope/tag integration
+are pending.
+
+`pocket/rpcmp_media_envelope.sv` implements the separate
+[RTL envelope](../../specs/media-envelope-rtl-v1.md): 256 mapped progress
+intervals, generation/policy checks, exact five-second fade and 20 ms restore.
+Controls apply before due progress or completion; no immutable old-policy fade
+command survives a cancellation. `tools/rtl-media-envelope-verify.ps1` checks
+the full 70/75-second frame numbers, signed output, pauses, cancellation and
+FIFO/error boundaries against analytical expectations. Output/native integration
+and the audible mapper remain required.
 
 `pocket/rpcmp_m2_fixed_core.sv` is the ADR-0007 hardware-validation substrate.
 It reproduces the frozen 17-operation fixture as MMIO transactions into the v1

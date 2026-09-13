@@ -78,6 +78,20 @@ bench covers both write halves, reset of a retained write and silence after
 reset. These local synchronous tests do not establish CPU/CDC/ACK or Pocket
 hardware acceptance; see [the contract](../specs/pocket-media-audio-v1.md).
 
+The mapped-progress and gain controller has a vendor-independent RTL suite:
+
+```powershell
+pwsh -File tools/rtl-media-envelope-verify.ps1
+```
+
+It evaluates the real 3,360,000/3,600,000 frame start/end values, cancellation
+at zero gain, 960-frame restoration, partial-gain restart and signed rounding.
+Its gain oracle uses the analytical formula, independently of the RTL's
+quotient/remainder recurrence. FIFO capacity/retry, simultaneous replacement,
+epoch/policy failures, pause, natural end, fault priority and counter ceilings
+are checked. Frame ticks are accelerated; this is not elapsed Pocket playback
+or proof that the offered progress has been mapped to audible output correctly.
+
 Run the reproducible Quartus template-integration build separately with:
 
 ```powershell
