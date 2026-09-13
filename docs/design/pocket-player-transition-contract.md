@@ -4,7 +4,9 @@ Status: Core transport and public transport API adopted for M6 slice 3, 2026-09-
 [Core playback transport v1](../../specs/playback-transport-v1.md) に準備・音声制御の
 非同期処理、取消、故障と期限の扱いを採用しました。これはCore内部の契約です。
 [詳細仕様案](pocket-library-player-spec-draft.md) の確定済み要件に向け、
-history/settings、実際の音声ポートへの接続は後続実装です。
+settings、実際の音声ポートへの接続は後続実装です。
+[演奏履歴](../../specs/performance-history-v2.md) と
+[MDX観測](../../specs/mdx-performance-v1.md) は注入した確定境界で接続しました。
 [公開コマンドschema 2](../../specs/player-command-v2.md) は７種類のtransport command、
 FIFO受付、重複検出、非同期実行までを採用します。
 [repeat policy profile](../../specs/playback-policy-v2.md) は公開設定コマンド、

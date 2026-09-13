@@ -148,6 +148,10 @@ must not be encoded as fake YM2151 registers or platform-specific payloads.
 
 ## Tick semantics and ordering
 
+The additive [performance observation profile](mdx-performance-v1.md) follows
+these emitted writes without altering their content or order. Its engine values
+are read-ahead; they require a separate audible-commit mapping before publication.
+
 Timer B byte `T` defines the exact rational tick duration at the historical
 4 MHz OPM clock:
 

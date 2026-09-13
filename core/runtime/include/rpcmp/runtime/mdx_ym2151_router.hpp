@@ -2,6 +2,7 @@
 #define RPCMP_RUNTIME_MDX_YM2151_ROUTER_HPP
 
 #include "rpcmp/runtime/mdx_document_machine.hpp"
+#include "rpcmp/runtime/mdx_performance.hpp"
 
 #include <array>
 #include <cstddef>
@@ -39,6 +40,7 @@ struct Ym2151ChannelState {
 
 struct Ym2151RouterState {
   std::array<Ym2151ChannelState, kMdxFmTrackCount> channels{};
+  Ym2151ObservationState observation{};
 };
 
 struct Ym2151WriteBatch {
@@ -49,14 +51,15 @@ struct Ym2151WriteBatch {
 struct Ym2151RouterScratch {
   Ym2151RouterState candidate_state{};
   Ym2151WriteBatch pending_batch{};
+  Ym2151ObservationBuffer observation{};
 };
 
 // Converts one ordered semantic tick to the MXDRV-derived FM write order,
 // including gate, delayed key-on, tie, and per-tick portamento lifecycle.
-[[nodiscard]] DecodeResult route_ym2151_batch(const MdxDocument& document,
-                                              const DocumentTickBatch& actions,
-                                              Ym2151RouterState& state, Ym2151WriteBatch& writes,
-                                              Ym2151RouterScratch& scratch) noexcept;
+[[nodiscard]] DecodeResult
+route_ym2151_batch(const MdxDocument& document, const DocumentTickBatch& actions,
+                   Ym2151RouterState& state, Ym2151WriteBatch& writes, Ym2151RouterScratch& scratch,
+                   Ym2151PerformanceBatch* performance = nullptr) noexcept;
 
 } // namespace rpcmp::runtime::mdx
 

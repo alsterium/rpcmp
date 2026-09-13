@@ -19,6 +19,7 @@ struct MdxEngineState {
   Ym2151RouterState ym2151{};
   MdxTimelineState timeline{};
   SequencedProgress progress{};
+  SequencedPerformance performance{};
 };
 
 struct MdxEngineScratch {

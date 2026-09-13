@@ -100,6 +100,7 @@ add_library(rpcmp_runtime STATIC
   core/runtime/engines/mdx/mdx_document_machine.cpp
   core/runtime/engines/mdx/mdx_engine.cpp
   core/runtime/engines/mdx/mdx_parser.cpp
+  core/runtime/engines/mdx/mdx_performance.cpp
   core/runtime/engines/mdx/mdx_scheduler_bridge.cpp
   core/runtime/engines/mdx/mdx_semantic.cpp
   core/runtime/engines/mdx/mdx_timeline.cpp
@@ -122,6 +123,7 @@ rpcmp_production_options(rpcmp_library)
 add_library(rpcmp_player STATIC
   core/player/src/catalog_session.cpp
   core/player/src/media_loop_envelope.cpp
+  core/player/src/mdx_performance_mapper.cpp
   core/player/src/performance_history.cpp
   core/player/src/playback_navigation.cpp
   core/player/src/playback_transport.cpp
@@ -380,6 +382,13 @@ if(BUILD_TESTING)
   target_link_libraries(rpcmp_performance_history_tests PRIVATE rpcmp_player)
   rpcmp_test_options(rpcmp_performance_history_tests)
   add_test(NAME performance_history COMMAND rpcmp_performance_history_tests)
+
+  add_executable(rpcmp_mdx_performance_tests tests/player/mdx_performance_tests.cpp)
+  target_include_directories(rpcmp_mdx_performance_tests PRIVATE tests/support)
+  target_link_libraries(rpcmp_mdx_performance_tests PRIVATE rpcmp_player)
+  target_compile_definitions(rpcmp_mdx_performance_tests PRIVATE RPCMP_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
+  rpcmp_test_options(rpcmp_mdx_performance_tests)
+  add_test(NAME mdx_performance COMMAND rpcmp_mdx_performance_tests)
 
   add_executable(rpcmp_media_loop_envelope_tests tests/player/media_loop_envelope_tests.cpp)
   target_include_directories(rpcmp_media_loop_envelope_tests PRIVATE tests/support)

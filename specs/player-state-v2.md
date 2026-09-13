@@ -9,8 +9,10 @@ to PlayerSession. The additive [repeat policy profile](playback-policy-v2.md)
 provides desired/applied policy observations. The [navigation profile](playback-navigation-v2.md)
 adds neighbour availability and shuffle-cycle counts. The optional
 [performance profile](performance-history-v2.md) connects copied committed
-history and current FM channels. Engine extraction, persistent settings and
-visualizations remain subsequent parts of the same slice.
+history and current FM channels. The [MDX observation profile](mdx-performance-v1.md)
+connects engine extraction through injected commit boundaries. Persistent settings
+and visualizations remain subsequent parts of the same slice; actual audio
+mapping belongs to slice 4.
 
 ## Boundary and evolution
 

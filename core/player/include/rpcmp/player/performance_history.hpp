@@ -38,6 +38,7 @@ class PerformanceHistory final : public PerformanceReader {
 public:
   PerformanceHistory() noexcept;
   [[nodiscard]] bool begin(std::uint64_t play_generation) noexcept;
+  [[nodiscard]] std::uint64_t play_generation() const noexcept { return retained_.play_generation; }
   [[nodiscard]] PerformanceCaptureResult commit(const PerformanceCommit& input) noexcept;
   void copy_to(contracts::v2::PerformanceHistorySnapshot& output) const noexcept override;
 

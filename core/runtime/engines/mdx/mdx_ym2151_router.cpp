@@ -6,6 +6,9 @@
 namespace rpcmp::runtime::mdx {
 namespace {
 
+static_assert(kMdxMaxYm2151WritesPerBatch <= 65'535);
+static_assert(kMdxFmTrackCount == 8);
+
 constexpr std::array<std::uint8_t, 8> kCarrierMasks{0x08, 0x08, 0x08, 0x08, 0x0c, 0x0e, 0x0e, 0x0f};
 constexpr std::array<std::uint8_t, 16> kVolumeAttenuation{
     0x2a, 0x28, 0x25, 0x22, 0x20, 0x1d, 0x1a, 0x18, 0x15, 0x12, 0x10, 0x0d, 0x0a, 0x08, 0x05, 0x02};
@@ -21,12 +24,21 @@ DecodeResult failure(const DecodeError error, const SemanticAction& action) noex
   return {error, action.instruction.byte_offset, action.logical_channel};
 }
 
-bool append(Ym2151WriteBatch& batch, const std::uint8_t channel, const std::uint8_t address,
-            const std::uint8_t value) noexcept {
+struct RoutedOutput {
+  Ym2151WriteBatch& writes;
+  Ym2151ObservationState& state;
+  Ym2151ObservationBuffer& observation;
+};
+
+bool append(RoutedOutput& output, const std::uint8_t channel, const std::uint8_t address,
+            const std::uint8_t value, const bool direct = false) noexcept {
+  auto& batch = output.writes;
   if (batch.count == batch.writes.size()) {
     return false;
   }
   batch.writes[batch.count++] = {address, value, channel};
+  output.observation.write(output.state, address, value, static_cast<std::uint16_t>(batch.count),
+                           direct);
   return true;
 }
 
@@ -35,7 +47,7 @@ std::uint8_t attenuation(const std::uint8_t volume) noexcept {
                                : kVolumeAttenuation[volume];
 }
 
-bool write_voice(const Voice& voice, const std::uint8_t channel, Ym2151WriteBatch& batch) noexcept {
+bool write_voice(const Voice& voice, const std::uint8_t channel, RoutedOutput& batch) noexcept {
   const std::uint8_t carriers = kCarrierMasks[voice.feedback_connection & 0x07U];
   for (std::size_t group = 0; group < voice.operators.size(); ++group) {
     for (std::size_t op = 0; op < voice.operators[group].size(); ++op) {
@@ -60,32 +72,40 @@ std::uint16_t current_pitch(const Ym2151ChannelState& state) noexcept {
 }
 
 bool write_pitch(Ym2151ChannelState& state, const std::uint8_t channel,
-                 Ym2151WriteBatch& batch) noexcept {
+                 RoutedOutput& batch) noexcept {
   const std::uint16_t pitch = current_pitch(state);
   if (pitch == state.last_pitch) {
     return true;
   }
   state.last_pitch = pitch;
   const auto scaled = static_cast<std::uint32_t>(pitch) * 4U;
-  return append(batch, channel, static_cast<std::uint8_t>(0x30U + channel),
-                static_cast<std::uint8_t>(scaled)) &&
-         append(batch, channel, static_cast<std::uint8_t>(0x28U + channel),
-                kKeyCode[static_cast<std::size_t>(pitch) >> 6U]);
+  if (!append(batch, channel, static_cast<std::uint8_t>(0x30U + channel),
+              static_cast<std::uint8_t>(scaled)) ||
+      !append(batch, channel, static_cast<std::uint8_t>(0x28U + channel),
+              kKeyCode[static_cast<std::size_t>(pitch) >> 6U]))
+    return false;
+  batch.observation.pitch(batch.state, channel, static_cast<std::uint16_t>(batch.writes.count));
+  return true;
 }
 
 bool write_note(const Voice& voice, Ym2151ChannelState& state, const std::uint8_t channel,
-                Ym2151WriteBatch& batch) noexcept {
-  if (state.applied_voice != state.selected_voice) {
+                RoutedOutput& batch) noexcept {
+  const bool applied_voice = state.applied_voice != state.selected_voice;
+  if (applied_voice) {
     if (!write_voice(voice, channel, batch)) {
       return false;
     }
     state.applied_voice = state.selected_voice;
   }
   const auto control = static_cast<std::uint8_t>((state.pan << 6U) | voice.feedback_connection);
-  if (!append(batch, channel, static_cast<std::uint8_t>(0x20U + channel), control) ||
-      !write_pitch(state, channel, batch)) {
+  if (!append(batch, channel, static_cast<std::uint8_t>(0x20U + channel), control)) {
     return false;
   }
+  if (applied_voice)
+    batch.observation.voice(batch.state, channel, static_cast<std::uint8_t>(state.selected_voice),
+                            static_cast<std::uint16_t>(batch.writes.count));
+  if (!write_pitch(state, channel, batch))
+    return false;
 
   const std::uint8_t carriers = kCarrierMasks[voice.feedback_connection & 0x07U];
   const std::uint8_t add = attenuation(state.volume);
@@ -124,7 +144,7 @@ std::uint16_t compute_gate_ticks(const Ym2151ChannelState& state,
 }
 
 bool begin_tick(Ym2151ChannelState& state, const std::uint8_t channel,
-                Ym2151WriteBatch& batch) noexcept {
+                RoutedOutput& batch) noexcept {
   if (state.portamento_active && state.delay_ticks == 0) {
     const auto next = static_cast<std::int64_t>(state.portamento_accumulator) +
                       static_cast<std::int64_t>(state.portamento_delta);
@@ -149,18 +169,22 @@ bool begin_tick(Ym2151ChannelState& state, const std::uint8_t channel,
 
 DecodeResult route_ym2151_batch(const MdxDocument& document, const DocumentTickBatch& actions,
                                 Ym2151RouterState& state, Ym2151WriteBatch& writes,
-                                Ym2151RouterScratch& scratch) noexcept {
+                                Ym2151RouterScratch& scratch,
+                                Ym2151PerformanceBatch* performance) noexcept {
   if (actions.count > actions.actions.size()) {
     return {DecodeError::RangeOutsideInput, 0, 0xff};
   }
   scratch.candidate_state = state;
   scratch.pending_batch.count = 0;
+  scratch.observation.begin_tick(scratch.candidate_state.observation);
+  RoutedOutput output{scratch.pending_batch, scratch.candidate_state.observation,
+                      scratch.observation};
   std::size_t action_index = 0;
 
   for (std::uint8_t logical_channel = 0; logical_channel < kMdxFmTrackCount; ++logical_channel) {
     Ym2151ChannelState& channel = scratch.candidate_state.channels[logical_channel];
     const SemanticAction synthetic{logical_channel, {}};
-    if (!begin_tick(channel, logical_channel, scratch.pending_batch)) {
+    if (!begin_tick(channel, logical_channel, output)) {
       return failure(DecodeError::BudgetExhausted, synthetic);
     }
     const bool has_actions = action_index < actions.count &&
@@ -174,13 +198,13 @@ DecodeResult route_ym2151_batch(const MdxDocument& document, const DocumentTickB
       const SemanticAction& action = actions.actions[action_index++];
       switch (action.instruction.kind) {
       case InstructionKind::TimerB:
-        if (!append(scratch.pending_batch, logical_channel, 0x12, action.instruction.value)) {
+        if (!append(output, logical_channel, 0x12, action.instruction.value)) {
           return failure(DecodeError::BudgetExhausted, action);
         }
         break;
       case InstructionKind::DirectWrite:
-        if (!append(scratch.pending_batch, logical_channel, action.instruction.value,
-                    action.instruction.second_value)) {
+        if (!append(output, logical_channel, action.instruction.value,
+                    action.instruction.second_value, true)) {
           return failure(DecodeError::BudgetExhausted, action);
         }
         break;
@@ -242,13 +266,12 @@ DecodeResult route_ym2151_batch(const MdxDocument& document, const DocumentTickB
         --channel.delay_ticks;
       } else {
         if (!write_note(document.voices[channel.selected_voice], channel, logical_channel,
-                        scratch.pending_batch)) {
+                        output)) {
           return failure(DecodeError::BudgetExhausted, synthetic);
         }
         channel.pending_note = false;
       }
-    } else if (channel.portamento_active &&
-               !write_pitch(channel, logical_channel, scratch.pending_batch)) {
+    } else if (channel.portamento_active && !write_pitch(channel, logical_channel, output)) {
       return failure(DecodeError::BudgetExhausted, synthetic);
     }
   }
@@ -259,6 +282,9 @@ DecodeResult route_ym2151_batch(const MdxDocument& document, const DocumentTickB
 
   state = scratch.candidate_state;
   writes = scratch.pending_batch;
+  if (performance != nullptr)
+    scratch.observation.copy_to(state.observation, static_cast<std::uint16_t>(writes.count),
+                                *performance);
   return {};
 }
 

@@ -69,6 +69,7 @@ CXX_SOURCES := \
   $(ROOT)/core/runtime/engines/mdx/mdx_document_machine.cpp \
   $(ROOT)/core/runtime/engines/mdx/mdx_engine.cpp \
   $(ROOT)/core/runtime/engines/mdx/mdx_parser.cpp \
+  $(ROOT)/core/runtime/engines/mdx/mdx_performance.cpp \
   $(ROOT)/core/runtime/engines/mdx/mdx_scheduler_bridge.cpp \
   $(ROOT)/core/runtime/engines/mdx/mdx_semantic.cpp \
   $(ROOT)/core/runtime/engines/mdx/mdx_timeline.cpp \
@@ -97,6 +98,7 @@ M5_CXX_SOURCES := \
   $(ROOT)/core/runtime/engines/mdx/mdx_document_machine.cpp \
   $(ROOT)/core/runtime/engines/mdx/mdx_engine.cpp \
   $(ROOT)/core/runtime/engines/mdx/mdx_parser.cpp \
+  $(ROOT)/core/runtime/engines/mdx/mdx_performance.cpp \
   $(ROOT)/core/runtime/engines/mdx/mdx_semantic.cpp \
   $(ROOT)/core/runtime/engines/mdx/mdx_timeline.cpp \
   $(ROOT)/core/runtime/engines/mdx/mdx_track_machine.cpp \

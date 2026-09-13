@@ -7,8 +7,10 @@ Status: proposal, 2026-09-13. [画面案](pocket-tracker-screen-design.md) の Q
 
 保存・公開部分は [performance profile](../../specs/performance-history-v2.md) で採用しました。
 現在の8チャンネル値は履歴と同じ境界を保証するため optional 値の内部にまとめ、
-未取得と不正データ用に Waiting / Invalid を追加しています。以下の engine 抽出・
-実機 commit 対応・Tracker 行への投影は、引き続き M6 の未完了項目です。
+未取得と不正データ用に Waiting / Invalid を追加しています。
+[MDX の演奏観測](../../specs/mdx-performance-v1.md) は実装し、出力確定の境界を
+注入して保存・公開する経路を host で検証します。実機 commit 対応・保持待ち queue・
+Tracker 行への投影は、引き続き M6 の未完了項目です。
 
 ## 所有者と時刻
 

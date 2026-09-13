@@ -47,7 +47,12 @@ finite RepeatOne restart through a capability-gated port extension.
 [Navigation schema 2](../../specs/playback-navigation-v2.md) adopts the bounded
 album index, Start-confirmed shuffle history, injected rejection-sampled random
 input, neighbour commands and automatic selection through normal transport.
-Performance history/settings/UI and the real audio mapping/adapter remain subsequent work; this
+[Performance history](../../specs/performance-history-v2.md) adopts the bounded
+collector/read port and optional current-channel/history publication.
+[MDX performance observations](../../specs/mdx-performance-v1.md) adopt emitted-write
+observations and conversion at an injected, correlated audio boundary. The
+effective output clock is explicit; the MDX timer model does not select it.
+Settings/UI and the real audio mapping/adapter remain subsequent work; this
 does not advertise a new capability on the existing Pocket backend.
 Hardware ACK deadlines and MMIO remain slice 4 decisions based on RTL evidence.
 
@@ -655,3 +660,78 @@ the changed sources passed (`out/build/m6-history-tidy-fixed.log`, ignored).
 No RTL/APF/package inputs changed. RTL simulation, synthesis and hardware
 checks were not run. Host commit boundaries are supplied by scripted producers;
 these results do not establish an actual audible commit or correct MDX pitch.
+
+Slice 3's MDX performance extraction and Core mapping are implemented on
+2026-09-13. The [adopted profile](../../specs/mdx-performance-v1.md) follows
+emitted writes with a separate transactional register shadow, including raw
+cross-channel writes. It captures actual operator-mask edges, base KC/KF pitch
+and applied voice identity. Unknown CSM gates and noise pitch remain unknown;
+bounded observation loss never changes device writes or stops sequencing.
+
+The Core mapper takes an explicit sound clock and a correlated source-tick/
+audio-frame boundary. Optional per-event frames preserve serialized write
+timing within a tick; publication waits for the full channel checkpoint.
+The real audio adapter still owes audible mapping, pending observation storage
+and exactly-once consumption. This does not complete M6 slice 3 or Pocket UI.
+
+Executed MDX-observation evidence:
+
+- `pwsh -File tools/host-verify.ps1`: final 71/71 PASS, 359.70 seconds, including
+  formatting, clang-tidy and positive/negative architecture checks.
+  Log: `out/build/m6-mdx-performance-host-complete.log` (ignored).
+- `pwsh -File out/build/m6-mdx-performance-focused.ps1`: 33/33 PASS,
+  1.97 seconds after the per-event frame correction. Log:
+  `out/build/m6-mdx-performance-frames-fixed.log` (ignored).
+- Offline Docker `python3 -B /repo/out/build/m6-mdx-performance-posix.py`:
+  GCC 13.3.0 ASan/UBSan, eight suites PASS (MDX observations, router, engine,
+  timeline, progress, performance collector, PlayerSession and renderer
+  independence). Log: `out/build/m6-mdx-performance-posix-final.log` (ignored).
+  Production disables exceptions/RTTI; tests disable RTTI.
+- Offline Docker `make --file out/build/m6-mdx-performance-cross/Makefile
+  mdx-performance-check`: RISC-V link-only PASS, no undefined symbols.
+  Text 58,952, data 188, BSS 904,176 bytes; conservative stack bound 129,072,
+  largest frame 60,352 bytes. Probe/budget: `out/build/m6-mdx-performance-cross`;
+  log: `out/build/m6-mdx-performance-cross-final.log` (ignored).
+  This executable was not run and is not an integrated Pocket player image.
+- Offline Docker `make --file spikes/pocket/openfpgaos/desktop.mk
+  OUT_DIR=/repo/out/build/m6-mdx-performance-legacy-desktop m5-desktop`: PASS,
+  33 writes and unchanged digest `f1f04f5a8695a112`. Log:
+  `out/build/m6-mdx-performance-build-fixed.log` (ignored).
+- Offline Docker `make --file spikes/pocket/openfpgaos/Makefile -j2`
+  with `verify m5-budget m5-audio-budget m5-file-budget`: all four existing
+  Pocket probes cross-link with no undefined symbols. Fresh output overrides
+  `OUT_DIR`, `M5_OUT_DIR`, `M5_AUDIO_OUT_DIR`, `M5_FILE_OUT_DIR` respectively use
+  `/repo/out/build/m6-mdx-performance-legacy-{base,session,audio,file}`.
+  Session/audio/file budgets pass: text 58,388/61,716/69,892, data 964/968/228,
+  BSS 910,852/911,360/3,008,576 and conservative stack 24,304/24,624/25,056 bytes.
+  Log: `out/build/m6-mdx-performance-legacy-cross.log` (ignored).
+  These builds were not deployed and do not reopen the closed M5 investigation.
+- `python -B tools/check_harness.py`: PASS;
+  `python -B out/build/m6-mdx-performance-links.py`: 74 local file links PASS.
+
+Authored/generated inputs verify retrigger, tie, delay, portamento, zero operator
+mask, raw key/pitch/voice updates, noise/CSM, 300-event prefix loss, malformed
+bounds and transactional rollback after routing/timestamp failures. Independent
+nominal KC anchors and integer clock correction check displayed base pitch.
+An engine-to-public-snapshot case checks generation ownership and future deferral.
+No music corpus, proprietary data or regenerated golden is added.
+
+A focused case with event frames 100, 103 and 110 first failed two assertions
+because the initial mapper flattened them to checkpoint 110. After correction,
+individual times survive deferred publication; reversed frames, count mismatch
+and different times for a shared write index are rejected. Logs:
+`out/build/m6-mdx-performance-frames-before.log` and
+`out/build/m6-mdx-performance-frames-fixed.log` (ignored).
+Initial focused static analysis found a Boolean simplification, an out-of-range
+enum cast in a malformed-input test and a widening multiplication. These were
+corrected without suppressions; focused analysis and the final full gate pass.
+Final build review found the existing cross/desktop Makefile source lists still
+omitted the new observer implementation. The desktop target reproduced the
+undefined-symbol failure (`out/build/m6-mdx-performance-build-before.log`,
+ignored); both Makefiles now include it in their base and library-session lists.
+The successful legacy checks above cover the corrected builds.
+
+RTL/APF definitions are unchanged. RTL simulation, synthesis, packaging and
+hardware checks were not run. The engine used by Pocket probes has changed;
+host/link evidence does not establish accurate Pocket pitch, audible commit,
+hardware gate state or final player resource headroom.

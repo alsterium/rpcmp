@@ -27,8 +27,9 @@ DecodeResult advance_mdx_tick(const MdxDocument& document, const std::uint32_t s
   if (!sequenced.ok()) {
     return sequenced;
   }
-  const auto routed = route_ym2151_batch(document, scratch.actions, scratch.candidate_state.ym2151,
-                                         scratch.writes, scratch.ym2151);
+  const auto routed =
+      route_ym2151_batch(document, scratch.actions, scratch.candidate_state.ym2151, scratch.writes,
+                         scratch.ym2151, &scratch.candidate_state.performance.batch);
   if (!routed.ok()) {
     return routed;
   }
@@ -41,6 +42,7 @@ DecodeResult advance_mdx_tick(const MdxDocument& document, const std::uint32_t s
   scratch.candidate_state.progress = {state.timeline.scheduler_tick,
                                       scratch.candidate_state.document.completed_loops,
                                       scratch.candidate_state.document.ended};
+  scratch.candidate_state.performance.at_tick = state.timeline.scheduler_tick;
   state = scratch.candidate_state;
   batch = scratch.pending_batch;
   return {};
