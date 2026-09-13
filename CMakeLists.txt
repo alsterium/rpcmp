@@ -584,6 +584,8 @@ if(BUILD_TESTING)
 
   add_test(NAME jt51_hold_prepare
     COMMAND "${Python3_EXECUTABLE}" -B "${CMAKE_SOURCE_DIR}/tests/rtl/jt51_hold_prepare_test.py")
+  add_test(NAME media_clock_math
+    COMMAND "${Python3_EXECUTABLE}" -B "${CMAKE_SOURCE_DIR}/tests/rtl/media_clock_math.py")
 
   add_executable(rpcmp_pocket_comparison_probe_tests
     tests/pocket/comparison_probe_tests.cpp)

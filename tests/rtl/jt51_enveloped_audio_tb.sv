@@ -145,7 +145,14 @@ module jt51_enveloped_audio_tb;
                 // Frame 0 starts source time; frame 1 is at edge 256; frame 2
                 // at edge 512 is the first with a native position.
                 if (output_source_valid!==(frame_index>=2)) $fatal(1,"native startup position boundary");
-                if (output_source_valid) position_checks=position_checks+1;
+                if (output_source_valid) begin
+                    position_checks=position_checks+1;
+                    // The old pending sample had at least 29 retained edges
+                    // before consumption. Use the decoded frame's position,
+                    // not the now-advanced source clock or output wall time.
+                    if (output_source_edge<256*(frame_index-1) || output_source_edge>256*frame_index-29)
+                        $fatal(1,"native selected sample outside its admission window");
+                end
                 expected_factor=factor_at(frame_index);
                 expected_left=$signed(reference_pcm[frame_index][31:16]);
                 expected_right=$signed(reference_pcm[frame_index][15:0]);

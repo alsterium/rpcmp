@@ -1489,3 +1489,61 @@ timing, APF/package, cross-build and hardware checks were not run: those inputs
 are unchanged by this local unit. The standalone envelope arithmetic is also
 unchanged; its affected native/output integration was run above. This does not
 complete the hardware milestone or reopen the closed M5 investigation.
+
+### Native sample availability (2026-09-13)
+
+The source clock and reset/scan equations now establish the local time available
+between native sample capture and output consumption. The derivation is in
+[Pocket enveloped audio v1](../../specs/pocket-enveloped-audio-v1.md). It preserves
+production behavior and adds no delay or public port. Its assumptions include
+the pinned clock ratios, native reset, and the first source edge at consuming
+frame 0, as the enveloped Begin provides. An arbitrary converter input or a
+source attached midway through a frame does not inherit this guarantee.
+
+For every initial clock phase, the k-th selected native sample falls in
+`[256*k, 256*(k+1)-29]`. The old pending sample is available at the next consuming boundary;
+Pause freezes the source edge count. Checking all 614,400 selections and proving
+the exact 157,286,400-edge period translation extends the integer bound to later
+periods before stream exhaustion. The 29-edge value is a conservative bound;
+the native cases below observed 32..256 edges, not a measured 29-edge minimum.
+
+Executed evidence:
+
+- `python -B tests/rtl/media_clock_math.py`: two tests PASS, covering initial
+  state bounds and the complete 614,400-selection/715,909-native-sample period.
+  This independent integer calculation is also registered as `media_clock_math`
+  in the host CTest gate.
+- `pwsh -File tools/rtl-media-audio-verify.ps1`: all six benches PASS, with zero
+  errors/warnings each. The new native phase bench checks 8,192 native sample
+  edges over 32 reset lengths, all three reachable initial pulse/phase classes,
+  8,000 concurrent writes and Pause/Resume. It observes 7,008 selections, 7,040
+  consuming frames and 32,544 held edges. Log: `out/build/m6-phase-media.log`.
+  The final bench additionally compares the actual converter selection counter
+  to its closed-form ordinal on every edge and rejects unknown/out-of-range
+  initial clock state. Focused compilation/execution with
+  `vlog.exe -quiet -sv -work work F:/source/rpcmp/tests/rtl/jt51_media_phase_tb.sv`
+  and `vsim.exe -c -quiet -lib work jt51_media_phase_tb -do 'run -all; quit -code 0'`
+  in `out/sim/media-audio`: the same counts PASS, zero errors/warnings.
+  Log: `out/build/m6-phase-focused.log`.
+- `pwsh -File tools/rtl-enveloped-audio-verify.ps1`: PASS, including the new
+  availability-window assertion for all 3,198 valid source positions across
+  3,200 decoded stereo frames, gain changes and pauses. Existing 11 reset cases
+  remain passing. Log: `out/build/m6-phase-enveloped.log`, zero errors/warnings.
+- `pwsh -File out/build/m6-phase-negative.ps1`: changing only an ignored native
+  derivative's reset-time sample flag makes the phase test fail: first sample
+  edge 4 versus the independently expected 224. The expected `native strobe
+  equation` failure is observed with Errors 1 / Warnings 0; the original JT51
+  and production RTL remain unchanged. Log: `out/build/m6-phase-negative.log`.
+- `pwsh -File tools/host-verify.ps1`: 77/77 PASS in 429.31 seconds, including
+  the new arithmetic proof, format, clang-tidy (412.94 seconds), harness and
+  positive/negative architecture checks. Log: `out/build/m6-phase-host.log`.
+- `python -B tools/check_harness.py` and
+  `python -B out/build/m6-position-links.py`: PASS, with 62 local file links.
+
+This test/derivation unit changes no production RTL or firmware. Synthesis,
+the unrelated legacy RTL suites, cross-build, package and hardware were not
+repeated; their inputs are unchanged. The affected media and enveloped suites
+were run above. Native write/pipeline-to-sample mapping, source coverage and
+the sound-control/CDC/ACK and platform integration remain current M6 work.
+The 29-edge local budget does not establish a CPU/CDC deadline or authorize
+audible progress publication on receipt delivery.

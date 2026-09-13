@@ -8,6 +8,9 @@ The explicitly approved source-receipt contract now orders writes and zero-write
 markers and retains their actual transfer/marker edge under backpressure.
 Native receipt tests and the enveloped fault/reset integration pass. These
 receipts are bus positions, not native-pipeline or audible completion.
+The selected-sample availability bound is now derived and checked: after an
+aligned stream start, at least 29 retained audio edges remain before consumption.
+This supplies a local admission budget; it does not map receipts to samples.
 The local enveloped path now carries the retained native sample-capture edge
 through rational selection, pending storage and serialized output. This is
 the sample-to-output part of the mapping; native register/pipeline delay and

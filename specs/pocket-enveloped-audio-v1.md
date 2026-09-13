@@ -68,6 +68,48 @@ not invent native samples. These observations do not authorize loop/end
 publication: native write/pipeline delay and the ordered progress mapping remain
 separate obligations. In particular, busy-clear is still not an audible marker.
 
+## Native sample availability
+
+For this pinned native source at 12,288,000/3,579,545 Hz and the adopted
+48 kHz conversion, a selected sample is captured at least **29 retained audio
+edges before its consuming frame boundary**. This is a derived property of the
+existing implementation, not an added delay. It applies after native/stream
+reset with the first enabled source edge at consuming frame 0, as Begin does
+in the enveloped owner. Hold preserves it by freezing source time. It does
+not apply to arbitrary `src_valid`, other ratios, or an already-running source
+attached halfway through a frame.
+
+Let F=12288000, R=3579545, Q=3072000. At the first retained edge, let A be the
+clock accumulator, C its carry phase and p its stored half-rate enable.
+`0 <= A < F`, C/p are bits, and p=1 implies C=0 and A<R. Native reset gives
+cur=0/zero=0; the first sample is observed on native step 33, then every 32
+steps. Counting carries gives the j-th native sample's pre-edge position:
+
+`S_j = ceil(((64*j + 2 - 2*p - C)*F - A)/R)`, j starts at 1.
+
+The k-th selected native sample is j=ceil(k*R/Q), with k starting at 1.
+The initial-state bounds give
+`ceil((64*j*F-(R-1))/R) <= S_j <= ceil((64*j+2)*F/R)`.
+Combining these inequalities yields
+`256*k <= S_j <= 256*(k+1)-29`: exactly one selected sample belongs to each
+such window and is available for consumption at frame k+1. Stop/reset may
+discard it under the existing terminal rules. A capture on edge 256*k still goes
+to the new pending slot; the old slot is consumed first. Frames 0 and 1 have
+no native position. Frame f begins at retained edge 256*f, including Resume.
+
+The finite arithmetic proof covers 614400 selected samples (715909 native
+samples). Repeating that period translates every bound and output boundary
+by exactly 157286400 retained edges, proving the window for subsequent periods
+before stream exhaustion. The native phase bench separately checks the edge
+equation and its initial-state assumptions against actual pinned JT51.
+
+The local progress producer may use this lead time to prepare an interval
+before consumption. It must still obey the envelope's following-edge admission
+rule; this does not permit consuming an interval on its admission edge or
+establish CPU/CDC latency. This timing relates **sample capture** to output,
+not bus receipt or an MDX tick to that sample. Native-pipeline mapping remains
+required before loop/end or performance publication.
+
 ## Ordered source receipts
 
 Adopted for M6 slice 4 on 2026-09-13 with explicit user approval. The source
@@ -168,6 +210,12 @@ hold, resets of every bus phase and a pending receipt, full-width tokens/edges,
 and final valid token/exhaustion. An admission-time timestamp mutation must be
 rejected. The enveloped test must exercise the last real token increment and
 its shared failure/reset, without forcing the failure signal itself.
+
+Check the full selection period with independent integer bounds, and the
+native sample-edge equation under different reset lengths and Pause/Resume.
+The enveloped path must also verify the window of each decoded frame's actual
+source position, alongside its existing stereo/gain comparison. A shifted
+native startup strobe must fail the native equation check.
 
 Synthesis must preserve native and progress RAM inference. This local integration
 does not establish APF lifecycle/CDC, full-player timing/resources, firmware 2.6

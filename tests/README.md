@@ -84,6 +84,11 @@ The source-receipt bench observes actual data pulses and counts retained edges
 independently. It checks all 32 release phases, write/marker ordering, blocked
 delivery and reserved slots, simultaneous replacement, notification delivery
 during hold, resets of each bus phase, and 64-bit token/position boundaries.
+The native phase bench checks a closed-form sample-edge equation over 32 reset
+phases with Pause/Resume and concurrent writes. The host `media_clock_math`
+test covers the complete rational selection period and proves at least 29
+retained edges from selected-sample capture to consumption after an aligned
+stream start. This is sample availability, not a write-to-audio commit bound.
 The sample-position bench uses a closed-form rational selection oracle and
 authored 64-bit positions. It checks the position together with every external
 I2S bit through drop, overflow, same-edge old/new selection, pause and reset;
