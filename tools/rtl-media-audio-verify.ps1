@@ -24,6 +24,9 @@ $tops = @('pocket_media_audio_tb', 'media_sample_position_tb')
 $sources += @('core/rtl/pocket/rpcmp_native_completion.sv',
               'tests/rtl/native_completion_tb.sv') | ForEach-Object { Join-Path $root $_ }
 $tops += 'native_completion_tb'
+$sources += @('core/rtl/pocket/rpcmp_media_source_queue.sv',
+              'tests/rtl/media_source_queue_tb.sv') | ForEach-Object { Join-Path $root $_ }
+$tops += 'media_source_queue_tb'
 if (-not $OutputOnly) {
     $generated = Join-Path $output ([guid]::NewGuid().ToString('N'))
     & python -B (Join-Path $root 'tools/jt51_hold_prepare.py') --jt51 (Join-Path $root 'out/research/jt51-985a573') --output $generated

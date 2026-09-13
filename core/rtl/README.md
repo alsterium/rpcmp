@@ -65,6 +65,16 @@ native reference and analytical gain, including reset/restart cases. This is
 the [local integration contract](../../specs/pocket-enveloped-audio-v1.md), not
 CPU control, CDC or the still-required audible-progress mapper.
 
+`pocket/rpcmp_media_source_queue.sv` implements the separate
+[retained source queue](../../specs/media-source-queue-v1.md). Its 64-entry RAM
+accepts copied timestamped writes and batch-ending markers, streams larger
+batches under backpressure, and dispatches against retained native time.
+Markers seal source supply; missing input at an eligible empty dispatch latches
+a fault for the shared audio owner. This does not supply mapped envelope
+intervals. The enveloped suite connects a maximum-size authored batch to native
+JT51, checks actual bus bytes/receipt edges and output prefixes, and compares
+PCM with independently authored bytes bypassing the queue at the same edges.
+
 `pocket/rpcmp_m2_fixed_core.sv` is the ADR-0007 hardware-validation substrate.
 It reproduces the frozen 17-operation fixture as MMIO transactions into the v1
 queue and exposes completion/fault diagnostics. It is deliberately not a

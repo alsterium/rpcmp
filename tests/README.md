@@ -68,9 +68,9 @@ The M6 synchronous pause/output boundary is checked separately:
 pwsh -File tools/rtl-media-audio-verify.ps1
 ```
 
-`-OutputOnly` runs the converter/I2S, sample-position/prefix and completion-FIFO
-benches without vendor source. The full
-command also generates pinned JT51 and compares actual decoded stereo frames
+`-OutputOnly` runs the converter/I2S, sample-position/prefix, completion-FIFO
+and source-queue benches without vendor source. The full command also generates
+pinned JT51 and compares actual decoded stereo frames
 from paused and uninterrupted playback, with independently timed device writes.
 The converter oracle is the unchanged v1 implementation at retained test clock
 edges. It covers all 256 request phases, held source pulses, old/new pending
@@ -104,6 +104,10 @@ test injects exact impulses at all 32 phases. These support the separately
 specified [native completion bound](../specs/jt51-native-completion-v1.md).
 These local synchronous tests do not establish CPU/CDC/ACK or Pocket
 hardware acceptance; see [the contract](../specs/pocket-media-audio-v1.md).
+The source queue bench checks 64-entry capacity/retry, copied order, pointer
+wrap, simultaneous admission/dispatch, held admission and 64-bit due times.
+It distinguishes native backpressure from missing input, including refill
+on the missed opportunity and the exact exclusive coverage boundary.
 
 The mapped-progress and gain controller has a vendor-independent RTL suite:
 
@@ -141,6 +145,16 @@ The source-edge counter's real final increment is exercised near UINT64_MAX,
 including a preceding hold and subsequent fault/reset. These tests cover sample
 positions, not the register-to-native-sample part of the source-progress mapper
 or CPU/CDC transport.
+
+The same command also runs `jt51_source_queue_tb`: 8,192 authored writes plus
+three ordered markers through the 64-entry scheduled queue into real JT51.
+Actual bus bytes and receipt edges are checked against the authored stream;
+native PCM is compared with an unqueued source supplied independent bytes at
+the same accepted edges. Pause, external receipt backpressure, overdue writes,
+the final output prefix, queued/in-flight reset and real supply-fault/reset
+routing are covered.
+Its envelope interval is explicit test input; this fixture does not claim to
+produce mapped MDX loop/end intervals or establish CPU refill deadlines.
 
 Run the reproducible Quartus template-integration build separately with:
 

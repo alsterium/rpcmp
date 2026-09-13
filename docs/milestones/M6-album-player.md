@@ -105,6 +105,12 @@ is not flushed, and first waveform difference is not the completion oracle.
 The scheduled-progress producer, retained MDX batches and CPU/CDC/ACK remain
 separate work; this does not advertise them as implemented.
 
+Slice 4 adopts [retained media source queue v1](../../specs/media-source-queue-v1.md)
+for ordered audio-clock writes/markers and source-dispatch coverage. A 64-entry
+queue streams larger immutable MDX batches; source busy/receipt backpressure
+is distinct from missing input at an eligible empty dispatch opportunity.
+This is not mapped envelope coverage, a CPU deadline, or a change to queue v1.
+
 ## Slices and acceptance
 
 1. **Host metadata:** strict CP932 embedded titles, filename fallback with
@@ -1656,3 +1662,94 @@ timing, cross-build, APF/package and hardware checks were not run: their inputs
 have not yet been connected to this local unit. The unchanged standalone gain
 arithmetic suite was not repeated; its affected native/output integration was.
 This does not complete M6 hardware acceptance or reopen the M5 investigation.
+
+### Scheduled source queue and streaming coverage
+
+Implemented on 2026-09-13 under [source queue v1](../../specs/media-source-queue-v1.md).
+The 64-entry synchronous RAM queue copies timestamped writes and batch markers,
+validates consecutive batch starts, and dispatches in order against retained
+native time. Admission/head prefetch can continue while held. A marker seals
+the next source interval only when dispatched; a final marker closes source
+input without claiming audible end. An empty eligible dispatch outside sealed
+coverage raises a registered supply fault through the existing shared reset.
+Busy/native receipt backpressure remains distinct from missing source input.
+
+The maximum MDX tick need not fit the FIFO before starting. The authored native
+fixture streams 8,192 writes plus three markers through 64 slots, including
+write traffic overdue across the next nominal batch boundary. It compares
+actual receipts and native PCM with independently authored bytes sent to an
+unqueued native source at the same accepted edges. Source times are not changed
+to conceal serialization or backpressure. Its preloaded envelope interval is
+explicit test input, so it does not establish mapped MDX loop/end progress.
+
+Executed checks:
+
+- `pwsh -File tools/host-verify.ps1`: 77/77 PASS, 431.59 seconds, including
+  format (0.47 seconds), tidy (415.76 seconds), harness and positive/negative
+  architecture checks. The allowlist adds only this RTL file; dependency
+  direction checks are unchanged. Log: `out/build/m6-source-queue-host.log`.
+- `pwsh -File tools/rtl-media-audio-verify.ps1`: ten benches PASS, each with
+  zero errors/warnings. The new queue bench records 379 admissions and 375
+  dispatches (four items deliberately discarded by reset/fault), two full
+  offers, ten invalid/closed offers, one simultaneous admission/dispatch,
+  72 held admissions, ten resets and two exact supply-fault cases. It covers
+  pointer wrap, high-bit timestamps, zero-write/final markers and a refill on
+  the missed opportunity. Log: `out/build/m6-source-queue-media.log`.
+- `pwsh -File tools/rtl-enveloped-audio-verify.ps1`: both benches PASS with
+  zero errors/warnings. The existing 3,200-frame gain/position/prefix check is
+  unchanged. The scheduled fixture records 8,192 writes, 8,195 ordered receipts,
+  9,130 native PCM comparisons (9,092 nonzero), three admissions during Pause,
+  3,794 writes beyond the next nominal marker time, and the final prefix across
+  two output frames. It also resets a real data pulse with queued work and
+  checks missing supply in the next generation. Its 109,948 Full observations
+  are retry clocks, not lost items. Log: `out/build/m6-source-queue-enveloped.log`.
+- `pwsh -File out/build/m6-source-queue-focused.ps1`: final native queue case
+  PASS with the same counts, zero errors/warnings, at 18:47:57. This recompiles
+  and executes the entire strengthened SV test: it captures the address phase
+  and data phase from the real bus, instead of using the source's address
+  latch as its address witness. Production inputs are unchanged from the full
+  runner and fit. This SV-only refinement does not require repeating the
+  unchanged host gate. Log: `out/build/m6-source-queue-focused.log`.
+- `pwsh -File out/build/m6-source-queue-negative.ps1`: two expected failures.
+  Ignoring due time fails `changed/reordered/early dispatch`; ignoring native
+  readiness in the supply check fails the independent fault oracle. Each
+  mutant has one error, zero warnings and no PASS marker. Mutants remain under
+  ignored `out/sim/source-queue-negative`; production/native files are unchanged.
+- `pwsh -File tools/rtl-verify.ps1`, then
+  `pwsh -File tools/rtl-jt51-verify.ps1`: nine and five benches PASS, respectively,
+  each with zero simulator errors/warnings. All RTL runs were sequential.
+  Logs: `out/build/m6-source-queue-{rtl,legacy}.log`.
+- `python -B tools/check_harness.py` and
+  `python -B out/build/m6-source-queue-checks.py`: PASS; the latter validates
+  seven synthesis input hashes and local links in changed Markdown.
+
+Initial unit runs exposed missing test coverage for an invalid marker byte and
+simultaneous admission/dispatch; the fixture now actually presents those cases,
+including the required head-prefetch edge, without lowering its assertions.
+The first native run failed its pause check because the fixture's serial phase
+had not followed power reset. The corrected fixture also asserts that control
+is offered on the actual frame boundary. No production change or expected PCM
+regeneration was used to make these test-stimulus errors pass.
+
+`python -B out/build/m6-source-queue-timing.py` generated a separate registered
+queue-plus-enveloped probe in `out/research/m6-source-queue-timing`. Quartus
+25.1std.0 Build 1129 map/fit/sta on 5CEBA4F23C8, seed 1, 81.380 ns completed
+successfully: 4,433 ALMs, 5,008 registers, 65,864 memory bits, 24 RAM blocks and
+three DSPs for the complete local probe. The queue is a 64 x 146 simple dual-port
+RAM with synchronous read address and no memory reset; its 9,344 bits remain
+in RAM. The registered fixture has 800 input and 954 observation bits; MCLK
+is forwarded rather than sampled as data.
+
+All four timing models have zero TNS and fully constrained setup/hold. Minimum
+setup is 12.661 ns, hold 0.098 ns; all recovery/removal/pulse-width slacks are
+positive. Map's nine upstream ROM unused-write-net warnings and fit's three
+fixture pin/LogicLock warnings (including five unassigned pins) were reviewed.
+STA has zero errors/warnings. No new exception, constraint relaxation or warning
+suppression was added. Logs: `out/build/m6-source-queue-{map,fit,sta}.log`.
+
+CPU feeding, retained MDX checkpoints/per-event frames, and the source-to-mapped
+envelope producer remain to be connected. Source supply coverage alone is not
+loop/end coverage. Sound-control/CDC/ACK and storage adapters follow. Whole
+Pocket fit/CDC, cross-build, APF/package and hardware were not run: this unit
+does not yet change or connect those targets. The unchanged standalone gain
+arithmetic suite was not repeated; its native/output integration was run.

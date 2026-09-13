@@ -23,7 +23,8 @@ $sources += @('core/rtl/pocket/rpcmp_media_output.sv', 'core/rtl/pocket/rpcmp_po
               'core/rtl/pocket/rpcmp_jt51_media_source.sv', 'core/rtl/pocket/rpcmp_jt51_media_audio.sv',
               'core/rtl/pocket/rpcmp_media_envelope.sv', 'core/rtl/pocket/rpcmp_jt51_enveloped_audio.sv',
               'core/rtl/pocket/rpcmp_native_completion.sv',
-              'tests/rtl/jt51_enveloped_audio_tb.sv') | ForEach-Object { Join-Path $root $_ }
+              'core/rtl/pocket/rpcmp_media_source_queue.sv',
+              'tests/rtl/jt51_enveloped_audio_tb.sv', 'tests/rtl/jt51_source_queue_tb.sv') | ForEach-Object { Join-Path $root $_ }
 Push-Location $output
 try {
     if (-not (Test-Path 'work')) { & $vlib work; if ($LASTEXITCODE) { throw 'vlib failed.' } }
@@ -35,4 +36,10 @@ try {
     $text = $lines | Out-String
     if ($code -ne 0 -or $text -notmatch '(?m)^# jt51_enveloped_audio_tb: PASS .+positions=3198 token_samples=\d+ token_frames=\d+ multicast=34 restore=960 resets=13\r?$' -or
         $text -notmatch '(?m)^# Errors: 0, Warnings: 0\r?$') { throw 'Enveloped audio simulation failed.' }
+    $lines = @(& $vsim -c -quiet -lib work jt51_source_queue_tb -do 'run -all; quit -code 0' 2>&1)
+    $code = $LASTEXITCODE
+    $lines | Write-Output
+    $text = $lines | Out-String
+    if ($code -ne 0 -or $text -notmatch '(?m)^# jt51_source_queue_tb: PASS writes=8192 receipts=8195 .+ reset_fault=2\r?$' -or
+        $text -notmatch '(?m)^# Errors: 0, Warnings: 0\r?$') { throw 'Scheduled source integration failed.' }
 } finally { Pop-Location }

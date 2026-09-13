@@ -2,9 +2,15 @@
 
 Active milestone: [M6 — Album Player](milestones/M6-album-player.md)
 
-The current task is M6 slice 4: connect scheduled source coverage and retained
-MDX progress to the audible-frame mapping, then adopt sound-control/CDC/ACK
+The current task is M6 slice 4: connect retained MDX progress and the scheduled
+source to the audible-frame mapping, then adopt sound-control/CDC/ACK
 and connect the sound/storage adapters.
+The [retained media source queue](../specs/media-source-queue-v1.md) now provides
+ordered audio-clock writes/markers with 64 copied entries. Larger MDX batches
+stream through it; the queue distinguishes native busy/receipt backpressure
+from missing input at an eligible dispatch opportunity. Marker dispatch seals
+source supply, not mapped loop/end intervals. CPU feeding and those intervals
+remain to be connected.
 The explicitly approved source-receipt contract now orders writes and zero-write
 markers and retains their actual transfer/marker edge under backpressure.
 Native receipt tests and the enveloped fault/reset integration pass. These
