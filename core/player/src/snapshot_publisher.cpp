@@ -81,8 +81,9 @@ api::TrackSelection selection(const PlaybackSelection value) noexcept {
 } // namespace
 
 SnapshotPublisher::SnapshotPublisher(const contracts::CatalogReader& catalog,
-                                     const std::uint64_t last_sequence) noexcept
-    : catalog_(catalog) {
+                                     const std::uint64_t last_sequence,
+                                     const PerformanceReader* performance) noexcept
+    : catalog_(catalog), performance_(performance) {
   latest_.sequence = last_sequence;
 }
 
@@ -121,6 +122,32 @@ bool SnapshotPublisher::describe(const PlaybackSelection selected,
     }
   }
   return false;
+}
+
+void SnapshotPublisher::describe_performance(api::PlayerSnapshot& output) const noexcept {
+  if (performance_ == nullptr)
+    return;
+  output.capabilities.bits |= api::kPerformanceHistory;
+  auto& history = output.performance_history.emplace();
+  auto availability = api::PerformanceAvailability::Waiting;
+  if (output.track && (output.transport == contracts::TransportState::Playing ||
+                       output.transport == contracts::TransportState::Paused ||
+                       output.transport == contracts::TransportState::Ended)) {
+    performance_->copy_to(history);
+    const bool valid_history = api::valid_performance_history(history);
+    if (history.play_generation == output.play_generation &&
+        history.observed_through_frame == output.position_frames && valid_history)
+      return;
+    if (history.play_generation > output.play_generation ||
+        (history.play_generation == output.play_generation &&
+         (history.observed_through_frame > output.position_frames || !valid_history)))
+      availability = api::PerformanceAvailability::Invalid;
+  }
+  history = {};
+  history.play_generation = output.play_generation;
+  history.observed_through_frame = output.position_frames;
+  history.channels = api::unknown_performance_channels();
+  history.availability = availability;
 }
 
 PublicationResult SnapshotPublisher::publish(const std::uint64_t now_us,
@@ -191,6 +218,7 @@ PublicationResult SnapshotPublisher::publish(const std::uint64_t now_us,
     next.error = {*error, state.terminal};
   else if (state.failure != TransportFailure::None || state.terminal)
     return PublicationResult::InvalidObservation;
+  describe_performance(next);
   if (!api::valid_player_snapshot(next))
     return PublicationResult::InvalidObservation;
   latest_ = next;

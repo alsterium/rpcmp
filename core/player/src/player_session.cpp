@@ -94,9 +94,9 @@ api::CommandReason reason(const TransportRejection rejection) noexcept {
 
 PlayerSession::PlayerSession(const CatalogSession& catalog, PreparationPort& preparation,
                              AudioTransportPort& audio, const TransportTiming timing,
-                             RandomSource* random) noexcept
+                             RandomSource* random, const PerformanceReader* performance) noexcept
     : catalog_(catalog), transport_(catalog, preparation, audio, timing, {}, random),
-      publisher_(catalog) {}
+      publisher_(catalog, 0, performance) {}
 
 api::PlayerSnapshot PlayerSession::latest() const noexcept {
   auto result = publisher_.latest();
@@ -114,7 +114,7 @@ void PlayerSession::remember(const api::CommandResult& result) noexcept {
 api::CommandResult PlayerSession::submit(const api::PlayerCommand& command) {
   api::CommandResult result{api::kSchemaVersion,           command.command_id,
                             api::CommandOutcome::Rejected, api::CommandReason::None,
-                            publisher_.latest().sequence,  std::nullopt};
+                            publisher_.sequence(),         std::nullopt};
   if (command.schema_version != api::kSchemaVersion) {
     result.reason = api::CommandReason::UnsupportedSchema;
     return result;
@@ -171,9 +171,9 @@ api::CommandResult PlayerSession::submit(const api::PlayerCommand& command) {
 
 PlayerStepResult PlayerSession::step(const std::uint64_t now_us, const bool publish) {
   PlayerStepResult result;
-  const auto previous = publisher_.latest();
+  const auto previous_sequence = publisher_.sequence();
   const auto maximum = std::numeric_limits<std::uint64_t>::max();
-  if (previous.sequence == maximum || (publish && previous.sequence == maximum - 1))
+  if (previous_sequence == maximum || (publish && previous_sequence == maximum - 1))
     transport_.fail(TransportFailure::ResourceExhausted, true);
   static_cast<void>(transport_.step(now_us, queue_, admission_));
   queue_.count = 0;
@@ -181,7 +181,7 @@ PlayerStepResult PlayerSession::step(const std::uint64_t now_us, const bool publ
   stepped_ = true;
   projected_ = transport_.projection();
   if (publish) {
-    const auto publication_time = std::max(now_us, previous.published_at_us);
+    const auto publication_time = std::max(now_us, publisher_.published_at_us());
     const auto outcome = publisher_.publish(publication_time, transport_.snapshot());
     result.publication = outcome;
     result.published = outcome == PublicationResult::Ok;

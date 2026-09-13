@@ -89,6 +89,7 @@ endfunction()
 add_library(rpcmp_contracts STATIC
   core/contracts/src/catalog_validation.cpp
   core/contracts/src/device_op.cpp
+  core/contracts/src/performance_history_v2.cpp
   core/contracts/src/player_state_v2.cpp
   core/contracts/src/validation.cpp)
 target_include_directories(rpcmp_contracts PUBLIC core/contracts/include)
@@ -121,6 +122,7 @@ rpcmp_production_options(rpcmp_library)
 add_library(rpcmp_player STATIC
   core/player/src/catalog_session.cpp
   core/player/src/media_loop_envelope.cpp
+  core/player/src/performance_history.cpp
   core/player/src/playback_navigation.cpp
   core/player/src/playback_transport.cpp
   core/player/src/player_session.cpp
@@ -372,6 +374,12 @@ if(BUILD_TESTING)
   target_link_libraries(rpcmp_playback_navigation_tests PRIVATE rpcmp_player)
   rpcmp_test_options(rpcmp_playback_navigation_tests)
   add_test(NAME playback_navigation COMMAND rpcmp_playback_navigation_tests)
+
+  add_executable(rpcmp_performance_history_tests tests/player/performance_history_tests.cpp)
+  target_include_directories(rpcmp_performance_history_tests PRIVATE tests/support)
+  target_link_libraries(rpcmp_performance_history_tests PRIVATE rpcmp_player)
+  rpcmp_test_options(rpcmp_performance_history_tests)
+  add_test(NAME performance_history COMMAND rpcmp_performance_history_tests)
 
   add_executable(rpcmp_media_loop_envelope_tests tests/player/media_loop_envelope_tests.cpp)
   target_include_directories(rpcmp_media_loop_envelope_tests PRIVATE tests/support)

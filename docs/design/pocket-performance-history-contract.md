@@ -5,6 +5,11 @@ Status: proposal, 2026-09-13. [画面案](pocket-tracker-screen-design.md) の Q
 [UI State API v1](../../specs/ui-state-api.md) と M0 / M5 の実装・型・上限は変更しません。
 履歴は演奏の観測値であり、再生を駆動する event queue や編集可能な pattern ではありません。
 
+保存・公開部分は [performance profile](../../specs/performance-history-v2.md) で採用しました。
+現在の8チャンネル値は履歴と同じ境界を保証するため optional 値の内部にまとめ、
+未取得と不正データ用に Waiting / Invalid を追加しています。以下の engine 抽出・
+実機 commit 対応・Tracker 行への投影は、引き続き M6 の未完了項目です。
+
 ## 所有者と時刻
 
 engine は音高・key-on/off・音色変更の観測値を、device write と対応する media timestamp、

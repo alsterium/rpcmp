@@ -112,7 +112,8 @@ public:
   bool pause_supported{true};
 };
 struct Rig {
-  explicit Rig(rpcmp::test::Suite& checks) : suite(checks) {
+  explicit Rig(rpcmp::test::Suite& checks, const PerformanceReader* performance = nullptr)
+      : suite(checks), session(catalog, preparation, audio, {100, 20}, nullptr, performance) {
     const auto ticket = catalog.begin_open();
     RPCMP_CHECK(suite, bytes.size() == 1360 && ticket.ok());
     RPCMP_CHECK(suite, catalog.complete_open(ticket.generation, {bytes.data(), bytes.size()}).ok());
@@ -428,6 +429,111 @@ void aliases_end_and_clock(rpcmp::test::Suite& suite) {
   }
 }
 
+class MockPerformance final : public PerformanceReader {
+public:
+  void copy_to(api::PerformanceHistorySnapshot& output) const noexcept override { output = value; }
+  api::PerformanceHistorySnapshot value{};
+};
+
+void performance_publication(rpcmp::test::Suite& suite) {
+  MockPerformance source;
+  Rig rig(suite, &source);
+  rig.playing();
+  auto published = rig.session.latest();
+  RPCMP_CHECK(suite, required(published.performance_history).availability ==
+                         api::PerformanceAvailability::Waiting);
+  PerformanceHistory history;
+  RPCMP_CHECK(suite, history.begin(published.play_generation));
+  const std::array events{api::PerformanceChange{
+      100, {0, true, std::uint8_t{60}, std::nullopt, std::nullopt}, api::PerformanceKind::KeyOn}};
+  auto channels = api::unknown_performance_channels();
+  channels[0] = events[0].channel;
+  RPCMP_CHECK(suite, history.commit({published.play_generation, 100, channels, events}) ==
+                         PerformanceCaptureResult::Applied);
+  history.copy_to(source.value);
+  rig.audio.observation.media_frame = 99;
+  static_cast<void>(rig.tick());
+  RPCMP_CHECK(suite, required(rig.session.latest().performance_history).availability ==
+                         api::PerformanceAvailability::Invalid);
+  RPCMP_CHECK(suite, !rig.session.latest().error && rig.audio.inhibits == 0);
+  rig.audio.observation.media_frame = 100;
+  static_cast<void>(rig.tick());
+  published = rig.session.latest();
+  RPCMP_CHECK(suite, required(published.performance_history).count == 1 &&
+                         required(published.performance_history).channels[0].note == 60);
+  const auto calls = rig.calls();
+  for (unsigned i = 0; i < 20; ++i)
+    static_cast<void>(rig.session.latest());
+  RPCMP_CHECK(suite, calls == rig.calls());
+  static_cast<void>(rig.accept(api::CommandKind::Pause));
+  static_cast<void>(rig.tick());
+  rig.audio.ack(100);
+  static_cast<void>(rig.tick());
+  RPCMP_CHECK(suite, rig.session.latest().transport == TransportState::Paused &&
+                         required(rig.session.latest().performance_history).next_sequence == 2);
+  static_cast<void>(rig.tick());
+  RPCMP_CHECK(suite, required(rig.session.latest().performance_history).count == 1);
+  source.value.count = 257;
+  static_cast<void>(rig.tick());
+  RPCMP_CHECK(suite, required(rig.session.latest().performance_history).availability ==
+                         api::PerformanceAvailability::Invalid);
+  RPCMP_CHECK(suite, !rig.session.latest().error && rig.audio.inhibits == 0);
+  source.value = required(published.performance_history);
+  source.value.play_generation--;
+  static_cast<void>(rig.tick());
+  RPCMP_CHECK(suite, required(rig.session.latest().performance_history).availability ==
+                         api::PerformanceAvailability::Waiting);
+  static_cast<void>(rig.accept(api::CommandKind::Stop));
+  static_cast<void>(rig.tick());
+  rig.audio.ack();
+  static_cast<void>(rig.tick());
+  const auto stopped = required(rig.session.latest().performance_history);
+  RPCMP_CHECK(suite, stopped.play_generation > published.play_generation && stopped.count == 0 &&
+                         stopped.next_sequence == 1 &&
+                         stopped.channels == api::unknown_performance_channels());
+  RPCMP_CHECK(suite, required(published.performance_history).count == 1);
+}
+
+auto performance_trace(rpcmp::test::Suite& suite, unsigned publication_interval) {
+  PerformanceHistory history;
+  Rig rig(suite, &history);
+  rig.playing();
+  const auto generation = rig.session.latest().play_generation;
+  RPCMP_CHECK(suite, history.begin(generation));
+  for (std::uint64_t i = 1; i <= 300; ++i) {
+    const bool on = i % 2 == 1;
+    const std::array events{
+        api::PerformanceChange{i,
+                               {0, on, std::uint8_t{60}, std::nullopt, std::nullopt},
+                               on ? api::PerformanceKind::KeyOn : api::PerformanceKind::KeyOff}};
+    auto channels = api::unknown_performance_channels();
+    channels[0] = events[0].channel;
+    RPCMP_CHECK(suite, history.commit({generation, i, channels, events}) ==
+                           PerformanceCaptureResult::Applied);
+    rig.audio.observation.media_frame = i;
+    static_cast<void>(rig.tick(publication_interval != 0 && i % publication_interval == 0));
+  }
+  static_cast<void>(rig.tick());
+  auto result = required(rig.session.latest().performance_history);
+  RPCMP_CHECK(suite, result.count == 256 && result.events[0].sequence == 45 &&
+                         result.next_sequence == 301 && result.retention_lost);
+  // Display counter exhaustion must still allow physical transport commands.
+  RPCMP_CHECK(
+      suite,
+      history.commit(
+          {generation, 300, result.channels, {}, std::numeric_limits<std::uint64_t>::max()}) ==
+          PerformanceCaptureResult::Exhausted);
+  static_cast<void>(rig.accept(api::CommandKind::Pause));
+  static_cast<void>(rig.tick());
+  rig.audio.ack(300);
+  static_cast<void>(rig.tick());
+  RPCMP_CHECK(suite, rig.session.latest().transport == TransportState::Paused &&
+                         !rig.session.latest().error &&
+                         required(rig.session.latest().performance_history).availability ==
+                             api::PerformanceAvailability::Exhausted);
+  return std::make_tuple(result.events, result.channels, rig.calls(), rig.audio.trace);
+}
+
 auto independent_trace(rpcmp::test::Suite& suite, bool frequent_publication) {
   Rig rig(suite);
   rig.playing();
@@ -450,6 +556,9 @@ int main() {
   queue_and_history(suite);
   cancellation_and_faults(suite);
   aliases_end_and_clock(suite);
+  performance_publication(suite);
+  RPCMP_CHECK(suite, performance_trace(suite, 0) == performance_trace(suite, 1));
+  RPCMP_CHECK(suite, performance_trace(suite, 17) == performance_trace(suite, 1));
   RPCMP_CHECK(suite, independent_trace(suite, false) == independent_trace(suite, true));
   return suite.finish("Player command session");
 }

@@ -7,8 +7,10 @@ The public v1 types, validation and M0 synthetic clock remain unchanged.
 [Schema 2 transport ingress](player-command-v2.md) connects these observations
 to PlayerSession. The additive [repeat policy profile](playback-policy-v2.md)
 provides desired/applied policy observations. The [navigation profile](playback-navigation-v2.md)
-adds neighbour availability and shuffle-cycle counts. History, persistent
-settings and visualizations remain subsequent parts of the same slice.
+adds neighbour availability and shuffle-cycle counts. The optional
+[performance profile](performance-history-v2.md) connects copied committed
+history and current FM channels. Engine extraction, persistent settings and
+visualizations remain subsequent parts of the same slice.
 
 ## Boundary and evolution
 
@@ -43,6 +45,8 @@ All values have fixed capacity; publication and reads allocate no memory.
   Bit 5 declares the navigation profile; it requires bit 4 and the optional
   navigation observation. The injected random port does not imply a production
   Pocket random source.
+  Bit 6 declares performance history, with its own bounded captured/unknown
+  states. This does not claim an actual Pocket audible-commit adapter.
 - `library` is a copied catalog schema 1 status. It is the status synchronized
   by the same Core transport step that produced this observation.
 - `transport` is the confirmed state; `projected` is the current command intent.
@@ -81,6 +85,9 @@ All values have fixed capacity; publication and reads allocate no memory.
   shuffle-cycle identity, library generation, total and started count. Presence
   and bounds follow the navigation profile; the validator does not recompute
   the neighbour from catalog data.
+- Optional `performance_history` follows the performance profile, including
+  independent current channels at the same generation and position. Malformed
+  source observations are sanitized to Invalid before transport publication.
 
 Transport observation types intentionally do not expose the internal ports or
 their mutable state. Empty/Loading/Stopped can have no selected track;

@@ -125,6 +125,23 @@ bool valid_player_snapshot(const PlayerSnapshot& snapshot) noexcept {
         cycle.started_tracks > cycle.total_tracks)
       return false;
   }
+  const bool history_observed = (snapshot.capabilities.bits & kPerformanceHistory) != 0;
+  if (history_observed != snapshot.performance_history.has_value())
+    return false;
+  if (snapshot.performance_history) {
+    const auto& history = *snapshot.performance_history;
+    if (!valid_performance_history(history) ||
+        history.play_generation != snapshot.play_generation ||
+        history.observed_through_frame != snapshot.position_frames)
+      return false;
+    const bool captured = history.availability == PerformanceAvailability::Available ||
+                          history.availability == PerformanceAvailability::Degraded ||
+                          history.availability == PerformanceAvailability::Exhausted;
+    if (captured && (!snapshot.track || (snapshot.transport != TransportState::Playing &&
+                                         snapshot.transport != TransportState::Paused &&
+                                         snapshot.transport != TransportState::Ended)))
+      return false;
+  }
   return true;
 }
 } // namespace rpcmp::contracts::v2

@@ -599,3 +599,59 @@ with dense versus skipped publication. No golden was regenerated.
 No RTL/APF/package inputs changed. RTL simulation, synthesis and hardware
 tests were not run; actual audio timing, source freeze and production resource
 headroom remain integration gates.
+
+Slice 3's committed performance collector/publication profile is implemented
+on 2026-09-13. The [adopted profile](../../specs/performance-history-v2.md)
+adds an optional copied 256-event window with independent current FM channels.
+An injected Core read port supplies committed values; old/missing or malformed
+observations become Waiting or Invalid without a transport error. Capture loss,
+retention loss and exhausted display counters remain visible. Current channels
+continue updating after event-number exhaustion. UI reads and publication cadence
+do not drive collection. Engine note/voice extraction, actual audio commit
+mapping, Tracker/keyboard projection and settings/input remain incomplete.
+
+Executed performance-collector evidence:
+
+- `pwsh -File tools/host-verify.ps1`: final 70/70 PASS, 345.84 seconds,
+  including formatting, clang-tidy and positive/negative architecture checks.
+  Log: `out/build/m6-history-host-final.log` (ignored).
+- `pwsh -File out/build/m6-history-focused.ps1`: 14/14 PASS, 1.07 seconds.
+  Log: `out/build/m6-history-focused-final.log` (ignored). This precedes the
+  additional public profile checks and scalar publisher metadata accessors;
+  the completion gate covers those final changes.
+- Offline Docker GCC 13.3.0 ASan/UBSan: eight suites PASS (performance history,
+  schema 2 command/state, ingress, transport, publisher, repeat/navigation and
+  navigation order). Script/log: `out/build/m6-history-posix.py`,
+  `out/build/m6-history-posix-final.log` (ignored). Production disables exceptions/RTTI;
+  tests disable RTTI. No private music fixture was used.
+- `out/build/host-msvc/rpcmp_performance_history_tests.exe`: PASS, event 32,
+  snapshot 8,344, collector 8,360 bytes. GCC host reports the same sizes.
+  Compile-time checks bound each event, four observation windows and the
+  collector; the integrated UI/audio image is not yet measured.
+- Offline Docker `make --file out/build/m6-history-cross/Makefile history-check`:
+  RISC-V link-only PASS with no undefined symbols. Text 46,332, data 188,
+  BSS 1,800 bytes; conservative stack bound 113,472 bytes. Probe/budget:
+  `out/build/m6-history-cross`; log: `out/build/m6-history-cross-final.log`
+  (ignored). The executable was not run and is not an integrated player image.
+- `python -B tools/check_harness.py`: PASS; `python -B out/build/m6-history-links.py`:
+  44 changed-Markdown local file links PASS.
+
+Authored events verify same-frame retrigger/short On/Off, future-frame rejection,
+stale generations, independent current channels, 256/257/300 retention, known
+and unknown capture loss, invalid lengths/IDs/order/pitch/gate, sequence overflow,
+Pause/Stop, copied-value isolation and equal scripted audio control traces with
+dense, sparse or absent publication. No trace or expected value was regenerated.
+The initial host build caught C++20-only syntax in this C++17 repository, then
+implicit integer narrowing in optional test values. Both were corrected without
+changing language/toolchain settings or suppressing warnings. Initial logs:
+`out/build/m6-history-focused.log`, `out/build/m6-history-focused-fixed.log`
+(ignored). The first cross probe referenced a misspelled source path in its
+generated Makefile; the corrected probe passed without production changes.
+The initial completion gate passed 69/70 checks and failed tidy on two size
+budget expression types and one test loop index type (348.48 seconds;
+`out/build/m6-history-host.log`, ignored). Explicit `size_t` arithmetic and a
+size-matched test index resolved all three diagnostics; focused analysis of
+the changed sources passed (`out/build/m6-history-tidy-fixed.log`, ignored).
+No RTL/APF/package inputs changed. RTL simulation, synthesis and hardware
+checks were not run. Host commit boundaries are supplied by scripted producers;
+these results do not establish an actual audible commit or correct MDX pitch.

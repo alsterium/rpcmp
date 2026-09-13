@@ -2,8 +2,8 @@
 
 Active milestone: [M6 — Album Player](milestones/M6-album-player.md)
 
-The current task is M6 slice 3: adopt and connect performance history/settings
-and mock UI/input behavior through injected ports, around the
+The current task is M6 slice 3: connect engine performance observations,
+settings and mock UI/input behavior through injected ports, around the
 [Core transport](../specs/playback-transport-v1.md),
 [schema 2 ingress](../specs/player-command-v2.md) and
 [published state](../specs/player-state-v2.md).
@@ -28,9 +28,12 @@ Only declared repeat-capable ports accept it. The optional
 [navigation profile](../specs/playback-navigation-v2.md) now connects album
 auto-advance, explicit neighbours and whole-library shuffle through an injected
 random port. Shuffle counts successful starts, keeps cancelled candidates
-eligible and avoids automatic replay of visited history. Next connect performance
-history/settings and mock UI/input. The real audible mapping and sound adapter
-remain to be wired.
+eligible and avoids automatic replay of visited history. The
+[performance profile](../specs/performance-history-v2.md) now connects a bounded
+committed-history collector and independent current FM channels through a
+read-only injected port to public snapshots. Display loss/invalid observations
+do not stop transport. Next connect engine observations, settings and mock
+UI/input. The real audible mapping and sound adapter remain to be wired.
 See M6 for the executed checks; this does not establish a working Pocket audio
 adapter, complete UI or completion of slice 3.
 Use the [transition proposal](design/pocket-player-transition-contract.md),
