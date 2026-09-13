@@ -3,6 +3,8 @@ module jt51_enveloped_audio_tb;
     logic clk_audio=0, reset_n=0, stream_reset=0, device_fault=0, clear_audio_flags=0;
     logic dev_valid, dev_ready;
     logic [7:0] dev_address, dev_value;
+    logic marker_valid=0, receipt_ready=1, marker_ready, receipt_valid, receipt_marker;
+    logic [63:0] operation_token, receipt_token, receipt_at_edge;
     logic begin_valid=0, begin_target_enabled=1;
     logic [63:0] begin_generation=1, begin_revision=1;
     logic [31:0] begin_target=1;
@@ -209,7 +211,8 @@ module jt51_enveloped_audio_tb;
             // not the intervening falling edge before reset has been sampled.
             @(posedge clk_audio); #1; held=held+1;
             if (media_enable || dev_ready || audio_dac!==0 || source_edge!==0 ||
-                pending_source_valid || output_source_valid || pending_source_edge!==0 || output_source_edge!==0)
+                pending_source_valid || output_source_valid || pending_source_edge!==0 || output_source_edge!==0 ||
+                marker_ready || receipt_valid || operation_token!==1 || dut.operation_exhausted)
                 $fatal(1,"reset did not inhibit sound/write or discard positions gen=%0d held=%0d enable=%b ready=%b dac=%b edge=%h pending=%b/%h output=%b/%h",
                        generation,held,media_enable,dev_ready,audio_dac,source_edge,
                        pending_source_valid,pending_source_edge,output_source_valid,output_source_edge);
@@ -329,7 +332,29 @@ module jt51_enveloped_audio_tb;
         if (failure!==1 || end_reason || media_frame!==5) $fatal(1,"source exhaustion did not close stream");
         check_reset_hold();
         if (position_checks!=3198) $fatal(1,"missing native position coverage");
-        $display("jt51_enveloped_audio_tb: PASS frames=%0d scaled=%0d silent=%0d positive=%0d/%0d negative=%0d/%0d writes=%0d positions=%0d restore=960 resets=10",
+        // The final valid operation is delivered through the public wrapper.
+        // A further offer faults at the real counter boundary, after Resume.
+        at_phase(16); begin_stream(12); progress(1,0,100,0,0);
+        wait(media_frame==4); control(1,0,1,0,0,12,1);
+        force dut.source_media.operation_token=64'hfffffffffffffffe;
+        @(negedge clk_audio); release dut.source_media.operation_token;
+        receipt_ready=0; marker_valid=1;
+        repeat(512) @(negedge clk_audio);
+        if (operation_token!==64'hfffffffffffffffe || marker_ready || receipt_valid || failure)
+            $fatal(1,"held operation accepted");
+        control(2,0,1,0,0,12,1);
+        marker_valid=0;
+        if (operation_token!==64'hffffffffffffffff || !receipt_valid || !receipt_marker ||
+            receipt_token!==64'hfffffffffffffffe || receipt_at_edge!==source_edge-1 || dut.operation_exhausted)
+            $fatal(1,"final operation receipt missing through wrapper");
+        @(negedge clk_audio); marker_valid=1;
+        @(negedge clk_audio); marker_valid=0;
+        @(negedge clk_audio);
+        if (failure!==1 || end_reason || media_frame!==5 || receipt_valid)
+            $fatal(1,"operation exhaustion did not close stream");
+        check_reset_hold();
+        receipt_ready=1;
+        $display("jt51_enveloped_audio_tb: PASS frames=%0d scaled=%0d silent=%0d positive=%0d/%0d negative=%0d/%0d writes=%0d positions=%0d restore=960 resets=11",
                  checked_frames,scaled_changes,silent_frames,positive[0],positive[1],negative[0],negative[1],operation_count,position_checks);
         $finish;
     end

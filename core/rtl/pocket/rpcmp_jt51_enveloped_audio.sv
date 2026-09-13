@@ -4,6 +4,9 @@ module rpcmp_jt51_enveloped_audio (
     input logic dev_valid,
     output logic dev_ready,
     input logic [7:0] dev_address, dev_value,
+    input logic marker_valid, receipt_ready,
+    output logic marker_ready, receipt_valid, receipt_marker,
+    output logic [63:0] operation_token, receipt_token, receipt_at_edge,
     input logic begin_valid,
     input logic [63:0] begin_generation, begin_revision,
     input logic begin_target_enabled,
@@ -36,14 +39,14 @@ module rpcmp_jt51_enveloped_audio (
 );
     logic [11:0] reset_remaining;
     logic terminal_seen, terminal, active, reset_trigger, shared_fault;
-    logic jt_sample, consume, source_edge_exhausted;
+    logic jt_sample, consume, source_edge_exhausted, operation_exhausted;
     logic signed [15:0] jt_left, jt_right, source_left, source_right;
     logic signed [15:0] transformed_left, transformed_right;
 
     assign terminal = end_reason!=0 || failure!=0;
     assign active = generation!=0 && !terminal;
     assign shared_fault = device_fault || (stream_reset && active) ||
-                          audio_underflow || audio_overflow || source_edge_exhausted;
+                          audio_underflow || audio_overflow || source_edge_exhausted || operation_exhausted;
     assign reset_trigger = stream_reset || shared_fault || (terminal && !terminal_seen);
     assign resetting = !reset_n || reset_trigger || reset_remaining!=0;
     assign quiescent = !resetting && !active;
@@ -80,6 +83,10 @@ module rpcmp_jt51_enveloped_audio (
         .clk_audio(clk_audio), .reset_n(reset_n), .stream_reset(resetting),
         .media_enable(media_enable), .dev_valid(dev_valid), .dev_ready(dev_ready),
         .dev_address(dev_address), .dev_value(dev_value), .device_idle(device_idle),
+        .marker_valid(marker_valid), .marker_ready(marker_ready), .operation_token(operation_token),
+        .receipt_valid(receipt_valid), .receipt_ready(receipt_ready), .receipt_marker(receipt_marker),
+        .receipt_token(receipt_token), .receipt_at_edge(receipt_at_edge),
+        .operation_exhausted(operation_exhausted),
         .jt_sample(jt_sample), .jt_left(jt_left), .jt_right(jt_right),
         .source_edge(source_edge), .source_edge_exhausted(source_edge_exhausted)
     );

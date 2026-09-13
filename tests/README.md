@@ -80,6 +80,10 @@ reset. The burst bench submits back-to-back writes using only `dev_ready`, then
 reads the native operator scan to check TL, DT1/MUL and KS/AR values across all
 32 slots. Different starting phases and inserted holds must preserve all
 accepted values; counting accepted bus operations alone is not sufficient.
+The source-receipt bench observes actual data pulses and counts retained edges
+independently. It checks all 32 release phases, write/marker ordering, blocked
+delivery and reserved slots, simultaneous replacement, notification delivery
+during hold, resets of each bus phase, and 64-bit token/position boundaries.
 The sample-position bench uses a closed-form rational selection oracle and
 authored 64-bit positions. It checks the position together with every external
 I2S bit through drop, overflow, same-edge old/new selection, pause and reset;

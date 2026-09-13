@@ -50,6 +50,10 @@ The native source numbers retained audio edges; the converter keeps the
 captured position with the selected sample through pending and serialized
 output. Pause/startup silence has no source position, reset discards old
 positions, and source-clock exhaustion closes the enveloped stream as a fault.
+The source also assigns ordered write/marker tokens and holds a receipt of the
+actual data-transfer or marker edge until consumed. Receipt delivery may drain
+during hold, without advancing synthesis; token exhaustion resets the enveloped
+stream. These bus receipts do not yet certify native-pipeline or audible commit.
 `tools/rtl-enveloped-audio-verify.ps1` checks decoded stereo against an unscaled
 native reference and analytical gain, including reset/restart cases. This is
 the [local integration contract](../../specs/pocket-enveloped-audio-v1.md), not

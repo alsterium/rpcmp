@@ -33,6 +33,8 @@ if (-not $OutputOnly) {
     $tops += 'jt51_media_audio_tb'
     $sources += Join-Path $root 'tests/rtl/jt51_media_burst_tb.sv'
     $tops += 'jt51_media_burst_tb'
+    $sources += Join-Path $root 'tests/rtl/jt51_source_receipt_tb.sv'
+    $tops += 'jt51_source_receipt_tb'
 }
 Push-Location $output
 try {

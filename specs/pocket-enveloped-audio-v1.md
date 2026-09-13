@@ -68,6 +68,46 @@ not invent native samples. These observations do not authorize loop/end
 publication: native write/pipeline delay and the ordered progress mapping remain
 separate obligations. In particular, busy-clear is still not an audible marker.
 
+## Ordered source receipts
+
+Adopted for M6 slice 4 on 2026-09-13 with explicit user approval. The source
+accepts `marker_valid/marker_ready` for ordered, zero-write operations such as
+engine ticks and batch checkpoints. A marker does not touch JT51. A concurrent
+write takes priority. Neither operation is accepted during hold/reset, while
+an earlier write awaits its physical data pulse, or without receipt capacity.
+
+`operation_token:u64` identifies either accepted operation at its handshake.
+Tokens start at 1 after power/stream reset and increase once per acceptance.
+Zero is not an operation; UINT64_MAX is reserved. Offering another operation
+after MAX-1 was assigned sets sticky `operation_exhausted`, without acceptance
+or wrap. The enveloped owner closes the stream with shared DeviceFault/reset.
+The caller must associate these stream-local tokens with its play generation.
+
+The source reserves its one receipt slot before accepting a write. It produces
+`receipt_valid`, `receipt_token:u64`, `receipt_at_edge:u64` and `receipt_marker`
+when that write finishes its physical data pulse (the retained `cen_p1` edge
+which releases HOLD_DATA), or at a marker's acceptance edge. `receipt_at_edge`
+is the source edge **before** that edge, not admission or delivery time. A
+marker cannot overtake an in-flight write. Native busy may remain asserted
+after a write receipt: neither receipt nor `device_idle` certifies synthesis
+completion, sample selection, audible progress or a pipeline-delay bound.
+
+An outstanding receipt remains stable until `receipt_valid && receipt_ready`.
+The receiver may drain an already completed receipt during Pause; this does
+not advance native state, source time or the operation counter. An old receipt
+may be consumed while a new operation is accepted on the same edge. A newly
+produced receipt is visible only on the following edge, never consumed on its
+production edge. A blocked receiver backpressures subsequent operations
+without stopping synthesis; the scheduled queue still owes deadline/coverage
+checks. Reset suppresses handshakes and discards receipts and in-flight writes.
+Invalid receipt payload is unspecified and must not be consumed.
+
+The enveloped wrapper exposes the marker/token/receipt ports. The pause-only
+wrapper offers no markers and always drains receipts, preserving its public
+ports and native write/audio timing. Source exhaustion is reported internally
+to the enveloped owner. This supplies actual bus/marker positions for the
+subsequent native-pipeline mapper, not an empirical fixed-wait substitute.
+
 ## Integrated generation and reset
 
 `rpcmp_jt51_enveloped_audio` connects the envelope to this shared source/output.
@@ -120,6 +160,14 @@ Check all 64 position bits, valid zero versus empty, coincidence with a new
 sample, overflow/drop, holds, urgent reset and the source counter's final real
 increment. Counter exhaustion must invalidate the stream rather than wrap or
 silently fabricate another position.
+
+Receipt tests independently count retained edges and observe physical native
+data pulses across all 32 scan phases. Cover write/marker priority and ordering,
+slot reservation, blocked delivery, same-edge consume/accept, delivery during
+hold, resets of every bus phase and a pending receipt, full-width tokens/edges,
+and final valid token/exhaustion. An admission-time timestamp mutation must be
+rejected. The enveloped test must exercise the last real token increment and
+its shared failure/reset, without forcing the failure signal itself.
 
 Synthesis must preserve native and progress RAM inference. This local integration
 does not establish APF lifecycle/CDC, full-player timing/resources, firmware 2.6

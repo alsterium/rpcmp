@@ -91,6 +91,12 @@ This adopts the sample-to-output part of the mapper, with explicit empty/pause/
 reset and exhaustion semantics. It does not equate native capture time with a
 register's audible effect or adopt the remaining MDX progress mapping.
 
+With explicit user approval on 2026-09-13, slice 4 also adopts ordered source
+receipts in that same local contract. Writes and zero-write markers receive
+stream-local tokens; the actual completed bus/marker edge is retained until
+delivery, with reserved capacity, hold/reset and exhaustion semantics. This
+does not equate bus receipt with native-pipeline or audible completion.
+
 ## Slices and acceptance
 
 1. **Host metadata:** strict CP932 embedded titles, filename fallback with
@@ -1404,3 +1410,82 @@ and hardware checks were not run because those inputs remain unchanged. The
 standalone envelope suite was not repeated: its source/arithmetic is unchanged
 and the affected integration was exercised above. All generated probes, logs
 and GPL derivatives remain ignored.
+
+### Ordered native source receipts (2026-09-13)
+
+The user explicitly approved the source-receipt proposal. The shared source
+now numbers accepted writes and zero-write markers, reserves its receipt slot
+before a write, and retains the actual transfer/marker edge until delivery.
+Write priority and the in-flight bus owner prevent a marker from overtaking a
+write. A held source may deliver an already completed receipt without advancing
+native state or source time. Reset suppresses handshakes and clears the stream;
+offering another operation after the last valid token faults without wrapping.
+The enveloped owner exposes the receipt ports and routes exhaustion through its
+existing DeviceFault/reset. The old pause-only wrapper always drains receipts,
+so its ready equation reduces to the old bus-owner condition for valid streams.
+
+Executed RTL evidence:
+
+- `pwsh -File tools/rtl-media-audio-verify.ps1`: all five benches PASS, each
+  with zero simulator errors/warnings. The new bench independently counts
+  retained edges and observes the physical data pulse, without deriving
+  receipt positions from the DUT's token/timestamp or FSM registers. It covers
+  all 32 data-release phases, simultaneous write/marker priority, a reserved
+  slot, blocked delivery, consume/accept on one edge, 32 deliveries during hold,
+  and 42 resets including every in-flight bus phase. The original run used
+  36 writes and 164 markers. Log: `out/build/m6-receipt-media.log`.
+- The final bench additionally sends the last valid full-width token through
+  the in-flight **write** register (previously that boundary used a marker).
+  Focused `vlog.exe -quiet -sv -work work F:/source/rpcmp/tests/rtl/jt51_source_receipt_tb.sv`
+  and `vsim.exe -c -quiet -lib work jt51_source_receipt_tb -do 'run -all; quit -code 0'` in the same generated
+  media-audio work library: PASS, 37 writes, 163 markers, 195 delivered receipts,
+  32 held deliveries, 42 resets, phase mask ffffffff, zero errors/warnings.
+  Four in-flight writes and one blocked marker are deliberately reset rather
+  than delivered. Log: `out/build/m6-receipt-focused.log`.
+- `pwsh -File out/build/m6-receipt-negative.ps1`: an ignored copy deliberately
+  substitutes admission time for data-transfer completion. The bench rejects
+  it with `receipt position/order mismatch after edge`, Errors 1 / Warnings 0
+  as expected. This is negative-control evidence, not a production PASS.
+  Log: `out/build/m6-receipt-negative.log`.
+- `pwsh -File tools/rtl-enveloped-audio-verify.ps1`: PASS, 3,200 decoded frames,
+  2,758 scaled changes, 3,198 native positions, completed 960-frame restoration
+  and 11 terminal/reset cases. The added case checks the final valid marker
+  through the wrapper, refusal during Pause, and a real token-counter failure
+  followed by shared reset. It does not force the failure signal. All reset
+  cases now also check discarded receipts and restarted operation numbering.
+  Log: `out/build/m6-receipt-enveloped.log` (zero errors/warnings).
+- `pwsh -File tools/rtl-verify.ps1`, then
+  `pwsh -File tools/rtl-jt51-verify.ps1`: all nine/five benches PASS with zero
+  errors/warnings, executed sequentially. Logs:
+  `out/build/m6-receipt-rtl.log`, `out/build/m6-receipt-legacy.log`.
+- `pwsh -File tools/host-verify.ps1`: 76/76 PASS in 570.00 seconds, including
+  format, clang-tidy (551.28 seconds), harness and positive/negative architecture
+  checks. Log: `out/build/m6-receipt-host.log`. The final strengthened RTL-only
+  bench was separately compiled/executed as above; no host source changed.
+- `python -B tools/check_harness.py` and
+  `python -B out/build/m6-position-links.py`: PASS, with 61 local file links.
+  `Get-FileHash -Algorithm SHA256` against the registered fit's `sources.json`
+  matches all four production sources and its probe to the tested worktree.
+
+`python -B out/build/m6-receipt-timing.py`, followed by Quartus 25.1std.0
+Build 1129 `quartus_map.exe`, `quartus_fit.exe` and `quartus_sta.exe` on
+`out/research/m6-receipt-timing/enveloped_probe`: map/fit and all four timing
+models PASS. The same 5CEBA4F23C8, seed 1, 81.380 ns registered-data fixture
+now has 671 input bits and captures all 815 output bits; MCLK remains a direct
+clock output, not captured data. Resources including the fixture are 4,185 ALMs,
+4,360 registers, 52,424 memory bits in 16 RAM blocks and three DSPs. Native and
+progress RAM inference is preserved. Worst setup is 11.292 ns and hold 0.047 ns;
+recovery/removal/pulse-width slacks are positive, all TNS zero, and no setup/hold
+paths are unconstrained. Map has nine reviewed upstream ROM write-net warnings;
+fit has three reviewed fixture pin/LogicLock warnings, including five unassigned
+pins; STA has zero errors/warnings. No exception, relaxed constraint or warning
+suppression was added. Logs: `out/build/m6-receipt-{map,fit,sta}.log`.
+
+These are actual bus/marker positions, not a native-pipeline completion fence.
+The next work remains mapping those positions and ordered MDX observations to
+the selected audio samples, with source coverage/deadline handling, then
+sound-control/CDC/ACK and real sound/storage adapters. Whole-player/Pocket pin
+timing, APF/package, cross-build and hardware checks were not run: those inputs
+are unchanged by this local unit. The standalone envelope arithmetic is also
+unchanged; its affected native/output integration was run above. This does not
+complete the hardware milestone or reopen the closed M5 investigation.

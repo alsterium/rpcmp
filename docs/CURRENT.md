@@ -4,6 +4,10 @@ Active milestone: [M6 — Album Player](milestones/M6-album-player.md)
 
 The current task is M6 slice 4: prove the source-progress to audible-frame
 mapping, then adopt sound-control/CDC/ACK and connect the sound/storage adapters.
+The explicitly approved source-receipt contract now orders writes and zero-write
+markers and retains their actual transfer/marker edge under backpressure.
+Native receipt tests and the enveloped fault/reset integration pass. These
+receipts are bus positions, not native-pipeline or audible completion.
 The local enveloped path now carries the retained native sample-capture edge
 through rational selection, pending storage and serialized output. This is
 the sample-to-output part of the mapping; native register/pipeline delay and

@@ -4,6 +4,10 @@ module rpcmp_jt51_media_source (
     input logic dev_valid,
     output logic dev_ready,
     input logic [7:0] dev_address, dev_value,
+    input logic marker_valid, receipt_ready,
+    output logic marker_ready, receipt_valid, receipt_marker,
+    output logic [63:0] operation_token, receipt_token, receipt_at_edge,
+    output logic operation_exhausted,
     output logic device_idle, jt_sample,
     output logic [63:0] source_edge,
     output logic source_edge_exhausted,
@@ -18,11 +22,48 @@ module rpcmp_jt51_media_source (
     logic jt_wr_n, jt_a0;
     logic [7:0] jt_din, jt_dout;
     logic jt_reset;
+    logic receipt_pending, operation_room;
+    logic [63:0] command_token;
 
     assign cen_sum = {1'b0,cen_accum} + 26'd3579545;
     assign jt_reset = !reset_n || stream_reset;
-    assign dev_ready = media_enable && state == IDLE;
+    assign receipt_valid = receipt_pending && !jt_reset;
+    assign operation_room = !jt_reset && media_enable && state == IDLE &&
+                            (!receipt_pending || receipt_ready) && !operation_exhausted &&
+                            !(&operation_token);
+    assign dev_ready = operation_room;
+    assign marker_ready = operation_room && !dev_valid;
     assign device_idle = state == IDLE;
+
+    // One slot is reserved throughout an accepted write: no marker or later
+    // write can enter while the bus owner is non-IDLE. Receipt delivery itself
+    // may run during hold; it cannot advance native time or an in-flight write.
+    always_ff @(posedge clk_audio or negedge reset_n) begin
+        if (!reset_n) begin
+            operation_token <= 1; operation_exhausted <= 0; command_token <= 0;
+            receipt_pending <= 0; receipt_token <= 0; receipt_at_edge <= 0; receipt_marker <= 0;
+        end else if (stream_reset) begin
+            operation_token <= 1; operation_exhausted <= 0; command_token <= 0;
+            receipt_pending <= 0; receipt_token <= 0; receipt_at_edge <= 0; receipt_marker <= 0;
+        end else begin
+            if (receipt_valid && receipt_ready) receipt_pending <= 0;
+            if (media_enable) begin
+                if ((dev_valid || marker_valid) && (&operation_token)) operation_exhausted <= 1;
+                if (dev_valid && dev_ready) begin
+                    command_token <= operation_token;
+                    operation_token <= operation_token + 64'd1;
+                end else if (marker_valid && marker_ready) begin
+                    operation_token <= operation_token + 64'd1;
+                    receipt_pending <= 1; receipt_token <= operation_token;
+                    receipt_at_edge <= source_edge; receipt_marker <= 1;
+                end
+                if (state == HOLD_DATA && cen_p1) begin
+                    receipt_pending <= 1; receipt_token <= command_token;
+                    receipt_at_edge <= source_edge; receipt_marker <= 0;
+                end
+            end
+        end
+    end
 
     // The pre-edge value identifies this retained source edge, including samples
     // observed by the converter on the same edge. It is not a write-commit tag.

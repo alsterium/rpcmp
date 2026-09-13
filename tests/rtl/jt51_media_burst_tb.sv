@@ -7,6 +7,8 @@ module jt51_media_burst_tb;
     logic signed [15:0] jt_left, jt_right;
     logic [63:0] source_edge;
     logic source_edge_exhausted;
+    logic marker_valid=0, receipt_ready=1, marker_ready, receipt_valid, receipt_marker, operation_exhausted;
+    logic [63:0] operation_token, receipt_token, receipt_at_edge;
     logic automatic_holds=0;
     integer wall=0, media=0, held=0, issued=0, checked=0, cases=0;
     integer opindex, hold_remaining=0;

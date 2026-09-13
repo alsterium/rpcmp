@@ -32,6 +32,6 @@ try {
     $code = $LASTEXITCODE
     $lines | Write-Output
     $text = $lines | Out-String
-    if ($code -ne 0 -or $text -notmatch '(?m)^# jt51_enveloped_audio_tb: PASS .+positions=3198 restore=960 resets=10\r?$' -or
+    if ($code -ne 0 -or $text -notmatch '(?m)^# jt51_enveloped_audio_tb: PASS .+positions=3198 restore=960 resets=11\r?$' -or
         $text -notmatch '(?m)^# Errors: 0, Warnings: 0\r?$') { throw 'Enveloped audio simulation failed.' }
 } finally { Pop-Location }

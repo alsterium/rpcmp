@@ -15,6 +15,9 @@ module rpcmp_jt51_media_audio (
         .clk_audio(clk_audio), .reset_n(reset_n), .stream_reset(stream_reset),
         .media_enable(media_enable), .dev_valid(dev_valid), .dev_ready(dev_ready),
         .dev_address(dev_address), .dev_value(dev_value), .device_idle(device_idle),
+        .marker_valid(1'b0), .marker_ready(), .operation_token(),
+        .receipt_ready(1'b1), .receipt_valid(), .receipt_marker(),
+        .receipt_token(), .receipt_at_edge(), .operation_exhausted(),
         .jt_sample(jt_sample), .jt_left(jt_left), .jt_right(jt_right),
         .source_edge(), .source_edge_exhausted()
     );
