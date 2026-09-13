@@ -8,8 +8,11 @@ module rpcmp_media_output #(
     input logic clk_audio, reset_n, stream_reset, frame_consume, clear_flags,
     input logic src_valid,
     input logic signed [17:0] src_left, src_right,
+    input logic [63:0] src_at_edge,
     input logic signed [15:0] transformed_left, transformed_right,
     output logic signed [15:0] source_left, source_right,
+    output logic source_valid, output_valid,
+    output logic [63:0] source_at_edge, output_at_edge,
     output logic media_enable, running, frame_boundary,
     output logic audio_mclk, audio_lrck, audio_dac,
     output logic underflow, overflow, clipped,
@@ -20,6 +23,7 @@ module rpcmp_media_output #(
     logic [7:0] serial_phase;
     logic pending, started;
     logic signed [15:0] pending_left, pending_right, frame_left, frame_right;
+    logic [63:0] pending_at_edge;
     logic [31:0] rate_sum;
     logic select_source;
 
@@ -36,6 +40,8 @@ module rpcmp_media_output #(
                           (frame_boundary ? frame_consume : running);
     assign source_left = pending ? pending_left : 16'sd0;
     assign source_right = pending ? pending_right : 16'sd0;
+    assign source_valid = pending;
+    assign source_at_edge = pending ? pending_at_edge : 64'd0;
     assign rate_sum = rate_phase + PHASE_STEP;
     assign select_source = src_valid && rate_sum >= SRC_RATE_NUM;
     always_comb begin
@@ -55,6 +61,7 @@ module rpcmp_media_output #(
             pending <= 0; started <= 0; running <= INITIAL_RUNNING;
             pending_left <= 0; pending_right <= 0;
             frame_left <= 0; frame_right <= 0;
+            pending_at_edge <= 0; output_at_edge <= 0; output_valid <= 0;
             underflow <= 0; overflow <= 0; clipped <= 0;
             selected_count <= 0;
         end else begin
@@ -65,6 +72,7 @@ module rpcmp_media_output #(
                 pending <= 0; started <= 0; running <= 0;
                 pending_left <= 0; pending_right <= 0;
                 frame_left <= 0; frame_right <= 0;
+                pending_at_edge <= 0; output_at_edge <= 0; output_valid <= 0;
                 underflow <= 0; overflow <= 0; clipped <= 0;
                 selected_count <= 0;
             end else begin
@@ -76,8 +84,10 @@ module rpcmp_media_output #(
                     if (media_enable && pending) begin
                         frame_left <= transformed_left;
                         frame_right <= transformed_right;
+                        output_at_edge <= pending_at_edge; output_valid <= 1;
                     end else begin
                         frame_left <= 0; frame_right <= 0;
+                        output_at_edge <= 0; output_valid <= 0;
                         if (media_enable && started) underflow <= 1;
                     end
                     if (media_enable) pending <= 0;
@@ -91,6 +101,7 @@ module rpcmp_media_output #(
                         if (pending && !frame_boundary) overflow <= 1;
                         pending_left <= saturate(src_left);
                         pending_right <= saturate(src_right);
+                        pending_at_edge <= src_at_edge;
                         pending <= 1; started <= 1;
                         selected_count <= selected_count + 1'b1;
                         if (src_left > 18'sd32767 || src_left < -18'sd32768 ||

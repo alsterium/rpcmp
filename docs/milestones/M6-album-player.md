@@ -84,6 +84,13 @@ no exact pulse length or public maximum write latency was previously promised.
 It corrects accepted burst writes being overwritten before their native scan,
 not a product-policy choice or a change to legacy v1 MMIO/audio semantics.
 
+Slice 4 adds the source-sample-position observation in
+[Pocket enveloped audio v1](../../specs/pocket-enveloped-audio-v1.md): retained
+audio-edge indices travel with the actual selected/pending/serialized sample.
+This adopts the sample-to-output part of the mapper, with explicit empty/pause/
+reset and exhaustion semantics. It does not equate native capture time with a
+register's audible effect or adopt the remaining MDX progress mapping.
+
 ## Slices and acceptance
 
 1. **Host metadata:** strict CP932 embedded titles, filename fallback with
@@ -1319,3 +1326,81 @@ The mapper, CPU/CDC transport and real Pocket integration remain pending.
 Cross-build, APF/package and hardware inputs did not change in this fix, so
 those checks were not run. All exploratory sources, logs and GPL derivatives
 remain ignored.
+
+The sample-to-output portion of the mapper now retains a source-edge position
+with each actual selected stereo sample. The native clock owns a checked u64
+retained-edge counter; the converter stores positions in the same pending and
+output transactions as PCM. The enveloped owner exposes pending and serialized
+positions and routes counter exhaustion through its existing fault/reset path.
+Empty/startup/pause frames have no source position, while position zero remains
+a valid sample value. Legacy wrapper ports and decoded audio remain unchanged.
+
+Executed sample-position evidence on 2026-09-13:
+
+- `pwsh -File tools/rtl-media-audio-verify.ps1 -OutputOnly`: both benches PASS,
+  zero simulator errors/warnings. The position bench uses independent integer
+  quotient selection and authored 64-bit positions while checking every I2S
+  bit. It checks 371 emitted sample/position pairs, 2,182 selected inputs,
+  2,912 dropped inputs, 1,809 replacements, 153 selection/boundary coincidences,
+  519 held-pending boundaries, 159 empty consuming boundaries and one valid
+  zero position. Log: `out/build/m6-position-output.log`.
+- `pwsh -File out/build/m6-position-negative.ps1`: the ignored negative-control
+  copy substitutes the newly arriving position only on selection/consumption
+  coincidence. The unchanged test detects the specific position mismatch at
+  retained edge 512. Its simulator Fatal and one error are the expected negative
+  result, not a production test pass. No checked-in source is modified by the
+  control. Log: `out/build/m6-position-negative.log`.
+- `pwsh -File tools/rtl-enveloped-audio-verify.ps1`: PASS, zero simulator
+  errors/warnings. All 3,200 decoded frames still match the analytical gain
+  reference, including 2,758 changed by scaling. Independently counted source
+  edges and quotient selection identify 3,198 native positions. Two initial
+  frames are empty: reset scan starts at zero with its sample flag clear, the
+  second native strobe arrives after two 32-slot scans, and conversion selects
+  strobe 2 rather than strobe 1. The first pending sample is therefore consumed
+  at frame 2. The test also checks pauses, ten terminal/reset cases and the real
+  u64 final increment after a held near-limit counter. Log:
+  `out/build/m6-position-enveloped-fixed.log`.
+- Sequential `pwsh -File tools/rtl-media-audio-verify.ps1`,
+  `pwsh -File tools/rtl-verify.ps1`, and
+  `pwsh -File tools/rtl-jt51-verify.ps1`: all four M6 media benches, nine
+  boundary/model benches and five real-JT51 legacy benches PASS, zero simulator
+  errors/warnings. Native burst reflection remains 3,072 writes and 2,048 scan
+  observations. Logs: `out/build/m6-position-{media,rtl,legacy}.log`.
+- `python -B tools/check_harness.py` and
+  `python -B out/build/m6-position-links.py`: PASS, with 61 local file links.
+  Fitted source and registered-probe byte hashes match the current worktree.
+- `pwsh -File tools/host-verify.ps1`: 76/76 PASS in 486.74 seconds, including
+  formatting, clang-tidy (470.94 seconds), harness and positive/negative
+  architecture checks. Log: `out/build/m6-position-host.log`.
+
+The initial integrated position check failed in the finite RepeatOne reset
+case because its test helper sampled the falling edge immediately after End,
+before synchronous reset had reached a receiving rising edge. Diagnostic log
+`out/build/m6-position-enveloped-debug.log` showed generation 9 still retaining
+edge 2,048 and pending edge 1,983 at that intervening half-cycle. The helper now
+checks after the receiving rising edge; its zero-position, silence and
+2,048-edge hold assertions remain enforced. No production reset delay changed.
+
+`python -B out/build/m6-position-timing.py`, followed by Quartus 25.1std.0
+Build 1129 `quartus_map.exe`, `quartus_fit.exe` and `quartus_sta.exe` on
+`out/research/m6-position-timing/enveloped_probe`: map/fit and all four timing
+models PASS with the same 81.380 ns registered-data probe, device and seed.
+The probe captures all 620 data-output bits, including the new positions, and
+has 669 registered data-input bits. The forwarded MCLK is not a data capture.
+Worst setup is 11.757 ns and hold 0.095 ns; recovery/removal/pulse-width slack
+is positive and all TNS zero. Resources including the fixture are 3,983 ALMs,
+3,873 registers, 52,424 memory bits in 16 RAM blocks and three DSPs. Map has
+nine reviewed upstream ROM-net warnings; fit has three reviewed probe
+pin/LogicLock warnings, including unassigned pins; STA has zero errors/warnings.
+No timing exception or warning suppression was added. Source hashes and reports
+are in the project; logs are `out/build/m6-position-{map,fit,sta}.log`.
+
+This establishes native sample-capture position through output conversion,
+including held frames. It does not assign write batches, events or zero-write
+MDX ticks to native samples. Native pipeline delay, ordered progress mapping,
+CPU/CDC/ACK and sound/storage adapters remain the current work. The local fit
+is not Pocket I/O/CDC or full-player timing/placement. Cross-build, APF/package
+and hardware checks were not run because those inputs remain unchanged. The
+standalone envelope suite was not repeated: its source/arithmetic is unchanged
+and the affected integration was exercised above. All generated probes, logs
+and GPL derivatives remain ignored.

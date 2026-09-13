@@ -18,8 +18,9 @@ New-Item -ItemType Directory -Force $output | Out-Null
 $sources = @('core/rtl/pocket/rpcmp_pocket_audio.sv',
              'core/rtl/pocket/rpcmp_media_output.sv',
              'core/rtl/pocket/rpcmp_pocket_media_audio.sv',
-             'tests/rtl/pocket_media_audio_tb.sv') | ForEach-Object { Join-Path $root $_ }
-$tops = @('pocket_media_audio_tb')
+             'tests/rtl/pocket_media_audio_tb.sv',
+             'tests/rtl/media_sample_position_tb.sv') | ForEach-Object { Join-Path $root $_ }
+$tops = @('pocket_media_audio_tb', 'media_sample_position_tb')
 if (-not $OutputOnly) {
     $generated = Join-Path $output ([guid]::NewGuid().ToString('N'))
     & python -B (Join-Path $root 'tools/jt51_hold_prepare.py') --jt51 (Join-Path $root 'out/research/jt51-985a573') --output $generated

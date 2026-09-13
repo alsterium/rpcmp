@@ -28,6 +28,46 @@ clock accumulator and busy-aware write owner. Both old and new audio wrappers
 use it. It does not interpret physical controls, policy or progress. Held
 source-valid pulses and accepted in-flight writes retain their old semantics.
 
+## Source sample positions
+
+M6 slice 4 adds synchronous sample-position observations to these internal
+modules. The existing pause-only wrappers keep their ports and sample behavior.
+This observation connects the native sample capture edge to physical output;
+it does not assign an MDX tick or register write to that native sample.
+
+`rpcmp_jt51_media_source.source_edge:u64` numbers retained audio-clock edges,
+starting at zero after power/stream reset. Its value before an enabled edge is
+that edge's index. It increments once on each `media_enable` edge, including
+edges without a native sample or write. Hold freezes it; reset clears it even
+while held. It is a 12,288,000 Hz source clock, not the 48,000 Hz media-frame
+counter. At UINT64_MAX the final indexed edge sets sticky
+`source_edge_exhausted` and retains MAX, without wrapping. The enveloped owner
+treats exhaustion as a shared DeviceFault and resets; no later edge is valid in
+that stream. Pause-only consumers which do not use positions ignore this
+additional observation.
+
+`rpcmp_media_output` takes `src_at_edge:u64` with each accepted native sample.
+Rational selection drops or captures the position together with both channels,
+using the same pending slot. `source_valid` and `source_at_edge` expose that
+old pending position before a boundary. `output_valid` and `output_at_edge`
+identify the sample loaded into the serializer at a consuming boundary, and
+remain stable throughout that frame. An empty or nonconsuming boundary has no
+source position. Invalid observations have position zero; a valid position may
+also be zero. On simultaneous consumption/capture the output uses the old
+position, and pending receives the new one. Overflow replaces both sample and
+position and retains the existing error; clear-flags does not erase positions.
+Urgent reset clears both pending and output observations immediately at its
+synchronous edge, including during a partially serialized frame.
+
+`rpcmp_jt51_enveloped_audio` wires the actual `source_edge` to the converter,
+exposes it along with `pending_source_valid/pending_source_edge` and
+`output_source_valid/output_source_edge`, and preserves its existing frame and
+gain ownership. Positions are local to the current reset/play stream; an owner
+must associate them with its existing generation. Zero startup/pause frames do
+not invent native samples. These observations do not authorize loop/end
+publication: native write/pipeline delay and the ordered progress mapping remain
+separate obligations. In particular, busy-clear is still not an audible marker.
+
 ## Integrated generation and reset
 
 `rpcmp_jt51_enveloped_audio` connects the envelope to this shared source/output.
@@ -73,6 +113,13 @@ changes while paused, both signs/channels, old-generation controls, finite end,
 reset during hold and a new silent generation. Keep the existing converter and
 real-JT51 pause suites passing after sharing their internals. The standalone
 envelope's full-duration arithmetic tests remain required.
+
+Use independently counted native strobes/retained edges and closed-form
+rational selection to check the source position of each serialized frame.
+Check all 64 position bits, valid zero versus empty, coincidence with a new
+sample, overflow/drop, holds, urgent reset and the source counter's final real
+increment. Counter exhaustion must invalidate the stream rather than wrap or
+silently fabricate another position.
 
 Synthesis must preserve native and progress RAM inference. This local integration
 does not establish APF lifecycle/CDC, full-player timing/resources, firmware 2.6

@@ -5,6 +5,8 @@ module jt51_media_burst_tb;
     logic dev_valid=0, dev_ready, device_idle, jt_sample;
     logic [7:0] dev_address=0, dev_value=0;
     logic signed [15:0] jt_left, jt_right;
+    logic [63:0] source_edge;
+    logic source_edge_exhausted;
     logic automatic_holds=0;
     integer wall=0, media=0, held=0, issued=0, checked=0, cases=0;
     integer opindex, hold_remaining=0;

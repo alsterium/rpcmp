@@ -68,17 +68,22 @@ The M6 synchronous pause/output boundary is checked separately:
 pwsh -File tools/rtl-media-audio-verify.ps1
 ```
 
-`-OutputOnly` runs the converter/I2S bench without vendor source. The full
+`-OutputOnly` runs the converter/I2S and sample-position benches without vendor
+source. The full
 command also generates pinned JT51 and compares actual decoded stereo frames
 from paused and uninterrupted playback, with independently timed device writes.
 The converter oracle is the unchanged v1 implementation at retained test clock
 edges. It covers all 256 request phases, held source pulses, old/new pending
 ordering, empty holds, clipping/overflow/underflow and urgent reset. The native
 bench covers both write halves, reset of a retained write and silence after
-reset. A third bench submits back-to-back writes using only `dev_ready`, then
+reset. The burst bench submits back-to-back writes using only `dev_ready`, then
 reads the native operator scan to check TL, DT1/MUL and KS/AR values across all
 32 slots. Different starting phases and inserted holds must preserve all
 accepted values; counting accepted bus operations alone is not sufficient.
+The sample-position bench uses a closed-form rational selection oracle and
+authored 64-bit positions. It checks the position together with every external
+I2S bit through drop, overflow, same-edge old/new selection, pause and reset;
+valid zero positions are distinguished from frames without a source sample.
 These local synchronous tests do not establish CPU/CDC/ACK or Pocket
 hardware acceptance; see [the contract](../specs/pocket-media-audio-v1.md).
 
@@ -108,7 +113,12 @@ and channels, completed restoration, interrupted restoration, stale controls,
 Stop, natural end, protocol/coverage faults and post-reset silence are checked.
 Converter fault routing is tested by explicit sticky-register injection; the
 converter's actual overflow/underflow cases remain in the existing output
-suite. This does not prove the source-progress mapper or CPU/CDC transport.
+suite. A separately counted native source clock and closed-form sample
+selection check the source position of each output frame through gain/pause.
+The source-edge counter's real final increment is exercised near UINT64_MAX,
+including a preceding hold and subsequent fault/reset. These tests cover sample
+positions, not the register-to-native-sample part of the source-progress mapper
+or CPU/CDC transport.
 
 Run the reproducible Quartus template-integration build separately with:
 

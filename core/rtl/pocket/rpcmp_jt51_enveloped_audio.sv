@@ -28,20 +28,22 @@ module rpcmp_jt51_enveloped_audio (
     output logic [17:0] gain, ramp_elapsed,
     output logic [8:0] queued,
     output logic quiescent, resetting, device_idle, media_enable, frame_boundary,
+    output logic [63:0] source_edge, pending_source_edge, output_source_edge,
+    output logic pending_source_valid, output_source_valid,
     output logic audio_mclk, audio_lrck, audio_dac,
     output logic audio_underflow, audio_overflow, audio_clipped,
     output logic [31:0] selected_count, frame_count
 );
     logic [11:0] reset_remaining;
     logic terminal_seen, terminal, active, reset_trigger, shared_fault;
-    logic jt_sample, consume;
+    logic jt_sample, consume, source_edge_exhausted;
     logic signed [15:0] jt_left, jt_right, source_left, source_right;
     logic signed [15:0] transformed_left, transformed_right;
 
     assign terminal = end_reason!=0 || failure!=0;
     assign active = generation!=0 && !terminal;
     assign shared_fault = device_fault || (stream_reset && active) ||
-                          audio_underflow || audio_overflow;
+                          audio_underflow || audio_overflow || source_edge_exhausted;
     assign reset_trigger = stream_reset || shared_fault || (terminal && !terminal_seen);
     assign resetting = !reset_n || reset_trigger || reset_remaining!=0;
     assign quiescent = !resetting && !active;
@@ -78,13 +80,17 @@ module rpcmp_jt51_enveloped_audio (
         .clk_audio(clk_audio), .reset_n(reset_n), .stream_reset(resetting),
         .media_enable(media_enable), .dev_valid(dev_valid), .dev_ready(dev_ready),
         .dev_address(dev_address), .dev_value(dev_value), .device_idle(device_idle),
-        .jt_sample(jt_sample), .jt_left(jt_left), .jt_right(jt_right)
+        .jt_sample(jt_sample), .jt_left(jt_left), .jt_right(jt_right),
+        .source_edge(source_edge), .source_edge_exhausted(source_edge_exhausted)
     );
     rpcmp_media_output #(.INITIAL_RUNNING(0)) output_media (
         .clk_audio(clk_audio), .reset_n(reset_n), .stream_reset(resetting),
         .frame_consume(consume), .clear_flags(clear_audio_flags),
         .src_valid(jt_sample), .src_left({{2{jt_left[15]}},jt_left}),
         .src_right({{2{jt_right[15]}},jt_right}),
+        .src_at_edge(source_edge), .source_valid(pending_source_valid),
+        .source_at_edge(pending_source_edge), .output_valid(output_source_valid),
+        .output_at_edge(output_source_edge),
         .transformed_left(transformed_left), .transformed_right(transformed_right),
         .source_left(source_left), .source_right(source_right), .media_enable(media_enable),
         .running(), .frame_boundary(frame_boundary), .audio_mclk(audio_mclk),

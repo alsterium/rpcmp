@@ -46,6 +46,10 @@ pending samples at consuming boundaries; the source uses the same enable for
 native state and bus writes. Terminal states initiate a 2,048-edge native reset
 while preserving serial clocks and the envelope's reason/position. The old
 pause wrappers use these shared internals with their existing public behavior.
+The native source numbers retained audio edges; the converter keeps the
+captured position with the selected sample through pending and serialized
+output. Pause/startup silence has no source position, reset discards old
+positions, and source-clock exhaustion closes the enveloped stream as a fault.
 `tools/rtl-enveloped-audio-verify.ps1` checks decoded stereo against an unscaled
 native reference and analytical gain, including reset/restart cases. This is
 the [local integration contract](../../specs/pocket-enveloped-audio-v1.md), not

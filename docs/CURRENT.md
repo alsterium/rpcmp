@@ -4,6 +4,10 @@ Active milestone: [M6 — Album Player](milestones/M6-album-player.md)
 
 The current task is M6 slice 4: prove the source-progress to audible-frame
 mapping, then adopt sound-control/CDC/ACK and connect the sound/storage adapters.
+The local enveloped path now carries the retained native sample-capture edge
+through rational selection, pending storage and serialized output. This is
+the sample-to-output part of the mapping; native register/pipeline delay and
+ordered MDX progress still need to be connected before loop/end publication.
 The native source now keeps data asserted through the half-rate busy-latch
 edge. A back-to-back burst reproduced accepted but unreflected operator writes;
 the corrected path passes native bank-value checks across all 32 operator slots.

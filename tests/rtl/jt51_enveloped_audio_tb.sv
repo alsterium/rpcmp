@@ -21,6 +21,8 @@ module jt51_enveloped_audio_tb;
     logic [17:0] gain, ramp_elapsed;
     logic [8:0] queued;
     logic quiescent, resetting, device_idle, media_enable, frame_boundary;
+    logic [63:0] source_edge, pending_source_edge, output_source_edge;
+    logic pending_source_valid, output_source_valid;
     logic audio_mclk, audio_lrck, audio_dac, audio_underflow, audio_overflow, audio_clipped;
     logic [31:0] selected_count, frame_count;
     logic ref_valid, ref_ready, ref_enable, ref_paused, ref_mclk, ref_lrck, ref_dac;
@@ -31,6 +33,11 @@ module jt51_enveloped_audio_tb;
     integer wall=0, serial_phase=0, reference_frames=0, checked_frames=0, silent_frames=0;
     integer positive[2]='{0,0}, negative[2]='{0,0}, scaled_changes=0;
     logic [31:0] reference_pcm[8192];
+    logic [63:0] reference_position[8192];
+    logic reference_position_valid[8192];
+    logic ref_pending_valid=0;
+    logic [63:0] ref_pending_edge=0;
+    integer ref_samples=0, position_checks=0;
     logic [15:0] decoded_left[2]='{0,0}, decoded_right[2]='{0,0};
     logic frame_active=0, reference_active=0;
     longint unsigned frame_index=0, before_frame;
@@ -71,6 +78,25 @@ module jt51_enveloped_audio_tb;
     end
     always @(posedge clk_audio) begin
         before_frame=media_frame; before_consume=frame_boundary && media_enable;
+        if (compare && reset_n && !resetting) begin
+            if (source_edge!==64'(ticks[1]) || reference_audio.source_media.source_edge!==64'(ticks[0]))
+                $fatal(1,"native source edge advanced independently of retained time");
+            if (frame_boundary && ref_enable) begin
+                if (reference_frames==8192) $fatal(1,"position reference capacity");
+                reference_position_valid[reference_frames]=ref_pending_valid;
+                reference_position[reference_frames]=ref_pending_valid ? ref_pending_edge : 64'd0;
+                ref_pending_valid=0;
+            end
+            // Closed-form rational selection, using the externally observed
+            // native sample strobe and a test-owned retained-edge count.
+            if (ref_enable && reference_audio.jt_sample) begin
+                if ((64'(ref_samples+1)*3072000)/3579545 != (64'(ref_samples)*3072000)/3579545) begin
+                    if (ref_pending_valid) $fatal(1,"position reference overflow");
+                    ref_pending_valid=1; ref_pending_edge=64'(ticks[0]);
+                end
+                ref_samples=ref_samples+1;
+            end
+        end
         if (!reset_n) begin wall=0; serial_phase=0; end
         else begin
             wall=wall+1; serial_phase=(serial_phase+1)%256;
@@ -108,6 +134,16 @@ module jt51_enveloped_audio_tb;
             end
             if (frame_active) begin
                 if (frame_index>=reference_frames || frame_index!==checked_frames) $fatal(1,"reference ordering");
+                if (output_source_valid!==reference_position_valid[frame_index] ||
+                    output_source_edge!==reference_position[frame_index])
+                    $fatal(1,"native sample position does not match the serialized frame");
+                // From reset: native scan starts at 0 with zero deasserted. Its
+                // second strobe follows two 32-slot scans (~448 audio edges).
+                // 3072000/3579545 selection drops strobe 1 and keeps strobe 2.
+                // Frame 0 starts source time; frame 1 is at edge 256; frame 2
+                // at edge 512 is the first with a native position.
+                if (output_source_valid!==(frame_index>=2)) $fatal(1,"native startup position boundary");
+                if (output_source_valid) position_checks=position_checks+1;
                 expected_factor=factor_at(frame_index);
                 expected_left=$signed(reference_pcm[frame_index][31:16]);
                 expected_right=$signed(reference_pcm[frame_index][15:0]);
@@ -125,6 +161,7 @@ module jt51_enveloped_audio_tb;
                 end
             end else begin
                 if ({decoded_left[1],decoded_right[1]}!==32'd0) $fatal(1,"nonconsuming frame not silent");
+                if (output_source_valid || output_source_edge!=0) $fatal(1,"pause invented a source position");
                 silent_frames=silent_frames+1;
             end
         end
@@ -167,8 +204,15 @@ module jt51_enveloped_audio_tb;
         integer held;
         held=0;
         while (resetting) begin
-            @(negedge clk_audio); held=held+1;
-            if (media_enable || dev_ready || audio_dac!==0) $fatal(1,"reset did not inhibit sound/write");
+            // End can wake this task just after the terminal edge. The reset
+            // is synchronous: inspect storage after its next receiving edge,
+            // not the intervening falling edge before reset has been sampled.
+            @(posedge clk_audio); #1; held=held+1;
+            if (media_enable || dev_ready || audio_dac!==0 || source_edge!==0 ||
+                pending_source_valid || output_source_valid || pending_source_edge!==0 || output_source_edge!==0)
+                $fatal(1,"reset did not inhibit sound/write or discard positions gen=%0d held=%0d enable=%b ready=%b dac=%b edge=%h pending=%b/%h output=%b/%h",
+                       generation,held,media_enable,dev_ready,audio_dac,source_edge,
+                       pending_source_valid,pending_source_edge,output_source_valid,output_source_edge);
             if (held>2060) $fatal(1,"native reset failed to complete");
         end
         if (held<2048 || !quiescent) $fatal(1,"native reset warmup too short: %0d",held);
@@ -269,8 +313,24 @@ module jt51_enveloped_audio_tb;
         wait(media_frame==4); control(0,1,2,1,1,11,3);
         if (failure!==2 || end_reason || media_frame!==4) $fatal(1,"protocol reset reason");
         check_reset_hold();
-        $display("jt51_enveloped_audio_tb: PASS frames=%0d scaled=%0d silent=%0d positive=%0d/%0d negative=%0d/%0d writes=%0d restore=960 resets=9",
-                 checked_frames,scaled_changes,silent_frames,positive[0],positive[1],negative[0],negative[1],operation_count);
+        // Exhaustion is exercised at its real increment, not by forcing a fault.
+        at_phase(16); begin_stream(11); progress(1,0,100,0,0);
+        wait(media_frame==4); control(1,0,1,0,0,11,1);
+        force dut.source_media.source_edge=64'hfffffffffffffffe;
+        @(negedge clk_audio); release dut.source_media.source_edge;
+        repeat(512) @(negedge clk_audio);
+        if (source_edge!==64'hfffffffffffffffe || failure || dut.source_edge_exhausted)
+            $fatal(1,"held source edge exhausted early");
+        control(2,0,1,0,0,11,1);
+        if (source_edge!==64'hffffffffffffffff || dut.source_edge_exhausted) $fatal(1,"last indexed edge lost");
+        @(negedge clk_audio);
+        if (source_edge!==64'hffffffffffffffff || !dut.source_edge_exhausted) $fatal(1,"source edge wrapped");
+        @(negedge clk_audio);
+        if (failure!==1 || end_reason || media_frame!==5) $fatal(1,"source exhaustion did not close stream");
+        check_reset_hold();
+        if (position_checks!=3198) $fatal(1,"missing native position coverage");
+        $display("jt51_enveloped_audio_tb: PASS frames=%0d scaled=%0d silent=%0d positive=%0d/%0d negative=%0d/%0d writes=%0d positions=%0d restore=960 resets=10",
+                 checked_frames,scaled_changes,silent_frames,positive[0],positive[1],negative[0],negative[1],operation_count,position_checks);
         $finish;
     end
 endmodule

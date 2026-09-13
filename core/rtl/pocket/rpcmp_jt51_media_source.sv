@@ -5,6 +5,8 @@ module rpcmp_jt51_media_source (
     output logic dev_ready,
     input logic [7:0] dev_address, dev_value,
     output logic device_idle, jt_sample,
+    output logic [63:0] source_edge,
+    output logic source_edge_exhausted,
     output logic signed [15:0] jt_left, jt_right
 );
     localparam logic [2:0] IDLE=0, WAIT_ADDR=1, HOLD_ADDR=2, WAIT_DATA=3, HOLD_DATA=4;
@@ -21,6 +23,17 @@ module rpcmp_jt51_media_source (
     assign jt_reset = !reset_n || stream_reset;
     assign dev_ready = media_enable && state == IDLE;
     assign device_idle = state == IDLE;
+
+    // The pre-edge value identifies this retained source edge, including samples
+    // observed by the converter on the same edge. It is not a write-commit tag.
+    always_ff @(posedge clk_audio or negedge reset_n) begin
+        if (!reset_n) begin source_edge <= 0; source_edge_exhausted <= 0; end
+        else if (stream_reset) begin source_edge <= 0; source_edge_exhausted <= 0; end
+        else if (media_enable && !source_edge_exhausted) begin
+            if (&source_edge) source_edge_exhausted <= 1;
+            else source_edge <= source_edge + 64'd1;
+        end
+    end
 
     always_ff @(posedge clk_audio or negedge reset_n) begin
         if (!reset_n) begin
