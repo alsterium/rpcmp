@@ -864,3 +864,62 @@ No suppression was added. `python -B tools/check_harness.py` passed;
 Canvas rendering, reviewable host images, Pocket fonts/input/framebuffers and
 the real adapters are still pending. RTL/APF inputs are unchanged; RTL simulation,
 synthesis, packaging and hardware tests were not run for this controller unit.
+
+Slice 3's canvas renderer and host SVG mock are implemented on 2026-09-13.
+Tracker, eight-channel keyboard and album/track pages share the fixed metadata,
+transport/policy controls and save-status panel. Rendering consumes a checked
+UI view synchronously, without commands, Core calls or heap allocation. The
+host executable links UI/contracts and its SVG port only. Reproduction commands
+and the seven authored scenarios are in the [UI README](../../core/ui/README.md).
+
+The keyboard uses independent current channels, distinguishes OFF/unknown gate
+and labels paused held state. Browsing never replaces the current track below.
+Long or source-truncated metadata keeps a visible ellipsis; unknown performance,
+capture gaps, save failures and playback errors remain distinct. No music data,
+new font dependency or generated image is committed.
+
+Executed renderer evidence:
+
+- `pwsh -File tools/host-verify.ps1`: 75/75 PASS, 427.36 seconds, including
+  formatting, clang-tidy and positive/negative architecture checks.
+  Log: `out/build/m6-render-host.log` (ignored).
+- `pwsh -File out/build/m6-ui-focused.ps1`: final 18/18 PASS, 1.45 seconds,
+  including UI, Core/contract regressions, SVG scenarios and architecture checks.
+  Log: `out/build/m6-render-focused-final.log` (ignored).
+- `ctest --preset host-msvc -R 'player_render|player_ui_svg'`: final 2/2 PASS,
+  0.73 seconds. Log: `out/build/m6-render-tests-final.log` (ignored).
+- Offline Docker `python3 -B /repo/out/build/m6-render-posix.py`: GCC 13.3.0
+  ASan/UBSan, UI controller and renderer suites plus all 21 SVG view/scenario
+  combinations PASS. Production disables exceptions/RTTI; tests disable RTTI.
+  Log: `out/build/m6-render-posix-final.log` (ignored).
+- Offline Docker `make --file out/build/m6-render-cross/Makefile render-check`:
+  RISC-V link-only PASS, no undefined symbols. The combined MDX/performance/
+  settings/session/UI probe uses a counting canvas, without a framebuffer/font
+  or real sound port. Text 87,028, data 188, BSS 904,176 bytes; conservative
+  stack bound 162,176 and largest frame 78,928 bytes. Budget/log:
+  `out/build/m6-render-cross/budget.json`, `out/build/m6-render-cross.log`
+  (ignored). The executable was not run; this is not the complete player budget.
+- `pwsh -File out/build/m6-render-preview.ps1`: generated six SVG/PNG pairs in
+  `out/ui-m6-render` (ignored) using an isolated headless Edge profile. Visual
+  inspection at 640x480 covered all three playing views, paused keyboard, long
+  Japanese title and track-load error. The corrected playing/paused keyboard
+  images were reinspected after changing silent-channel labels to OFF.
+- `python -B tools/check_harness.py`: PASS;
+  `python -B out/build/m6-render-links.py`: 45 local file links PASS.
+
+The tests use authored notes, metadata and draw positions, not renderer-generated
+goldens. They check independent current pitch versus retained history, common
+panel placement, clipping, UTF-8 boundaries, XML parsing/escaping and repeatable
+output. The maximal elapsed-time expectation was independently derived by
+integer division of UINT64_MAX by 48,000. Review found that valid UTF-8 containing
+U+FFFE/U+FFFF could produce invalid XML. The added case first failed one assertion
+(`out/build/m6-render-xml-before.log`); the SVG adapter now emits replacement
+glyphs for those XML-excluded characters, and the final checks include that case.
+Initial focused tidy diagnostics were corrected without adding suppressions.
+
+These images use installed host fonts and provisional metrics; they establish
+mock layout, not Pocket Japanese readability. No RTL/APF/package inputs changed;
+RTL simulation, synthesis, packaging and hardware checks were not run for this
+unit. Next is slice 4 sound/storage feasibility and the real audible-commit,
+pending-observation and asynchronous persistence adapters, followed by Pocket
+font/input/framebuffer integration. M6 hardware acceptance remains pending.

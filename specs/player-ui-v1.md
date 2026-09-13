@@ -142,6 +142,24 @@ keyboard shows eight rows across the MIDI range; the library shows sixteen
 bounded names and a cursor. Unknown length/tempo/level is not fabricated.
 Elapsed time comes only from position_frames/frame_rate.
 
+The synchronous PlayerCanvas port uses RGB24 colors and bounded pixel boxes.
+It consumes/copies text before returning; no borrowed label survives a drawing
+call. The renderer uses no heap allocation. Keyboard note labels show OFF for a
+known key-off and -- for an unknown gate; retained pitch/voice metadata cannot
+turn a silent channel into an active key. Paused active keys use a distinct color.
+The shared panel uses the selected track, confirmed transport/position, desired
+policy and independent save status. Browsing only moves the list cursor/marker.
+
+The host SVG port uses an explicit mock grid: 8 pixels below U+1100 and for
+halfwidth katakana U+FF61..U+FF9F, otherwise 16 pixels. This is not Unicode width
+classification or a Pocket font contract. Text is bounded to the public 96-byte
+UTF-8 capacity. Elision preserves code-point boundaries and reserves a full
+16-pixel ellipsis, including for a source-truncated prefix. C0/C1 controls and
+U+FFFE/U+FFFF render as replacement glyphs; the latter two are outside the
+[XML 1.0 character range](https://www.w3.org/TR/xml/#charsets). XML metacharacters
+are escaped. Invalid UTF-8, oversized text or geometry outside the logical
+canvas makes the output fail explicitly. No external asset or script is emitted.
+
 Rendering uses a platform-facing canvas for bounded text, rectangles and lines.
 The host SVG adapter must provide reviewable mock artifacts with escaped text and
 clipping. It is not the Pocket font/framebuffer adapter or proof of Japanese

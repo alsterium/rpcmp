@@ -2,8 +2,10 @@
 
 Active milestone: [M6 — Album Player](milestones/M6-album-player.md)
 
-The current task is M6 slice 3: render and inspect the three mock main views
-and shared information/control panel, around the
+The current task is M6 slice 4: establish state-preserving sound pause,
+frame-boundary fade and audible-commit feasibility in RTL, then adopt the
+sound-control/CDC/ACK contract from that evidence. The headless player and
+three mock views now connect around the
 [Core transport](../specs/playback-transport-v1.md),
 [schema 2 ingress](../specs/player-command-v2.md) and
 [published state](../specs/player-state-v2.md).
@@ -44,12 +46,15 @@ rereads both slots. The [UI controller](../specs/player-ui-v1.md) now connects
 replaceable input/focus tables, paged album/track browsing, transport waits,
 serialized setting actions and bounded Tracker row projection using contracts
 alone. Policy commands publish Applied/Failed execution results independently
-of audio/save completion, including no-ops and interrupted batches. Next connect
-the mock canvas and visually inspect the Tracker, keyboard and library layouts.
+of audio/save completion, including no-ops and interrupted batches.
+The synchronous canvas now draws Tracker, keyboard and library around a shared
+information/control panel. The host SVG mock links UI/contracts only, with
+bounded text and explicit elision. Authored scenarios and browser-rendered
+images verify mock layout; installed host fonts do not establish Pocket metrics.
 The real audible mapping,
 pending observation storage and sound/storage adapters remain to be wired.
 See M6 for the executed checks; this does not establish a working Pocket audio
-adapter, rendered Pocket UI or completion of slice 3.
+adapter, rendered Pocket UI or M6 integration acceptance.
 Use the [transition proposal](design/pocket-player-transition-contract.md),
 preserve v1 compatibility and adopt each contract before its implementation.
 Slices 1–2 implement [host metadata](../specs/host-metadata-v1.md),

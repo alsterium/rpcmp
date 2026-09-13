@@ -184,7 +184,8 @@ rpcmp_production_options(rpcmp_album_pack)
 add_library(rpcmp_ui STATIC
   core/ui/src/text_ui.cpp
   core/ui/src/player_input.cpp
-  core/ui/src/player_ui.cpp)
+  core/ui/src/player_ui.cpp
+  core/ui/src/player_render.cpp)
 target_include_directories(rpcmp_ui PUBLIC core/ui/include)
 target_link_libraries(rpcmp_ui PUBLIC rpcmp_contracts)
 rpcmp_production_options(rpcmp_ui)
@@ -196,6 +197,15 @@ rpcmp_production_options(rpcmp_headless_m0)
 add_executable(rpcmp_mock_ui_m0 core/platform/host/mock_ui_main.cpp)
 target_link_libraries(rpcmp_mock_ui_m0 PRIVATE rpcmp_ui)
 rpcmp_production_options(rpcmp_mock_ui_m0)
+
+add_library(rpcmp_host_svg STATIC core/platform/host/svg_canvas.cpp)
+target_include_directories(rpcmp_host_svg PUBLIC core/platform/host/include)
+target_link_libraries(rpcmp_host_svg PUBLIC rpcmp_ui)
+rpcmp_production_options(rpcmp_host_svg)
+
+add_executable(rpcmp_player_ui_mock core/platform/host/player_ui_main.cpp)
+target_link_libraries(rpcmp_player_ui_mock PRIVATE rpcmp_host_svg)
+rpcmp_production_options(rpcmp_player_ui_mock)
 
 add_library(rpcmp_pocket_comparison_probe STATIC
   spikes/pocket/common/src/comparison_probe.cpp
@@ -562,6 +572,15 @@ if(BUILD_TESTING)
   target_link_libraries(rpcmp_player_ui_tests PRIVATE rpcmp_ui)
   rpcmp_test_options(rpcmp_player_ui_tests)
   add_test(NAME player_ui COMMAND rpcmp_player_ui_tests)
+
+  add_executable(rpcmp_player_render_tests tests/ui/player_render_tests.cpp)
+  target_include_directories(rpcmp_player_render_tests PRIVATE tests/support)
+  target_link_libraries(rpcmp_player_render_tests PRIVATE rpcmp_host_svg)
+  rpcmp_test_options(rpcmp_player_render_tests)
+  add_test(NAME player_render COMMAND rpcmp_player_render_tests)
+  add_test(NAME player_ui_svg
+    COMMAND "${Python3_EXECUTABLE}" "${CMAKE_SOURCE_DIR}/tests/ui/player_ui_svg_test.py"
+            "$<TARGET_FILE:rpcmp_player_ui_mock>")
 
   add_executable(rpcmp_pocket_comparison_probe_tests
     tests/pocket/comparison_probe_tests.cpp)
