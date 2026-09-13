@@ -80,8 +80,15 @@ PCM with independently authored bytes bypassing the queue at the same edges.
 metadata retires with the native completion prefix and travels with selected PCM
 into automatic envelope intervals. Explicit reset-baseline coverage precedes
 frame-aligned startup. The old manually mapped wrapper keeps its external API.
-This local audio-clock owner still needs the retained CPU batch/per-event
-producer and the sound-control/CDC adapter before Pocket integration.
+Its new `session_reset` is reserved for the explicit session operation below;
+existing direct callers tie it low and retain `stream_reset` fault semantics.
+
+`pocket/rpcmp_sound_session.sv` supplies the approved
+[sound session](../../specs/pocket-sound-session-v1.md): copied, one-slot control
+requests and held responses, normal Reset, generation/epoch admission, boundary
+controls and independent emergency inhibit. It consumes native receipts locally.
+It still needs the CPU MMIO/CDC adapter, retained producer and bounded history
+journal before Pocket integration; its local bounds are not CPU deadlines.
 
 `pocket/rpcmp_m2_fixed_core.sv` is the ADR-0007 hardware-validation substrate.
 It reproduces the frozen 17-operation fixture as MMIO transactions into the v1

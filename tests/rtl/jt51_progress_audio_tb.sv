@@ -76,7 +76,7 @@ module jt51_progress_audio_tb;
     integer old_gain, frame_before;
     logic reached;
     always #5 clk_audio=~clk_audio;
-    rpcmp_jt51_progress_audio dut(.*);
+    rpcmp_jt51_progress_audio dut(.session_reset(1'b0), .*);
 
     function automatic logic [15:0] scaled(input logic signed [15:0] value, input integer factor);
         longint signed product;

@@ -118,6 +118,14 @@ envelope intervals. The reset baseline and at-most-one-audio-frame startup
 deferral are approved; Q1–Q24 policy remains unchanged. Implementation and
 verification follow this adoption; no acceptance result is implied by approval.
 
+After reviewing the concrete CPU connection proposal, the user approved its
+adoption on 2026-09-13. The [CPU connection plan](../design/pocket-cpu-sound-connection.md)
+covers separate control/feed/capture mailboxes, normal reset/inhibit, retained
+MDX feeding and bounded output history. Its first implementation contract is
+[Pocket sound session v1](../../specs/pocket-sound-session-v1.md). Exact MMIO
+words and CPU/CDC deadlines will be specified and verified before their layer
+is implemented; this approval does not predeclare their acceptance.
+
 ## Slices and acceptance
 
 1. **Host metadata:** strict CP932 embedded titles, filename fallback with
@@ -1854,3 +1862,91 @@ Logs: `out/build/m6-progress-{map,fit,sta}.log`.
 Whole-Pocket fit/CDC, cross-build, APF/package and hardware were not run: this local unit does
 not connect those targets. The unchanged standalone envelope arithmetic suite
 was not repeated; the affected native/gain/output integration ran instead.
+
+## Slice 4 sound session execution — 2026-09-13
+
+The reviewed CPU connection plan is now adopted. Its first implemented layer,
+`rpcmp_sound_session`, copies Reset/Start/Pause/Resume/SetPolicy requests and
+retains the exact completion until release. It validates nonzero identities,
+policy revisions and generations before invoking the envelope. Reset advances
+a checked feed epoch and explicitly clears logical state and old native work;
+only physical quiescence permits success and clearing sticky inhibit/fault.
+The original progress `stream_reset` fault behavior is preserved; direct
+callers tie the new `session_reset` low. Native receipts are consumed locally.
+No CPU MMIO, CDC, producer or history journal is implemented by this layer.
+
+The final local request-phase oracle covers all 256 serial phases. Reset takes
+2,050 subsequent audio edges, Start at most 259, and boundary controls at most
+257. The last includes one observation edge after application to detect a
+concurrent failure. Resume ACK preserves the held pre-consume frame even when
+latest media state has advanced. An unread response does not hold playback;
+emergency inhibit acts independently and does not rewrite completed responses.
+These local bounds do not establish a CPU watchdog deadline.
+
+Executed checks:
+
+- `pwsh -File tools/rtl-enveloped-audio-verify.ps1`: all four benches PASS,
+  including 3,200 decoded stereo frames, 8,192 authored writes/8,195 receipts,
+  and the existing 316-frame marker-to-output oracle. Final additional boundary
+  fixtures were checked with `pwsh -File tools/rtl-enveloped-audio-verify.ps1
+  -SessionOnly`: PASS, 256 phases, 1,585 responses, five emergency stages and
+  4,184 nonzero serial bits. It covers queued/in-flight normal Reset, paused
+  Reset, prior-fault recovery, same-edge item rejection, stale epochs/IDs,
+  inability to restart a used generation after Reset, live fade/restoration,
+  an end overtaking an admitted control, actual starvation and u64 exhaustion.
+  Logs: `out/build/m6-session-{enveloped,focused}.log`.
+- `pwsh -File tools/rtl-media-audio-verify.ps1`, then
+  `pwsh -File tools/rtl-verify.ps1`, then
+  `pwsh -File tools/rtl-jt51-verify.ps1`: PASS. All RTL suites ran sequentially;
+  positive simulations report zero errors/warnings.
+  Logs: `out/build/m6-session-{media,rtl,legacy}.log`.
+- `pwsh -File out/build/m6-session-negative.ps1`: three expected mutants
+  rejected: returning Resume's latest frame, losing the Reset acceptance-edge
+  fault, and admitting a request while a completion is unread. Each fails its
+  targeted assertion with one error, zero warnings and no PASS marker.
+  Production/native source files were not mutated.
+
+The acceptance-edge fault test first reproduced a defect in the new session:
+a fault asserted only on the Reset admission edge could disappear before the
+wait state observed it. Admission now records Failed while preserving the
+destructive reset and inhibit; the unchanged regression passes. The initial
+counter-limit fixture used an illegal second procedural driver on an always_ff
+register; a test-only force/release fixture fixed compilation without changing
+production or suppressing diagnostics.
+
+`pwsh -File out/build/m6-session-fit.ps1` generated a registered local probe
+in `out/research/m6-session-timing-r1` and ran Quartus 25.1std.0 Build 1129
+map/fit/sta for 5CEBA4F23C8, seed 1, 81.380 ns. The probe has 571 registered input
+bits and 1,040 observation bits; forwarded MCLK is not treated as data. It uses
+5,102 ALMs, 5,687 registers, 72,168 memory bits, 27 M10Ks and three DSPs.
+An initial probe assertion incorrectly totaled the input width as 671; the
+actual port sum is 571. Generation was rerun in a fresh directory because the
+pinned native generator rejects an existing output. No production or timing
+constraint was changed to address these preparation failures.
+
+| Timing model | Setup | Hold | Recovery | Removal | Pulse width |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Slow 85 C | 12.331 | 0.339 | 30.924 | 2.025 | 39.084 |
+| Slow 0 C | 10.232 | 0.325 | 31.423 | 1.938 | 39.001 |
+| Fast 85 C | 32.488 | 0.159 | 35.122 | 0.842 | 39.472 |
+| Fast 0 C | 33.248 | 0.106 | 35.774 | 0.770 | 39.464 |
+
+All slacks are ns; every TNS is zero and setup/hold have no unconstrained paths.
+Map's nine warnings concern unused write nets in initialized upstream ROMs.
+Fit's three warnings concern LogicLock, incomplete I/O and the five unassigned
+probe pins; they are reviewed local-fixture limitations. STA reports zero
+errors/warnings. No timing exception, relaxed bound or warning suppression was
+added. Logs: `out/build/m6-session-{map,fit,sta}.log`.
+
+`python -B tools/check_harness.py` and
+`python -B out/build/m6-session-checks.py` pass; the latter checks all eight
+synthesis input hashes, changed local Markdown links and the timing summaries.
+`pwsh -File tools/host-verify.ps1` passes all 77 tests in 467.68 seconds,
+including format (0.47 s), tidy (451.43 s), harness and positive/negative
+architecture checks. The dependency allowlist adds only the new local RTL file;
+Core/UI separation guards remain enabled. Log: `out/build/m6-session-host.log`.
+Whole-Pocket fit/CDC, cross-build, APF/package and hardware were not run because
+this unit has no CPU/board integration. Unchanged standalone envelope arithmetic
+and output-only benches were not repeated; affected native integration ran.
+Next is the approved CPU MMIO/CDC layer with concrete word layout and derived
+ACK deadlines, followed by retained MDX feeding and bounded output history.

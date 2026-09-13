@@ -4,6 +4,10 @@ Status: adopted for local M6 slice 4 with explicit user approval on 2026-09-13.
 Approval covers implementation and verification of the reviewed proposal;
 acceptance requires executed milestone checks. Q1–Q24 controls and playback policy remain
 unchanged. This does not define CPU MMIO, CDC, ACK deadlines or public snapshots.
+The subsequently adopted [sound session](pocket-sound-session-v1.md) adds an
+explicit `session_reset` input for logical destruction and the native reset
+hold. Direct callers tie it low; the original active `stream_reset` remains a
+fault. The session validates preserved generations around this operation.
 
 ## Checkpoint ownership
 

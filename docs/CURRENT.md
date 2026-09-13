@@ -2,9 +2,15 @@
 
 Active milestone: [M6 — Album Player](milestones/M6-album-player.md)
 
-The current task is M6 slice 4: connect the retained MDX CPU producer and
-per-event history mapping, then adopt sound-control/CDC/ACK and connect the
-sound/storage adapters. The explicitly approved
+The current task is M6 slice 4: implement the approved
+[CPU sound connection](design/pocket-cpu-sound-connection.md): next specify and
+connect its MMIO/CDC, then the retained MDX producer and per-event history mapping.
+The [synchronous sound session](../specs/pocket-sound-session-v1.md) now passes
+all-phase local control/reset/inhibit tests, host/RTL regressions and registered
+fit/timing; the active milestone records the commands and limitations. Sound/storage adapters
+and Pocket integration follow. The user's 2026-09-13 review approves this plan;
+local acceptance does not establish CPU deadlines or Pocket playback.
+The explicitly approved
 [MDX audible progress](../specs/mdx-audible-progress-v1.md) now carries marker
 checkpoints through native completion and selected samples into local envelope
 intervals. Its independent native integration checks loop/end boundaries,

@@ -169,6 +169,16 @@ sample, empty Begin rejection, metadata validation and real supply-fault recover
 This establishes local marker-to-output mapping, not a CPU/CDC adapter or a
 per-event performance-history producer.
 
+`sound_session_tb` adds copied Reset/Start/Pause/Resume/SetPolicy requests over
+the same native path. It checks all 256 serial acceptance phases, immutable
+responses under backpressure, exact paused/Resume ACK positions, generation and
+epoch rejection, normal reset, real tone and starvation, live policy, natural
+end, emergency during each pending phase, and u64 exhaustion fixtures. Local
+bounds are 2,050 audio edges for Reset, 259 for Start and 257 for boundary controls
+(including post-boundary failure observation). These are not CPU/CDC deadlines.
+Use `pwsh -File tools/rtl-enveloped-audio-verify.ps1 -SessionOnly` for this focused
+bench; omit the switch for all four native integration benches.
+
 Run the reproducible Quartus template-integration build separately with:
 
 ```powershell

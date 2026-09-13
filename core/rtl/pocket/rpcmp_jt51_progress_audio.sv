@@ -1,6 +1,6 @@
 // Scheduled checkpoint-to-output owner. See mdx-audible-progress-v1.
 module rpcmp_jt51_progress_audio (
-    input logic clk_audio, reset_n, stream_reset, device_fault, clear_audio_flags,
+    input logic clk_audio, reset_n, stream_reset, session_reset, device_fault, clear_audio_flags,
     input logic item_valid, item_marker, item_end,
     input logic [63:0] item_at, item_until, item_loops,
     input logic [7:0] item_address, item_value,
@@ -61,7 +61,7 @@ module rpcmp_jt51_progress_audio (
     assign shared_fault = device_fault || (stream_reset && active) ||
                           audio_underflow || audio_overflow || source_edge_exhausted ||
                           operation_exhausted || completion_fault || supply_fault || mapping_fault;
-    assign reset_trigger = stream_reset || shared_fault || (terminal && !terminal_seen);
+    assign reset_trigger = session_reset || stream_reset || shared_fault || (terminal && !terminal_seen);
     assign resetting = !reset_n || reset_trigger || reset_remaining!=0;
     assign quiescent = !resetting && !active;
     // Atomic multicast: neither the external receipt consumer nor completion
@@ -151,7 +151,8 @@ module rpcmp_jt51_progress_audio (
     end
 
     rpcmp_media_envelope envelope (
-        .clk_audio(clk_audio), .reset_n(reset_n), .quiescent(quiescent && source_queued!=0), .device_fault(shared_fault),
+        .clk_audio(clk_audio), .reset_n(reset_n && !session_reset),
+        .quiescent(quiescent && source_queued!=0), .device_fault(shared_fault),
         .begin_valid(begin_valid), .begin_generation(begin_generation), .begin_revision(begin_revision),
         .begin_target_enabled(begin_target_enabled), .begin_target(begin_target), .begin_status(begin_status),
         .progress_valid(progress_valid), .progress_generation(generation),

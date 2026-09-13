@@ -1,5 +1,5 @@
 [CmdletBinding()]
-param()
+param([switch]$SessionOnly)
 $ErrorActionPreference = 'Stop'
 $root = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 $questa = if ($env:RPCMP_QUESTA_ROOT) { $env:RPCMP_QUESTA_ROOT } else { 'C:/altera_lite/25.1std/questa_fse/win64' }
@@ -25,28 +25,37 @@ $sources += @('core/rtl/pocket/rpcmp_media_output.sv', 'core/rtl/pocket/rpcmp_po
               'core/rtl/pocket/rpcmp_native_completion.sv',
               'core/rtl/pocket/rpcmp_media_source_queue.sv',
               'core/rtl/pocket/rpcmp_jt51_progress_audio.sv', 'tests/rtl/jt51_progress_audio_tb.sv',
+              'core/rtl/pocket/rpcmp_sound_session.sv', 'tests/rtl/sound_session_tb.sv',
               'tests/rtl/jt51_enveloped_audio_tb.sv', 'tests/rtl/jt51_source_queue_tb.sv') | ForEach-Object { Join-Path $root $_ }
 Push-Location $output
 try {
     if (-not (Test-Path 'work')) { & $vlib work; if ($LASTEXITCODE) { throw 'vlib failed.' } }
     & $vlog -quiet -sv -work work @sources
     if ($LASTEXITCODE) { throw 'vlog failed.' }
-    $lines = @(& $vsim -c -quiet -lib work jt51_enveloped_audio_tb -do 'run -all; quit -code 0' 2>&1)
+    if (-not $SessionOnly) {
+        $lines = @(& $vsim -c -quiet -lib work jt51_enveloped_audio_tb -do 'run -all; quit -code 0' 2>&1)
+        $code = $LASTEXITCODE
+        $lines | Write-Output
+        $text = $lines | Out-String
+        if ($code -ne 0 -or $text -notmatch '(?m)^# jt51_enveloped_audio_tb: PASS .+positions=3198 token_samples=\d+ token_frames=\d+ multicast=34 restore=960 resets=13\r?$' -or
+            $text -notmatch '(?m)^# Errors: 0, Warnings: 0\r?$') { throw 'Enveloped audio simulation failed.' }
+        $lines = @(& $vsim -c -quiet -lib work jt51_source_queue_tb -do 'run -all; quit -code 0' 2>&1)
+        $code = $LASTEXITCODE
+        $lines | Write-Output
+        $text = $lines | Out-String
+        if ($code -ne 0 -or $text -notmatch '(?m)^# jt51_source_queue_tb: PASS writes=8192 receipts=8195 .+ reset_fault=2\r?$' -or
+            $text -notmatch '(?m)^# Errors: 0, Warnings: 0\r?$') { throw 'Scheduled source integration failed.' }
+        $lines = @(& $vsim -c -quiet -lib work jt51_progress_audio_tb -do 'run -all; quit -code 0' 2>&1)
+        $code = $LASTEXITCODE
+        $lines | Write-Output
+        $text = $lines | Out-String
+        if ($code -ne 0 -or $text -notmatch '(?m)^# jt51_progress_audio_tb: PASS .+ fault_recovery=1\r?$' -or
+            $text -notmatch '(?m)^# Errors: 0, Warnings: 0\r?$') { throw 'Audible progress integration failed.' }
+    }
+    $lines = @(& $vsim -c -quiet -lib work sound_session_tb -do 'run -all; quit -code 0' 2>&1)
     $code = $LASTEXITCODE
     $lines | Write-Output
     $text = $lines | Out-String
-    if ($code -ne 0 -or $text -notmatch '(?m)^# jt51_enveloped_audio_tb: PASS .+positions=3198 token_samples=\d+ token_frames=\d+ multicast=34 restore=960 resets=13\r?$' -or
-        $text -notmatch '(?m)^# Errors: 0, Warnings: 0\r?$') { throw 'Enveloped audio simulation failed.' }
-    $lines = @(& $vsim -c -quiet -lib work jt51_source_queue_tb -do 'run -all; quit -code 0' 2>&1)
-    $code = $LASTEXITCODE
-    $lines | Write-Output
-    $text = $lines | Out-String
-    if ($code -ne 0 -or $text -notmatch '(?m)^# jt51_source_queue_tb: PASS writes=8192 receipts=8195 .+ reset_fault=2\r?$' -or
-        $text -notmatch '(?m)^# Errors: 0, Warnings: 0\r?$') { throw 'Scheduled source integration failed.' }
-    $lines = @(& $vsim -c -quiet -lib work jt51_progress_audio_tb -do 'run -all; quit -code 0' 2>&1)
-    $code = $LASTEXITCODE
-    $lines | Write-Output
-    $text = $lines | Out-String
-    if ($code -ne 0 -or $text -notmatch '(?m)^# jt51_progress_audio_tb: PASS .+ fault_recovery=1\r?$' -or
-        $text -notmatch '(?m)^# Errors: 0, Warnings: 0\r?$') { throw 'Audible progress integration failed.' }
+    if ($code -ne 0 -or $text -notmatch '(?m)^# sound_session_tb: PASS phases=256 reset_max=2050 start_max=259 control_max=257 .+ emergencies=5 nonzero_bits=\d+\r?$' -or
+        $text -notmatch '(?m)^# Errors: 0, Warnings: 0\r?$') { throw 'Sound session integration failed.' }
 } finally { Pop-Location }
