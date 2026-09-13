@@ -54,6 +54,7 @@ module jt51_source_queue_tb;
         .media_enable(media_enable), .source_edge(source_edge),
         .item_valid(item_valid), .item_marker(item_marker), .item_end(item_end),
         .item_at(item_at), .item_until(item_until), .item_address(item_address), .item_value(item_value),
+        .item_payload(1'b0), .dispatch_payload(),
         .item_status(item_status), .queued(source_queued), .supply_fault(device_fault),
         .dev_valid(dev_valid), .dev_address(dev_address), .dev_value(dev_value), .dev_ready(dev_ready),
         .marker_valid(marker_valid), .marker_ready(marker_ready)

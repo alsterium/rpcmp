@@ -75,6 +75,14 @@ intervals. The enveloped suite connects a maximum-size authored batch to native
 JT51, checks actual bus bytes/receipt edges and output prefixes, and compares
 PCM with independently authored bytes bypassing the queue at the same edges.
 
+`pocket/rpcmp_jt51_progress_audio.sv` composes those modules under the approved
+[audible-progress contract](../../specs/mdx-audible-progress-v1.md). Marker loop/end
+metadata retires with the native completion prefix and travels with selected PCM
+into automatic envelope intervals. Explicit reset-baseline coverage precedes
+frame-aligned startup. The old manually mapped wrapper keeps its external API.
+This local audio-clock owner still needs the retained CPU batch/per-event
+producer and the sound-control/CDC adapter before Pocket integration.
+
 `pocket/rpcmp_m2_fixed_core.sv` is the ADR-0007 hardware-validation substrate.
 It reproduces the frozen 17-operation fixture as MMIO transactions into the v1
 queue and exposes completion/fault diagnostics. It is deliberately not a

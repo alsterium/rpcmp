@@ -24,6 +24,7 @@ $sources += @('core/rtl/pocket/rpcmp_media_output.sv', 'core/rtl/pocket/rpcmp_po
               'core/rtl/pocket/rpcmp_media_envelope.sv', 'core/rtl/pocket/rpcmp_jt51_enveloped_audio.sv',
               'core/rtl/pocket/rpcmp_native_completion.sv',
               'core/rtl/pocket/rpcmp_media_source_queue.sv',
+              'core/rtl/pocket/rpcmp_jt51_progress_audio.sv', 'tests/rtl/jt51_progress_audio_tb.sv',
               'tests/rtl/jt51_enveloped_audio_tb.sv', 'tests/rtl/jt51_source_queue_tb.sv') | ForEach-Object { Join-Path $root $_ }
 Push-Location $output
 try {
@@ -42,4 +43,10 @@ try {
     $text = $lines | Out-String
     if ($code -ne 0 -or $text -notmatch '(?m)^# jt51_source_queue_tb: PASS writes=8192 receipts=8195 .+ reset_fault=2\r?$' -or
         $text -notmatch '(?m)^# Errors: 0, Warnings: 0\r?$') { throw 'Scheduled source integration failed.' }
+    $lines = @(& $vsim -c -quiet -lib work jt51_progress_audio_tb -do 'run -all; quit -code 0' 2>&1)
+    $code = $LASTEXITCODE
+    $lines | Write-Output
+    $text = $lines | Out-String
+    if ($code -ne 0 -or $text -notmatch '(?m)^# jt51_progress_audio_tb: PASS .+ fault_recovery=1\r?$' -or
+        $text -notmatch '(?m)^# Errors: 0, Warnings: 0\r?$') { throw 'Audible progress integration failed.' }
 } finally { Pop-Location }

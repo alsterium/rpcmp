@@ -5,19 +5,20 @@ module media_source_queue_tb;
     logic item_valid=0, item_marker=0, item_end=0;
     logic [63:0] item_at=0, item_until=0;
     logic [7:0] item_address=0, item_value=0;
+    logic [64:0] item_payload=0, dispatch_payload;
     logic [2:0] item_status;
     logic [6:0] queued;
     logic supply_fault, dev_valid, marker_valid;
     logic [7:0] dev_address, dev_value;
     logic dev_ready=0, marker_ready=0;
-    logic [145:0] model[$];
-    logic [145:0] expected;
+    logic [210:0] model[$];
+    logic [210:0] expected;
     logic [63:0] model_until=0;
     logic model_end=0, expected_fault=0, check_model=1;
     integer accepted=0, dispatched=0, full=0, rejected=0, simultaneous=0, held=0, resets=0, faults=0;
     integer wall=0;
     always #5 clk_audio=~clk_audio;
-    rpcmp_media_source_queue dut(.*);
+    rpcmp_media_source_queue #(.PAYLOAD_WIDTH(65)) dut(.*);
 
     always @(posedge clk_audio) begin
         wall=wall+1;
@@ -35,7 +36,8 @@ module media_source_queue_tb;
                     if (!media_enable || supply_fault || model.size()==0) $fatal(1,"invalid dispatch offer");
                     expected=model[0];
                     if (source_edge<expected[143:80] || marker_valid!==expected[145] ||
-                        dev_valid===expected[145] || {dev_address,dev_value}!==expected[15:0])
+                        dev_valid===expected[145] || {dev_address,dev_value}!==expected[15:0] ||
+                        dispatch_payload!==expected[210:146])
                         $fatal(1,"changed/reordered/early dispatch");
                 end
                 if ((dev_valid && dev_ready) || (marker_valid && marker_ready)) begin
@@ -44,7 +46,7 @@ module media_source_queue_tb;
                     if (item_status==1) simultaneous=simultaneous+1;
                 end
                 if (item_status==1) begin
-                    model.push_back({item_marker,item_end,item_at,item_until,item_address,item_value});
+                    model.push_back({item_payload,item_marker,item_end,item_at,item_until,item_address,item_value});
                     accepted=accepted+1; if (!media_enable) held=held+1;
                 end
                 if (item_status==2) full=full+1;
@@ -69,6 +71,7 @@ module media_source_queue_tb;
         @(negedge clk_audio); #1;
         item_valid=1; item_marker=marker; item_end=ending; item_at=at_edge;
         item_until=until_edge; item_address=address; item_value=value;
+        item_payload={1'b1,64'ha509000000000000 | (64'(wall)*3571)};
         #1; if (item_status!==status) $fatal(1,"admission expected=%0d got=%0d",status,item_status);
         @(negedge clk_audio); #1; item_valid=0;
     endtask

@@ -2,15 +2,20 @@
 
 Active milestone: [M6 — Album Player](milestones/M6-album-player.md)
 
-The current task is M6 slice 4: connect retained MDX progress and the scheduled
-source to the audible-frame mapping, then adopt sound-control/CDC/ACK
-and connect the sound/storage adapters.
+The current task is M6 slice 4: connect the retained MDX CPU producer and
+per-event history mapping, then adopt sound-control/CDC/ACK and connect the
+sound/storage adapters. The explicitly approved
+[MDX audible progress](../specs/mdx-audible-progress-v1.md) now carries marker
+checkpoints through native completion and selected samples into local envelope
+intervals. Its independent native integration checks loop/end boundaries,
+pause, live policy, bootstrap and fault recovery. Host/RTL regressions and the
+local fit pass; M6 records the evidence. Pocket acceptance remains open.
 The [retained media source queue](../specs/media-source-queue-v1.md) now provides
 ordered audio-clock writes/markers with 64 copied entries. Larger MDX batches
 stream through it; the queue distinguishes native busy/receipt backpressure
 from missing input at an eligible dispatch opportunity. Marker dispatch seals
-source supply, not mapped loop/end intervals. CPU feeding and those intervals
-remain to be connected.
+source supply. The composed progress owner maps loop/end separately; CPU feeding
+and retained per-event history remain to be connected.
 The explicitly approved source-receipt contract now orders writes and zero-write
 markers and retains their actual transfer/marker edge under backpressure.
 Native receipt tests and the enveloped fault/reset integration pass. These
@@ -25,8 +30,8 @@ aligned stream start, at least 29 retained audio edges remain before consumption
 This supplies a local admission budget; it does not map receipts to samples.
 The local enveloped path now carries the retained native sample-capture edge
 through rational selection, pending storage and serialized output. This is
-the sample-to-output part of the mapping. Ordered MDX progress, batch retention
-and sealed source coverage still need to be connected before loop/end publication.
+the sample-to-output part of the mapping. The progress owner now connects local
+loop/end coverage; retained CPU batches and public publication remain separate.
 The native source now keeps data asserted through the half-rate busy-latch
 edge. A back-to-back burst reproduced accepted but unreflected operator writes;
 the corrected path passes native bank-value checks across all 32 operator slots.
@@ -35,11 +40,12 @@ The [enveloped output](../specs/pocket-enveloped-audio-v1.md) now connects nativ
 hold, gain and serialization with physical reset after terminal states. Its
 decoded stereo stream matches the analytically scaled uninterrupted reference
 after removing pauses. This proves consumption at the output boundary for
-already-mapped input, not the producer's source-tick mapping.
+already-mapped input. The new progress owner's marker-to-output evidence is
+separate from this compatibility wrapper's manual-input evidence.
 The [RTL envelope](../specs/media-envelope-rtl-v1.md)
 now evaluates mapped progress against the current policy and implements exact
 fade/restoration arithmetic. Its analytical tests and registered timing probe
-pass; a proven audible-progress mapper is still required.
+pass; the new progress owner supplies its local selected-checkpoint intervals.
 The [local media output](../specs/pocket-media-audio-v1.md) now connects native
 hold, in-flight writes and retained resampler/pending samples to continuous I2S.
 Its decoded stereo stream matches uninterrupted execution after removing pause
@@ -95,8 +101,8 @@ The synchronous canvas now draws Tracker, keyboard and library around a shared
 information/control panel. The host SVG mock links UI/contracts only, with
 bounded text and explicit elision. Authored scenarios and browser-rendered
 images verify mock layout; installed host fonts do not establish Pocket metrics.
-The real audible mapping,
-pending observation storage and sound/storage adapters remain to be wired.
+The retained CPU/per-event mapping, pending observation storage and
+sound/storage adapters remain to be wired.
 See M6 for the executed checks; this does not establish a working Pocket audio
 adapter, rendered Pocket UI or M6 integration acceptance.
 Use the [transition proposal](design/pocket-player-transition-contract.md),

@@ -3,13 +3,18 @@ module native_completion_tb;
     logic clk_audio=0, reset_n=0, stream_reset=0, media_enable=1;
     logic [63:0] source_edge=0, receipt_token=0, receipt_at_edge=0, native_prefix;
     logic receipt_valid=0, receipt_ready, completion_fault;
+    logic receipt_update=0;
+    logic [65:0] receipt_payload=0, native_payload, expected_payload=0;
+    logic updates[256];
+    logic [65:0] payloads[256];
+    integer updated=0, preserved=0;
     logic [63:0] tokens[256], positions[256];
     integer first=0, last=0, accepted=0, retired=0, full_cycles=0, held_cycles=0;
     integer simultaneous=0, reset_cases=0, overflow_cases=0, wall=0;
     logic [63:0] previous=0, old_edge;
     logic old_enable, incoming, overflowing, old_full;
     always #5 clk_audio=~clk_audio;
-    rpcmp_native_completion dut(.*);
+    rpcmp_native_completion #(.PAYLOAD_WIDTH(66)) dut(.*);
 
     always @(posedge clk_audio) begin
         wall=wall+1;
@@ -20,7 +25,7 @@ module native_completion_tb;
         old_full=last-first==32;
         if (!reset_n || stream_reset) begin
             if (receipt_ready) $fatal(1,"reset admitted a receipt");
-            first=0; last=0; previous=0;
+            first=0; last=0; previous=0; expected_payload=0;
         end else begin
             if (last-first>32) $fatal(1,"completion FIFO exceeded capacity");
             if (old_full && !receipt_ready) full_cycles=full_cycles+1;
@@ -28,13 +33,14 @@ module native_completion_tb;
             if (incoming && !overflowing) begin
                 if (last==256) $fatal(1,"test oracle storage full");
                 tokens[last]=receipt_token; positions[last]=receipt_at_edge;
+                updates[last]=receipt_update; payloads[last]=receipt_payload;
                 last=last+1; accepted=accepted+1;
             end
             if (overflowing) overflow_cases=overflow_cases+1;
         end
         #1;
         if (!reset_n || stream_reset) begin
-            if (native_prefix!==0 || completion_fault) $fatal(1,"reset retained completion state");
+            if (native_prefix!==0 || native_payload!==0 || completion_fault) $fatal(1,"reset retained completion state");
         end else begin
             if (native_prefix!==previous) begin
                 if (!old_enable || first==last || native_prefix!==tokens[first])
@@ -42,6 +48,8 @@ module native_completion_tb;
                 // Subtraction avoids wrapping the independent expected age.
                 if (old_edge<positions[first] || old_edge-positions[first]<5273)
                     $fatal(1,"early native completion");
+                if (updates[first]) begin expected_payload=payloads[first]; updated=updated+1; end
+                else preserved=preserved+1;
                 first=first+1; retired=retired+1;
                 if(incoming) simultaneous=simultaneous+1;
             end else if (old_full && incoming && !overflowing)
@@ -49,6 +57,7 @@ module native_completion_tb;
             if (overflowing && (!completion_fault || receipt_ready))
                 $fatal(1,"overflow was accepted as a successful completion");
             previous=native_prefix;
+            if (native_payload!==expected_payload) $fatal(1,"checkpoint/prefix ownership differs");
         end
     end
     task automatic tick;
@@ -61,6 +70,8 @@ module native_completion_tb;
     endtask
     task automatic offer(input logic [63:0] token, position);
         tick(); receipt_token=token; receipt_at_edge=position; receipt_valid=1;
+        receipt_update=token[1:0]!=0;
+        receipt_payload={2'b10,64'h9876500000000000 ^ (token*7907)};
         do @(posedge clk_audio); while(!receipt_ready);
         tick(); receipt_valid=0;
     endtask
@@ -110,7 +121,7 @@ module native_completion_tb;
             if(native_prefix!==0) $fatal(1,"old RAM head survived reset");
         end
         if (accepted-retired!=3 || accepted<100 || full_cycles<19 || held_cycles<64 ||
-            simultaneous==0 || overflow_cases!=1 || reset_cases!=10)
+            simultaneous==0 || overflow_cases!=1 || reset_cases!=10 || updated<64 || preserved<24)
             $fatal(1,"missing completion boundary coverage");
         $display("native_completion_tb: PASS accepted=%0d retired=%0d full=%0d held=%0d simultaneous=%0d resets=%0d overflow=%0d",
                  accepted,retired,full_cycles,held_cycles,simultaneous,reset_cases,overflow_cases);

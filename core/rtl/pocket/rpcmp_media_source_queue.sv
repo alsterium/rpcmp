@@ -1,10 +1,12 @@
 // Audio-domain scheduled batches. See media-source-queue-v1.
-module rpcmp_media_source_queue (
+module rpcmp_media_source_queue #(parameter integer PAYLOAD_WIDTH = 1) (
     input logic clk_audio, reset_n, stream_reset, media_enable,
     input logic [63:0] source_edge,
     input logic item_valid, item_marker, item_end,
     input logic [63:0] item_at, item_until,
     input logic [7:0] item_address, item_value,
+    input logic [PAYLOAD_WIDTH-1:0] item_payload,
+    output logic [PAYLOAD_WIDTH-1:0] dispatch_payload,
     output logic [2:0] item_status,
     output logic [6:0] queued,
     output logic supply_fault,
@@ -13,8 +15,8 @@ module rpcmp_media_source_queue (
     input logic dev_ready, marker_ready
 );
     // {marker, end, at, until, address, value}; cached head remains in occupancy.
-    logic [145:0] entries[0:63];
-    logic [145:0] head;
+    logic [145+PAYLOAD_WIDTH:0] entries[0:63];
+    logic [145+PAYLOAD_WIDTH:0] head;
     logic [5:0] read_index, write_index;
     logic head_valid, admit_closed, sealed_end;
     logic [63:0] expected_at, sealed_until;
@@ -39,11 +41,12 @@ module rpcmp_media_source_queue (
     assign marker_valid = due && head[145];
     assign dev_address = head_valid ? head[15:8] : 8'd0;
     assign dev_value = head_valid ? head[7:0] : 8'd0;
+    assign dispatch_payload = head_valid ? head[146 +: PAYLOAD_WIDTH] : '0;
     assign dispatch = (dev_valid && dev_ready) || (marker_valid && marker_ready);
     assign load_head = reset_n && !stream_reset && !supply_fault && !head_valid && queued!=0;
 
     always_ff @(posedge clk_audio) begin
-        if (accept) entries[write_index]<={item_marker,item_end,item_at,item_until,item_address,item_value};
+        if (accept) entries[write_index]<={item_payload,item_marker,item_end,item_at,item_until,item_address,item_value};
         if (load_head) head<=entries[read_index];
     end
     always_ff @(posedge clk_audio or negedge reset_n) begin

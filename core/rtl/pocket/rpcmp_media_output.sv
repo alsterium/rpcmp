@@ -3,12 +3,15 @@ module rpcmp_media_output #(
     parameter integer SRC_RATE_NUM = 3579545,
     parameter integer SRC_RATE_DEN = 64,
     parameter integer OUT_RATE = 48000,
-    parameter bit INITIAL_RUNNING = 1
+    parameter bit INITIAL_RUNNING = 1,
+    parameter integer PAYLOAD_WIDTH = 1
 ) (
     input logic clk_audio, reset_n, stream_reset, frame_consume, clear_flags,
     input logic src_valid,
     input logic signed [17:0] src_left, src_right,
     input logic [63:0] src_at_edge, src_prefix,
+    input logic [PAYLOAD_WIDTH-1:0] src_payload,
+    output logic [PAYLOAD_WIDTH-1:0] source_payload, output_payload,
     input logic signed [15:0] transformed_left, transformed_right,
     output logic signed [15:0] source_left, source_right,
     output logic source_valid, output_valid,
@@ -24,6 +27,7 @@ module rpcmp_media_output #(
     logic pending, started;
     logic signed [15:0] pending_left, pending_right, frame_left, frame_right;
     logic [63:0] pending_at_edge, pending_prefix;
+    logic [PAYLOAD_WIDTH-1:0] pending_payload;
     logic [31:0] rate_sum;
     logic select_source;
 
@@ -43,6 +47,7 @@ module rpcmp_media_output #(
     assign source_valid = pending;
     assign source_at_edge = pending ? pending_at_edge : 64'd0;
     assign source_prefix = pending ? pending_prefix : 64'd0;
+    assign source_payload = pending ? pending_payload : '0;
     assign rate_sum = rate_phase + PHASE_STEP;
     assign select_source = src_valid && rate_sum >= SRC_RATE_NUM;
     always_comb begin
@@ -64,6 +69,7 @@ module rpcmp_media_output #(
             frame_left <= 0; frame_right <= 0;
             pending_at_edge <= 0; output_at_edge <= 0; output_valid <= 0;
             pending_prefix <= 0; output_prefix <= 0;
+            pending_payload <= '0; output_payload <= '0;
             underflow <= 0; overflow <= 0; clipped <= 0;
             selected_count <= 0;
         end else begin
@@ -76,6 +82,7 @@ module rpcmp_media_output #(
                 frame_left <= 0; frame_right <= 0;
                 pending_at_edge <= 0; output_at_edge <= 0; output_valid <= 0;
                 pending_prefix <= 0; output_prefix <= 0;
+                pending_payload <= '0; output_payload <= '0;
                 underflow <= 0; overflow <= 0; clipped <= 0;
                 selected_count <= 0;
             end else begin
@@ -89,10 +96,12 @@ module rpcmp_media_output #(
                         frame_right <= transformed_right;
                         output_at_edge <= pending_at_edge; output_valid <= 1;
                         output_prefix <= pending_prefix;
+                        output_payload <= pending_payload;
                     end else begin
                         frame_left <= 0; frame_right <= 0;
                         output_at_edge <= 0; output_valid <= 0;
                         output_prefix <= 0;
+                        output_payload <= '0;
                         if (media_enable && started) underflow <= 1;
                     end
                     if (media_enable) pending <= 0;
@@ -108,6 +117,7 @@ module rpcmp_media_output #(
                         pending_right <= saturate(src_right);
                         pending_at_edge <= src_at_edge;
                         pending_prefix <= src_prefix;
+                        pending_payload <= src_payload;
                         pending <= 1; started <= 1;
                         selected_count <= selected_count + 1'b1;
                         if (src_left > 18'sd32767 || src_left < -18'sd32768 ||

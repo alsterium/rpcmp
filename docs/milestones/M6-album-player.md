@@ -111,6 +111,13 @@ queue streams larger immutable MDX batches; source busy/receipt backpressure
 is distinct from missing input at an eligible empty dispatch opportunity.
 This is not mapped envelope coverage, a CPU deadline, or a change to queue v1.
 
+With explicit user approval on 2026-09-13, slice 4 adopts
+[MDX audible progress v1](../../specs/mdx-audible-progress-v1.md): marker metadata
+travels through the actual native completion FIFO and selected PCM into mapped
+envelope intervals. The reset baseline and at-most-one-audio-frame startup
+deferral are approved; Q1–Q24 policy remains unchanged. Implementation and
+verification follow this adoption; no acceptance result is implied by approval.
+
 ## Slices and acceptance
 
 1. **Host metadata:** strict CP932 embedded titles, filename fallback with
@@ -1753,3 +1760,97 @@ loop/end coverage. Sound-control/CDC/ACK and storage adapters follow. Whole
 Pocket fit/CDC, cross-build, APF/package and hardware were not run: this unit
 does not yet change or connect those targets. The unchanged standalone gain
 arithmetic suite was not repeated; its native/output integration was run.
+
+### Local MDX checkpoint-to-output connection
+
+Implemented on 2026-09-13 following explicit approval of
+[MDX audible progress v1](../../specs/mdx-audible-progress-v1.md).
+`rpcmp_jt51_progress_audio` now connects scheduled marker loop/end metadata,
+the actual native completion FIFO, selected PCM and automatic envelope intervals.
+The shared queues/converter carry opaque payloads; the old wrappers bind zero
+and preserve their external APIs. No second completion timer estimates progress.
+
+Begin requires supplied input, admits the explicit reset baseline [0,2), then
+arms a consuming audio boundary. Selected checkpoints admit one interval per
+frame; Pause retains it without duplicates. Natural end evaluates its pending
+checkpoint without consuming that PCM. Source starvation and mapping failures
+use the shared reset owner. CPU feeding and public/per-event history are still
+separate work, not inferred from this local connection.
+
+Executed checks:
+
+- `pwsh -File tools/rtl-media-audio-verify.ps1 -OutputOnly`: four benches PASS;
+  the expanded source/completion/sample oracles check 65/66-bit payload copies,
+  ordinary-write preservation, Full retry, pointer wrap, hold and reset.
+  Log: `out/build/m6-progress-output.log`.
+- `pwsh -File out/build/m6-progress-focused.ps1`, then the final
+  `pwsh -File tools/rtl-enveloped-audio-verify.ps1`: PASS. The latter runs all
+  three integration benches. The new bench checks 316 consumed frames,
+  310 selected samples and 182 nonzero frames across six checked starts/ends,
+  one fade and restoration, one simultaneous marker receipt replacement and
+  one merged checkpoint sample. Actual authored native bus/marker positions,
+  the certified completion bound, independent quotient selection and analytical
+  gain determine the expected frame metadata and every serialized PCM bit.
+  Loop/end-boundary Pause/Resume, Begin at phases 0/73/127/254/255, invalid
+  metadata/empty Begin, real starvation and fresh-generation recovery pass.
+  The last fault/recovery pair checks terminal/reset outcomes separately from
+  the six-start PCM oracle. Logs: `out/build/m6-progress-{focused,enveloped}.log`.
+- The same enveloped command preserves the existing 3,200-frame integration
+  results (3,198 positions, 34 multicast receipts, 13 reset cases) and the
+  8,192-write streaming case (8,195 receipts, 9,130 native PCM comparisons,
+  3,794 overdue writes, two final-prefix frames and two reset/fault cases).
+- `pwsh -File tools/rtl-media-audio-verify.ps1`: ten benches PASS, including
+  379 source admissions/375 dispatches and 133 completion admissions/130
+  retirements. Differences are deliberately discarded reset/fault fixtures,
+  not dropped work. Native hold/burst/receipt/phase and LFO/accumulator proofs
+  retain their existing checks. Log: `out/build/m6-progress-media.log`.
+- `pwsh -File tools/rtl-verify.ps1`, then
+  `pwsh -File tools/rtl-jt51-verify.ps1`: all configured benches PASS.
+  All positive RTL simulations report zero errors/warnings and run sequentially.
+  Logs: `out/build/m6-progress-{rtl,legacy}.log`.
+- `pwsh -File out/build/m6-progress-negative.ps1`: three expected mutants
+  rejected. Read-ahead marker data instead of native-completed payload fails
+  sample ownership at retained edge 6,158; omitting bootstrap arming fails the
+  initial frame's envelope state; adding one to mapped loops fails at frame 3.
+  Each has exactly one error, zero warnings and no PASS marker. Production and
+  pinned native sources remain unchanged. Log: `out/build/m6-progress-negative.log`.
+
+The first new integration compilation rejected four test calls missing a task
+argument. Giving that test helper its intended default fixed compilation;
+no production logic, golden trace or assertion was relaxed. The final fixture
+also exercises marker replacement and multiple checkpoints per selected sample.
+
+`python -B out/build/m6-progress-timing.py` generated a registered local probe;
+`pwsh -File out/build/m6-progress-fit.ps1` ran Quartus 25.1std.0 Build 1129
+map/fit/sta on 5CEBA4F23C8, seed 1, 81.380 ns. The complete probe uses 4,651 ALMs,
+5,212 registers, 72,168 memory bits, 27 RAM blocks and three DSPs. Source RAM is
+64 x 211 bits and completion RAM 32 x 195, both simple dual-port, single-clock
+RAMs. Its 542 input/1,080 observation registers constrain local paths; forwarded
+MCLK is not treated as data. These are not Pocket pin or CDC constraints.
+
+| Timing model | Setup | Hold | Recovery | Removal | Pulse width |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Slow 85 C | 15.691 | 0.374 | 31.916 | 2.314 | 39.084 |
+| Slow 0 C | 13.214 | 0.369 | 32.183 | 2.154 | 38.999 |
+| Fast 85 C | 31.943 | 0.169 | 36.363 | 1.149 | 39.474 |
+| Fast 0 C | 32.930 | 0.133 | 36.664 | 1.028 | 39.464 |
+
+All slacks are ns; every TNS is zero and setup/hold are fully constrained.
+Map's nine warnings concern unused write nets of initialized upstream ROMs.
+Fit's three warnings concern LogicLock/incomplete I/O and five unassigned
+fixture pins. They were reviewed; STA has zero errors/warnings. No timing
+exception, relaxed constraint or new warning suppression was added.
+Logs: `out/build/m6-progress-{map,fit,sta}.log`.
+
+- `pwsh -File tools/host-verify.ps1`: all 77 tests PASS, 440.43 seconds,
+  including format (0.64 s), tidy (421.21 s), harness and positive/negative
+  architecture checks. The only dependency-check change is the exact new local
+  RTL allowlist entry; Core/UI coupling rejection is unchanged.
+  Log: `out/build/m6-progress-host.log`.
+- `python -B tools/check_harness.py` and
+  `python -B out/build/m6-progress-checks.py`: PASS; the latter checks seven
+  synthesis input hashes, changed Markdown local links and timing summaries.
+
+Whole-Pocket fit/CDC, cross-build, APF/package and hardware were not run: this local unit does
+not connect those targets. The unchanged standalone envelope arithmetic suite
+was not repeated; the affected native/gain/output integration ran instead.

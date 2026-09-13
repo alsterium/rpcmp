@@ -7,6 +7,7 @@ module media_sample_position_tb;
     logic signed [15:0] source_left, source_right;
     logic [63:0] src_at_edge=0, source_at_edge, output_at_edge;
     logic [63:0] src_prefix=0, source_prefix, output_prefix;
+    logic [65:0] src_payload=0, source_payload, output_payload, pending_data=0, expected_data=0;
     logic audio_mclk, audio_lrck, audio_dac, underflow, overflow, clipped;
     logic [31:0] selected_count, frame_count;
     integer wall=0, media=0, phase=0, samples=0, selected=0, checked=0;
@@ -16,7 +17,7 @@ module media_sample_position_tb;
     logic [63:0] pending_token=0, expected_token=0;
     logic [31:0] pending_pcm=0, expected_pcm=0;
     always #5 clk_audio=~clk_audio;
-    rpcmp_media_output #(.SRC_RATE_NUM(7),.SRC_RATE_DEN(1),.OUT_RATE(3)) dut (
+    rpcmp_media_output #(.SRC_RATE_NUM(7),.SRC_RATE_DEN(1),.OUT_RATE(3),.PAYLOAD_WIDTH(66)) dut (
         .transformed_left(source_left), .transformed_right(source_right), .*
     );
     function automatic logic [15:0] clamp(input integer value);
@@ -32,6 +33,7 @@ module media_sample_position_tb;
         // authored positions, not an oracle copied from a production counter.
         src_at_edge=samples==2 ? 64'd0 : (64'ha589c00000000000 | (64'(samples)*7907));
         src_prefix=samples==2 ? 64'd0 : (64'hf012300000000000 | (64'(samples)*3571));
+        src_payload={2'(samples%4),64'h9234000000000000 | (64'(samples)*10007)};
         src_left=(media*7919)%200003-100001;
         src_right=(media*3571)%199999-99999;
     end
@@ -45,6 +47,7 @@ module media_sample_position_tb;
             samples=0; pending_valid=0; pending_edge=0; pending_pcm=0;
             expected_valid=0; expected_edge=0; expected_pcm=0;
             pending_token=0; expected_token=0;
+            pending_data=0; expected_data=0;
             expected_running=!reset_n;
         end else begin
             if (boundary) begin
@@ -52,6 +55,7 @@ module media_sample_position_tb;
                 expected_valid=enabled && pending_valid;
                 expected_edge=expected_valid ? pending_edge : 64'd0;
                 expected_token=expected_valid ? pending_token : 64'd0;
+                expected_data=expected_valid ? pending_data : 66'd0;
                 expected_pcm=expected_valid ? pending_pcm : 32'd0;
                 if (enabled) begin
                     if (pending_valid) begin
@@ -69,6 +73,7 @@ module media_sample_position_tb;
                         if (boundary) coincident=coincident+1;
                         pending_valid=1; pending_edge=src_at_edge;
                         pending_token=src_prefix;
+                        pending_data=src_payload;
                         pending_pcm={clamp(int'(src_left)),clamp(int'(src_right))};
                         selected=selected+1;
                     end else dropped=dropped+1;
@@ -79,6 +84,7 @@ module media_sample_position_tb;
         #1;
         if (source_valid!==pending_valid || source_at_edge!==(pending_valid ? pending_edge : 64'd0) ||
             source_prefix!==(pending_valid ? pending_token : 64'd0) ||
+            source_payload!==(pending_valid ? pending_data : 66'd0) || output_payload!==expected_data ||
             output_valid!==expected_valid || output_at_edge!==expected_edge || output_prefix!==expected_token)
             $fatal(1,"sample position mismatch media=%0d phase=%0d pending=%h/%h output=%h/%h",
                    media,phase,source_at_edge,pending_edge,output_at_edge,expected_edge);

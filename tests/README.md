@@ -108,6 +108,9 @@ The source queue bench checks 64-entry capacity/retry, copied order, pointer
 wrap, simultaneous admission/dispatch, held admission and 64-bit due times.
 It distinguishes native backpressure from missing input, including refill
 on the missed opportunity and the exact exclusive coverage boundary.
+These three queue/sample benches also check opaque full-width payload ownership:
+ordinary completion receipts preserve the last flagged checkpoint, and payloads
+follow FIFO copies, hold, reset and old/new sample selection.
 
 The mapped-progress and gain controller has a vendor-independent RTL suite:
 
@@ -155,6 +158,16 @@ the final output prefix, queued/in-flight reset and real supply-fault/reset
 routing are covered.
 Its envelope interval is explicit test input; this fixture does not claim to
 produce mapped MDX loop/end intervals or establish CPU refill deadlines.
+
+`jt51_progress_audio_tb` in the same command checks the automatic local mapper.
+Actual authored JT51 writes/marker receipts and the certified completion bound
+feed an independent rational-selection and analytical-gain oracle, including
+serialized stereo bits. It checks loop-boundary Pause/Resume, live target changes,
+natural end during restoration, paused RepeatOne end, late-phase startup,
+zero-write checkpoints, marker receipt replacement, multiple checkpoints per
+sample, empty Begin rejection, metadata validation and real supply-fault recovery.
+This establishes local marker-to-output mapping, not a CPU/CDC adapter or a
+per-event performance-history producer.
 
 Run the reproducible Quartus template-integration build separately with:
 
