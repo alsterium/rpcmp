@@ -22,6 +22,7 @@ $sources = @($manifest.files | ForEach-Object { Join-Path $generated $_.file })
 $sources += @('core/rtl/pocket/rpcmp_media_output.sv', 'core/rtl/pocket/rpcmp_pocket_media_audio.sv',
               'core/rtl/pocket/rpcmp_jt51_media_source.sv', 'core/rtl/pocket/rpcmp_jt51_media_audio.sv',
               'core/rtl/pocket/rpcmp_media_envelope.sv', 'core/rtl/pocket/rpcmp_jt51_enveloped_audio.sv',
+              'core/rtl/pocket/rpcmp_native_completion.sv',
               'tests/rtl/jt51_enveloped_audio_tb.sv') | ForEach-Object { Join-Path $root $_ }
 Push-Location $output
 try {
@@ -32,6 +33,6 @@ try {
     $code = $LASTEXITCODE
     $lines | Write-Output
     $text = $lines | Out-String
-    if ($code -ne 0 -or $text -notmatch '(?m)^# jt51_enveloped_audio_tb: PASS .+positions=3198 restore=960 resets=11\r?$' -or
+    if ($code -ne 0 -or $text -notmatch '(?m)^# jt51_enveloped_audio_tb: PASS .+positions=3198 token_samples=\d+ token_frames=\d+ multicast=34 restore=960 resets=13\r?$' -or
         $text -notmatch '(?m)^# Errors: 0, Warnings: 0\r?$') { throw 'Enveloped audio simulation failed.' }
 } finally { Pop-Location }

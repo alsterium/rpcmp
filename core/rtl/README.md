@@ -54,6 +54,12 @@ The source also assigns ordered write/marker tokens and holds a receipt of the
 actual data-transfer or marker edge until consumed. Receipt delivery may drain
 during hold, without advancing synthesis; token exhaustion resets the enveloped
 stream. These bus receipts do not yet certify native-pipeline or audible commit.
+`rpcmp_native_completion` consumes each enveloped receipt in a 32-entry RAM
+queue and retires its ordered prefix after the specified native direct-control
+processing bound. The prefix travels with selected PCM to actual frame output.
+This is [native completion v1](../../specs/jt51-native-completion-v1.md);
+retained musical history and the remaining source-progress producer are outside
+that certificate. Queue overflow arithmetic faults through the shared reset.
 `tools/rtl-enveloped-audio-verify.ps1` checks decoded stereo against an unscaled
 native reference and analytical gain, including reset/restart cases. This is
 the [local integration contract](../../specs/pocket-enveloped-audio-v1.md), not

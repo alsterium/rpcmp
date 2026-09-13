@@ -24,6 +24,7 @@ module jt51_enveloped_audio_tb;
     logic [8:0] queued;
     logic quiescent, resetting, device_idle, media_enable, frame_boundary;
     logic [63:0] source_edge, pending_source_edge, output_source_edge;
+    logic [63:0] pending_prefix, output_prefix;
     logic pending_source_valid, output_source_valid;
     logic audio_mclk, audio_lrck, audio_dac, audio_underflow, audio_overflow, audio_clipped;
     logic [31:0] selected_count, frame_count;
@@ -40,6 +41,15 @@ module jt51_enveloped_audio_tb;
     logic ref_pending_valid=0;
     logic [63:0] ref_pending_edge=0;
     integer ref_samples=0, position_checks=0;
+    integer native_samples=0, native_steps=0, token_samples=0, token_frames=0, accepted_operations=0;
+    integer active_write=0, receipt_steps[128];
+    logic [63:0] receipt_edges[128], expected_pending_prefix=0, expected_output_prefix=0;
+    logic [63:0] expected_native_prefix;
+    logic receipt_seen[128]='{default:0}, expected_pending_valid=0;
+    logic final_prefix_seen=0;
+    logic multicast_check=0;
+    integer multicast_delivered=0;
+    logic [127:0] blocked_receipt;
     logic [15:0] decoded_left[2]='{0,0}, decoded_right[2]='{0,0};
     logic frame_active=0, reference_active=0;
     longint unsigned frame_index=0, before_frame;
@@ -80,7 +90,60 @@ module jt51_enveloped_audio_tb;
     end
     always @(posedge clk_audio) begin
         before_frame=media_frame; before_consume=frame_boundary && media_enable;
+        if (multicast_check && receipt_valid && receipt_ready) begin
+            multicast_delivered=multicast_delivered+1;
+            if (receipt_token!==64'(multicast_delivered) || !receipt_marker)
+                $fatal(1,"receipt multicast duplicated or skipped delivery");
+        end
         if (compare && reset_n && !resetting) begin
+            if (frame_boundary) begin
+                expected_output_prefix=media_enable && expected_pending_valid ? expected_pending_prefix : 64'd0;
+                if (media_enable) expected_pending_valid=0;
+            end
+            if (dev_valid && dev_ready) begin
+                accepted_operations=accepted_operations+1; active_write=accepted_operations;
+                if (operation_token!==64'(active_write)) $fatal(1,"write token not in source order");
+            end
+            if (marker_valid && marker_ready) begin
+                accepted_operations=accepted_operations+1;
+                if (operation_token!==64'(accepted_operations)) $fatal(1,"marker token not in source order");
+                receipt_seen[accepted_operations]=1;
+                receipt_edges[accepted_operations]=64'(ticks[1]);
+                receipt_steps[accepted_operations]=native_steps+(dut.source_media.cen_p1 ? 1 : 0);
+            end
+            // Actual bus edge and test-owned native enable count, independent
+            // of the completion queue's due counter or internal head.
+            if (media_enable && !dut.source_media.jt_wr_n && dut.source_media.jt_a0 && dut.source_media.cen_p1) begin
+                receipt_seen[active_write]=1; receipt_edges[active_write]=64'(ticks[1]);
+                receipt_steps[active_write]=native_steps+1;
+            end
+            if (receipt_valid && receipt_ready && (receipt_token>127 || !receipt_seen[receipt_token] ||
+                receipt_at_edge!==receipt_edges[receipt_token])) $fatal(1,"receipt multicast changed its actual edge");
+            if (receipt_valid && receipt_ready && receipt_token>1 &&
+                receipt_at_edge-receipt_edges[receipt_token-1]<3)
+                $fatal(1,"paced fixture lacks head-prefetch spacing");
+            if (media_enable && dut.jt_sample) begin
+                // This fixture's receipts are spaced beyond head prefetch, so
+                // each due head is ready on time. Derive the exact prefix from
+                // actual bus edges, including the old prefix on the due edge.
+                expected_native_prefix=0;
+                for (integer op=1;op<=accepted_operations;op=op+1)
+                    if (receipt_seen[op] && 64'(ticks[1])>receipt_edges[op]+5273)
+                        expected_native_prefix=64'(op);
+                if (dut.native_prefix!==expected_native_prefix)
+                    $fatal(1,"sample prefix missed its independently mapped receipt boundary");
+                if (dut.native_prefix!=0) begin
+                    if (dut.native_prefix>127 || !receipt_seen[dut.native_prefix] ||
+                        native_steps-receipt_steps[dut.native_prefix]<768)
+                        $fatal(1,"native sample received a prefix before 768 subsequent enables");
+                    token_samples=token_samples+1;
+                end
+                if ((64'(native_samples+1)*3072000)/3579545 != (64'(native_samples)*3072000)/3579545) begin
+                    expected_pending_prefix=expected_native_prefix; expected_pending_valid=1;
+                end
+                native_samples=native_samples+1;
+            end
+            if (media_enable && dut.source_media.cen_p1) native_steps=native_steps+1;
             if (source_edge!==64'(ticks[1]) || reference_audio.source_media.source_edge!==64'(ticks[0]))
                 $fatal(1,"native source edge advanced independently of retained time");
             if (frame_boundary && ref_enable) begin
@@ -113,6 +176,9 @@ module jt51_enveloped_audio_tb;
         if (reset_n && compare) begin
             if (failure || audio_underflow || audio_overflow || audio_clipped)
                 $fatal(1,"unexpected audio fault frame=%0d failure=%0d",media_frame,failure);
+            if (pending_prefix!==(expected_pending_valid ? expected_pending_prefix : 64'd0) ||
+                output_prefix!==expected_output_prefix)
+                $fatal(1,"PCM position and native prefix no longer share sample ownership");
             if (serial_phase==0) begin
                 frame_active=before_consume; frame_index=before_frame;
                 reference_active=!ref_paused && !resetting;
@@ -147,6 +213,8 @@ module jt51_enveloped_audio_tb;
                 if (output_source_valid!==(frame_index>=2)) $fatal(1,"native startup position boundary");
                 if (output_source_valid) begin
                     position_checks=position_checks+1;
+                    if (output_prefix!=0) token_frames=token_frames+1;
+                    if (output_prefix==57) final_prefix_seen=1;
                     // The old pending sample had at least 29 retained edges
                     // before consumption. Use the decoded frame's position,
                     // not the now-advanced source clock or output wall time.
@@ -219,6 +287,7 @@ module jt51_enveloped_audio_tb;
             @(posedge clk_audio); #1; held=held+1;
             if (media_enable || dev_ready || audio_dac!==0 || source_edge!==0 ||
                 pending_source_valid || output_source_valid || pending_source_edge!==0 || output_source_edge!==0 ||
+                pending_prefix!==0 || output_prefix!==0 || dut.native_prefix!==0 || dut.completion_fault ||
                 marker_ready || receipt_valid || operation_token!==1 || dut.operation_exhausted)
                 $fatal(1,"reset did not inhibit sound/write or discard positions gen=%0d held=%0d enable=%b ready=%b dac=%b edge=%h pending=%b/%h output=%b/%h",
                        generation,held,media_enable,dev_ready,audio_dac,source_edge,
@@ -245,12 +314,18 @@ module jt51_enveloped_audio_tb;
         at_phase(16); begin_stream(2);
         progress(1,0,200,0,0); progress(2,200,100000,1,0); ref_pause=0;
         wait(media_frame==100); reject_begin();
-        wait(media_frame==600); control(1,0,1,1,1,2,1);
+        wait(media_frame==600);
+        // A zero-write checkpoint enters just before Pause and finishes only
+        // after Resume; it does not alter the uninterrupted PCM reference.
+        at_phase(240); marker_valid=1;
+        @(negedge clk_audio); marker_valid=0;
+        control(1,0,1,1,1,2,1);
         repeat(7*256) @(negedge clk_audio);
         control(0,1,2,0,0,2,1);
         repeat(5*256) @(negedge clk_audio);
         if (media_frame!==600 || gain!==239600 || ramp_elapsed!==400 || phase!==1)
             $fatal(1,"pause did not preserve fade/source position");
+        if (dut.native_prefix!==56) $fatal(1,"pending marker completed during Pause");
         control(2,0,2,0,0,2,1);
         wait(media_frame==1800); control(0,1,3,1,1,2,1);
         wait(media_frame==2200); control(0,1,4,1,2,2,1);
@@ -266,6 +341,8 @@ module jt51_enveloped_audio_tb;
         if (checked_frames!=3200 || scaled_changes<1000 || silent_frames<20 ||
             positive[0]<100 || positive[1]<100 || negative[0]<100 || negative[1]<100 ||
             next_op[0]!=operation_count || next_op[1]!=operation_count) $fatal(1,"missing PCM coverage");
+        if (token_samples<1000 || token_frames<1000 || accepted_operations!=57 || !final_prefix_seen)
+            $fatal(1,"missing native prefix integration coverage");
         compare=0; send_writes=0; ref_pause=1;
         check_reset_hold();
         repeat(512) begin
@@ -361,8 +438,44 @@ module jt51_enveloped_audio_tb;
             $fatal(1,"operation exhaustion did not close stream");
         check_reset_hold();
         receipt_ready=1;
-        $display("jt51_enveloped_audio_tb: PASS frames=%0d scaled=%0d silent=%0d positive=%0d/%0d negative=%0d/%0d writes=%0d positions=%0d restore=960 resets=11",
-                 checked_frames,scaled_changes,silent_frames,positive[0],positive[1],negative[0],negative[1],operation_count,position_checks);
+        // A real marker receipt whose completion offset would wrap must fault.
+        at_phase(16); begin_stream(13); progress(1,0,100,0,0);
+        wait(media_frame==4); control(1,0,1,0,0,13,1);
+        force dut.source_media.source_edge=64'hffffffffffffeb67;
+        @(negedge clk_audio); release dut.source_media.source_edge;
+        marker_valid=1;
+        control(2,0,1,0,0,13,1); marker_valid=0;
+        wait(failure!=0);
+        if (failure!==1 || end_reason || media_frame!==5) $fatal(1,"completion overflow did not close stream");
+        check_reset_hold();
+        // Fill the completion FIFO through the actual source. Its 32 entries
+        // plus one source receipt backpressure the next offered marker.
+        at_phase(16); begin_stream(14); progress(1,0,100,0,0);
+        wait(media_frame==4); @(negedge clk_audio); multicast_check=1; marker_valid=1;
+        wait(operation_token==34); @(negedge clk_audio); marker_valid=0;
+        if (multicast_delivered!=32 || receipt_valid || marker_ready)
+            $fatal(1,"full completion FIFO did not backpressure the shared receipt");
+        control(1,0,1,0,0,14,1); receipt_ready=0;
+        repeat(512) @(negedge clk_audio);
+        if (dut.native_prefix!==0 || receipt_valid || multicast_delivered!=32)
+            $fatal(1,"full paused completion queue progressed");
+        control(2,0,1,0,0,14,1);
+        wait(receipt_valid); @(negedge clk_audio);
+        blocked_receipt={receipt_token,receipt_at_edge};
+        repeat(32) begin
+            @(negedge clk_audio);
+            if (!receipt_valid || {receipt_token,receipt_at_edge}!==blocked_receipt || receipt_token!==33)
+                $fatal(1,"multicast withdrew a blocked external receipt");
+        end
+        receipt_ready=1; marker_valid=1;
+        @(negedge clk_audio); marker_valid=0;
+        wait(output_source_valid && output_prefix==34);
+        if (multicast_delivered!=34 || failure) $fatal(1,"completion multicast did not recover");
+        multicast_check=0; control(3,0,1,0,0,14,1);
+        if (failure || end_reason!==1) $fatal(1,"Stop after multicast recovery failed");
+        check_reset_hold();
+        $display("jt51_enveloped_audio_tb: PASS frames=%0d scaled=%0d silent=%0d positive=%0d/%0d negative=%0d/%0d writes=%0d positions=%0d token_samples=%0d token_frames=%0d multicast=%0d restore=960 resets=13",
+                 checked_frames,scaled_changes,silent_frames,positive[0],positive[1],negative[0],negative[1],operation_count,position_checks,token_samples,token_frames,multicast_delivered);
         $finish;
     end
 endmodule

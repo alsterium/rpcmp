@@ -97,6 +97,14 @@ stream-local tokens; the actual completed bus/marker edge is retained until
 delivery, with reserved capacity, hold/reset and exhaustion semantics. This
 does not equate bus receipt with native-pipeline or audible completion.
 
+Slice 4 adopts [JT51 native completion v1](../../specs/jt51-native-completion-v1.md)
+for the conservative direct-control processing prefix, receipt capacity and
+sample/prefix ownership. Its native schedule/accumulator derivation and local
+RAM/timing evidence support this internal boundary. Retained musical history
+is not flushed, and first waveform difference is not the completion oracle.
+The scheduled-progress producer, retained MDX batches and CPU/CDC/ACK remain
+separate work; this does not advertise them as implemented.
+
 ## Slices and acceptance
 
 1. **Host metadata:** strict CP932 embedded titles, filename fallback with
@@ -1547,3 +1555,104 @@ were run above. Native write/pipeline-to-sample mapping, source coverage and
 the sound-control/CDC/ACK and platform integration remain current M6 work.
 The 29-edge local budget does not establish a CPU/CDC deadline or authorize
 audible progress publication on receipt delivery.
+
+### Native operation prefix through output (2026-09-13)
+
+[JT51 native completion v1](../../specs/jt51-native-completion-v1.md) now connects
+actual source receipts to a conservative direct-control completion prefix and
+retains that prefix with selected PCM through pending storage and serialization.
+The 32-entry synchronous RAM FIFO checks its 64-bit due addition, preserves
+backpressure and retires only while source time advances. The enveloped owner
+delivers a receipt atomically to its external consumer and the completion FIFO.
+Overflow enters the existing DeviceFault/native-reset path.
+
+The bound is 768 subsequent native half-rate enables, excluding the receipt
+edge: 128 steps for configuration/global staging, 512 for finite LFO serial
+arithmetic and 128 for an operator round/arithmetic/accumulation. The clock
+equation bounds those enables by 5,273 retained audio edges. Registered prefix
+retirement prevents a same-edge sample from prematurely seeing the new token.
+This is a direct-control-use bound; phase/envelope/feedback/LFO/noise/timer
+musical history persists. It is not an empirical first-PCM-difference bound.
+The earlier amplitude probes were not used as maximum-latency oracles.
+
+Executed evidence:
+
+- `python -B tests/rtl/media_clock_math.py`: three tests PASS, including the
+  independent subsequent-enable equation and its extreme accumulator/phase
+  states. The existing complete rational sample-availability proof still passes.
+- `pwsh -File tools/rtl-media-audio-verify.ps1`: all nine benches PASS, each
+  with zero errors/warnings. The completion FIFO accepts 133 and retires 130
+  receipts; three occupied/prefetched entries are deliberately reset away.
+  It checks 20 full cycles, 94 held cycles, 96 simultaneous admissions/retirements,
+  ten reset cases, pointer wrap and the exact last-safe/first-overflow due
+  positions. The unchanged source-receipt, burst, pause and phase tests pass.
+  Log: `out/build/m6-completion-media.log`.
+- The same command runs the unmodified pinned native LFO and accumulator
+  components. LFO dependency tags cover 1,024 start cases (startup and all
+  steady phases, both values of its unreset serial-reset latch), 512 period
+  checks and 468,480 fresh-output checkpoints. Two copies with differing
+  multiplier intermediates agree whenever tagged fresh; their retained
+  musical state stays identical. The latest first-fresh result is 375 enabled
+  steps, within the separately derived 512 allowance. The accumulator checks
+  192 exact sample positions from 32 authored impulses; observed contribution
+  delay is 41..72 enabled steps. Neither experiment claims waveform settling.
+- `pwsh -File out/build/m6-completion-negative.ps1`: expected rejection of both
+  ignored-only mutants. A 5,272-edge retirement fails `early native completion`;
+  removing the native LFO's bit-zero product restart fails `tagged intermediate
+  differs`. Each simulation reports one expected error and zero warnings;
+  the runner requires the specific failure and no PASS marker. Production
+  sources and the pinned native checkout remain unchanged by the mutants.
+  Log: `out/build/m6-completion-negative.log`.
+- `pwsh -File tools/rtl-enveloped-audio-verify.ps1`: PASS, 3,200 decoded stereo
+  frames, 3,198 source positions, 3,704 native samples and 3,178 output frames
+  carrying a nonzero prefix, 56 writes, 34 ordered multicast markers and 13
+  reset cases. A test-owned native-enable count rejects a sample prefix before
+  768 subsequent enables. The paced fixture also derives every native/output
+  prefix directly from actual receipt edges, requiring exact correspondence;
+  its receipt-spacing assertion establishes head-prefetch availability. This
+  catches missing or late prefixes as well as premature ones. PCM still matches the analytically scaled uninterrupted
+  reference. A zero-write marker remains incomplete across Pause; a full FIFO
+  plus one blocked source receipt recovers without loss/duplicate delivery or
+  withdrawing external valid. A real due-addition overflow triggers reset.
+  Log: `out/build/m6-completion-enveloped.log`. The initial integration run
+  reached its final coverage assertion but incorrectly inspected the expected
+  prefix after Stop had invalidated output. The fixture now records its actual
+  serialized occurrence before Stop; reset invalidation remains required.
+  Initial log: `out/build/m6-completion-enveloped-initial.log`.
+- Sequential `pwsh -File tools/rtl-verify.ps1` and
+  `pwsh -File tools/rtl-jt51-verify.ps1`: all nine boundary/model and five legacy
+  JT51 benches PASS, with zero simulator errors/warnings. Logs:
+  `out/build/m6-completion-rtl.log`, `out/build/m6-completion-legacy.log`.
+- `pwsh -File tools/host-verify.ps1`: 77/77 PASS in 420.24 seconds, including
+  format, clang-tidy (404.41 seconds), harness and positive/negative architecture
+  checks. Log: `out/build/m6-completion-host.log`. No host source changed after
+  that gate; the final stronger RTL-only mapping assertions were separately
+  compiled and run by the enveloped command above.
+- `python -B tools/check_harness.py` and
+  `python -B out/build/m6-completion-links.py`: PASS, with 70 local file links.
+
+`python -B out/build/m6-completion-timing.py`, followed by Quartus 25.1std.0
+Build 1129 `quartus_map.exe`, `quartus_fit.exe` and `quartus_sta.exe` on
+`out/research/m6-completion-timing/enveloped_probe`: map/fit and all four timing
+models PASS. The 5CEBA4F23C8, seed 1, 81.380 ns registered-data fixture has 671
+input bits and captures all 943 output bits; MCLK is forwarded directly.
+Resources including the fixture are 4,308 ALMs, 4,709 registers, 56,520 memory
+bits in 20 RAM blocks and three DSPs. The new 32 x 128 FIFO infers dual-port RAM
+with a registered read address; no reset/read-during-write RAM behavior is
+relied on. Native/progress RAM inference remains intact. Worst setup is
+10.552 ns and hold 0.107 ns; recovery/removal/pulse-width slacks are positive,
+all TNS zero, and setup/hold are fully constrained. Map's nine upstream ROM
+unused-write-net warnings and fit's three fixture pin/LogicLock warnings
+(including five unassigned pins) were reviewed; STA has zero errors/warnings.
+No exception, relaxed constraint or warning suppression was added. Logs:
+`out/build/m6-completion-{map,fit,sta}.log`. SHA-256 checks against `sources.json`
+match all five production sources and the probe to this tested worktree.
+
+This is local audio-domain completion evidence. The scheduled source queue,
+sealed coverage, retained MDX batches, progress admission and per-event committed
+mapping still need to be connected before publishing loop/end/history from this
+path. CPU/CDC/ACK and sound/storage adapters follow. Whole-player/Pocket pin
+timing, cross-build, APF/package and hardware checks were not run: their inputs
+have not yet been connected to this local unit. The unchanged standalone gain
+arithmetic suite was not repeated; its affected native/output integration was.
+This does not complete M6 hardware acceptance or reopen the M5 investigation.

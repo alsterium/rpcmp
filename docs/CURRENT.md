@@ -2,19 +2,25 @@
 
 Active milestone: [M6 — Album Player](milestones/M6-album-player.md)
 
-The current task is M6 slice 4: prove the source-progress to audible-frame
-mapping, then adopt sound-control/CDC/ACK and connect the sound/storage adapters.
+The current task is M6 slice 4: connect scheduled source coverage and retained
+MDX progress to the audible-frame mapping, then adopt sound-control/CDC/ACK
+and connect the sound/storage adapters.
 The explicitly approved source-receipt contract now orders writes and zero-write
 markers and retains their actual transfer/marker edge under backpressure.
 Native receipt tests and the enveloped fault/reset integration pass. These
 receipts are bus positions, not native-pipeline or audible completion.
+The [native completion prefix](../specs/jt51-native-completion-v1.md) now
+consumes those receipts through a bounded RAM queue and travels with selected
+PCM through pending storage to the actual output frame. Its conservative bound
+covers direct control processing and finite arithmetic; it does not flush
+musical history or identify the earliest measurable waveform change.
 The selected-sample availability bound is now derived and checked: after an
 aligned stream start, at least 29 retained audio edges remain before consumption.
 This supplies a local admission budget; it does not map receipts to samples.
 The local enveloped path now carries the retained native sample-capture edge
 through rational selection, pending storage and serialized output. This is
-the sample-to-output part of the mapping; native register/pipeline delay and
-ordered MDX progress still need to be connected before loop/end publication.
+the sample-to-output part of the mapping. Ordered MDX progress, batch retention
+and sealed source coverage still need to be connected before loop/end publication.
 The native source now keeps data asserted through the half-rate busy-latch
 edge. A back-to-back burst reproduced accepted but unreflected operator writes;
 the corrected path passes native bank-value checks across all 32 operator slots.

@@ -32,6 +32,7 @@ module rpcmp_jt51_enveloped_audio (
     output logic [8:0] queued,
     output logic quiescent, resetting, device_idle, media_enable, frame_boundary,
     output logic [63:0] source_edge, pending_source_edge, output_source_edge,
+    output logic [63:0] pending_prefix, output_prefix,
     output logic pending_source_valid, output_source_valid,
     output logic audio_mclk, audio_lrck, audio_dac,
     output logic audio_underflow, audio_overflow, audio_clipped,
@@ -40,16 +41,32 @@ module rpcmp_jt51_enveloped_audio (
     logic [11:0] reset_remaining;
     logic terminal_seen, terminal, active, reset_trigger, shared_fault;
     logic jt_sample, consume, source_edge_exhausted, operation_exhausted;
+    logic native_receipt_valid, native_receipt_ready, completion_ready, completion_fault;
+    logic [63:0] native_prefix;
     logic signed [15:0] jt_left, jt_right, source_left, source_right;
     logic signed [15:0] transformed_left, transformed_right;
 
     assign terminal = end_reason!=0 || failure!=0;
     assign active = generation!=0 && !terminal;
     assign shared_fault = device_fault || (stream_reset && active) ||
-                          audio_underflow || audio_overflow || source_edge_exhausted || operation_exhausted;
+                          audio_underflow || audio_overflow || source_edge_exhausted ||
+                          operation_exhausted || completion_fault;
     assign reset_trigger = stream_reset || shared_fault || (terminal && !terminal_seen);
     assign resetting = !reset_n || reset_trigger || reset_remaining!=0;
     assign quiescent = !resetting && !active;
+    // Atomic multicast: neither the external receipt consumer nor completion
+    // FIFO can consume alone. A blocked external valid cannot be withdrawn:
+    // completion capacity only decreases on this shared handshake.
+    assign receipt_valid = native_receipt_valid && completion_ready;
+    assign native_receipt_ready = receipt_ready && completion_ready;
+
+    rpcmp_native_completion completion (
+        .clk_audio(clk_audio), .reset_n(reset_n), .stream_reset(resetting),
+        .media_enable(media_enable), .source_edge(source_edge),
+        .receipt_valid(native_receipt_valid && receipt_ready), .receipt_ready(completion_ready),
+        .receipt_token(receipt_token), .receipt_at_edge(receipt_at_edge),
+        .native_prefix(native_prefix), .completion_fault(completion_fault)
+    );
 
     always_ff @(posedge clk_audio or negedge reset_n) begin
         if (!reset_n) begin
@@ -84,7 +101,7 @@ module rpcmp_jt51_enveloped_audio (
         .media_enable(media_enable), .dev_valid(dev_valid), .dev_ready(dev_ready),
         .dev_address(dev_address), .dev_value(dev_value), .device_idle(device_idle),
         .marker_valid(marker_valid), .marker_ready(marker_ready), .operation_token(operation_token),
-        .receipt_valid(receipt_valid), .receipt_ready(receipt_ready), .receipt_marker(receipt_marker),
+        .receipt_valid(native_receipt_valid), .receipt_ready(native_receipt_ready), .receipt_marker(receipt_marker),
         .receipt_token(receipt_token), .receipt_at_edge(receipt_at_edge),
         .operation_exhausted(operation_exhausted),
         .jt_sample(jt_sample), .jt_left(jt_left), .jt_right(jt_right),
@@ -98,6 +115,7 @@ module rpcmp_jt51_enveloped_audio (
         .src_at_edge(source_edge), .source_valid(pending_source_valid),
         .source_at_edge(pending_source_edge), .output_valid(output_source_valid),
         .output_at_edge(output_source_edge),
+        .src_prefix(native_prefix), .source_prefix(pending_prefix), .output_prefix(output_prefix),
         .transformed_left(transformed_left), .transformed_right(transformed_right),
         .source_left(source_left), .source_right(source_right), .media_enable(media_enable),
         .running(), .frame_boundary(frame_boundary), .audio_mclk(audio_mclk),

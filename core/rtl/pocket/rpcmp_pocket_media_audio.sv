@@ -22,6 +22,7 @@ module rpcmp_pocket_media_audio #(
         .src_valid(src_valid), .src_left(src_left), .src_right(src_right),
         .src_at_edge(64'd0), .source_valid(), .source_at_edge(),
         .output_valid(), .output_at_edge(),
+        .src_prefix(64'd0), .source_prefix(), .output_prefix(),
         .transformed_left(source_left), .transformed_right(source_right),
         .source_left(source_left), .source_right(source_right),
         .media_enable(media_enable), .running(running), .frame_boundary(frame_boundary),

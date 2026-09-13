@@ -68,8 +68,8 @@ The M6 synchronous pause/output boundary is checked separately:
 pwsh -File tools/rtl-media-audio-verify.ps1
 ```
 
-`-OutputOnly` runs the converter/I2S and sample-position benches without vendor
-source. The full
+`-OutputOnly` runs the converter/I2S, sample-position/prefix and completion-FIFO
+benches without vendor source. The full
 command also generates pinned JT51 and compares actual decoded stereo frames
 from paused and uninterrupted playback, with independently timed device writes.
 The converter oracle is the unchanged v1 implementation at retained test clock
@@ -92,7 +92,16 @@ stream start. This is sample availability, not a write-to-audio commit bound.
 The sample-position bench uses a closed-form rational selection oracle and
 authored 64-bit positions. It checks the position together with every external
 I2S bit through drop, overflow, same-edge old/new selection, pause and reset;
-valid zero positions are distinguished from frames without a source sample.
+it now checks opaque 64-bit completion prefixes with the same ownership rules.
+Valid zero positions/prefixes are distinguished from frames without a sample.
+The completion FIFO test checks capacity, simultaneous retirement/admission,
+held delivery, reset through head prefetch, pointer wrap and exact 64-bit due
+addition boundaries. The LFO test covers both initial values of the native
+unreset serial-reset latch, startup and every steady serial phase. Conservative
+data-dependency tags are checked against two native copies with different
+multiplier state; retained musical history stays identical. The accumulator
+test injects exact impulses at all 32 phases. These support the separately
+specified [native completion bound](../specs/jt51-native-completion-v1.md).
 These local synchronous tests do not establish CPU/CDC/ACK or Pocket
 hardware acceptance; see [the contract](../specs/pocket-media-audio-v1.md).
 
@@ -120,6 +129,10 @@ It decodes external I2S and compares with uninterrupted unscaled native output
 multiplied by an analytical policy timeline, removing pause frames. Both signs
 and channels, completed restoration, interrupted restoration, stale controls,
 Stop, natural end, protocol/coverage faults and post-reset silence are checked.
+The integration also counts actual native enables independently of the
+completion queue and rejects a sample prefix before 768 subsequent enables.
+Prefixes and positions are checked with decoded PCM, including a zero-write
+marker held over Pause/Resume and a real completion-position overflow.
 Converter fault routing is tested by explicit sticky-register injection; the
 converter's actual overflow/underflow cases remain in the existing output
 suite. A separately counted native source clock and closed-form sample

@@ -21,6 +21,9 @@ $sources = @('core/rtl/pocket/rpcmp_pocket_audio.sv',
              'tests/rtl/pocket_media_audio_tb.sv',
              'tests/rtl/media_sample_position_tb.sv') | ForEach-Object { Join-Path $root $_ }
 $tops = @('pocket_media_audio_tb', 'media_sample_position_tb')
+$sources += @('core/rtl/pocket/rpcmp_native_completion.sv',
+              'tests/rtl/native_completion_tb.sv') | ForEach-Object { Join-Path $root $_ }
+$tops += 'native_completion_tb'
 if (-not $OutputOnly) {
     $generated = Join-Path $output ([guid]::NewGuid().ToString('N'))
     & python -B (Join-Path $root 'tools/jt51_hold_prepare.py') --jt51 (Join-Path $root 'out/research/jt51-985a573') --output $generated
@@ -37,6 +40,11 @@ if (-not $OutputOnly) {
     $tops += 'jt51_source_receipt_tb'
     $sources += Join-Path $root 'tests/rtl/jt51_media_phase_tb.sv'
     $tops += 'jt51_media_phase_tb'
+    $sources += @('jt51_lfo.v', 'jt51_acc.v', 'jt51_sh.v', 'jt51_lin2exp.v', 'jt51_exp2lin.v') |
+        ForEach-Object { Join-Path $root "out/research/jt51-985a573/hdl/$_" }
+    $sources += @('tests/rtl/jt51_lfo_pipeline_tb.sv', 'tests/rtl/jt51_acc_latency_tb.sv') |
+        ForEach-Object { Join-Path $root $_ }
+    $tops += @('jt51_lfo_pipeline_tb', 'jt51_acc_latency_tb')
 }
 Push-Location $output
 try {

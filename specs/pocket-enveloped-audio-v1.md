@@ -160,6 +160,14 @@ inactive. Consumption commits the sample loaded at that boundary; the physical
 bits follow over that stereo frame. It is not a queue-admission acknowledgement
 or proof of the producer's source-tick mapping.
 
+The [native completion prefix](jt51-native-completion-v1.md) adds a bounded
+receipt consumer in the enveloped owner and carries its certified prefix with
+selected PCM. The public receipt handshake is shared atomically with that
+consumer; a full completion queue backpressures delivery. Completion-position
+addition overflow also enters the shared DeviceFault/reset path. Pending and
+output prefixes use their existing sample validity signals. This remains
+separate from the unimplemented scheduled-progress/MDX mapping producer.
+
 The wrapper owns a 2,048-edge native-reset hold, using the adopted conservative
 initialization interval. Power reset, explicit `stream_reset`, shared device
 fault, converter underflow/overflow, and each new terminal envelope state reset
