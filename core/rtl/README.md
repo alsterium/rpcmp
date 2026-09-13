@@ -22,6 +22,15 @@ under retained clock edges; `-CenOnly` must reproduce the in-flight-register
 hold failure. This proves native-engine behavior for an authored trace, not
 frame-boundary Pocket pause, output-buffer ownership or a new MMIO capability.
 
+`pocket/rpcmp_jt51_media_audio.sv` and `pocket/rpcmp_pocket_media_audio.sv`
+implement the new [M6 media boundary](../../specs/pocket-media-audio-v1.md).
+They retain native/write/converter state during pause while serial clocks
+continue, then consume the retained edge at a stereo boundary. Stream reset
+clears sound without stopping serial timing. The new serializer has the APF
+one-bit delay; legacy v1's phase is unchanged. `tools/rtl-media-audio-verify.ps1`
+checks converter equivalence against v1 and decoded real-JT51 output against
+uninterrupted playback. CPU controls, queue/CDC, gain and audible tags are pending.
+
 `pocket/rpcmp_m2_fixed_core.sv` is the ADR-0007 hardware-validation substrate.
 It reproduces the frozen 17-operation fixture as MMIO transactions into the v1
 queue and exposes completion/fault diagnostics. It is deliberately not a

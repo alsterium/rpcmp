@@ -62,6 +62,22 @@ defines the source recipe, reset/hold semantics, coverage and remaining I2S/
 queue/gain/CDC work. Host `jt51_hold_prepare` checks generation guards without
 requiring vendor HDL; it does not replace that real-JT51 simulation.
 
+The M6 synchronous pause/output boundary is checked separately:
+
+```powershell
+pwsh -File tools/rtl-media-audio-verify.ps1
+```
+
+`-OutputOnly` runs the converter/I2S bench without vendor source. The full
+command also generates pinned JT51 and compares actual decoded stereo frames
+from paused and uninterrupted playback, with independently timed device writes.
+The converter oracle is the unchanged v1 implementation at retained test clock
+edges. It covers all 256 request phases, held source pulses, old/new pending
+ordering, empty holds, clipping/overflow/underflow and urgent reset. The native
+bench covers both write halves, reset of a retained write and silence after
+reset. These local synchronous tests do not establish CPU/CDC/ACK or Pocket
+hardware acceptance; see [the contract](../specs/pocket-media-audio-v1.md).
+
 Run the reproducible Quartus template-integration build separately with:
 
 ```powershell

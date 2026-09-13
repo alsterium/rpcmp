@@ -2,9 +2,12 @@
 
 Active milestone: [M6 — Album Player](milestones/M6-album-player.md)
 
-The current task is M6 slice 4: connect native-engine hold to frame-boundary
-pause with retained resampler/pending samples and continuous silent I2S, then
-prove gain/audible commit and adopt sound-control/CDC/ACK from that evidence.
+The current task is M6 slice 4: prove cancellable gain reservations and audible
+commit, then adopt sound-control/CDC/ACK and connect the sound/storage adapters.
+The [local media output](../specs/pocket-media-audio-v1.md) now connects native
+hold, in-flight writes and retained resampler/pending samples to continuous I2S.
+Its decoded stereo stream matches uninterrupted execution after removing pause
+frames. It is a synchronous internal boundary, not a CPU-controlled Pocket player.
 The [JT51 hold fixture](../specs/jt51-hold-experiment-v1.md) now compares a generated
 hold-capable engine with unmodified JT51 at retained clock edges. Its authored
 trace passes; a cen-only negative control reproduces an in-flight register

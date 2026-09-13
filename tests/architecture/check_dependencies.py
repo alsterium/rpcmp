@@ -103,6 +103,8 @@ def find_violations(root: Path) -> list[str]:
         Path("core/rtl/pocket/rpcmp_openfpgaos_sound.sv"),
         Path("core/rtl/pocket/rpcmp_pocket_audio.sv"),
         Path("core/rtl/pocket/rpcmp_jt51_audio.sv"),
+        Path("core/rtl/pocket/rpcmp_pocket_media_audio.sv"),
+        Path("core/rtl/pocket/rpcmp_jt51_media_audio.sv"),
         Path("core/rtl/pocket/rpcmp_m2_fixed_core.sv"),
         Path("core/rtl/pocket/rpcmp_m4_mdx_core.sv"),
         Path("core/rtl/pocket/rpcmp_stereo_probe_core.sv"),

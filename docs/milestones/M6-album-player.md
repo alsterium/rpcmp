@@ -62,6 +62,12 @@ The real audio/storage/input/framebuffer adapters remain subsequent work; this
 does not advertise a new capability on the existing Pocket backend.
 Hardware ACK deadlines and MMIO remain slice 4 decisions based on RTL evidence.
 
+Slice 4 adopts [Pocket media audio v1](../../specs/pocket-media-audio-v1.md) for
+the synchronous write/hold/output modules. It separates urgent stream reset
+from ordinary frame-boundary pause and retains source/pending ownership. The
+new serializer uses the official one-bit I2S delay; old v1 serial behavior and
+queue/reset APIs remain unchanged. This does not adopt CPU control or CDC/ACK.
+
 ## Slices and acceptance
 
 1. **Host metadata:** strict CP932 embedded titles, filename fallback with
@@ -1001,3 +1007,68 @@ timing/CDC, cross-build, packaging and hardware checks were not run for this fix
 there is no new player image or advertised pause capability. Next connect this
 hold to the output boundary and prove that removing inserted stereo-zero frames
 recovers the unpaused sample stream, including in-flight writes and reset.
+
+Slice 4's synchronous pause/output boundary is implemented on 2026-09-13.
+The new JT51 owner retains its clock-enable accumulator and in-flight write;
+the converter retains rate phase and pending stereo samples. Pause takes effect
+at a stereo boundary, replacing only complete output frames with zero. Resume
+consumes the retained edge once. Urgent stream reset clears sound and a retained
+write while the serializer keeps running. The local reset warmup is 2,048 audio
+edges; a minimal reset interval and CPU/CDC/ACK deadline have not been inferred.
+
+The new serial output includes the official one-bit delay after LRCK. The old
+v1 serializer's phase is preserved. No CPU/queue mapping, app, SDK, APF JSON,
+package or new third-party source is changed. The architecture allowlist adds
+only the two adopted M6 modules; dependency rejection rules remain intact.
+
+Executed pause/output evidence:
+
+- `pwsh -File tools/rtl-media-audio-verify.ps1`: both benches PASS with zero
+  simulator errors/warnings. The final log is `out/build/m6-media-final.log`.
+  The converter comparison uses the unmodified v1 converter at retained test
+  clock edges and checks every new serial bit, including delay/padding. It
+  covers all 256 request phases, seven phases of a 7:3 test ratio, 354
+  source/boundary coincidences, occupied/empty holds and sticky diagnostics.
+  It observes 1,298 compared wall frames; the real-JT51 bench is separate.
+- The real-JT51 bench runs independently timestamped writes through two new
+  owners, one uninterrupted and one paused. It decodes the external serial
+  pins and compares 1,484 stereo frames after removing pause frames, including
+  1,130 nonzero left and 1,238 nonzero right frames. All 512 authored operations
+  are accepted. Held boundaries include nine address, five data, 328 busy,
+  eight native-sample and 772 pending-sample observations. Sixteen coarse rate
+  phase buckets include the known initial zero phase; this is not exhaustive
+  coverage of every full-rate accumulator value. A final retained write is
+  cancelled by reset, followed by continued hold and silent resumed output.
+  Native-engine equivalence to unmodified JT51 remains the prior fixture's
+  separate evidence, not a claim that this bench uses a different engine oracle.
+- `pwsh -File tools/rtl-verify.ps1`, then
+  `pwsh -File tools/rtl-jt51-verify.ps1`: 9 boundary/model and 5 real-JT51 legacy
+  benches PASS, each with zero simulator errors/warnings. Logs:
+  `out/build/m6-media-rtl.log`, `out/build/m6-media-legacy-jt51.log`.
+- `python -B out/build/m6-media-synth.py`, then Quartus 25.1std.0 Build 1129
+  `quartus_map.exe out/research/m6-media-audio-synth-final/media_audio
+  --read_settings_files=on --write_settings_files=off`: single-owner Analysis &
+  Synthesis PASS, zero errors and 11 reviewed warnings. The new clock-accumulator
+  narrowing warning was corrected by an explicit width with an invariant bound;
+  the final simulation includes that change. The remaining warnings are nine
+  upstream ROM write-side nets and two messages for constant `audio_clipped`
+  (the JT51 input is already signed 16-bit). No suppression was added.
+  The report has 1,293 registers, 2,974 block-memory bits and one DSP; no placed
+  ALM/timing claim is made. Final log: `out/build/m6-media-synthesis-final.log`;
+  project and owned-source hashes: `out/research/m6-media-audio-synth-final`.
+- `pwsh -File tools/host-verify.ps1`: 76/76 PASS in 422.27 seconds, including
+  format, tidy and architecture rejection fixtures. Log:
+  `out/build/m6-media-host.log`. `python -B tools/check_harness.py` and
+  `python -B out/build/m6-media-links.py`: PASS, with 55 local file links.
+
+Initial test runs matched the compared samples but failed coverage assertions:
+the synthetic source lacked empty gaps, and the real trace lacked the initial
+zero-rate hold. Added stimuli cover these cases and a held sample pulse without
+changing the oracle or weakening the assertions. Initial logs are
+`out/build/m6-media-output-first.log` and `out/build/m6-media-integrated-first.log`.
+All logs, generated GPL derivatives and synthesis projects above are ignored.
+
+This proves the exercised local pause/output behavior, not complete player
+acceptance. Full fitting/timing, CDC, cross-build, packaging and hardware were
+not run for this unit. Next are cancellable gain reservations and audible
+commit, followed by CPU control, media queue/CDC and asynchronous storage.
