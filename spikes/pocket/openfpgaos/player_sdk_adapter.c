@@ -1,5 +1,11 @@
 #include "player_sdk_adapter.h"
+
 #include "of.h"
+
+uint32_t rpcmp_player_mmio_read(uintptr_t address) { return *(volatile const uint32_t*)address; }
+void rpcmp_player_mmio_write(uintptr_t address, uint32_t value) {
+  *(volatile uint32_t*)address = value;
+}
 
 uint32_t rpcmp_player_cpu_hz(void) {
   const struct of_capabilities* caps = of_get_caps();

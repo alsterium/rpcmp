@@ -663,6 +663,106 @@ The next connected checkpoint is actual AXI plus CPU rendering, refill budget,
 whole-shell fit/timing/CDC, then a matched minimal hardware candidate. No
 whole-corpus, whole-song, listening or hardware acceptance is claimed here.
 
+## CPU renderer and actual shell
+
+The next HYB1 connection uses the pinned MXDRV timer/sequencer and wide PCM8
+output in `hybrid_renderer.cpp`, with bounded copied blocks. It omits software
+FM mixing and sends the same timestamped register operations to the existing
+FPGA FM path. The minimal SDK application preloads prepared files, starts only
+on A, stops on B and freezes terminal rendering while audio runs.
+
+`tools/hybrid_renderer_build.py --output out/build/hybrid-cpu-20260921` was run in
+the existing network-disabled `rpcmp-cpu-budget-sim:20260921` image. The final SDK
+link has 131,664 bytes text, 77,532 data and 159,288 BSS: 368,484 bytes total.
+The generated owned/reference-source stack records sum to 8,208 bytes, with a
+608-byte largest frame and no dynamic frames. This is section/compiler evidence,
+not proof of every library call chain or arbitrary input's memory safety.
+
+`tools/hybrid_renderer_verify.py` compares the built native renderer against the
+previously captured independent streams. Three authored eight-PCM formats pass
+32 blocks each, and six private inputs pass 480 blocks each (10.24 seconds).
+Wide PCM, ordered/timed FM writes and native-frame positions match exactly.
+The maximum observed writes in a block are 484. A zero-length PDX with a non-null
+buffer initially emitted 40 extra reset writes; passing null for absent PDX
+fixed that observed discrepancy without changing the reference oracle.
+Prepared-input malformed-file safety and larger/corpus-wide capacity remain open.
+
+The actual current single-issue CPU RTL also ran the application's renderer and
+FIFO write loop. The experiment retained the earlier ideal independent AXI RAMs,
+modeled FIFO consumption at 62.5 kHz, native FM busy at 64 chip clocks and a
+16-CPU-cycle peripheral response delay. It ran short authored prefixes of each
+format, then one real input with the final platform-port implementation.
+
+| CPU experiment | Maximum render, us | Maximum feed, us | Underflows |
+| --- | ---: | ---: | ---: |
+| Eight ADPCM voices | 13,869 | 809 | 0 |
+| Eight 16-bit PCM voices | 14,332 | 809 | 0 |
+| Eight 8-bit PCM voices | 12,879 | 809 | 0 |
+| Real MDX/PDX prefix | 4,487 | 880 | 0 |
+
+Each render produces about 21.333 ms of source audio. The first two runs preceded
+the added post-render queue observation; their old queue minima are not used as
+render-time headroom evidence. The 8-bit run observed 535 frames after rendering;
+the real-input run observed 1,066. Accepted PCM from the 16-bit and 8-bit runs
+(17,333 frames each) and final real-input run (18,666) matched the independent
+native PCM prefixes byte for byte. The real-input run consumed 15,626 source
+frames before an explicit Stop. These are CPU/modeled-peripheral measurements,
+not Pocket SDRAM/OS deadlines; short prefixes do not prove sustained whole-song
+performance. Experiment sources, logs and private data remain under ignored
+`out/build/hybrid-cpu-20260921` and `out/harness/hybrid-cpu-*`.
+
+The new shell prep binds HYB1 directly into the actual AXI peripheral. The
+three-phase `rtl-hybrid-verify.ps1 -PreparedTree out/build/hybrid-candidate-20260921`
+passes reads before any WSTRB, held R/B responses, concurrent AW/W while B is
+held, malformed masks/addresses/bursts, ordered PCM/EOF, clear and restart.
+Each phase consumes 125 checked frames, with zero simulator errors/warnings.
+An initial one-line dummy MIF caused a simulator `ERROR:` despite its zero error
+summary; the fixture is corrected and the runner now rejects such messages.
+The unchanged default player fixture is byte-identical to HEAD's extractor.
+
+The matched HYB1 ROM/OS was built from the pinned firmware with the new reset
+include. The missing `hexdump` in the image initially produced an empty MIF while
+make returned success. `pocket_hybrid_images.py` rebuilds it from the boot binary
+and requires exact linked-ELF/MIF/OS matching; that check passes. Four focused
+tool/ROM tests cover source pin/output scope, profile provenance, MIF content and
+pair rejection, plus successful/delayed/timed-out/mismatched ROM reset.
+
+Quartus 25.1std Build 1129 compiled the full no-GPU shell with the candidate ROM
+at an explicitly mapped absolute path. The fit is 10,161/18,480 ALMs (55%),
+164/308 RAM blocks, 10/66 DSPs and 2/4 PLLs. Reported worst setup/hold slack is
+0.638/0.097 ns. `hybrid_cdc_audit.tcl` checks all four operating corners: control
+synchronizer later stages retain positive setup/hold slack, and all 48 Gray
+pointer bits (including wrap bits and fitted source replicas) have complete
+coverage. Maximum observed Gray-route data delay is 2.781 ns, below the 11.111 ns
+fast-clock period. The inherited shell still has six unconstrained input ports
+and 28 output ports, including audio/video external pins; this is not complete
+platform timing sign-off. No blanket CPU/audio clock cut was introduced.
+
+The [local hardware candidate](../development/pocket-hybrid-hardware.md) combines
+the checked app/ROM/OS/bitstream and a prepared private input. Packaging checks
+the mapped MIF, linked pair and app section budget, then reads back every ZIP and
+directory member. Negative checks reject an existing destination, corrupted OS
+and stale ELF budget before writes. The candidate's hash and the pending
+Firmware 2.6 checklist are on that hardware page. No listening or hardware result
+is claimed, and M6 remains open.
+
+The connected slice's Fast gate passed 86/86. The first Full run exposed two
+intentional-address dereferences in the app and an index-widening warning.
+MMIO was moved behind the existing SDK platform boundary and the PCM index made
+`size_t`; no warning suppression was added. The final
+`pwsh -File tools/host-verify.ps1 -Mode Full` passes 87/87 in 535.99 s
+(tidy 517.37 s), including architecture rejection fixtures. The optional
+reference-backed renderer also passes its dedicated LLVM 22.1.8 tidy command.
+Logs are `out/harness/hybrid-connected-full-final.log` and
+`hybrid-renderer-tidy.log`. A negative CDC audit cuts a later synchronization
+stage and is rejected; the unchanged positive audit is then rerun successfully.
+The baseline `pwsh -File tools/rtl-verify.ps1` and
+`pwsh -File tools/rtl-jt51-verify.ps1` regressions were run sequentially and pass
+with zero simulator errors/warnings. Their logs are
+`out/harness/hybrid-baseline-rtl.log` and `hybrid-baseline-jt51.log`.
+No source RTL changed after the earlier streaming transport acceptance; the
+actual-shell/ROM binding and application were the new connected inputs here.
+
 ## Dependency conditions
 
 The [MDXPlayer README](https://github.com/asaday/MDXPlayer/blob/4076b91c7ced57bf6047f69b87c12a34bd99a438/README.md)
@@ -671,5 +771,6 @@ distinguishes the BSD application from the GAMDX decoder's terms.
 GORRY-authored Apache-2.0 files, original MXDRV-derived material and sound-library
 components. The pinned MDXPlayer also bundles FMGEN's own notice. Do not label
 the entire decoder BSD or Apache-2.0 based on the application license.
-Direct redistribution/integration needs component-specific review; reading
-the ignored research checkout has not added a distributed dependency.
+The local hardware experiment now builds those sources in ignored output, with
+component notices retained in its private package. Public redistribution still
+needs component-specific review; it is not authorized by the app's BSD badge.

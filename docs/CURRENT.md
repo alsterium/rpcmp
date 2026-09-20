@@ -13,9 +13,15 @@ The minimal HYB1 transport now connects CPU-side word writes, two vendor
 dual-clock FIFOs, native FM, wide mixing and 48 kHz audio pins. Three-phase
 simulation verifies continuous refill, stop/reset, EOF and starvation; see the
 [streaming evidence](research/mdxplayer-compatibility.md#target-streaming-transport).
-Next bind it to the actual AXI shell and split CPU renderer, then measure refill
-deadlines with UI disabled. Standalone resource fit passed; whole-shell timing,
-cross-build and hardware gates remain open. No rich UI work is needed first.
+The [CPU/AXI connection](research/mdxplayer-compatibility.md#cpu-renderer-and-actual-shell)
+now passes reference stream comparisons, three-phase actual-AXI tests, the SDK
+link/budget, whole-shell fit and scoped HYB1 timing/CDC audit, and Full host
+verification (87/87). CPU RTL plus a modeled FIFO shows no starvation in three
+authored PCM formats and one short real-input run; it is not real SDRAM/OS timing.
+The next task is the [HYB1 r1 hardware check](development/pocket-hybrid-hardware.md)
+on Firmware 2.6. A matched local ZIP is ready; check actual sound, stop/restart,
+noise and measured render/feed time before expanding UI or M3U support.
+Inherited shell external constraints and full hardware acceptance remain open.
 The user selected [asaday/MDXPlayer](https://github.com/asaday/MDXPlayer) as the
 reference: support every locally supplied file that played there, including
 PCM. The MVP is track selection, play and stop. Follow the
@@ -49,8 +55,8 @@ An 80-track native prefix comparison preserves FM event positions/order and
 PCM output when FM synthesis is removed. A separate 4 MHz native JT51 bus
 experiment passes 3,072 writes and operator-bank checks. These support the
 split; they do not establish a complete hybrid player, whole-corpus playback,
-Pocket timing or production acceptance. The offline mix is now connected;
-the next headless step is the target transport described above.
+Pocket timing or production acceptance. The offline mix, target transport and
+CPU application are now connected; the hardware check linked above is next.
 
 The following records the implemented slice-5 baseline from the
 [CPU sound connection](design/pocket-cpu-sound-connection.md), not the next work.

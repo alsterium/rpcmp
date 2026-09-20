@@ -218,6 +218,43 @@ Then connect the actual split CPU renderer and measure worst refill latency,
 before preparing the minimal hardware candidate. Queue sizes are prototype
 choices to test, not whole-corpus capacity proofs.
 
+The next connection replaces the sound owner in a freshly prepared no-GPU
+openfpgaOS shell, retaining its verified single-beat AXI/APF/framebuffer wiring.
+Use the existing pinned preparer to assemble that shell, then remove its old
+sound sources and bind HYB1; do not add a runtime protocol switch. AXI reads
+have no byte strobes, so the binding supplies `0xf` for reads and actual WSTRB
+for writes. Recheck held responses, malformed transactions and clear/start
+through the real peripheral before measuring CPU rendering. A shell prepared
+with the earlier boot ROM is only a synthesis/bus fixture: hardware packaging
+requires the matching HYB1 boot reset and player firmware, not the r4 images.
+
+The CPU renderer keeps the reference's 1,024-output-frame call size and timer,
+recording at most 1,024 FM writes and 1,536 internal stereo PCM frames per call.
+The block owns copied data until the next render call; overflow is an error,
+never silent truncation. Decode the MDX outer wrapper/LZX and resolve PDX on the
+PC for the first hardware fixture, then load bounded, padded reference-format
+blobs before starting audio. This deliberately separates renderer/transport
+timing from the later M3U/filesystem interface. The fixture must include actual
+MDX sequencing as well as authored eight-FM/eight-PCM stress; it is not an
+all-corpus capacity or malformed-input safety claim. Keep the reference source
+in generated output with its existing component notices, not vendored music.
+
+The first Pocket fixture uses a frozen terminal while audio runs: START selects
+the prepared MDX/PDX pair or one of three authored eight-FM/eight-PCM cases,
+A starts and B clears/stops. There is no autoplay. It loads the prepared blobs
+before playback and reports maximum render/feed time and minimum queued frames
+after stopping. The final block reserves one FM FIFO slot for EOF; 1,024 writes
+plus EOF in one block is an explicit fixture capacity failure. Input decoding,
+directory/M3U browsing, Japanese titles and full malformed-input hardening remain
+outside this prepared-input timing fixture. The old 4 KiB initialized-data gate
+was a player profile choice, not the SDK loader limit: this reference's tables
+use about 76 KiB, so the fixture caps initialized data at 128 KiB while retaining
+the actual 54 MiB static-region and 512 KiB stack bounds. It is not a general
+relaxation of the old player's gate. Reference-backed static analysis runs via
+`tools/hybrid-renderer-tidy.ps1` after source preparation; normal host builds do
+not require the optional downloaded reference. The minimal app remains in the
+ordinary host compile/format/tidy checks.
+
 Implement one headless hybrid vertical slice before rebuilding the full
 player. Start with authored eight-FM/eight-PCM loads and the existing private
 comparison set; keep a native full-software oracle. The first slice must:

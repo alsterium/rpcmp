@@ -12,8 +12,14 @@ and playback-policy expansion is deferred. The user approved the
 waiving backward compatibility with earlier RPCMP APIs/formats. The first
 [offline mixed-audio check](../research/mdxplayer-compatibility.md#offline-hybrid-audio-experiment)
 passes. The [HYB1 streaming transport](../research/mdxplayer-compatibility.md#target-streaming-transport)
-also passes authored CPU-side-write to audio-pin simulation. Target CPU/shell
-timing and hardware acceptance remain pending.
+also passes authored CPU-side-write to audio-pin simulation. The subsequent
+[CPU/actual-AXI connection](../research/mdxplayer-compatibility.md#cpu-renderer-and-actual-shell)
+passes nine reference-stream comparisons, the SDK link/budget, three-phase AXI
+simulation, whole-shell fit/scoped CDC audit and Full host checks (87/87).
+Short CPU RTL/modelled-FIFO experiments have no underflows; real SDRAM/OS
+contention and listening remain unverified. The next boundary is the
+[HYB1 r1 hardware check](../development/pocket-hybrid-hardware.md), with a matched
+local candidate and no autoplay. This does not complete M6.
 The original objective, adopted contracts and results
 below remain historical evidence; they do not override this new scope or turn
 the existing FM subset into full MDX compatibility.

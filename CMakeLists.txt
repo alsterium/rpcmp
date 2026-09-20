@@ -25,6 +25,10 @@ set(RPCMP_TIDY_FILES ${RPCMP_CXX_FILES})
 list(FILTER RPCMP_TIDY_FILES INCLUDE REGEX "[.]cpp$")
 list(FILTER RPCMP_TIDY_FILES EXCLUDE REGEX "[/\\]tests[/\\]architecture[/\\]fixtures[/\\]")
 list(FILTER RPCMP_TIDY_FILES EXCLUDE REGEX "[/\\]spikes[/\\]pocket[/\\]openfpgaos[/\\]desktop_main[.]cpp$")
+# This optional reference-backed experiment needs its pinned generated header.
+# Analyze it with hybrid-renderer-tidy.ps1 after preparing the reference; a
+# normal host checkout does not require downloaded engine sources under out/.
+list(FILTER RPCMP_TIDY_FILES EXCLUDE REGEX "[/\\]spikes[/\\]pocket[/\\]openfpgaos[/\\]hybrid_renderer[.]cpp$")
 
 if(RPCMP_ENABLE_CLANG_TOOLS)
   if(RPCMP_LLVM_VERSION STREQUAL "")
@@ -223,6 +227,8 @@ rpcmp_production_options(rpcmp_pocket_player)
 add_library(rpcmp_pocket_player_compile_check OBJECT spikes/pocket/openfpgaos/player_main.cpp)
 target_link_libraries(rpcmp_pocket_player_compile_check PRIVATE rpcmp_pocket_player)
 rpcmp_production_options(rpcmp_pocket_player_compile_check)
+add_library(rpcmp_hybrid_app_compile_check OBJECT spikes/pocket/openfpgaos/hybrid_main.cpp)
+rpcmp_production_options(rpcmp_hybrid_app_compile_check)
 
 add_executable(rpcmp_headless_m0 core/platform/host/headless_main.cpp)
 target_link_libraries(rpcmp_headless_m0 PRIVATE rpcmp_runtime)
