@@ -803,7 +803,10 @@ TransportController::step(const std::uint64_t now_us, const TransportBatch& batc
   fault_observed_ = observation.fault;
   if (new_fault && !state_.terminal)
     fail(TransportFailure::DeviceFault, false);
-  else if (observation.fault)
+  else if (observation.fault && (state_.terminal || !state_.audio_control ||
+                                 state_.audio_control->request.kind != AudioControlKind::Reset))
+    // The original inhibit is latched. Repeating it during recovery would
+    // supersede that Reset; a new fault or timeout still inhibits explicitly.
     audio_port_.emergency_silence();
   if (active_capability_change && state_.failure == TransportFailure::None)
     fail(TransportFailure::DeviceFault, false);

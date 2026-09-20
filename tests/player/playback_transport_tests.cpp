@@ -138,6 +138,8 @@ public:
   void emergency_silence() override {
     inhibited = true;
     ++inhibits;
+    if (fail_reset_on_inhibit && pending && pending->kind == AudioControlKind::Reset)
+      complete(AudioControlOutcome::Failed);
   }
   void complete(const AudioControlOutcome outcome = AudioControlOutcome::Success,
                 const std::uint64_t frame = 0) {
@@ -169,6 +171,7 @@ public:
   unsigned violations{};
   unsigned observations{};
   unsigned inhibits{};
+  bool fail_reset_on_inhibit{};
 
 private:
   std::vector<std::string>& trace_;
@@ -577,6 +580,49 @@ void protocol_and_limits(rpcmp::test::Suite& suite) {
 }
 
 void failure_ownership(rpcmp::test::Suite& suite) {
+  {
+    Rig rig(suite);
+    rig.playing();
+    rig.audio.fail_reset_on_inhibit = true;
+    rig.audio.observation.fault = true;
+    static_cast<void>(rig.tick());
+    const auto recovery = required(rig.audio.pending);
+    const auto inhibits = rig.audio.inhibits;
+    // A latched fault remains visible until Reset completes. Reissuing INHIBIT
+    // while recovery is pending would make the real sound session fail Reset.
+    for (unsigned poll = 0; poll < 3; ++poll) {
+      static_cast<void>(rig.tick());
+      RPCMP_CHECK(suite, !rig.state().terminal && rig.audio.pending &&
+                             rig.audio.pending->operation_id == recovery.operation_id &&
+                             rig.audio.inhibits == inhibits);
+    }
+    rig.audio.observation.fault = false;
+    rig.ack();
+    RPCMP_CHECK(suite, rig.state().silence_confirmed && !rig.state().terminal);
+    rig.accept(TransportIntentKind::PlayTrack, kB1);
+    RPCMP_CHECK(suite, rig.state().failure == TransportFailure::None);
+  }
+  for (const bool new_fault : {false, true}) {
+    Rig rig(suite);
+    rig.playing();
+    rig.audio.fail_reset_on_inhibit = true;
+    rig.audio.observation.fault = true;
+    static_cast<void>(rig.tick());
+    const auto inhibits = rig.audio.inhibits;
+    if (new_fault) {
+      rig.audio.observation.fault = false;
+      static_cast<void>(rig.tick());
+      rig.audio.observation.fault = true;
+      static_cast<void>(rig.tick());
+    } else {
+      const auto deadline = required(rig.state().audio_control).started_at_us + 20;
+      static_cast<void>(rig.controller.step(deadline));
+    }
+    RPCMP_CHECK(suite, rig.audio.inhibits > inhibits && rig.audio.inhibited);
+    if (!new_fault)
+      RPCMP_CHECK(suite,
+                  rig.state().terminal && rig.state().failure == TransportFailure::AudioTimeout);
+  }
   {
     Rig rig(suite);
     rig.playing();

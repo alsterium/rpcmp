@@ -150,6 +150,12 @@ after a successfully cleared/reset fault starts a new failure/reset generation,
 even while the earlier DeviceFault error still awaits recovery selection.
 Stop cannot turn a failed reset into a successful-looking state.
 
+During a pending recovery Reset, repeated observations of the same latched
+fault do not issue another emergency request: the original inhibit remains
+latched until that Reset completes. A new fault edge, timeout, terminal state
+or invalid completion still inhibits explicitly. This preserves recovery on
+the sound session, where a newer emergency request supersedes pending Reset.
+
 ## Deadlines and verification
 
 Preparation and control deadlines are injected positive u64 microsecond durations.

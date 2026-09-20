@@ -2381,3 +2381,40 @@ firmware 2.6 hardware checks were not repeated. The enclosing AudioTransportPort
 backend, real producer/history service, storage adapter, combined memory and
 whole-Pocket integration remain pending. Client compile/link and scripted
 clock checks do not establish a measured Pocket service deadline or playback.
+
+## Slice 4 recovery Reset integration correction — 2026-09-20
+
+Connecting the real sound client exposed a Core control-loop error: each
+repeated observation of a latched device fault sent another INHIBIT during
+the recovery Reset. The sound session correctly treats a newer emergency as
+superseding that Reset, so polling the old fault could make recovery fail.
+A focused scripted port with that documented Reset/emergency rule reproduced
+seven failed assertions before the correction. The controller now preserves
+the existing latched inhibit while the same fault's recovery Reset is pending.
+New fault edges, control timeouts, terminal failure and invalid Reset ACKs keep
+their explicit inhibit paths. This restores the adopted recovery semantics;
+it does not weaken the sound session or change its hardware protocol.
+
+`pwsh -File out/build/m6-reset-recovery-focused.ps1` passes
+`playback_transport`, including persistent-fault recovery, a new fault while
+Reset is pending and recovery timeout. The reproduction and passing logs are
+`out/build/m6-reset-recovery-{repro,focused}.log`.
+The Docker `m6-reset-recovery-sanitize.py` run passes the controller test with
+GCC 13.3.0, AddressSanitizer/UndefinedBehaviorSanitizer, leak detection and
+halt-on-error. The existing `m6-settings-cross/Makefile settings-check` probe
+rebuilds the changed controller with RISC-V GCC 14.2.0 and passes link/budget
+checks: text 65,504, data 188, BSS 904,176 bytes, total 969,868; 185 compiled
+stack records total 131,024, largest probe-main frame 60,976, no dynamic frames.
+Limits remain 56,623,104 static / 4,096 data / 524,288 stack bytes. Logs:
+`out/build/m6-reset-recovery-{sanitize,cross}.log`. This is a compile/link probe,
+not execution of the Pocket backend or a measured device stack high-water mark.
+
+`pwsh -File tools/host-verify.ps1` runs all 80 gates: 79 pass, including tidy
+(483.57 s), architecture and incremental rebuild; only format fails because
+the initial formatting command was denied by the sandbox. After applying the
+pinned formatter with approved access, `ctest --preset host-msvc --rerun-failed
+--output-on-failure` passes format. No warning suppression or test relaxation
+was added. Logs: `out/build/m6-reset-recovery-{host,rerun}.log`.
+RTL/fit and firmware checks were not rerun for this Core-only correction.
+The separately in-progress MDX backend is not covered by this correction's
+completion evidence; its integration tests and target probes remain pending.
