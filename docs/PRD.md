@@ -1,6 +1,6 @@
 # Retro PC Music Player — Product Requirements Document
 
-- **Version:** 0.5
+- **Version:** 0.6
 - **Target:** Analogue Pocket / openFPGA
 - **Architecture:** Utility + Library Container + Player Core + Replaceable UI Layer
 - **MVP target:** MDXPlayer-compatible MDX / YM2151 + PDX/ADPCM/PCM8
@@ -12,8 +12,13 @@ there must be supported. The MVP interaction is track selection, play and stop;
 PCM is required. This replaces the earlier FM-only release scope and prioritizes
 compatibility over M6 visualization/policy expansion. See the
 [reference baseline and acceptance definition](research/mdxplayer-compatibility.md).
-Existing v1 contracts remain valid for the implemented subset; extending or
-replacing them requires a separately recorded implementation contract.
+On 2026-09-21 the user approved the hybrid verification direction and the
+[project charter](../AGENTS.md#project-charter-2026-09-21). Previous RPCMP APIs,
+formats and implementations need not remain compatible. Implement the smallest
+working slice, document changed boundaries, and retain only useful separation;
+music compatibility, input safety and audio independence remain required.
+The existing container/UI descriptions below describe the implemented baseline;
+they do not require preserving it in the replacement player.
 
 ## 1. Product vision
 

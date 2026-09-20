@@ -100,7 +100,11 @@ Errors are typed by domain (`library`, `format`, `device`, `resource`, `unsuppor
 
 ## 10. Evolution
 
-- Additive fields require defaults and capability negotiation.
-- Breaking contracts increment major versions.
+- Follow the [project charter](../AGENTS.md#project-charter-2026-09-21): preserve
+  useful boundaries, not compatibility machinery. Existing RPCMP consumers may
+  be updated together; parallel old/new implementations are not required.
+- Version breaking serialized/hardware formats and reject mismatches explicitly.
 - Device-specific snapshot extensions use `(extension_type, extension_version, payload)` and remain optional.
-- Architectural decisions are recorded in `docs/adr/` before choices lock in language, build system, third-party cores, or hardware protocol.
+- Record concrete boundary/dependency decisions before implementation. A short
+  section in the active design is sufficient for a bounded experiment; create an
+  ADR when a lasting choice needs one, without duplicating the same decision.

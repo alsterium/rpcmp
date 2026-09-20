@@ -31,7 +31,7 @@ class HarnessTests(unittest.TestCase):
                 target = self.root / source.relative_to(ROOT)
                 target.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copyfile(source, target)
-        for name in ("README.md", "CMakePresets.json"):
+        for name in ("AGENTS.md", "README.md", "CMakePresets.json"):
             shutil.copyfile(ROOT / name, self.root / name)
 
     def test_repository_passes(self):

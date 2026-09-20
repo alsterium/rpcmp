@@ -2,6 +2,24 @@
 
 This repository is a specification-first handoff for Retro PC Music Player (RPCMP).
 
+## Project charter (2026-09-21)
+
+- Deliver the current user outcome by the shortest practical, simple implementation.
+  For this MVP that means MDXPlayer-compatible FM/PCM playback, selection and stop.
+- Backward compatibility with RPCMP's previous APIs, file formats and experimental
+  implementations is not a requirement. Do not add compatibility wrappers, dual
+  paths or migration machinery unless the user requests them. This does not waive
+  compatibility with the user's MDX/PDX music and selected playback reference.
+- Keep only the separation needed for correct audio, headless verification and
+  likely changes. Add an abstraction when a concrete use needs it; do not build
+  speculative extension frameworks or preserve layers merely because they exist.
+- Record the small behavior/boundary being changed, implement it end to end, and
+  measure it. Prefer a short contract in the active design over additional layers
+  of proposals. Within the approved direction, update superseded contracts in the
+  same change without asking for repeated compatibility approval.
+- Simplicity does not waive input bounds, licensing, audio/UI independence or
+  truthful verification. Focus checks on changed inputs and observable behavior.
+
 ## Read first
 
 1. `docs/PRD.md`
@@ -9,7 +27,7 @@ This repository is a specification-first handoff for Retro PC Music Player (RPCM
 3. `docs/CURRENT.md`, then the active milestone it links
 4. Relevant contracts in `specs/`
 
-The documents above are the system of record. If implementation and documentation disagree, identify the exact conflict and stop the affected change until it is resolved explicitly. Continue independent authorized work. Correct stale navigation against milestone evidence; do not silently change a public contract.
+The documents above are the system of record. If implementation and documentation disagree, identify the exact conflict. Resolve it from the user's latest approved direction and update the affected documents; stop only when an unresolved product decision is needed. Continue independent authorized work. Correct stale navigation against milestone evidence; record public-contract changes explicitly.
 
 ## Architectural invariants
 
@@ -27,7 +45,7 @@ The documents above are the system of record. If implementation and documentatio
 ## Working rules
 
 - Implement one milestone at a time. Do not implement future milestones speculatively.
-- Preserve public API compatibility within a spec version. Propose spec changes before coding them.
+- Describe changed boundaries before coding them and update affected contracts. Version breaking serialized/hardware formats so mismatches fail clearly; backward-compatible implementations are not required by default.
 - Prefer deterministic, host-runnable tests. Keep hardware-only verification as a final integration layer.
 - Isolate platform, filesystem, clock, input, audio sink, and FPGA device access behind ports/adapters.
 - Use fixed-width integer types and explicit endianness for serialized or hardware-facing data.

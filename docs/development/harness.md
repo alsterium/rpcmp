@@ -40,6 +40,25 @@ running session, personal skills, permissions, or global Codex settings.
 
 ## Work loop
 
+Apply the [project charter](../../AGENTS.md#project-charter-2026-09-21): choose
+the smallest connected behavior that advances the current MVP, implement it
+directly, and measure it. Previous RPCMP API/format compatibility is optional;
+MDXPlayer music compatibility remains the product goal. Do not add compatibility
+adapters, generalized infrastructure or another proposal/approval cycle for an
+already authorized direction. Describe changed boundaries briefly in the active
+design before implementation and keep the affected contracts accurate.
+
+For a bounded experiment, keep its runner and assertions small and reproducible;
+generated binaries, private music, traces and audio stay in ignored `out/`.
+Report the experiment's limits before promoting it to a target implementation.
+Use the existing Fast/Full workflow below; a new framework or verification cache
+is not needed to implement this charter.
+
+The charter update passed `python -B tests/harness/harness_tests.py HarnessTests`
+(9/9) and `pwsh -File tools/host-verify.ps1 -Mode Full` (87/87, 537.36 s;
+tidy 519.38 s). The navigation fixture now includes `AGENTS.md` because the
+workflow links to its charter. Runner/preset behavior is unchanged.
+
 Read `AGENTS.md`, PRD, architecture, [current work](../CURRENT.md), and relevant
 contracts. Briefly identify the requested outcome and the smallest slice that
 achieves it. Reproduce a behavioral failure, implement that slice, run focused
