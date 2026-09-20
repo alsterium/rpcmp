@@ -87,8 +87,18 @@ existing direct callers tie it low and retain `stream_reset` fault semantics.
 [sound session](../../specs/pocket-sound-session-v1.md): copied, one-slot control
 requests and held responses, normal Reset, generation/epoch admission, boundary
 controls and independent emergency inhibit. It consumes native receipts locally.
-It still needs the CPU MMIO/CDC adapter, retained producer and bounded history
-journal before Pocket integration; its local bounds are not CPU deadlines.
+Its local bounds exclude CPU transfer time. The MMIO layer below supplies CDC;
+the retained producer and bounded history journal precede Pocket integration.
+
+`pocket/rpcmp_sound_mmio.sv` implements the separately specified
+[CPU-local MMIO](../../specs/pocket-sound-mmio-v1.md) with three instances of
+`pocket/rpcmp_sound_mailbox.sv`. The source and destination copy complete held
+bundles behind synchronized request/ACK toggles. Snapshot words come from one
+audio capture; legacy register maps and the old board shell are unchanged.
+Either platform reset asserts a common reset with per-domain release. Emergency
+delivery uses its own acknowledged toggle and retained follow-up request.
+This new block still requires board decode, CPU backend and output-journal
+integration; its first revision advertises only control/feed/capture.
 
 `pocket/rpcmp_m2_fixed_core.sv` is the ADR-0007 hardware-validation substrate.
 It reproduces the frozen 17-operation fixture as MMIO transactions into the v1

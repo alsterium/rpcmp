@@ -179,6 +179,19 @@ bounds are 2,050 audio edges for Reset, 259 for Start and 257 for boundary contr
 Use `pwsh -File tools/rtl-enveloped-audio-verify.ps1 -SessionOnly` for this focused
 bench; omit the switch for all four native integration benches.
 
+`pwsh -File tools/rtl-sound-mmio-verify.ps1` tests the new CPU-local protocol
+using five initial phases of independent 90 MHz/12.288 MHz clocks. It checks
+every register's access direction, illegal/reserved/partial accesses, copied
+request and response identity, all feed payload bits at the session boundary,
+actual authored native bus bytes, Full/retry, coherent captures across playback
+and policy changes, emergency follow-up delivery and both common-reset origins
+at six transfer stages for each of three mailboxes. The exact CPU-visible
+completion edges are bounded independently of test software polling. Use
+`-PhasePs 0` for one focused phase; the default runs the complete phase set.
+Every invocation also runs the generic mailbox bench with 64 full-width
+requests/responses, destination acceptance/response delays and unread source
+completions, checking that borrowed bundles stay fixed without loss or repeats.
+
 Run the reproducible Quartus template-integration build separately with:
 
 ```powershell

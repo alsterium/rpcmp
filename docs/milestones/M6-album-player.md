@@ -125,6 +125,11 @@ MDX feeding and bounded output history. Its first implementation contract is
 [Pocket sound session v1](../../specs/pocket-sound-session-v1.md). Exact MMIO
 words and CPU/CDC deadlines will be specified and verified before their layer
 is implemented; this approval does not predeclare their acceptance.
+The next layer is specified in [Pocket sound MMIO v1](../../specs/pocket-sound-mmio-v1.md):
+three copied request/response mailboxes, coherent state capture and an independent
+acknowledged emergency notification. Epoch is the session's checked feed epoch;
+old transfers drain with their original identity rather than resetting toggles
+while data is borrowed. Journal capability remains unadvertised until its layer.
 
 ## Slices and acceptance
 
@@ -1950,3 +1955,125 @@ this unit has no CPU/board integration. Unchanged standalone envelope arithmetic
 and output-only benches were not repeated; affected native integration ran.
 Next is the approved CPU MMIO/CDC layer with concrete word layout and derived
 ACK deadlines, followed by retained MDX feeding and bounded output history.
+
+## Slice 4 sound MMIO execution — 2026-09-13 / 2026-09-20
+
+The new CPU-local block at `0x40000400` transports control, feed and capture
+through independent copied mailboxes. Staging may change while an older copy
+is outstanding; response words remain fixed until explicit release. The
+session remains the semantic validator. Feed Full returns a completed result
+without occupying control; retry requires a new explicit submit. Epochs are
+checked without resetting a borrowed toggle. A reset originating at either
+platform domain asserts common reset, followed by independent synchronized
+release. The emergency path acknowledges delivery and retains one coalesced
+follow-up, so a later short write cannot disappear behind an earlier ACK.
+Journal capability is reserved, not advertised by this implementation.
+
+Executed on 2026-09-13:
+
+- `pwsh -File tools/rtl-sound-mmio-verify.ps1`: PASS. The generic 129-bit request /
+  257-bit response bench completes 64 requests and responses with destination
+  and source backpressure. The native MMIO integration passes initial audio
+  phase offsets 0, 173, 5,555, 40,690 and 81,379 ps. Each completes 13 control,
+  70 feed and 29 capture transactions and 18 reset-stage cases. Actual nonzero
+  serial-bit counts are 3,081 except at 5,555 and 81,379 ps, which give 3,080.
+  All positive simulations report zero errors/warnings.
+  Log: `out/build/m6-mmio-rtl.log`.
+- The independent test software checks every register access direction,
+  reserved/partial/misaligned/out-of-range accesses, complete feed payloads at
+  the session boundary, 28 authored native tone writes, queue Full/retry,
+  coherent capture and retained responses during live policy/playback changes.
+  Reset covers six transfer stages in each mailbox, alternating the originating
+  domain. Emergency follow-up, failed Reset/recovery, actual starvation and
+  natural end are exercised. Completion latency is checked at the first CPU
+  visibility edge rather than at the later software poll.
+- `pwsh -File out/build/m6-mmio-negative.ps1`: five expected mutants rejected:
+  live rather than held requests, live capture-frame words, replacing offered
+  epochs with the current epoch, dropped emergency follow-up, and ignoring the
+  audio reset input. Each produces its targeted failure, one error, zero
+  warnings and no PASS marker. A strengthened full-payload oracle caught the
+  live-request mutant earlier than the original helper expected; only that
+  expected diagnostic was corrected. Production files were not mutated.
+- `pwsh -File tools/host-verify.ps1`: 77/77 PASS, 458.98 seconds, including
+  format (0.46 s), tidy (443.19 s) and architecture rejection fixtures.
+  Log: `out/build/m6-mmio-host.log`.
+
+The initial seed-1 Auto Fit at 90 MHz CPU /
+12.288 MHz audio had Fast/0 C hold slack -0.006 ns. A second fit imposed an
+additional 0.100 ns minimum delay on the synchronous receipt-token-to-completion
+RAM interface; it still missed that stronger requirement (worst -0.076 ns).
+Neither initial fit is recorded as timing acceptance. No clock was slowed,
+path hidden or RTL failure converted to success.
+
+On 2026-09-20, `pwsh -File out/build/m6-mmio-fit-r2.ps1` reran the same RTL,
+seed and constraints with Standard Fit / Extra physical synthesis effort.
+Quartus 25.1std.0 Build 1129 passes all 40 timing summaries, including the
+additional 0.100 ns receipt-interface hold requirement. The registered local
+probe (`out/research/m6-mmio-timing-r2`) uses 6,215 ALMs, 10,288 registers,
+72,168 memory bits, 27 M10Ks and three DSPs on 5CEBA4F23C8. Its CPU command
+shift register is 70 bits and observation register 34 bits; audio fault and
+two observed audio bits are registered. Nine fixture pins have no Pocket pin
+assignment; forwarded MCLK is not treated as data.
+
+| Timing model / clock | Setup | Hold | Recovery | Removal | Pulse width |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Slow 85 C / CPU | 1.517 | 0.371 | 6.294 | 1.044 | 4.784 |
+| Slow 85 C / audio | 14.353 | 0.285 | 68.058 | 3.152 | 39.068 |
+| Slow 0 C / CPU | 1.399 | 0.359 | 6.539 | 0.969 | 4.637 |
+| Slow 0 C / audio | 11.910 | 0.277 | 68.504 | 2.998 | 38.976 |
+| Fast 85 C / CPU | 6.393 | 0.162 | 8.611 | 0.392 | 4.964 |
+| Fast 85 C / audio | 52.481 | 0.133 | 74.698 | 1.321 | 39.476 |
+| Fast 0 C / CPU | 6.703 | 0.132 | 8.918 | 0.355 | 4.962 |
+| Fast 0 C / audio | 53.966 | 0.103 | 75.483 | 1.172 | 39.467 |
+
+All slacks are ns, every TNS is zero, and setup/hold have no unconstrained
+paths. Map's nine warnings are unused write nets in initialized upstream ROMs.
+Fit's three diagnostics concern LogicLock licensing, incomplete I/O and the
+nine unassigned fixture pins; these are local-probe limitations. STA reports
+zero errors/warnings. Logs: `out/build/m6-mmio-r2-{map,fit,sta}.log`.
+
+From that fitted project, `quartus_sta -t ../../build/m6-mmio-cdc-audit.tcl`
+passes all four corners with zero errors/warnings. It checks every optimized
+bundle destination (694 request and 1,421 response bits); a separate complete
+clock-to-clock query has exactly those same endpoint counts. Maximum request
+data delay is 3.898 ns against 81.380 ns; maximum response delay is 4.738 ns
+against 11.111 ns. Minimum bundle setup slack is 5.802 ns. All 13 explicit
+first-to-second synchronizer pairs have positive setup/hold. The exception
+reports preserve bundle setup and second-stage timing, with only justified
+first-stage/reset exceptions and bundle hold exceptions. No blanket clock
+group exception is used. The tool recognizes all 13 chains; its inferred
+inhibit-status chain extends into the fixture's observation shift register,
+so the reported MTBF is not promoted to a board reliability guarantee.
+Log: `out/build/m6-mmio-r2-cdc-audit.log`; endpoint evidence:
+`out/build/m6-mmio-cdc-paths.txt`.
+
+`python -B out/build/m6-mmio-checks.py` passes ten source/probe hashes, changed
+Markdown links, all 40 timing summaries, zero unconstrained setup/hold paths,
+CDC coverage and expected warning counts. The contract records the derived
+CPU-visible edge bounds; a watchdog value has not been adopted.
+
+The host changed during the interruption: Scoop's current LLVM became 23.1.1
+while 22.1.8 remained installed. The initial setup correctly failed the pin;
+process-local PATH selected 22.1.8 and setup passed. The first full configure
+still selected Scoop's current path via the cached/CMake hint, so the local
+build cache was given explicit 22.1.8 format/tidy paths. No repository pin,
+global tool selection or quality gate was relaxed. With those paths,
+`pwsh -File out/build/m6-mmio-host-sep20.ps1` configures then executes
+`pwsh -File tools/host-verify.ps1`: all 77 tests PASS in 586.18 seconds,
+including format (1.68 s), tidy (556.76 s), harness, incremental rebuild and
+architecture checks. Log: `out/build/m6-mmio-host-sep20.log`.
+
+`pwsh -File tools/rtl-verify.ps1`, then
+`pwsh -File tools/rtl-jt51-verify.ps1`, pass on 2026-09-20 with nine and five
+benches respectively, each reporting zero errors/warnings. They were run
+sequentially by `out/build/m6-mmio-rtl-regressions.ps1`; logs are
+`out/build/m6-mmio-sep20-{rtl-verify,rtl-jt51-verify}.log`. The unchanged
+standalone media/envelope suites were not repeated; their prior session
+regression evidence is above, and the new MMIO bench exercises the complete
+native/session path. Final link/harness/hash checks and `git diff --check` pass.
+
+Whole-Pocket decode, cross-build, board timing, APF/package and firmware 2.6
+hardware checks were not run: this block is not yet connected to the CPU/board.
+Retained MDX production, bounded output/per-event history and sound/storage
+adapters remain before integration. The watchdog proposal is pending adoption;
+neither the transfer bound nor the local fit is hardware acceptance.
