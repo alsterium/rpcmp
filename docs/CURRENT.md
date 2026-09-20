@@ -12,9 +12,13 @@ The final no-GPU fit uses 16,649/18,480 ALMs, has nonnegative timing across all
 audit. Existing shell external/legacy exceptions remain unproven; this is not
 production-substrate promotion. The licensed
 [bitmap canvas](../specs/pocket-bitmap-canvas-v1.md) now renders all three shared
-views with copied commands and bounded pixel work. Input, the actual service
-loop, SDK framebuffer ownership and the coherent ROM/OS/app package are next.
-No playable M6 image exists for this binding yet;
+views with copied commands and bounded pixel work. The actual
+[Pocket application](development/pocket-player.md) now composes
+catalog/player/backend/UI with APF input, a 64-bit CPU clock and the SDK draw
+surface. Its loop services audio independently of publication and bounded
+rendering; scripted application integration and the full RV32 app link pass.
+The coherent ROM/OS/app package and measured target service cadence are next.
+No installable M6 package exists for this binding yet;
 see the milestone's current evidence.
 On 2026-09-20 the user deferred persistent settings: each application launch
 starts with AlbumOrder / Default (two loops, five-second fade), shuffle off and
@@ -49,8 +53,8 @@ connects preparation, retained MMIO feeding, coherent control/capture ordering
 and output-history publication. Scripted integration checks cover actual
 TransportController/PlayerSession, cancellation, late responses, failure
 recovery and publication-independent supply. See M6 for exact host/sanitizer
-and RISC-V evidence. Real target clock/service cadence and combined
-Pocket integration remain pending.
+and RISC-V evidence. The CPU clock and application loop are now connected;
+measured target cadence and combined Pocket hardware acceptance remain pending.
 The [synchronous sound session](../specs/pocket-sound-session-v1.md) now passes
 all-phase local control/reset/inhibit tests, host/RTL regressions and registered
 fit/timing; the active milestone records the commands and limitations. Pocket
@@ -156,8 +160,9 @@ information/control panel. The host SVG mock links UI/contracts only, with
 bounded text and explicit elision. Authored scenarios and browser-rendered
 images verify mock layout; installed host fonts do not establish Pocket metrics.
 The retained producer and output-history owner now connect through the sound
-backend. The actual AXI sound binding is verified; the Pocket service loop is next;
-the APF settings adapter is deferred by the user's updated requirement.
+backend. The actual AXI sound binding and scripted application service loop
+are verified; coherent packaging and target measurements are next. The APF
+settings adapter is deferred by the user's updated requirement.
 See M6 for the executed checks; this does not establish a working Pocket audio
 adapter, rendered Pocket UI or M6 integration acceptance.
 Use the [transition proposal](design/pocket-player-transition-contract.md),

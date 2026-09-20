@@ -1,11 +1,14 @@
 #include "rpcmp/platform/pocket/mdx_backend.hpp"
+#include "rpcmp/platform/pocket/player_application.hpp"
 #include "rpcmp/player/player_session.hpp"
 #include "rpcmp/utility/writer.hpp"
 #include "test_support.hpp"
 
+#include <algorithm>
 #include <deque>
 #include <fstream>
 #include <iostream>
+#include <limits>
 #include <memory>
 #include <stdexcept>
 #include <string>
@@ -590,6 +593,211 @@ void publication_independence(rpcmp::test::Suite& suite) {
   RPCMP_CHECK(suite,
               absent.size() > 300 && run(true, false) == absent && run(true, true) == absent);
 }
+struct Display final : pocket::PlayerDisplay {
+  std::array<std::uint8_t, std::size_t{640} * 480> pixels{};
+  unsigned acquisitions{}, attempts{}, frames{};
+  bool busy{true}, broken{}, invalid_surface{};
+  pocket::DrawSurface acquire() noexcept override {
+    ++acquisitions;
+    return {invalid_surface ? nullptr : pixels.data(), pixels.size(), 640};
+  }
+  pocket::PresentResult present() noexcept override {
+    ++attempts;
+    if (broken)
+      return pocket::PresentResult::Failed;
+    if (busy)
+      return pocket::PresentResult::Busy;
+    ++frames;
+    return pocket::PresentResult::Presented;
+  }
+};
+struct Random final : player::RandomSource {
+  bool next(std::uint32_t& value) override {
+    value = 123;
+    return true;
+  }
+};
+void application(rpcmp::test::Suite& suite) {
+  namespace ui = rpcmp::ui::v2;
+  // Construct two independent launches against the same immutable library.
+  // The first changes policy; the next must still boot with the defaults.
+  const auto bytes = library_bytes(false, 0);
+  player::CatalogSession catalog;
+  const auto opened = catalog.begin_open();
+  RPCMP_CHECK(suite, catalog.complete_open(opened.generation, {bytes.data(), bytes.size()}).ok());
+  for (unsigned launch = 0; launch < 2; ++launch) {
+    Sound sound;
+    Clock clock;
+    Random random;
+    auto display = std::make_unique<Display>();
+    auto app = std::make_unique<pocket::PlayerApplication>(catalog, sound, clock, *display, random);
+    RPCMP_CHECK(suite, app->initialize());
+    const auto run = [&](unsigned count, std::uint16_t buttons = 0) {
+      for (unsigned i = 0; i < count; ++i) {
+        sound.deliver();
+        clock.now += 100;
+        app->step({buttons, true});
+      }
+    };
+    const auto press = [&](std::uint16_t buttons) {
+      run(60, buttons);
+      run(60);
+    };
+    run(100, 0x10); // A held at boot must not generate a confirmation.
+    run(100);
+    RPCMP_CHECK(suite, app->view().valid_snapshot && !app->view().snapshot.track &&
+                           !app->view().snapshot.error);
+    RPCMP_CHECK(suite, !app->view().snapshot.settings &&
+                           (app->view().snapshot.capabilities.bits & api::kPlaybackSettings) == 0);
+    RPCMP_CHECK(suite, app->view().snapshot.policy &&
+                           app->view().snapshot.policy->desired == api::PlaybackPolicy{});
+    RPCMP_CHECK(suite, std::find(sound.controls.begin(), sound.controls.end(), 1U) ==
+                           sound.controls.end());
+    press(0x20); // B: empty monitor -> albums.
+    RPCMP_CHECK(suite, app->view().main == ui::View::Library &&
+                           app->view().browser.level == ui::BrowseLevel::Albums);
+    press(0x10); // A: album -> tracks.
+    RPCMP_CHECK(suite, app->view().browser.level == ui::BrowseLevel::Tracks);
+    press(0x10); // A: select and start through the actual command ingress.
+    run(200);
+    RPCMP_CHECK(suite, app->view().snapshot.transport == TransportState::Playing &&
+                           !app->view().snapshot.error && !sound.accepted.empty());
+    // Hold presentation for much longer than the audio watchdog. Rendering must
+    // finish only once, retain its surface and keep draining copied mailboxes.
+    run(5000);
+    RPCMP_CHECK(suite, display->attempts > 100 && display->acquisitions == 1 &&
+                           display->frames == 0 && sound.inhibits == 0 && sound.violations == 0);
+    RPCMP_CHECK(suite, app->metrics().service_calls > 10000);
+    press(0x10);
+    RPCMP_CHECK(suite, app->view().snapshot.transport == TransportState::Paused);
+    press(0x10);
+    RPCMP_CHECK(suite, app->view().snapshot.transport == TransportState::Playing);
+    press(2); // Down: PlayPause -> Repeat.
+    RPCMP_CHECK(suite, app->view().focus == ui::Focus::Repeat);
+    press(0x10);
+    RPCMP_CHECK(suite,
+                app->view().snapshot.policy &&
+                    app->view().snapshot.policy->desired.repeat == api::RepeatMode::Counted &&
+                    app->view().snapshot.policy->desired.count == 3U);
+    press(8); // Right: Repeat -> Shuffle.
+    press(0x10);
+    RPCMP_CHECK(suite, app->view().snapshot.policy && app->view().snapshot.policy->desired.order ==
+                                                          api::PlaybackOrder::ShuffleLibrary);
+    press(0x20);
+    RPCMP_CHECK(suite, app->view().snapshot.transport == TransportState::Stopped &&
+                           app->view().snapshot.silence_confirmed);
+    press(0x20);
+    RPCMP_CHECK(suite, app->view().main == ui::View::Library);
+    display->busy = false;
+    run(1);
+    RPCMP_CHECK(suite, display->frames == 1 && app->metrics().frames == 1);
+    if (launch == 0) {
+      display->broken = true;
+      run(5000);
+      RPCMP_CHECK(suite,
+                  app->failure() == pocket::ApplicationFailure::Display && sound.inhibits == 1);
+    } else {
+      clock.now = 0;
+      app->step({});
+      RPCMP_CHECK(suite,
+                  app->failure() == pocket::ApplicationFailure::Clock && sound.inhibits == 1);
+    }
+  }
+  Sound sound;
+  Clock clock;
+  Random random;
+  auto display = std::make_unique<Display>();
+  display->invalid_surface = true;
+  auto app = std::make_unique<pocket::PlayerApplication>(catalog, sound, clock, *display, random);
+  RPCMP_CHECK(suite, app->initialize());
+  app->step({});
+  RPCMP_CHECK(suite, app->failure() == pocket::ApplicationFailure::Canvas && sound.inhibits == 1);
+}
+
+void platform_input_clock(rpcmp::test::Suite& suite) {
+  namespace ui = rpcmp::ui::v2;
+  ui::InputMapper mapper{pocket::pocket_input_bindings()};
+  RPCMP_CHECK(suite, mapper.sample(pocket::pocket_input_sample(0x10000000), 0) == ui::Action::None);
+  RPCMP_CHECK(suite,
+              mapper.sample(pocket::pocket_input_sample(0x10000010), 1) == ui::Action::Confirm);
+  RPCMP_CHECK(suite, mapper.sample(pocket::pocket_input_sample(0x00000020), 2) == ui::Action::None);
+  RPCMP_CHECK(suite, mapper.sample(pocket::pocket_input_sample(0x20000020), 3) == ui::Action::None);
+  RPCMP_CHECK(suite, mapper.sample(pocket::pocket_input_sample(0x20000000), 4) == ui::Action::None);
+  RPCMP_CHECK(suite, mapper.sample(pocket::pocket_input_sample(0x20000020), 5) == ui::Action::Back);
+  RPCMP_CHECK(suite, !pocket::pocket_input_sample(0x40000010).connected &&
+                         pocket::pocket_input_sample(0x30000100).connected);
+  struct Counter final : pocket::IMmio32 {
+    std::deque<std::uint32_t> highs{0, 1, 1, 1};
+    std::uint32_t low{90};
+    bool unstable{};
+    std::uint32_t read(std::uintptr_t address) noexcept override {
+      if (address == 0x40000004)
+        return low;
+      if (unstable)
+        return ++low;
+      const auto result = highs.front();
+      if (highs.size() > 1)
+        highs.pop_front();
+      return result;
+    }
+    void write(std::uintptr_t, std::uint32_t) noexcept override {}
+  } counter;
+  pocket::PocketClock clock{counter, 90'000'000};
+  RPCMP_CHECK(suite, clock.now_us() == 47'721'859); // (2^32 + 90) / 90 after a wrap retry.
+  counter.highs = {0};
+  RPCMP_CHECK(suite, clock.now_us() == std::numeric_limits<std::uint64_t>::max() && !clock.valid());
+  counter.unstable = true;
+  pocket::PocketClock unstable{counter, 90'000'000};
+  RPCMP_CHECK(suite, unstable.now_us() == std::numeric_limits<std::uint64_t>::max());
+  pocket::PocketClock invalid{counter, 90'000'001};
+  RPCMP_CHECK(suite, !invalid.valid());
+}
+
+void application_library(rpcmp::test::Suite& suite) {
+  struct Slot final : pocket::LibrarySlot {
+    std::vector<std::uint8_t> bytes{library_bytes(false, 0)};
+    std::uint32_t reported{static_cast<std::uint32_t>(bytes.size())};
+    std::uint32_t reads{}, read_bytes{};
+    bool fail{};
+    bool size(std::uint32_t& result) noexcept override {
+      result = reported;
+      return true;
+    }
+    bool read(std::uint32_t offset, std::uint8_t* output, std::uint32_t count) noexcept override {
+      ++reads;
+      if (fail || count > pocket::kLibraryReadChunk || offset != read_bytes ||
+          offset > bytes.size() || count > bytes.size() - offset)
+        return false;
+      std::copy_n(bytes.data() + offset, count, output);
+      read_bytes += count;
+      return true;
+    }
+  } slot;
+  player::CatalogSession catalog;
+  std::vector<std::uint8_t> storage(static_cast<std::size_t>(rpcmp::library::kAlbumMaxFileBytes));
+  RPCMP_CHECK(suite,
+              pocket::load_player_library(slot, storage.data(), storage.size(), catalog).ok());
+  slot.reported = static_cast<std::uint32_t>(storage.size()) + 1;
+  RPCMP_CHECK(suite,
+              !pocket::load_player_library(slot, storage.data(), storage.size(), catalog).ok() &&
+                  slot.reads == 1);
+  slot.reported = 0;
+  RPCMP_CHECK(suite,
+              !pocket::load_player_library(slot, storage.data(), storage.size(), catalog).ok() &&
+                  slot.reads == 1);
+  // A full 32 MiB external input is chunked within bounds, then rejected by the
+  // existing catalog validator (zeroed input has no valid RPCMLIB header).
+  slot.bytes.assign(storage.size(), 0);
+  slot.reported = static_cast<std::uint32_t>(slot.bytes.size());
+  slot.read_bytes = 0;
+  const auto invalid = pocket::load_player_library(slot, storage.data(), storage.size(), catalog);
+  RPCMP_CHECK(suite, invalid.error == player::CatalogChangeError::InvalidLibrary &&
+                         slot.read_bytes == storage.size() && slot.reads == 513);
+  slot.fail = true;
+  RPCMP_CHECK(suite,
+              pocket::load_player_library(slot, storage.data(), storage.size(), catalog).error ==
+                  player::CatalogChangeError::ReadFailed);
+}
 } // namespace
 
 int main() {
@@ -603,6 +811,9 @@ int main() {
     critical_timeout_recovery(suite);
     closed_feed(suite);
     publication_independence(suite);
+    platform_input_clock(suite);
+    application_library(suite);
+    application(suite);
   } catch (const std::exception& error) {
     std::cerr << "Backend fixture failed: " << error.what() << '\n';
     return 1;

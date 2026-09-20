@@ -2835,3 +2835,78 @@ binding. Settings remain per-launch defaults with no storage adapter.
 Next: real input, service-loop cadence, SDK framebuffer presentation and the
 coherent ROM/OS/app package. Font-coverage notices during PC ingestion and
 on-device density/readability remain integration work.
+
+### Slice 5 actual Pocket application integration (2026-09-20)
+
+The [M6 application](../development/pocket-player.md) now connects the real
+CatalogSession, PocketMdxBackend, PlayerSession, PlayerUi and BitmapCanvas.
+This is the actual target composition and main loop, not a standalone link
+probe. The SDK bridge loads slot 4 in 64 KiB chunks (32 MiB maximum), checks
+the 640x480 indexed CPU-video profile and retains the OS-owned draw surface
+until a completed frame is submitted without a pending swap. APF PAD input
+uses replaceable bindings and coherent type/button words. A bounded high/low/
+high CPU-cycle reader uses the OS's live frequency to supply 64-bit time.
+
+Sound service and Core stepping run every iteration, independently of the
+5 ms publication/input interval and 33,333 us minimum frame interval. Pixel
+work is limited to 256 per pump, with sound service between pumps. Maximum
+service gaps and record/pump/present durations are retained for diagnostics.
+The approved 1000 us sound mailbox watchdog is unchanged; transport preparation
+and control deadlines are 5 s and 100 ms. These configured intervals are not
+measured CPU timing guarantees. In particular, the pinned OS still cleans the
+whole framebuffer during flip, and synchronous MDX admission/command recording
+still need target measurements.
+
+Every launch uses AlbumOrder / Default (two loops and five-second fade),
+shuffle off and no autoplay. The composition provides no settings storage;
+the published `kPlaybackSettings` bit and settings observation are absent.
+In-session repeat/shuffle changes work through the existing command ingress.
+No existing optional settings implementation was removed or weakened.
+
+Executed checks:
+
+- Focused MSVC build of `rpcmp_mdx_backend_tests` and the target-main compile
+  check, then `ctest --preset host-msvc -R '^mdx_backend$'`: **1/1 PASS**, 0.26 s.
+  New scenarios operate the actual application through copied sound mailboxes:
+  album/track selection, A pause/resume, B stop/back, repeat and shuffle, two
+  independent launches, and long display backpressure with retained surface
+  and continuing input/mailbox service. Fatal canvas/display/reversed-clock
+  cases request INHIBIT. Timer rollover/retry and 32 MiB loader bounds pass.
+  This scripted device is not an RTL or audible-output simulation.
+- `pwsh -File tools/host-verify.ps1` executed all **83** gates in **508.17 s**:
+  **82 passed**, including formatting, architecture/rejection fixtures and
+  the full clang-tidy gate (491.35 s). The sole failure was `harness_negative`:
+  its isolated documentation tree did not contain the new README in `spikes/`.
+  Moving that new document to `docs/development/pocket-player.md` and updating
+  its link fixed the input layout without changing the test or checker.
+  `ctest --preset host-msvc --rerun-failed --output-on-failure` then passed
+  **1/1**, 0.95 s, and `ctest --preset host-msvc -R '^harness$'
+  --output-on-failure` passed **1/1**, 0.07 s. Thus every gate passed, with the
+  documentation-only correction checked separately; this was not a second
+  full-suite run. Full log: `out/build/m6-player-app-host.log`.
+- Changed-file clang-tidy passed before the full gate. Initial warnings in the
+  new code concerned integer-width multiplication and use of `empty()`; both
+  were corrected without suppressions. Log: `out/build/m6-player-app-tidy-final.log`.
+- Docker `python3 out/build/m6-player-app-sanitize.py`: **PASS** with native
+  GCC AddressSanitizer and UndefinedBehaviorSanitizer. This includes the
+  existing backend tests and new real-application scenarios. Log:
+  `out/build/m6-player-app-sanitize.log`.
+- Docker `make -j4 -f spikes/pocket/openfpgaos/player.mk player-check`: **PASS**
+  using GCC 14.2.0 and the pinned SDK. The complete RV32IMAFC / ILP32F app links
+  without undefined symbols and with `-Werror`, no exceptions/RTTI. Text is
+  **472036**, initialized data **228**, BSS **34888240**, total static
+  **35360504 bytes**, leaving **21262600 bytes** in the 54 MiB app region.
+  The conservative recorded stack sum is **120512 bytes**, largest frame
+  **9600**, within the 512 KiB limit. BSS includes the full 32 MiB library
+  reservation and actual application owners. OS framebuffers remain in their
+  separate SDK regions. These are link budgets, not peak runtime measurements.
+  Final log: `out/build/m6-player-app-cross-final.log`; budget:
+  `out/build/pocket-m6-player/budget.json`; ELF SHA-256:
+  `eed972b30445c6d2ce4afabc55b63fbb717fd72ce04940ac8adadda8452b295e`.
+
+No RTL, FPGA fit or hardware checks were rerun: this unit changes CPU application
+composition, SDK adaptation, build and host tests; the verified sound binding
+is unchanged. There is still no coherent installable M6 package. Next: adapt
+boot-failure handling to RSM1, pair the boot ROM/OS, assemble the matching FPGA
+image and application, then measure service cadence and verify real Pocket
+input, display and playback. Persistent storage remains deferred.

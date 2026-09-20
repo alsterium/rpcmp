@@ -52,6 +52,15 @@ and a journal-only timeout makes display Waiting without inhibiting sound.
 Absent/dense public snapshots and delayed journal replies must produce the
 same feed offers. These do not measure target service speed or run RTL.
 
+The same gate also exercises the actual M6 `PlayerApplication`: APF held-button
+input, album/track selection, A pause/resume, B stop/back, policy changes and
+per-launch defaults without settings storage. Long presentation backpressure
+must retain the draw surface while mailbox service and input continue. Fatal
+display/canvas/clock paths request INHIBIT. Boundary cases cover coherent
+64-bit cycle reads, reconnect-held buttons and 32 MiB startup loading. The SDK
+adapter is separately cross-linked into the complete RV32 application; real
+SDK presentation time and Pocket playback remain hardware checks.
+
 Run the M0 register spike plus M2 device queue and Pocket AUDIO simulations
 with Questa Altera Starter 2025.2:
 

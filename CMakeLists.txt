@@ -217,6 +217,13 @@ target_include_directories(rpcmp_pocket_canvas PRIVATE "${CMAKE_CURRENT_BINARY_D
 target_link_libraries(rpcmp_pocket_canvas PUBLIC rpcmp_ui)
 rpcmp_production_options(rpcmp_pocket_canvas)
 
+add_library(rpcmp_pocket_player STATIC core/platform/pocket/src/player_application.cpp)
+target_link_libraries(rpcmp_pocket_player PUBLIC rpcmp_pocket_sound rpcmp_pocket_canvas)
+rpcmp_production_options(rpcmp_pocket_player)
+add_library(rpcmp_pocket_player_compile_check OBJECT spikes/pocket/openfpgaos/player_main.cpp)
+target_link_libraries(rpcmp_pocket_player_compile_check PRIVATE rpcmp_pocket_player)
+rpcmp_production_options(rpcmp_pocket_player_compile_check)
+
 add_executable(rpcmp_headless_m0 core/platform/host/headless_main.cpp)
 target_link_libraries(rpcmp_headless_m0 PRIVATE rpcmp_runtime)
 rpcmp_production_options(rpcmp_headless_m0)
@@ -658,7 +665,7 @@ if(BUILD_TESTING)
 
   add_executable(rpcmp_mdx_backend_tests tests/pocket/mdx_backend_tests.cpp)
   target_include_directories(rpcmp_mdx_backend_tests PRIVATE tests/support)
-  target_link_libraries(rpcmp_mdx_backend_tests PRIVATE rpcmp_pocket_sound rpcmp_utility_writer)
+  target_link_libraries(rpcmp_mdx_backend_tests PRIVATE rpcmp_pocket_player rpcmp_utility_writer)
   target_compile_definitions(rpcmp_mdx_backend_tests PRIVATE RPCMP_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
   rpcmp_test_options(rpcmp_mdx_backend_tests)
   add_test(NAME mdx_backend COMMAND rpcmp_mdx_backend_tests)
