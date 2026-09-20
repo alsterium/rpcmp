@@ -309,3 +309,11 @@ These images use the actual bitmap adapter, but do not establish SDK buffer
 ownership, audio service timing, or readability on Pocket.
 
 Linux/GCC CI is currently deferred. Host checks do not establish Pocket hardware acceptance.
+
+The M6 candidate adds `player_boot` (ROM-only RSM1 reset/failure bounds),
+`player_firmware_prepare` (filtered OS patch and provenance),
+`player_preflight` (authored album corpus through native ingestion and Core MDX
+admission, plus corrupt/empty/oversize rejection) and `player_package`
+(deferred slot graph, scaler-slot ABI, no persistence, identity rejection and
+exact ZIP readback). The old M5 ROM include is a negative control for the RSM1
+test, not a production fallback. These host gates do not prove audible output.

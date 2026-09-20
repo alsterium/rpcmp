@@ -305,6 +305,10 @@ add_executable(rpcmp_m5_file_preflight spikes/pocket/host/m5_file_preflight.cpp)
 target_link_libraries(rpcmp_m5_file_preflight PRIVATE rpcmp_m5_library_loader rpcmp_m5_playback rpcmp_utility)
 rpcmp_production_options(rpcmp_m5_file_preflight)
 
+add_executable(rpcmp_player_preflight spikes/pocket/host/player_preflight.cpp)
+target_link_libraries(rpcmp_player_preflight PRIVATE rpcmp_player)
+rpcmp_production_options(rpcmp_player_preflight)
+
 if(BUILD_TESTING)
   add_executable(rpcmp_album_ingest_tests tests/utility/album_ingest_tests.cpp)
   target_include_directories(rpcmp_album_ingest_tests PRIVATE tests/support)
@@ -349,6 +353,17 @@ if(BUILD_TESTING)
   target_include_directories(rpcmp_boot_crc_tests PRIVATE tests/support)
   rpcmp_test_options(rpcmp_boot_crc_tests)
   add_test(NAME boot_crc COMMAND rpcmp_boot_crc_tests)
+  add_executable(rpcmp_player_boot_tests tests/pocket/player_boot_tests.cpp)
+  target_include_directories(rpcmp_player_boot_tests PRIVATE tests/support)
+  rpcmp_test_options(rpcmp_player_boot_tests)
+  add_test(NAME player_boot COMMAND rpcmp_player_boot_tests)
+  add_test(NAME player_firmware_prepare
+    COMMAND ${Python3_EXECUTABLE} -B ${CMAKE_SOURCE_DIR}/tests/pocket/player_firmware_prepare_tests.py)
+  add_test(NAME player_preflight
+    COMMAND ${Python3_EXECUTABLE} -B ${CMAKE_SOURCE_DIR}/tests/pocket/player_preflight_tests.py
+      $<TARGET_FILE:rpcmp_album_pack> $<TARGET_FILE:rpcmp_player_preflight>)
+  add_test(NAME player_package
+    COMMAND ${Python3_EXECUTABLE} -B ${CMAKE_SOURCE_DIR}/tests/pocket/player_package_tests.py)
   add_test(NAME mdx_admission_cli
     COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/pocket/mdx_admission_tests.py
       $<TARGET_FILE:rpcmp_mdx_admission>

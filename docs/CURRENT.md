@@ -17,9 +17,11 @@ views with copied commands and bounded pixel work. The actual
 catalog/player/backend/UI with APF input, a 64-bit CPU clock and the SDK draw
 surface. Its loop services audio independently of publication and bounded
 rendering; scripted application integration and the full RV32 app link pass.
-The coherent ROM/OS/app package and measured target service cadence are next.
-No installable M6 package exists for this binding yet;
-see the milestone's current evidence.
+The first coherent ROM/OS/app candidate is now packaged with an authored
+two-album, three-track FM demo. Follow the
+[M6 hardware check](development/pocket-player-hardware.md) for installation and
+the first display/input/audio check. Target service cadence and hardware
+acceptance remain unmeasured; see the milestone's current evidence.
 On 2026-09-20 the user deferred persistent settings: each application launch
 starts with AlbumOrder / Default (two loops, five-second fade), shuffle off and
 no autoplay. In-session setting changes remain supported. Do not connect a
@@ -161,8 +163,8 @@ bounded text and explicit elision. Authored scenarios and browser-rendered
 images verify mock layout; installed host fonts do not establish Pocket metrics.
 The retained producer and output-history owner now connect through the sound
 backend. The actual AXI sound binding and scripted application service loop
-are verified; coherent packaging and target measurements are next. The APF
-settings adapter is deferred by the user's updated requirement.
+are verified; the coherent candidate is packaged and target measurements are
+next. The APF settings adapter is deferred by the user's updated requirement.
 See M6 for the executed checks; this does not establish a working Pocket audio
 adapter, rendered Pocket UI or M6 integration acceptance.
 Use the [transition proposal](design/pocket-player-transition-contract.md),

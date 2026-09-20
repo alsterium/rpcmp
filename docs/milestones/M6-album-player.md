@@ -2910,3 +2910,96 @@ is unchanged. There is still no coherent installable M6 package. Next: adapt
 boot-failure handling to RSM1, pair the boot ROM/OS, assemble the matching FPGA
 image and application, then measure service cadence and verify real Pocket
 input, display and playback. Persistent storage remains deferred.
+
+## First coherent Pocket candidate — 2026-09-20
+
+M6 slice 5 now has an installable **local hardware candidate**, documented in
+the [first hardware check](../development/pocket-player-hardware.md). This is
+not M6 hardware acceptance or ADR-0008 production promotion. The user's deferred
+persistence requirement remains in force: volatile AlbumOrder / Default,
+shuffle off, no autoplay on each launch, and no nonvolatile APF slot.
+
+The new `boot_m6_sound_reset.inc` replaces only the M6 preparation's old M5
+sound include. Its ROM-only failure path requests RSM1 INHIBIT, waits with one
+bounded poll budget, owns a Reset request through copied completion, validates
+the full echo/result/epoch/prepared generation, releases only its completion,
+and returns success only with clear fault/inhibit/diagnostic status. Failure
+reasserts INHIBIT and the existing caller remains in ROM. It never starts or
+feeds playback. The no-GPU OS hunk is selected from the already-approved CPU
+video patch; the corresponding FPGA hunk is owned by the prior preparation.
+Pinned upstream, firmware toolchain, musl and CRC/retry behavior are preserved.
+
+Executed evidence for the firmware and candidate:
+
+- `ctest --preset host-msvc -R '^(player_boot|firmware_pair|boot_crc)$'
+  ran **2/2 PASS** (`player_boot`, `boot_crc`; the actual pair test has a
+  `pocket_` prefix and was also run directly below). Log:
+  `out/build/m6-player-boot-final.log`.
+- `python -B tests/pocket/firmware_pair_tests.py`: **7/7 PASS**.
+  `python -B tests/pocket/player_firmware_prepare_tests.py`: **2/2 PASS**.
+  The latter applies the real filtered patch to an authored UTF-8 fixture and
+  proves the FPGA file is untouched and baseline rejection is preserved.
+- Compiling the same ROM test against `boot_sound_reset.inc` instead of the
+  new RSM1 include produces **83 failed assertions / exit 1**, including the
+  normal Reset case. This negative control shows the old MMIO protocol cannot
+  serve M6. Log: `out/build/m6-player-boot-old.log`. Both new C++ files pass
+  focused clang-tidy 22.1.8 without added suppressions.
+- `python -B tools/pocket_player_firmware_prepare.py --repo . --upstream
+  out/research/openfpgaCore-618a3eb --musl
+  out/build/m5-firmware-fail-closed/src/firmware/musl --output
+  out/build/m6-player-firmware-r2`, then Docker firmware image
+  `sha256:98771990c464c0b3231d685de02579a25c6b5b0f952b68d5e573679664070e58`
+  running `make -j4 TARGET=pocket` in `src/firmware/os`: **PASS**.
+  The linked boot image is **16100 bytes** in its 16 KiB region; `os.bin` is
+  **135768 bytes**. Log: `out/build/m6-player-firmware-build.log`.
+  `pocket_firmware_pair.py` verifies the ELF sections, entire 8192-word MIF,
+  OS payload, ABI, entry/BSS metadata and CRC. MIF SHA-256:
+  `c479524bb380900a8eb4b0a4433b2513cb4c5e039568fef3d47776c2be002e60`;
+  OS SHA-256: `fcd131fa43ca7f953576b69717c33f77cbcf07d8149e182a6e917066bf6f2080`.
+- `quartus_sh --flow compile out/build/m6-player-finalbuild/ap_core`:
+  **PASS, 0 errors / 967 warnings**, full fresh map/fit/assembly/STA in 10:09.
+  The copied peripheral names the new MIF by absolute path; the map report
+  confirms it. A copied-database `--update_mif` attempt did not list this ROM
+  and was not used. No RTL logic or timing constraints changed. Resource
+  results remain **16649/18480 ALMs, 27821 registers, 151 M10Ks, 8 DSPs**.
+  All **136** clock/corner summary rows are nonnegative with zero TNS;
+  setup/hold/recovery/removal/pulse minima are **0.349 / 0.110 / 3.178 / 0.268 /
+  0.555 ns**. Log: `out/build/m6-player-finalbuild.log`.
+- `quartus_sta -t ../m6-player-candidate-audit.tcl` on that new placement:
+  **PASS** for all **32** mailbox/direction/corner cases, all bundle endpoints,
+  synchronization paths and max-data bounds. Log and paths:
+  `out/build/m6-player-candidate-audit.log` and
+  `out/build/m6-player-candidate-cdc-paths.txt`. Existing shell external/legacy
+  exceptions remain unproven; successful fit/CDC is not a Pocket measurement.
+- `pocket_player_demo.py out/build/m6-player-demo-r2` and native
+  `rpcmp_album_pack` create **2 albums / 3 tracks, 1712 bytes**, with no exclusions.
+  `rpcmp_player_preflight` admits all three via the Core catalog and MDX path.
+  The corpus is newly authored FM scale data, not copied music. The CLI test
+  also rejects corrupted STRS content, empty input and input above 32 MiB.
+  No audible result is inferred from parse/admission.
+- `pocket_player_package.py` with the pinned SDK, prior app ELF, new FPGA/firmware,
+  authored library and native preflight produces
+  **`out/build/m6-player-candidate-r1.zip`**, **1322817 bytes**. ZIP SHA-256:
+  `9341c4d21f1815f98ad2aeb590b3d812a5bbda38c7da159f40808fb5d127294d`.
+  Native RBF SHA-256:
+  `d5d6f7945fe69f17c56e1e9c15cf2d7ecb30fc4b4382e2b79c10d33575d95043`.
+  The matching `.evidence.json` records member readback, identities, actual app
+  section budget, firmware pair and Quartus report hashes. Dedicated core/platform
+  IDs preserve every M5 control. Eight scaler entries preserve OS/RTL slot 7
+  for 640x480; deferred slots contain OS/INI/ELF/library and no saves. Font
+  notices are included. Packaging tests: **5/5 PASS**.
+
+- With LLVM **22.1.8** prepended to PATH,
+  `pwsh -File tools/host-verify.ps1`: **87/87 PASS**, including format, static
+  analysis and architecture positive/negative checks. Total **512.06 s**;
+  clang-tidy **494.47 s**. Log: `out/build/m6-player-candidate-host-r2.log`.
+  The first invocation stopped at setup because this host's default LLVM was
+  23.1.1; the version gate was preserved. After the documentation updates,
+  `check_harness.py --root .` and the **7** harness tests also pass. The package
+  identity checks and **5** packaging tests were repeated with the final RBF pin.
+
+No new RTL simulation or Pocket run is claimed: logic is unchanged, while the full FPGA
+build and CDC audit above were rerun for the new ROM. The next required input
+is the first real Pocket boot/display/audio/operation report. Actual service
+gaps, full-frame cache-clean duration, 100–300-track real-library behavior and
+Japanese readability remain unmeasured. Persistent settings remain future work.

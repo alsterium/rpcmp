@@ -2,8 +2,8 @@
 
 This is the actual CPU application composition for M6 slice 5, using the
 approved RSM1 sound binding and CPU framebuffer profile. The isolated M5 probes
-and their package gates remain unchanged. The app alone is not an installable
-Pocket package: it needs matching boot ROM, OS, bitstream and slot definitions.
+and their package gates remain unchanged. The first matching ROM/OS/bitstream
+candidate is now available; use the [hardware check](pocket-player-hardware.md).
 
 ## Build
 
@@ -77,8 +77,54 @@ clock / canvas failures. Separate cases cover timer rollover/retry, disconnect
 and reconnect, and the full 32 MiB input bound. The scripted device is not an
 RTL engine or a proof of audible playback.
 
-Still required: coherent ROM/OS/app packaging, M6 boot-failure sound handling,
-actual display/input/audio checks on Pocket, measured service gaps (including
-MDX admission, synchronous command recording and OS cache maintenance), and
+The candidate now includes M6 boot-failure sound handling and coherent
+ROM/OS/app packaging. Still required: actual display/input/audio checks on Pocket,
+measured service gaps (including MDX admission, synchronous command recording
+and OS cache maintenance), and
 Japanese readability at the real screen size. No hardware acceptance follows
 from host tests or the ELF budget.
+
+## Candidate build and packaging
+
+Prepare the pinned fail-closed firmware with
+`tools/pocket_player_firmware_prepare.py --repo . --upstream <pinned-core-checkout>
+--musl <pinned-firmware-musl> --output out/build/<new-firmware-directory>`.
+Build `src/firmware/os` with `make -j4 TARGET=pocket` in the pinned firmware
+image recorded by the preparation manifest. This preserves the existing boot
+CRC/retry behavior, uses the RSM1 Reset mailbox on boot failure, and reports
+`gpu_base=0` when the FPGA advertises no GPU. It does not add settings storage.
+
+The FPGA uses the preceding slice's `--player-sound --apf-flush` preparation,
+no-GPU macros, seed 1 and scoped sound SDC. For this candidate a fresh Quartus
+project was copied from that configuration, with all source references absolute.
+Only the copied AXI peripheral's `init_file` literal was changed to the absolute
+path of this candidate's `firmware.mif`; no logic was changed. Run a full
+`quartus_sh --flow compile <project>/ap_core`, then the four-corner CDC audit.
+An attempted update of a copied placement database did not report processing
+the firmware MIF and was **not used**. Do not infer ROM identity from a generic
+successful `--update_mif` exit. Pair the mapped MIF and `os.bin` against the
+same `firmware.elf` using `tools/pocket_firmware_pair.py`.
+
+`tools/pocket_player_package.py` pins the inspected candidate app, ROM, OS and
+RBF identities. It checks app section sizes against the budget, SDK loader
+manifest, successful Quartus reports, mapped ROM path and firmware pairing.
+It invokes `rpcmp_player_preflight` to open the ALBM catalog and admit every
+track with the actual Core MDX preparation path. Fresh `out/build/m6-player-*`
+outputs only are permitted. Every extracted/ZIP member is read back exactly,
+and the evidence JSON records lengths and SHA-256 hashes. These checks establish
+artifact identity, not hardware behavior or timing acceptance.
+
+The package advertises all eight pinned scaler slots, including boot/terminal
+320x240 at slot 0 and app 640x480 at slot 7. APF allows runtime selection among
+up to eight configurations ([official video schema](https://www.analogue.co/developer/docs/core-definition-files/video-json)).
+Reordering these slots would break the OS/RTL ABI. Slots 1–4 are deferred OS,
+INI, ELF and read-only library assets; there is no nonvolatile slot. The input
+mapping names A/B/L/R without overriding the app's replaceable focus tables.
+Font copyright and OFL notices are included with the binary.
+
+The original synthetic scale corpus is reproducible with
+`python -B tools/pocket_player_demo.py <new-folder>` followed by
+`rpcmp_album_pack <new-folder> <music.rpcmlib>`. It contains one looping and one
+finite track in the first album, plus a different looping track in the second.
+It uses FM channel A with stereo panning; it contains no copied music or ROM.
+Preflight proves parse/admission only; audible output is a hardware check.
