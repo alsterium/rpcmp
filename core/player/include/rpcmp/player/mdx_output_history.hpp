@@ -6,7 +6,7 @@
 
 namespace rpcmp::player {
 
-inline constexpr std::size_t kMdxDisplayBatchCapacity = 16;
+inline constexpr std::size_t kMdxDisplayBatchCapacity = 128;
 struct MdxOutputRecord {
   std::uint64_t generation{}, epoch{}, sequence{}, frame{}, prefix{};
   bool natural_end{};

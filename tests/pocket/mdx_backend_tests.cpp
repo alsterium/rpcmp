@@ -248,11 +248,11 @@ struct Sound final : pocket::IMmio32 {
   }
 };
 
-std::vector<std::uint8_t> authored_loop(unsigned extra_writes) {
+std::vector<std::uint8_t> authored_loop(unsigned extra_writes, std::uint8_t rest = 0) {
   std::vector<std::uint8_t> track{0xff, 0xc8, 0xfe, 0x28, 0x3c, 0xfe, 0x30, 0, 0xfe, 8, 0x78};
   for (unsigned i = 0; i < extra_writes; ++i)
     track.insert(track.end(), {0xfe, 0x1b, static_cast<std::uint8_t>(i % 4)});
-  track.insert(track.end(), {0, 0xf1}); // One rest tick, then loop to the first byte.
+  track.insert(track.end(), {rest, 0xf1}); // Rest, then loop to the first byte.
   const auto back = static_cast<std::uint16_t>(0U - (track.size() + 2U));
   track.push_back(static_cast<std::uint8_t>(back >> 8U));
   track.push_back(static_cast<std::uint8_t>(back));
@@ -272,7 +272,7 @@ std::vector<std::uint8_t> authored_loop(unsigned extra_writes) {
   return mdx;
 }
 
-std::vector<std::uint8_t> library_bytes(bool finite, unsigned extra_writes) {
+std::vector<std::uint8_t> library_bytes(bool finite, unsigned extra_writes, std::uint8_t rest = 0) {
   std::ifstream input(std::string{RPCMP_SOURCE_DIR} + "/tests/fixtures/mdx/oracle-fm.mdx.hex");
   std::string pair;
   std::vector<std::uint8_t> mdx;
@@ -289,7 +289,7 @@ std::vector<std::uint8_t> library_bytes(bool finite, unsigned extra_writes) {
   if (!input.eof() || mdx.empty() || !pair.empty())
     throw std::logic_error("authored MDX fixture could not be read");
   if (!finite)
-    mdx = authored_loop(extra_writes);
+    mdx = authored_loop(extra_writes, rest);
   rpcmp::utility::NormalizedLibrary library;
   library.blobs = {{rpcmp::library::kMdxFourcc, mdx}};
   rpcmp::utility::NormalizedTrack track;
@@ -304,8 +304,9 @@ std::vector<std::uint8_t> library_bytes(bool finite, unsigned extra_writes) {
   return written.bytes;
 }
 struct Rig {
-  explicit Rig(rpcmp::test::Suite& checks, bool finite = false, unsigned extra_writes = 0)
-      : suite(checks), bytes(library_bytes(finite, extra_writes)), client(sound, clock),
+  explicit Rig(rpcmp::test::Suite& checks, bool finite = false, unsigned extra_writes = 0,
+               std::uint8_t rest = 0)
+      : suite(checks), bytes(library_bytes(finite, extra_writes, rest)), client(sound, clock),
         backend(std::make_unique<pocket::PocketMdxBackend>(catalog, client)),
         controller(catalog, *backend, *backend, {100000, 10000}) {
     const auto opened = catalog.begin_open();
@@ -394,6 +395,48 @@ void lifecycle(rpcmp::test::Suite& suite) {
   RPCMP_CHECK(suite, rig.controller.snapshot().transport == TransportState::Stopped &&
                          rig.controller.snapshot().silence_confirmed && rig.sound.queued == 0);
   RPCMP_CHECK(suite, rig.sound.violations == 0 && rig.sound.inhibits == 0);
+}
+
+void continuous_read_ahead_history(rpcmp::test::Suite& suite) {
+  // Like the packaged demo, hold each note for 48 driver ticks. Empty ticks
+  // still put markers in the 64-item audio queue; output must remain visible
+  // while the producer continually refills that queue, not only after a drain.
+  Rig rig(suite, false, 0, 47);
+  rig.play();
+  player::SnapshotPublisher publisher(rig.catalog, 0, rig.backend.get());
+  unsigned visible{};
+  unsigned markers{};
+  for (unsigned consumed = 0; consumed < 192; ++consumed) {
+    const auto& item = rig.sound.accepted.at(consumed);
+    const bool marker = item[10] != 0;
+    const auto prefix = static_cast<std::uint64_t>(consumed) + 1;
+    const auto frame = prefix * 100;
+    --rig.sound.queued;
+    rig.sound.output_prefix = prefix;
+    rig.sound.media.frame = frame + 1;
+    rig.sound.latest = player::MdxOutputRecord{
+        rig.sound.prepared, rig.sound.epoch, rig.sound.next_sequence++, frame, prefix, false};
+    rig.sound.records.push_back(*rig.sound.latest);
+    rig.steps(16); // Drain both copied Peek/Pop and refresh the coherent capture.
+    if (marker) {
+      ++markers;
+      RPCMP_CHECK(suite, publisher.publish(rig.clock.now, rig.controller.snapshot()) ==
+                             player::PublicationResult::Ok);
+      const auto snapshot = publisher.latest();
+      RPCMP_CHECK(suite, api::valid_player_snapshot(snapshot) && snapshot.performance_history);
+      if (!snapshot.performance_history)
+        throw std::logic_error("missing published performance history");
+      const auto& history = snapshot.performance_history.value();
+      if (history.availability == api::PerformanceAvailability::Available &&
+          history.channels[0].key_on == true)
+        ++visible;
+      RPCMP_CHECK(suite, api::valid_performance_history(history));
+    }
+  }
+  RPCMP_CHECK(suite, markers > 150 && visible == markers);
+  RPCMP_CHECK(suite, rig.sound.queued == 64 && rig.sound.violations == 0 &&
+                         rig.sound.inhibits == 0 &&
+                         rig.controller.snapshot().failure == player::TransportFailure::None);
 }
 
 void finite_and_partial_prefill(rpcmp::test::Suite& suite) {
@@ -894,6 +937,7 @@ int main() {
   rpcmp::test::Suite suite;
   try {
     lifecycle(suite);
+    continuous_read_ahead_history(suite);
     finite_and_partial_prefill(suite);
     old_captures(suite);
     reset_capture_race(suite);

@@ -65,7 +65,7 @@ The checkpoint contains generation/epoch, preceding and marker tokens, and the
 successful tick's SequencedPerformance. This is still read-ahead data.
 
 The enclosing history owner must copy a successful checkpoint into its separate
-16-batch display retention before the next successful engine advance. Losing
+128-batch display retention before the next successful engine advance. Losing
 display capacity must degrade history rather than stall this audio producer.
 This layer does not implement that display queue, output journal or mapping;
 those remain the following approved layer. Its pending audio ownership never

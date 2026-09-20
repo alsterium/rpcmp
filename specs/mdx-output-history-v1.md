@@ -9,7 +9,7 @@ policy or physical input behavior changes.
 
 ## Ownership
 
-One Core owner retains at most 16 display batches, independently of audio
+One Core owner retains at most 128 display batches, independently of audio
 retention and UI reads. Begin requires a confirmed sound Reset, strictly newer
 nonzero play generation and epoch; common hardware reset requires a fresh
 owner. Cancel closes this display owner, not the device. Old-generation/epoch
@@ -17,6 +17,15 @@ input is inert. Each successful producer checkpoint is copied before offering
 its first audio item. Validate counts, token span, source order and event write
 indices before accessing fixed arrays. The marker token is preceding token +
 write count + 1, without wrap. Duplicate batches are not inserted twice.
+
+The M6 target's 64-item audio read-ahead can contain 64 zero-write tick
+markers, plus a producer batch awaiting space. A further 32 output records
+can await CPU acquisition. The original 16-batch bound evicted not-yet-output
+checkpoints continuously during sparse music, preventing any current-channel
+publication. The internal bound is revised to 128 for that integration window.
+It is not a guarantee of lossless history for arbitrary bursts or reader stalls;
+overflow and recovery still follow the rules below. No audio ready signal or
+public snapshot capacity depends on this display storage.
 
 When full, discard the oldest display batch and count its omitted events,
 including its existing prefix loss. Retain the newer independent channel
@@ -88,7 +97,7 @@ adapter remain separate from this host-runnable owner.
 Verify different event frames inside one batch, equal after_write indices,
 several completed batches on one frame, zero-write/end, partial-batch deferral,
 pause boundaries, stale/duplicate/malformed input and u64 arithmetic. Exercise
-both the 16-batch retention overflow and a missing middle output record; retain
+both the 128-batch retention overflow and a missing middle output record; retain
 known timestamps and put sequence gaps only around omitted events. Recover
 independent current channels after loss/exhaustion. Connect authored real MDX
 and compare audio offers with dense, sparse and absent display reads. Measure

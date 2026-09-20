@@ -3,6 +3,7 @@
 
 #include <iostream>
 #include <limits>
+#include <memory>
 #include <stdexcept>
 #include <vector>
 
@@ -35,7 +36,8 @@ void publish(rpcmp::test::Suite& suite, MdxOutputHistory& history, std::uint64_t
 }
 
 void exact_frames(rpcmp::test::Suite& suite) {
-  MdxOutputHistory history(3'579'545);
+  auto history_owner = std::make_unique<MdxOutputHistory>(3'579'545);
+  auto& history = *history_owner;
   RPCMP_CHECK(suite, api::valid_performance_history(copy(history)) && history.begin(1, 1));
   auto input = checkpoint(0, 3, {1, 2, 2, 3});
   RPCMP_CHECK(suite, history.retain(input) == R::Accepted);
@@ -73,7 +75,8 @@ void exact_frames(rpcmp::test::Suite& suite) {
 
 void missing_middle(rpcmp::test::Suite& suite) {
   for (const bool exact_prefix : {false, true}) {
-    MdxOutputHistory history(3'579'545);
+    auto history_owner = std::make_unique<MdxOutputHistory>(3'579'545);
+    auto& history = *history_owner;
     RPCMP_CHECK(suite, history.begin(1, 1));
     RPCMP_CHECK(suite, history.retain(checkpoint(0, 3, {1, 2, 3})) == R::Accepted);
     RPCMP_CHECK(suite, history.consume({1, 1, 1, 100, 1}) == R::Accepted);
@@ -97,23 +100,25 @@ void missing_middle(rpcmp::test::Suite& suite) {
 }
 
 void retention_and_source_gap(rpcmp::test::Suite& suite) {
-  MdxOutputHistory history(3'579'545);
+  auto history_owner = std::make_unique<MdxOutputHistory>(3'579'545);
+  auto& history = *history_owner;
   RPCMP_CHECK(suite, history.begin(1, 1));
-  for (std::uint64_t i = 0; i < 20; ++i)
+  for (std::uint64_t i = 0; i < 132; ++i)
     RPCMP_CHECK(suite,
-                history.retain(checkpoint(i * 2, 1, {1})) == (i < 16 ? R::Accepted : R::Degraded));
-  RPCMP_CHECK(suite, history.pending_batches() == 16);
+                history.retain(checkpoint(i * 2, 1, {1})) == (i < 128 ? R::Accepted : R::Degraded));
+  RPCMP_CHECK(suite, history.pending_batches() == 128);
   RPCMP_CHECK(suite, history.consume({1, 1, 1, 100, 8}) == R::Accepted);
   RPCMP_CHECK(suite, history.observe({1, 1, 101, 8}) == R::Waiting);
-  RPCMP_CHECK(suite, history.consume({1, 1, 2, 110, 40}) == R::Accepted);
-  publish(suite, history, 111, 40);
+  RPCMP_CHECK(suite, history.consume({1, 1, 2, 110, 264}) == R::Accepted);
+  publish(suite, history, 111, 264);
   const auto result = copy(history);
-  RPCMP_CHECK(suite, result.capture_lost && result.count == 16 && result.next_sequence == 21);
-  for (std::uint16_t i = 0; i < 16; ++i)
+  RPCMP_CHECK(suite, result.capture_lost && result.count == 128 && result.next_sequence == 133);
+  for (std::uint16_t i = 0; i < 128; ++i)
     RPCMP_CHECK(suite,
                 result.events[i].sequence == i + 5U && result.events[i].change.at_frame == 110);
 
-  MdxOutputHistory gap(3'579'545);
+  auto gap_owner = std::make_unique<MdxOutputHistory>(3'579'545);
+  auto& gap = *gap_owner;
   RPCMP_CHECK(suite, gap.begin(1, 1));
   RPCMP_CHECK(suite, gap.retain(checkpoint(0, 1, {1})) == R::Accepted);
   // Missing checkpoint 2..4 is still in the future when the earlier batch completes.
@@ -131,7 +136,8 @@ void retention_and_source_gap(rpcmp::test::Suite& suite) {
 
 void recovery_and_identity(rpcmp::test::Suite& suite) {
   for (const bool exhausted : {false, true}) {
-    MdxOutputHistory history(4'000'000);
+    auto history_owner = std::make_unique<MdxOutputHistory>(4'000'000);
+    auto& history = *history_owner;
     RPCMP_CHECK(suite, !history.begin(0, 1) && !history.begin(1, 0) && history.begin(1, 1));
     RPCMP_CHECK(suite, history.retain(checkpoint(0, 3, {1, 2, 3})) == R::Accepted);
     RPCMP_CHECK(suite, history.retain(checkpoint(0, 3, {1, 2, 3})) == R::Stale);
@@ -171,7 +177,8 @@ void recovery_and_identity(rpcmp::test::Suite& suite) {
     RPCMP_CHECK(suite, history.observe({2, 2, 0, 1, true}) == R::Accepted);
     RPCMP_CHECK(suite, copy(history).count == 0 && !copy(history).capture_lost);
   }
-  MdxOutputHistory end(3'579'545);
+  auto end_owner = std::make_unique<MdxOutputHistory>(3'579'545);
+  auto& end = *end_owner;
   RPCMP_CHECK(suite, end.begin(1, 1));
   RPCMP_CHECK(suite, end.retain(checkpoint(0, 2, {1, 2})) == R::Accepted);
   RPCMP_CHECK(suite, end.consume({1, 1, 1, 10, 1}) == R::Accepted);
@@ -184,7 +191,8 @@ void recovery_and_identity(rpcmp::test::Suite& suite) {
 void validation_and_limits(rpcmp::test::Suite& suite) {
   constexpr auto maximum = std::numeric_limits<std::uint64_t>::max();
   const auto bad_batch = [&](auto mutate) {
-    MdxOutputHistory history(3'579'545);
+    auto history_owner = std::make_unique<MdxOutputHistory>(3'579'545);
+    auto& history = *history_owner;
     RPCMP_CHECK(suite, history.begin(1, 1));
     auto input = checkpoint(0, 3, {1, 2, 3});
     mutate(input);
@@ -204,7 +212,8 @@ void validation_and_limits(rpcmp::test::Suite& suite) {
   bad_batch([](auto& i) { i.performance.batch.events[2].after_write = 1; });
   bad_batch([](auto& i) { i.performance.batch.events[2].after_write = 4; });
   const auto bad_record = [&](auto mutate) {
-    MdxOutputHistory history(3'579'545);
+    auto history_owner = std::make_unique<MdxOutputHistory>(3'579'545);
+    auto& history = *history_owner;
     RPCMP_CHECK(suite, history.begin(1, 1));
     RPCMP_CHECK(suite, history.retain(checkpoint(0, 1, {1})) == R::Accepted);
     MdxOutputRecord input{1, 1, 1, 10, 2};
@@ -222,7 +231,8 @@ void validation_and_limits(rpcmp::test::Suite& suite) {
   bad_record([](auto& i) { i.prefix = 3; });
   bad_record([](auto& i) { i.frame = maximum; });
 
-  MdxOutputHistory full(3'579'545);
+  auto full_owner = std::make_unique<MdxOutputHistory>(3'579'545);
+  auto& full = *full_owner;
   RPCMP_CHECK(suite, full.begin(1, 1));
   auto input = checkpoint(0, 8192, {});
   input.performance.batch.count = 256;
@@ -239,7 +249,8 @@ void validation_and_limits(rpcmp::test::Suite& suite) {
   RPCMP_CHECK(suite, full.consume({1, 1, 2, maximum, 8193, true}) == R::Accepted);
   publish(suite, full, maximum, 8193, true);
 
-  MdxOutputHistory high(3'579'545);
+  auto high_owner = std::make_unique<MdxOutputHistory>(3'579'545);
+  auto& high = *high_owner;
   RPCMP_CHECK(suite, high.begin(1, 1));
   auto last = checkpoint(0, 1, {1});
   last.preceding_token = maximum - 2;
@@ -251,7 +262,8 @@ void validation_and_limits(rpcmp::test::Suite& suite) {
 
   // Bad semantic observations discard only display data; a later complete
   // independent checkpoint on the same boundary restores current channels.
-  MdxOutputHistory semantic(3'579'545);
+  auto semantic_owner = std::make_unique<MdxOutputHistory>(3'579'545);
+  auto& semantic = *semantic_owner;
   RPCMP_CHECK(suite, semantic.begin(1, 1));
   auto malformed = checkpoint(0, 1, {1});
   malformed.performance.batch.events[0].channel = 8;
@@ -264,7 +276,8 @@ void validation_and_limits(rpcmp::test::Suite& suite) {
                          copy(semantic).next_sequence == 3);
 
   for (unsigned kind = 0; kind < 4; ++kind) {
-    MdxOutputHistory ordered(3'579'545);
+    auto ordered_owner = std::make_unique<MdxOutputHistory>(3'579'545);
+    auto& ordered = *ordered_owner;
     RPCMP_CHECK(suite, ordered.begin(1, 1));
     RPCMP_CHECK(suite, ordered.retain(checkpoint(0, 3, {1, 2, 3})) == R::Accepted);
     RPCMP_CHECK(suite, ordered.consume({1, 1, 1, 10, 2}) == R::Accepted);
@@ -299,15 +312,16 @@ std::vector<MdxSourceOffer> engine_trace(rpcmp::test::Suite& suite, unsigned rea
   RPCMP_CHECK(suite, mdx::prepare_mdx_playback(document, validation, workspace.engine).ok());
   mdx::MdxEngineState state;
   RetainedMdxSource source;
-  MdxOutputHistory history(3'579'545);
+  auto history_owner = std::make_unique<MdxOutputHistory>(3'579'545);
+  auto& history = *history_owner;
   MdxProducedCheckpoint produced;
   RPCMP_CHECK(suite, source.begin(1, 1) == MdxSourceResult::Accepted && history.begin(1, 1));
   std::vector<MdxSourceOffer> trace;
-  for (std::uint64_t tick = 0; tick < 32; ++tick) {
+  for (std::uint64_t tick = 0; tick < 160; ++tick) {
     RPCMP_CHECK(suite, produce_mdx_tick(document, state, source, produced, workspace).status ==
                            MdxSourceResult::Accepted);
     RPCMP_CHECK(suite, history.retain(produced) ==
-                           (delay_records && tick >= 16 ? R::Degraded : R::Accepted));
+                           (delay_records && tick >= 128 ? R::Degraded : R::Accepted));
     while (const auto offer = source.take_offer()) {
       trace.push_back(*offer);
       RPCMP_CHECK(suite, source.complete({1, 1, offer->token, MdxFeedStatus::Full}) ==
@@ -328,11 +342,12 @@ std::vector<MdxSourceOffer> engine_trace(rpcmp::test::Suite& suite, unsigned rea
       RPCMP_CHECK(suite, api::valid_performance_history(copy(history)));
   }
   if (delay_records) {
-    RPCMP_CHECK(suite, history.consume({1, 1, 1, 3200, produced.marker_token}) == R::Accepted);
-    publish(suite, history, 3201, produced.marker_token);
+    RPCMP_CHECK(suite, history.consume({1, 1, 1, 16000, produced.marker_token}) == R::Accepted);
+    publish(suite, history, 16001, produced.marker_token);
     RPCMP_CHECK(suite, copy(history).capture_lost && copy(history).channels[0].key_on == true);
   }
-  RPCMP_CHECK(suite, source.accepted_token() == 160 && trace.size() == 320);
+  // Four writes and one marker per tick; every item is offered twice (Full retry).
+  RPCMP_CHECK(suite, source.accepted_token() == 800 && trace.size() == 1600);
   return trace;
 }
 
