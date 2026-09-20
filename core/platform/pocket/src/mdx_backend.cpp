@@ -154,7 +154,14 @@ void PocketMdxBackend::capture_result(const SoundCaptureCompletion& result) noex
     fail();
     return;
   }
-  if (result.epoch != epoch_ || reset_pending(control_))
+  // Reset advances the hardware epoch before clearing its old fault. A stale
+  // query can therefore return the new epoch plus pre-reset fault bits, even
+  // when its response is drained alongside Reset Success. Qualify the query
+  // as well as the captured epoch before interpreting those bits.
+  // Epoch zero is the platform's inhibited startup, before this owner has
+  // established a session. Only Reset Success can establish that authority.
+  if (epoch_ == 0 || result.request.epoch != epoch_ || result.epoch != epoch_ ||
+      reset_pending(control_))
     return;
   if (result.fault || result.media.failure != player::MediaFailure::None ||
       (result.inhibited && !known_inhibit_ && epoch_ != 0)) {

@@ -53,7 +53,8 @@ Absent/dense public snapshots and delayed journal replies must produce the
 same feed offers. These do not measure target service speed or run RTL.
 
 The same gate also exercises the actual M6 `PlayerApplication`: APF held-button
-input, album/track selection, A pause/resume, B stop/back, policy changes and
+input, album/track selection, D-pad panel focus, A pause/resume, contextual B,
+startup INHIBIT and Reset/Capture races, bounded frame work, policy changes and
 per-launch defaults without settings storage. Long presentation backpressure
 must retain the draw surface while mailbox service and input continue. Fatal
 display/canvas/clock paths request INHIBIT. Boundary cases cover coherent

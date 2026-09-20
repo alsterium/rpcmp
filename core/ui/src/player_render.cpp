@@ -147,8 +147,16 @@ std::string_view diagnostic_name(const PlayerView& view) noexcept {
   return "Unknown UI state";
 }
 std::string_view playback_error(const api::PlaybackError& error) noexcept {
-  if (error.terminal)
-    return "Playback failed; restart the player";
+  if (error.terminal) {
+    switch (error.code) {
+    case api::PlaybackErrorCode::ResetFailed:
+      return "Sound reset failed; restart the player";
+    case api::PlaybackErrorCode::Protocol:
+      return "Playback protocol error; restart the player";
+    default:
+      return "Playback failed; restart the player";
+    }
+  }
   switch (error.code) {
   case api::PlaybackErrorCode::Library:
     return "Library could not be read";
@@ -348,13 +356,16 @@ struct Control {
   std::string_view hint;
   bool enabled{};
 };
-Control control(const PlayerView& view, const Focus focus) noexcept {
+Control control(const PlayerView& view, Focus focus) noexcept {
   if (focus == Focus::ViewSwitch)
     return {"A: switch display", true};
-  if (focus == Focus::List)
-    return {view.browser.level == BrowseLevel::Albums ? "A: open album / B: stop"
-                                                      : "A: play selected track / B: stop",
+  if (focus == Focus::Main && view.main == View::Library)
+    return {view.browser.level == BrowseLevel::Albums
+                ? "A: open album / Right: controls"
+                : "A: play track / B: albums / Right: controls",
             view.browser.valid};
+  if (focus == Focus::Main)
+    focus = Focus::PlayPause;
   const auto& snapshot = view.snapshot;
   if (!view.valid_snapshot || (snapshot.capabilities.bits & api::kTransportCommands) == 0)
     return {"Player controls unavailable", false};

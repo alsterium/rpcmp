@@ -3003,3 +3003,85 @@ build and CDC audit above were rerun for the new ROM. The next required input
 is the first real Pocket boot/display/audio/operation report. Actual service
 gaps, full-frame cache-clean duration, 100–300-track real-library behavior and
 Japanese readability remain unmeasured. Persistent settings remain future work.
+
+## First hardware report and r2 correction — 2026-09-20
+
+The user reports r1 boots without autoplay, renders Japanese and all three main
+views, and permits album/track selection. Before selecting any track it shows
+`Playback failed; restart the player` and `ERROR`; no music is heard. Visible
+input response takes roughly one second. Setting `core.json`'s minimum firmware
+declaration to 2.2 is necessary on their Firmware 2.6 device. These are user
+observations, not measured CPU timings or M6 audio acceptance.
+
+The user replaces B panel navigation with D-pad focus movement and contextual
+buttons. The adopted UI contract now permits Main focus in every view, including
+terminal errors. Up from top-row controls or Left from either row's first icon
+enters Main; Right returns to PlayPause. Main Tracker/Keyboard A plays/pauses;
+Library A browses/selects and B returns from tracks to albums without stopping
+audio. B elsewhere stops but never changes panels. The focus/binding tables
+remain replaceable; Core APIs and playback engines are unchanged.
+
+Two startup ordering bugs are reproduced with scripted copied mailboxes:
+
+- The application's initial INHIBIT latches hardware fault before Reset.
+  An immediate Capture response could turn this expected epoch-zero state
+  into a new device failure before Core issued its first Reset.
+- RTL increments `feed_epoch` on Reset acceptance, before RESET_WAIT clears
+  its old fault. A query for the old epoch can return the new sampled epoch
+  with old fault bits. Draining it alongside Reset Success incorrectly failed
+  the recovered session because only the sampled epoch was checked.
+
+The backend now requires an acknowledged nonzero epoch matching **both** the
+query and captured epoch before interpreting health. Transfer/protocol failures
+still fail, and a fresh established-epoch hardware fault still inhibits audio.
+The corrected RTL-derived race fixture fails before the fix and passes after;
+the immediate-reply application fixture separately fails before the epoch-zero
+guard. The ROM Reset helper is only a failed-boot path, not a normal-boot caller;
+an early investigation hypothesis about reused ROM operation IDs was rejected.
+Hardware cause equivalence and restored audible playback remain to be checked.
+
+The old frame took thousands of 256-pixel turns, each executing a complete
+PlayerSession step. r2 uses bounded 4096-pixel pumps, services sound every turn,
+steps Core at 1 ms intervals, and samples input every turn independently of the
+5 ms publication interval. A host work-bound regression requires the idle frame
+within 256 turns and fails with the old pump budget. This is not a target latency
+measurement. Header F/S and error ERR/SND/REC/FLIP diagnostics expose frame time,
+maximum service gap, error code, sound status and recording/presentation costs.
+
+Executed verification and artifacts:
+
+- Focused `ctest --preset host-msvc -R
+  '^(mdx_backend|player_ui|player_render|bitmap_canvas|player_package)$'`:
+  **5/5 PASS**. Tests cover D-pad focus during errors, context-dependent B,
+  current-epoch fault preservation, startup without autoplay, retained display
+  ownership and publication-independent feeding. UI expected-value changes
+  follow the user's explicit revised operation requirement.
+- Docker `make -j4 -f spikes/pocket/openfpgaos/player.mk
+  PLAYER_OUT=/repo/out/build/pocket-m6-player-r2 player-check`: **PASS**.
+  Text **472300**, data **228**, BSS **34888264**, static **35360792** bytes;
+  conservative stack **120576**, largest frame **9680**, no dynamic frames or
+  undefined symbols. Log: `out/build/m6-player-r2-cross.log`. ELF SHA-256:
+  `d52320cef628952799a9c3fee15b5f50e57b4886d2d99534e67b73fdf1c7993a`.
+- Docker `python3 out/build/m6-player-r2-sanitize.py`: **PASS** with native
+  AddressSanitizer/UndefinedBehaviorSanitizer, leak detection and halt-on-error.
+  It builds and runs the actual application/backend tests from current sources.
+  Log: `out/build/m6-player-r2-sanitize.log`.
+- `pocket_player_package.py` with that app and the unchanged r1 FPGA/ROM/OS,
+  SDK and authored three-track library: **PASS**, exact member readback and
+  all tracks admitted by Core preflight. `version_required` is now **2.2**;
+  this follows the user's compatibility report, not a Firmware 2.2 test.
+  `out/build/m6-player-candidate-r2.zip`: **1322912 bytes**, SHA-256
+  `6d5c7e63216defcd5fab6284553c53e7f9cac5733d9b3488eac057f29a26fc00`.
+  The matching `.evidence.json` records the identities and budgets. r1 is preserved.
+- With LLVM 22.1.8 prepended, `pwsh -File tools/host-verify.ps1`:
+  **87/87 PASS**, including architecture checks, format and clang-tidy.
+  Total **538.49 s**, tidy **515.79 s**; log:
+  `out/build/m6-player-r2-host.log`. After the final packaging pin and documentation
+  edits, the **5** `player_package_tests.py` tests and
+  `check_harness.py --root .` also pass. No failing check was disabled or relaxed.
+
+No RTL, ROM/OS, timing constraints or FPGA image changed, so no RTL simulation
+or synthesis rerun is claimed for this correction. The next task is the
+[r2 hardware check](../development/pocket-player-hardware.md): startup error,
+audible playback, D-pad panel navigation and actual input/frame timing. M6
+remains open; persistent settings remain deferred.

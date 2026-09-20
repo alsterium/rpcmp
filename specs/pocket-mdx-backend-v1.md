@@ -26,6 +26,12 @@ separate scratch objects so preparation and playback share one engine workspace;
 the old workspace API retains its behavior.
 
 Only confirmed successful Reset enables preparation for its generation/epoch.
+Startup epoch zero has no capture authority: the platform's expected INHIBIT
+can latch hardware fault before the first Reset. A capture must match both its
+requested epoch and its sampled epoch to the acknowledged nonzero epoch before
+its health bits are interpreted. Reset acceptance advances the sampled epoch
+before clearing old faults; a stale query returning that new epoch must not
+undo a later Reset Success. Transfer/protocol failures still inhibit sound.
 Each produced checkpoint is copied to display retention before its first audio
 offer. Feed Accepted advances the retained producer; Full retries the same item
 on a later service. Preparation is Ready after a Full response proves prefill,

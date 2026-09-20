@@ -1,5 +1,10 @@
 # Tracker 風画面の構成と操作案
 
+2026-09-20 実機試用後の変更: ユーザーの指示により、Bでのパネル移動を廃止します。
+十字キーで主表示と操作パネルを移動し、Bは一覧内ではアルバム階層へ戻り、
+それ以外では停止します。以下の旧Q17/B操作案は経緯として残し、現行操作は
+[Album UI v1](../../specs/player-ui-v1.md) を正とします。
+
 Status: layout direction accepted, 2026-09-13. ユーザーは
 [Issue #1「画面イメージ」](https://github.com/alsterium/rpcmp/issues/1) の画像を当面の
 画面構成の基準に指定しました。[詳細仕様](pocket-library-player-spec-draft.md) の Q18〜Q24 を

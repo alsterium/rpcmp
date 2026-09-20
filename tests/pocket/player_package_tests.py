@@ -41,6 +41,7 @@ class PlayerPackageTests(unittest.TestCase):
 
     def test_physical_scaler_slot_and_controls(self):
         defs = package.definitions()
+        self.assertEqual(defs['core.json']['core']['framework']['version_required'], '2.2')
         modes = defs['video.json']['video']['scaler_modes']
         self.assertEqual([(m['width'], m['height']) for m in modes],
                          [(320, 240), (320, 200), (320, 224), (320, 256),

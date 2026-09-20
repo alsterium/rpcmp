@@ -37,7 +37,8 @@ struct Sound final : pocket::IMmio32 {
   player::MediaEnvelopeSnapshot media{};
   std::uint64_t epoch{}, prepared{}, output_prefix{}, next_sequence{1};
   unsigned queued{}, inhibits{}, violations{}, writes{}, reads{};
-  bool inhibited{true}, fault{}, active{}, quiescent{true}, closed_feed{};
+  bool inhibited{true}, fault{}, active{}, quiescent{true}, closed_feed{}, capture_reset_window{},
+      complete_on_submit{};
   Sound() {
     words[0] = 0x52534d31;
     words[1] = 0x10001;
@@ -105,6 +106,8 @@ struct Sound final : pocket::IMmio32 {
         default:
           break;
         }
+        if (complete_on_submit)
+          deliver();
         return;
       }
     }
@@ -195,6 +198,10 @@ struct Sound final : pocket::IMmio32 {
     words[0x244 / 4] = (media.target ? 1U : 0U) | (media.paused ? 2U : 0U) |
                        (quiescent ? 20U : 0U) | (active ? 32U : 0U) | (fault ? 64U : 0U) |
                        (inhibited ? 128U : 0U);
+    // RTL advances feed_epoch on Reset acceptance, before RESET_WAIT clears
+    // the old inhibit/fault. The independent Capture can sample that window.
+    if (capture_reset_window && pending[0] && words[0x30 / 4] == 0)
+      words[0x244 / 4] = (words[0x244 / 4] & ~20U) | 0xc8U;
     words[0x248 / 4] = static_cast<unsigned>(media.phase) |
                        (static_cast<unsigned>(media.end) << 2U) |
                        (static_cast<unsigned>(media.failure) << 5U);
@@ -435,6 +442,28 @@ void old_captures(rpcmp::test::Suite& suite) {
   RPCMP_CHECK(suite, rig.sound.inhibits == 0 && rig.sound.violations == 0);
 }
 
+void reset_capture_race(rpcmp::test::Suite& suite) {
+  for (const bool boot_inhibit : {false, true}) {
+    Rig rig(suite);
+    // main() requests INHIBIT before loading the library. RTL latches fault
+    // until the first successful Reset; this is expected startup state.
+    rig.sound.fault = boot_inhibit;
+    rig.sound.capture_reset_window = true;
+    rig.boot();
+    RPCMP_CHECK(suite, rig.controller.snapshot().failure == player::TransportFailure::None &&
+                           rig.controller.snapshot().silence_confirmed && rig.sound.inhibits == 0);
+    rig.play();
+    RPCMP_CHECK(suite, !rig.controller.snapshot().terminal && rig.sound.violations == 0);
+    // A fault observed by a query in the established epoch is still fatal
+    // to that playback. Obsolete-query filtering must not hide it.
+    rig.sound.capture_reset_window = false;
+    rig.sound.fault = true;
+    rig.steps(2);
+    RPCMP_CHECK(suite, rig.controller.snapshot().failure == player::TransportFailure::DeviceFault &&
+                           rig.sound.inhibits != 0);
+  }
+}
+
 void held_history_and_loss(rpcmp::test::Suite& suite) {
   Rig rig(suite);
   rig.play();
@@ -653,7 +682,11 @@ void application(rpcmp::test::Suite& suite) {
                            app->view().snapshot.policy->desired == api::PlaybackPolicy{});
     RPCMP_CHECK(suite, std::find(sound.controls.begin(), sound.controls.end(), 1U) ==
                            sound.controls.end());
-    press(0x20); // B: empty monitor -> albums.
+    press(2);    // Down: Repeat.
+    press(4);    // Left: View.
+    press(0x10); // Keyboard.
+    press(0x10); // Library.
+    press(4);    // Left: main panel / albums.
     RPCMP_CHECK(suite, app->view().main == ui::View::Library &&
                            app->view().browser.level == ui::BrowseLevel::Albums);
     press(0x10); // A: album -> tracks.
@@ -687,7 +720,8 @@ void application(rpcmp::test::Suite& suite) {
     RPCMP_CHECK(suite, app->view().snapshot.transport == TransportState::Stopped &&
                            app->view().snapshot.silence_confirmed);
     press(0x20);
-    RPCMP_CHECK(suite, app->view().main == ui::View::Library);
+    RPCMP_CHECK(suite,
+                app->view().main == ui::View::Keyboard && app->view().focus == ui::Focus::Shuffle);
     display->busy = false;
     run(1);
     RPCMP_CHECK(suite, display->frames == 1 && app->metrics().frames == 1);
@@ -712,6 +746,31 @@ void application(rpcmp::test::Suite& suite) {
   RPCMP_CHECK(suite, app->initialize());
   app->step({});
   RPCMP_CHECK(suite, app->failure() == pocket::ApplicationFailure::Canvas && sound.inhibits == 1);
+}
+
+void application_frame_work(rpcmp::test::Suite& suite) {
+  const auto bytes = library_bytes(false, 0);
+  player::CatalogSession catalog;
+  const auto opened = catalog.begin_open();
+  RPCMP_CHECK(suite, catalog.complete_open(opened.generation, {bytes.data(), bytes.size()}).ok());
+  Sound sound;
+  sound.fault = true;              // The platform's startup INHIBIT has already reached sound.
+  sound.complete_on_submit = true; // Hardware may reply before the next CPU service call.
+  Clock clock;
+  Random random;
+  auto display = std::make_unique<Display>();
+  display->busy = false;
+  auto app = std::make_unique<pocket::PlayerApplication>(catalog, sound, clock, *display, random);
+  RPCMP_CHECK(suite, app->initialize());
+  // Work bound, not a wall-clock claim: an idle frame should not require
+  // thousands of complete player/UI iterations. Audio still drains each turn.
+  for (unsigned i = 0; i < 256 && display->frames == 0; ++i) {
+    sound.deliver();
+    clock.now += 100;
+    app->step({});
+  }
+  RPCMP_CHECK(suite, display->frames == 1 && !app->view().snapshot.error && sound.violations == 0 &&
+                         sound.inhibits == 0);
 }
 
 void platform_input_clock(rpcmp::test::Suite& suite) {
@@ -806,6 +865,7 @@ int main() {
     lifecycle(suite);
     finite_and_partial_prefill(suite);
     old_captures(suite);
+    reset_capture_race(suite);
     held_history_and_loss(suite);
     cancellation_and_old_epoch(suite);
     critical_timeout_recovery(suite);
@@ -814,6 +874,7 @@ int main() {
     platform_input_clock(suite);
     application_library(suite);
     application(suite);
+    application_frame_work(suite);
   } catch (const std::exception& error) {
     std::cerr << "Backend fixture failed: " << error.what() << '\n';
     return 1;

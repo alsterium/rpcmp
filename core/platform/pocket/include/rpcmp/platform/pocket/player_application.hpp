@@ -41,7 +41,7 @@ public:
 
 struct ApplicationMetrics {
   std::uint64_t service_calls{}, frames{}, max_service_gap_us{}, max_record_us{}, max_pump_us{},
-      max_present_us{};
+      max_present_us{}, last_frame_us{};
 };
 enum class ApplicationFailure : std::uint8_t { None, SoundSetup, Clock, Canvas, Display };
 
@@ -70,9 +70,10 @@ private:
   BitmapCanvas canvas_;
   DrawSurface surface_{};
   ApplicationMetrics metrics_{};
-  std::uint64_t last_time_{}, last_service_{}, last_publication_{}, last_frame_{};
+  std::uint64_t last_time_{}, last_service_{}, last_step_{}, last_publication_{}, last_frame_{},
+      frame_started_{};
   ApplicationFailure failure_{ApplicationFailure::None};
-  bool initialized_{}, published_{}, drawing_{}, framed_{};
+  bool initialized_{}, stepped_{}, published_{}, drawing_{}, framed_{};
 };
 
 class LibrarySlot {

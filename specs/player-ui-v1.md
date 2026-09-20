@@ -5,6 +5,8 @@ presentation contract for the [accepted layout](../docs/design/pocket-tracker-sc
 Core is accessed only through schema 2 snapshots/commands and CatalogReader.
 The M0 UI and public v1 Core types remain unchanged. Physical bindings, focus
 adjacency and rendering live in UI/platform, never in playback engines.
+The user revised panel navigation on 2026-09-20 after the first hardware trial:
+D-pad moves focus between panels; Back never changes panels or display mode.
 
 ## Policy execution feedback
 
@@ -51,13 +53,16 @@ at most one action: Back, Previous/Next, Confirm, direction. Simultaneous held
 Previous+Next produces neither neighbour action. Lower-priority edges are
 discarded, not replayed later. These rules never use audio/video frame counts.
 
-Focus is List or one of Previous, PlayPause, Stop, Next, View, Repeat, Shuffle.
+Focus is Main or one of Previous, PlayPause, Stop, Next, View, Repeat, Shuffle.
+Main covers the current Tracker, Keyboard or Library view (`List` remains a
+source-compatible alias for the same focus value).
 The panel has top row Previous/PlayPause/Stop/Next and bottom View/Repeat/Shuffle.
 A replaceable checked adjacency table maps four directions. Default: horizontal
 neighbours, no wrap; down connects matching columns (Next to Shuffle), up reverses
-them (Shuffle to Stop). Up from the top row enters List only in Library; left
-from either row's first icon also enters List only in Library. List right goes
-to PlayPause; list up/down moves its cursor and left stays. Empty lists remain
+them (Shuffle to Stop). Up from the top row enters Main; left from either row's
+first icon also enters Main, including during playback errors. Main right goes
+to PlayPause; Library up/down moves its cursor and left stays. Tracker/Keyboard
+Down also enters PlayPause; their Up/Left stay. Empty lists remain
 focusable. Disabled icons retain their positions and show a reason on Confirm.
 
 View cycles Tracker -> Keyboard -> Library -> Tracker, keeping focus on View.
@@ -81,15 +86,16 @@ playback success/failure. A transport error retires the guard with an error.
 Neighbour edges and icons use current-player can_previous/can_next, never the
 browsing cursor, and preserve focus. Stop can supersede pending selection.
 
-Back in Playing/Paused/Loading/Ended sends Stop and stays in the view. Further
+Main Tracker/Keyboard Confirm has the same meaning as PlayPause. Back in the
+focused Library goes from tracks to albums, or stays at albums, regardless of
+playback state; it sends no player command. Back elsewhere in
+Playing/Paused/Loading/Ended sends Stop and stays in the view. Further
 Back while that stop is pending is ignored, never queued. Completion requires
 a newer sequence and generation, Stopped, confirmed silence and no preparation,
-audio control or pending intent. Only a subsequent fresh Back edge returns from
-a monitor to the selected track's list (or albums with no selection). Back from
-a stopped/empty track list goes to albums; from albums it is a no-op. Empty
-monitor Back opens albums. Error Back preserves the error; View and explicit
-selection provide recovery when the Core is not terminal. The Stop icon always
-means Stop, never Back.
+audio control or pending intent. Back on a stopped/empty monitor is a no-op;
+it never opens a list or moves focus. Error Back preserves the error; D-pad and
+View remain usable, and explicit selection provides recovery when Core is not
+terminal. The Stop icon always means Stop, never Back.
 
 Stop is idempotent in the Core. A Stop issued against an already-Stopped
 observation with no unobserved local transport command can confirm that existing
@@ -111,7 +117,7 @@ Repeated immutable sequence values do not replay acknowledgements or history.
 Catalog pages are copied, validated against the exact query/generation/album and
 bounded to sixteen entries. One page per visible level is sufficient; moving
 across a page boundary queries the next page, never a container offset.
-Returning to the selected track may scan at most 300 album IDs in bounded pages.
+Opening Library starts at albums and retains that browsing position thereafter.
 IDs and cursor survive view switches only within the same catalog generation;
 generation replacement invalidates the browse path. Query failure disables
 selection instead of activating a stale item.

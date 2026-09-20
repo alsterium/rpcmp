@@ -279,29 +279,22 @@ void PlayerUi::back() {
     diagnose(Diagnostic::InvalidSnapshot);
     return;
   }
-  if (pending_transport_ && pending_transport_->kind == api::CommandKind::Stop)
+  if (view_.focus == Focus::Main && view_.main == View::Library) {
+    if (view_.browser.level == BrowseLevel::Tracks) {
+      const auto ordinal = view_.browser.album ? view_.browser.album->display_ordinal : 0;
+      view_.browser.level = BrowseLevel::Albums;
+      view_.browser.album.reset();
+      view_.browser.cursor = ordinal;
+      static_cast<void>(load_page());
+    }
     return;
+  }
   const auto state = view_.snapshot.transport;
-  if (state == TransportState::Error)
-    return;
-  if (state == TransportState::Playing || state == TransportState::Paused ||
-      state == TransportState::Loading || state == TransportState::Ended || pending_transport_ ||
-      pending(view_.snapshot)) {
+  if (state != TransportState::Error &&
+      (state == TransportState::Playing || state == TransportState::Paused ||
+       state == TransportState::Loading || state == TransportState::Ended || pending_transport_ ||
+       pending(view_.snapshot)))
     stop();
-    return;
-  }
-  if (view_.main != View::Library) {
-    last_monitor_ = view_.main;
-    view_.main = View::Library;
-    view_.focus = Focus::List;
-    browse_selected();
-  } else if (view_.browser.level == BrowseLevel::Tracks) {
-    const auto ordinal = view_.browser.album ? view_.browser.album->display_ordinal : 0;
-    view_.browser.level = BrowseLevel::Albums;
-    view_.browser.album.reset();
-    view_.browser.cursor = ordinal;
-    static_cast<void>(load_page());
-  }
 }
 
 void PlayerUi::switch_view() {
@@ -320,7 +313,8 @@ void PlayerUi::move(const Action direction) {
     return;
   }
   auto& browser = view_.browser;
-  if (view_.focus == Focus::List && (direction == Action::Up || direction == Action::Down)) {
+  if (view_.focus == Focus::Main && view_.main == View::Library &&
+      (direction == Action::Up || direction == Action::Down)) {
     if (!browser.valid)
       return;
     const auto& header =
@@ -337,13 +331,16 @@ void PlayerUi::move(const Action direction) {
   const auto target =
       focus_[static_cast<std::size_t>(view_.focus)]
             [static_cast<std::size_t>(direction) - static_cast<std::size_t>(Action::Up)];
-  if (target != Focus::List || view_.main == View::Library)
-    view_.focus = target;
+  view_.focus = target;
 }
 
 void PlayerUi::confirm() {
   switch (view_.focus) {
-  case Focus::List: {
+  case Focus::Main: {
+    if (view_.main != View::Library) {
+      play_pause();
+      break;
+    }
     auto& browser = view_.browser;
     if (!view_.valid_snapshot || !browser.valid || catalog_.status() != view_.snapshot.library) {
       browser.valid = false;
@@ -498,38 +495,6 @@ bool PlayerUi::load_page() {
   if (!browser.valid)
     diagnose(Diagnostic::CatalogFailure);
   return browser.valid;
-}
-
-void PlayerUi::browse_selected() {
-  reset_browser();
-  const auto& selected = view_.snapshot.track;
-  if (!selected || !view_.browser.valid)
-    return;
-  auto& browser = view_.browser;
-  for (std::uint32_t start = 0; start < view_.snapshot.library.album_count;
-       start += contracts::kCatalogPageCapacity) {
-    browser.cursor = start;
-    if (!load_page())
-      return;
-    for (std::uint16_t i = 0; i < browser.albums.header.count; ++i) {
-      if (browser.albums.items[i].album_id != selected->item.album_id)
-        continue;
-      browser.album = browser.albums.items[i];
-      browser.level = BrowseLevel::Tracks;
-      browser.cursor = selected->item.track_ordinal;
-      if (!load_page())
-        return;
-      const auto index = browser.cursor - browser.tracks.header.query.start_ordinal;
-      if (index >= browser.tracks.header.count ||
-          browser.tracks.items[index].track_id != selected->item.track_id) {
-        browser.valid = false;
-        diagnose(Diagnostic::CatalogFailure);
-      }
-      return;
-    }
-  }
-  browser.valid = false;
-  diagnose(Diagnostic::CatalogFailure);
 }
 
 void PlayerUi::observe_history() {

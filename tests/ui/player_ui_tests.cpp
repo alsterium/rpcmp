@@ -248,8 +248,9 @@ void transport_and_stop(rpcmp::test::Suite& suite) {
   rig.advance();
   RPCMP_CHECK(suite, !rig.ui.view().transport_pending && rig.ui.view().main == View::Tracker);
   rig.action(Action::Back);
-  RPCMP_CHECK(suite, rig.ui.view().main == View::Library &&
-                         rig.ui.view().browser.level == BrowseLevel::Tracks);
+  RPCMP_CHECK(suite, rig.ui.view().main == View::Tracker);
+  rig.library();
+  rig.action(Action::Confirm);
   rig.action(Action::Back);
   RPCMP_CHECK(suite,
               rig.ui.view().browser.level == BrowseLevel::Albums && rig.commands.sent.size() == 3);
@@ -267,7 +268,7 @@ void transport_and_stop(rpcmp::test::Suite& suite) {
   RPCMP_CHECK(suite, held.ui.view().main == View::Tracker);
   held.ui.input({0}, 3);
   held.ui.input({2}, 4);
-  RPCMP_CHECK(suite, held.ui.view().main == View::Library && held.commands.sent.size() == 1);
+  RPCMP_CHECK(suite, held.ui.view().main == View::Tracker && held.commands.sent.size() == 1);
 
   Rig existing(suite);
   existing.stopped();
@@ -281,7 +282,7 @@ void transport_and_stop(rpcmp::test::Suite& suite) {
   existing.advance();
   RPCMP_CHECK(suite, !existing.ui.view().transport_pending);
   existing.action(Action::Back);
-  RPCMP_CHECK(suite, existing.ui.view().main == View::Library);
+  RPCMP_CHECK(suite, existing.ui.view().main == View::Tracker);
 }
 
 void browsing(rpcmp::test::Suite& suite) {
@@ -363,10 +364,48 @@ void browsing(rpcmp::test::Suite& suite) {
   many.snapshot.track =
       api::SelectedTrack{{{30900}, {309}, 0, text("Last track")}, text("Album 299")};
   many.stopped();
-  many.action(Action::Back);
+  many.library();
+  for (unsigned i = 0; i < 299; ++i)
+    many.action(Action::Down);
+  many.action(Action::Confirm);
   RPCMP_CHECK(suite, many.ui.view().browser.valid &&
                          required(many.ui.view().browser.album).album_id.value == 309 &&
                          many.catalog.reads <= 21);
+}
+
+void panel_context(rpcmp::test::Suite& suite) {
+  Rig rig(suite);
+  rig.action(Action::Up);
+  RPCMP_CHECK(suite, rig.ui.view().focus == Focus::List && rig.ui.view().main == View::Tracker);
+  rig.action(Action::Confirm);
+  RPCMP_CHECK(suite, rig.commands.sent.size() == 1 &&
+                         rig.commands.sent.back().kind == api::CommandKind::Pause);
+  rig.action(Action::Right);
+  RPCMP_CHECK(suite, rig.ui.view().focus == Focus::PlayPause);
+
+  Rig browse(suite);
+  browse.library();
+  browse.action(Action::Confirm);
+  browse.action(Action::Back);
+  RPCMP_CHECK(suite, browse.ui.view().main == View::Library &&
+                         browse.ui.view().focus == Focus::List &&
+                         browse.ui.view().browser.level == BrowseLevel::Albums &&
+                         browse.commands.sent.empty()); // browsing Back must not stop audio
+
+  Rig failed(suite);
+  failed.snapshot.transport = failed.snapshot.projected = TransportState::Error;
+  failed.snapshot.error = api::PlaybackError{api::PlaybackErrorCode::ResetFailed, true};
+  failed.snapshot.prepared = false;
+  failed.snapshot.navigation = api::PlaybackNavigationObservation{};
+  failed.advance();
+  failed.action(Action::Up);
+  RPCMP_CHECK(suite, failed.ui.view().focus == Focus::List);
+  failed.action(Action::Right);
+  failed.library();
+  failed.action(Action::Confirm);
+  failed.action(Action::Back);
+  RPCMP_CHECK(suite, failed.ui.view().browser.level == BrowseLevel::Albums &&
+                         failed.commands.sent.empty() && failed.ui.view().snapshot.error);
 }
 
 void policies(rpcmp::test::Suite& suite) {
@@ -589,6 +628,7 @@ int main() {
   input_edges(suite);
   transport_and_stop(suite);
   browsing(suite);
+  panel_context(suite);
   policies(suite);
   history(suite);
   boundaries(suite);

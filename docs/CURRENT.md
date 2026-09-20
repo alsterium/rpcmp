@@ -17,11 +17,15 @@ views with copied commands and bounded pixel work. The actual
 catalog/player/backend/UI with APF input, a 64-bit CPU clock and the SDK draw
 surface. Its loop services audio independently of publication and bounded
 rendering; scripted application integration and the full RV32 app link pass.
-The first coherent ROM/OS/app candidate is now packaged with an authored
-two-album, three-track FM demo. Follow the
-[M6 hardware check](development/pocket-player-hardware.md) for installation and
-the first display/input/audio check. Target service cadence and hardware
-acceptance remain unmeasured; see the milestone's current evidence.
+The r1 hardware report confirms boot without autoplay, Japanese text and all
+three views, but reports a playback error before selecting a track, no audio
+and roughly one-second input feedback. Host regressions now reproduce and fix
+startup-inhibit and Reset/Capture ordering errors. D-pad panel navigation and
+contextual B replace B panel navigation, as requested on 2026-09-20. Frame work
+is reduced and target timing is displayed. Follow the
+[M6 hardware check](development/pocket-player-hardware.md) for the r2 candidate.
+Actual audio recovery and input latency remain hardware checks; see the
+milestone's current evidence.
 On 2026-09-20 the user deferred persistent settings: each application launch
 starts with AlbumOrder / Default (two loops, five-second fade), shuffle off and
 no autoplay. In-session setting changes remain supported. Do not connect a
@@ -165,8 +169,8 @@ The retained producer and output-history owner now connect through the sound
 backend. The actual AXI sound binding and scripted application service loop
 are verified; the coherent candidate is packaged and target measurements are
 next. The APF settings adapter is deferred by the user's updated requirement.
-See M6 for the executed checks; this does not establish a working Pocket audio
-adapter, rendered Pocket UI or M6 integration acceptance.
+See M6 for the executed checks and the user's rendered-UI report; audible
+Pocket playback and M6 integration acceptance remain unverified.
 Use the [transition proposal](design/pocket-player-transition-contract.md),
 preserve v1 compatibility and adopt each contract before its implementation.
 Slices 1–2 implement [host metadata](../specs/host-metadata-v1.md),

@@ -1,6 +1,7 @@
 #include "rpcmp/platform/pocket/player_application.hpp"
 
 #include <algorithm>
+#include <cstdio>
 #include <limits>
 
 namespace rpcmp::platform::pocket {
@@ -88,24 +89,47 @@ void PlayerApplication::step(const ui::v2::InputSample input) {
   if (failure_ != ApplicationFailure::None)
     return;
   const bool publish = !published_ || now - last_publication_ >= 5'000;
-  static_cast<void>(player_.step(now, publish));
-  service();
+  // Audio supply is serviced every turn. Core command/projection work does
+  // not need to be repeated for every small piece of a framebuffer.
+  if (!stepped_ || now - last_step_ >= 1'000 || publish) {
+    static_cast<void>(player_.step(now, publish));
+    last_step_ = now;
+    stepped_ = true;
+    service();
+  }
   if (failure_ != ApplicationFailure::None)
     return;
   if (publish) {
     published_ = true;
     last_publication_ = now;
     ui_.update(player_.latest());
-    ui_.input(input, now);
     service();
   }
+  ui_.input(input, now);
   if (failure_ != ApplicationFailure::None)
     return;
   if (!drawing_ && (!framed_ || now - last_frame_ >= 33'333)) {
     const auto start = time();
+    frame_started_ = start;
     surface_ = display_.acquire();
     canvas_.begin();
     ui::v2::render_player(ui_.view(), canvas_);
+    // Target-only measurements keep CPU timing out of the generic UI/Core
+    // snapshot. F is the previous complete frame; S is the worst service gap.
+    std::array<char, 64> diagnostic{};
+    std::snprintf(diagnostic.data(), diagnostic.size(), "F%llums S%lluus",
+                  static_cast<unsigned long long>(metrics_.last_frame_us / 1'000),
+                  static_cast<unsigned long long>(metrics_.max_service_gap_us));
+    canvas_.text({280, 4, 240, 16}, diagnostic.data(), ui::v2::palette::muted);
+    if (ui_.view().snapshot.error) {
+      std::snprintf(diagnostic.data(), diagnostic.size(), "ERR %u SND %04X REC %lluus FLIP %lluus",
+                    static_cast<unsigned>(ui_.view().snapshot.error->code),
+                    static_cast<unsigned>(client_.status()),
+                    static_cast<unsigned long long>(metrics_.max_record_us),
+                    static_cast<unsigned long long>(metrics_.max_present_us));
+      canvas_.fill({16, 344, 608, 16}, ui::v2::palette::background);
+      canvas_.text({16, 344, 608, 16}, diagnostic.data(), ui::v2::palette::warning);
+    }
     if (!canvas_.seal())
       fail(ApplicationFailure::Canvas);
     metrics_.max_record_us = std::max(metrics_.max_record_us, time() - start);
@@ -115,7 +139,7 @@ void PlayerApplication::step(const ui::v2::InputSample input) {
   if (!drawing_ || failure_ != ApplicationFailure::None)
     return;
   const auto start = time();
-  static_cast<void>(canvas_.pump(surface_.pixels, surface_.bytes, surface_.stride, 256));
+  static_cast<void>(canvas_.pump(surface_.pixels, surface_.bytes, surface_.stride, 4'096));
   if (canvas_.failed())
     fail(ApplicationFailure::Canvas);
   metrics_.max_pump_us = std::max(metrics_.max_pump_us, time() - start);
@@ -129,6 +153,7 @@ void PlayerApplication::step(const ui::v2::InputSample input) {
     fail(ApplicationFailure::Display);
   if (result == PresentResult::Presented) {
     ++metrics_.frames;
+    metrics_.last_frame_us = time() - frame_started_;
     drawing_ = false;
     framed_ = true;
     last_frame_ = now;

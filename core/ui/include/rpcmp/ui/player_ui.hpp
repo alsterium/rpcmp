@@ -34,7 +34,8 @@ private:
 
 enum class View : std::uint8_t { Tracker, Keyboard, Library };
 enum class Focus : std::uint8_t {
-  List,
+  Main,
+  List = Main, // Compatibility name for the original Library-only focus.
   Previous,
   PlayPause,
   Stop,
@@ -134,7 +135,6 @@ private:
   void observe_history();
   void reset_browser();
   [[nodiscard]] bool load_page();
-  void browse_selected();
   [[nodiscard]] bool ready_to_send();
   void diagnose(Diagnostic diagnostic) noexcept;
   api::CommandIngress& commands_;

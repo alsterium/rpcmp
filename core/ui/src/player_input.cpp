@@ -73,7 +73,7 @@ Action InputMapper::sample(const InputSample input, const std::uint64_t now_us) 
 
 FocusTable default_focus_table() noexcept {
   using F = Focus;
-  return {{{F::List, F::List, F::List, F::PlayPause},
+  return {{{F::Main, F::PlayPause, F::Main, F::PlayPause},
            {F::List, F::ViewSwitch, F::List, F::PlayPause},
            {F::List, F::Repeat, F::Previous, F::Stop},
            {F::List, F::Shuffle, F::PlayPause, F::Next},

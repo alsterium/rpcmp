@@ -225,6 +225,15 @@ void missing_and_failures(rpcmp::test::Suite& suite) {
   Canvas rejected(suite);
   render_player(view, rejected);
   RPCMP_CHECK(suite, rejected.contains("Library changed; select again"));
+  view.snapshot.transport = view.snapshot.projected = c::TransportState::Error;
+  view.snapshot.error = api::PlaybackError{api::PlaybackErrorCode::ResetFailed, true};
+  Canvas reset(suite);
+  render_player(view, reset);
+  RPCMP_CHECK(suite, reset.contains("Sound reset failed; restart the player"));
+  view.snapshot.error->code = api::PlaybackErrorCode::Protocol;
+  Canvas protocol(suite);
+  render_player(view, protocol);
+  RPCMP_CHECK(suite, protocol.contains("Playback protocol error; restart the player"));
   view.valid_snapshot = false;
   Canvas invalid(suite);
   render_player(view, invalid);

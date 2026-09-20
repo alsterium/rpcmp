@@ -35,12 +35,13 @@ must include the font notices in `third_party/unifont`.
   objects are placement-constructed once in zeroed BSS; they are not stack or
   initialized-data allocations. UI still accesses only commands, snapshots
   and the read-only CatalogReader. Runtime/player have no UI dependency.
-- Every iteration services sound and advances PlayerSession. At intervals of
-  at least 5 ms it publishes, updates UI and samples held input. This does not
+- Every iteration services sound and samples input. PlayerSession advances at
+  intervals of at least 1 ms; at intervals of at least 5 ms it publishes and
+  updates UI. This does not
   derive audio timing from UI cadence. Preparation/control deadlines are 5 s /
   100 ms; the independent approved mailbox watchdog remains **1000 us**.
 - A new frame is recorded at most every 33,333 us, then rasterized in chunks
-  of at most 256 pixels with sound service between chunks. The current frame
+  of at most 4096 pixels with sound service between chunks. The current frame
   retains its copied text, geometry and draw buffer while UI keeps updating.
   The display port returns Busy without replacing that buffer or blocking on
   vsync. Only a complete frame is presented.
@@ -56,14 +57,20 @@ must include the font notices in `third_party/unifont`.
   number of MHz, which includes this 90 MHz profile.
 - APF PAD types 1–3 are connected gamepads. Buttons and type come from one raw
   key word. Replaceable bindings map A/B/L/R/directions to the existing UI
-  actions; first-held and reconnect-held buttons require release. B from the
-  initial empty monitor opens albums. A chooses the album, then the track.
+  actions; first-held and reconnect-held buttons require release. D-pad moves
+  between the main panel and controls. The View icon opens Library, then Left
+  focuses the list. A chooses the album, then the track. B in that focused list
+  returns to albums; elsewhere it stops playback without changing panels.
 - Each new instance has AlbumOrder / Default (two loops and five-second fade),
   shuffle off and no autoplay. No settings storage is supplied and
   `kPlaybackSettings` is absent. Policy changes remain effective in session.
 
 The application records maximum sound-service gaps and record/pump/present
-durations. Fatal app diagnostics print these values after INHIBIT. They are
+durations. The target-only header shows `F<n>ms` (previous completed frame,
+including presentation backpressure) and `S<n>us` (maximum service gap).
+On playback error, the main panel's bottom line adds `ERR` (public error code),
+`SND` (last sound status in hex), `REC` (maximum command-recording us) and `FLIP`
+(maximum presentation us). Fatal app diagnostics print timings after INHIBIT. They are
 measurements of CPU work, not proofs of audio delivery. Ordinary recoverable
 playback errors remain in the shared UI/transport recovery path.
 
@@ -71,7 +78,8 @@ playback errors remain in the shared UI/transport recovery path.
 
 `mdx_backend` now also drives the real application through scripted copied
 sound mailboxes and physical button samples. It checks startup defaults,
-library selection, pause/resume, stop/back, in-session policy, fresh launches,
+library selection, pause/resume, D-pad panel focus, contextual B, startup
+INHIBIT/Reset capture ordering, bounded frame work, in-session policy, fresh launches,
 surface retention during long presentation backpressure, and fatal display /
 clock / canvas failures. Separate cases cover timer rollover/retry, disconnect
 and reconnect, and the full 32 MiB input bound. The scripted device is not an
