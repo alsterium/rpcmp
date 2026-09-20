@@ -2077,3 +2077,12 @@ hardware checks were not run: this block is not yet connected to the CPU/board.
 Retained MDX production, bounded output/per-event history and sound/storage
 adapters remain before integration. The watchdog proposal is pending adoption;
 neither the transfer bound nor the local fit is hardware acceptance.
+
+## Slice 4 mailbox watchdog adoption — 2026-09-20
+
+The user approved the concrete 1 ms proposal and asked to continue. The MMIO
+contract now fixes 1,000 us from successful submit for control/feed/capture,
+completion-before-expiry priority, and retained ownership after timeout.
+The CPU adapter must test these rules; approval does not claim implementation,
+real CPU service timing or hardware acceptance. This resolves the pending
+adoption recorded in the preceding execution entry.

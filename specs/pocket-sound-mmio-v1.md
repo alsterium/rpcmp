@@ -193,7 +193,15 @@ bounds, rounded upward, are:
 
 These ideal-edge bounds exclude CPU service/polling time and analog
 metastability delays; they do not themselves set a CPU watchdog constant.
-Watchdog adoption and enclosing Core deadline checks precede the CPU adapter.
+On 2026-09-20 the user explicitly approved a **1,000 microsecond** mailbox
+watchdog for control, feed and capture. Measure from successful submit using
+an injected monotonic real clock, independently of rendering. Process a
+matching completion before testing expiry, including exactly at the deadline.
+An incomplete expired operation is failure, never cancellation, quiescence or
+permission to reuse borrowed state. Drain its response or confirm common reset
+before reuse. This value exceeds the longest local bound by more than five
+times; CPU service frequency and the enclosing Core deadline still require
+adapter/integration checks. It is not a measured Pocket response time.
 
 The local fixture uses CPU/audio periods 11.111 / 81.380 ns. False paths
 terminate only at first toggle/status synchronizer stages and external-reset

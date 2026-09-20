@@ -5,8 +5,8 @@ Active milestone: [M6 — Album Player](milestones/M6-album-player.md)
 The current task is M6 slice 4: implement the approved
 [CPU sound connection](design/pocket-cpu-sound-connection.md). Its
 [MMIO/CDC](../specs/pocket-sound-mmio-v1.md) now passes independent-clock RTL,
-host checks and local fitted timing/CDC. The proposed mailbox watchdog value
-awaits explicit adoption before the CPU adapter; no value has been implemented.
+host checks and local fitted timing/CDC. The user approved the 1,000 us mailbox
+watchdog on 2026-09-20; CPU deadline handling remains to be implemented/tested.
 Next are retained MDX production and per-event history mapping.
 The [synchronous sound session](../specs/pocket-sound-session-v1.md) now passes
 all-phase local control/reset/inhibit tests, host/RTL regressions and registered
