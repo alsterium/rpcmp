@@ -2086,3 +2086,62 @@ completion-before-expiry priority, and retained ownership after timeout.
 The CPU adapter must test these rules; approval does not claim implementation,
 real CPU service timing or hardware acceptance. This resolves the pending
 adoption recorded in the preceding execution entry.
+
+## Slice 4 retained MDX producer execution — 2026-09-20
+
+The [retained producer contract](../../specs/mdx-source-producer-v1.md) was
+written before implementation within the approved CPU connection plan. Core
+now copies one validated batch of up to 8,192 register writes plus its marker,
+retains each offer through Full/retry, and advances only on Accepted. A fresh
+confirmed sound epoch discards old CPU retention; late old replies cannot
+complete a new offer. Cancelling this owner does not establish device silence.
+The engine helper uses 12,288,000 scheduler ticks per second, commits a
+candidate state and copied display checkpoint only after retention succeeds,
+and performs no engine work while audio remains pending. MMIO access and
+display retention are not implemented by this unit.
+
+Executed checks:
+
+- `pwsh -File out/build/m6-producer-focused.ps1`: the real CMake producer
+  target builds and `ctest --preset host-msvc -R '^mdx_source_producer$'`
+  passes 1/1 (0.05 s test, 0.11 s total). The authored engine trace checks
+  17 ticks against the independent interval 22,020,096/125 audio ticks.
+  Every item of the 8,192-write fixture survives three Full retries with
+  identical copied fields, including its marker. Invalid late writes,
+  zero-write/end, identity/failure handling, cancellation and u64 limits pass.
+- `pwsh -File tools/host-verify.ps1`, with process PATH and cached CMake tool
+  paths selecting the unchanged LLVM 22.1.8 pin: 78/78 PASS in 499.34 s,
+  including format (0.52 s), tidy (481.17 s), architecture rejection fixtures
+  and incremental rebuild. Log: `out/build/m6-producer-host.log`.
+- `out/build/host-msvc/rpcmp_mdx_source_producer_tests.exe`: PASS; host sizes
+  are 16,464 bytes retained audio, 1,073,416 bytes workspace and 3,192 bytes
+  copied display checkpoint.
+- After the user restarted Docker, server 29.7.2/linux and the existing
+  `rpcmp-openfpgaos-toolchain:14.2.0-3` image were available. The command below
+  compiles and links the producer plus real MDX engine using GCC 14.2.0,
+  `rv32imafc/ilp32f`, the pinned SDK `a408ddc12aed0dfaa4aa22c06af82f829db77126`,
+  static BSS workspace and authored commands. ELF32 little-endian RISC-V,
+  entry 0x10400000 and no undefined symbols were verified.
+
+```powershell
+docker run --rm --mount type=bind,source=F:\source\rpcmp,target=/repo --workdir /repo rpcmp-openfpgaos-toolchain:14.2.0-3 make --file out/build/m6-producer-cross/Makefile producer-check
+```
+
+The link probe has text 17,652, data 200 and BSS 932,256 bytes, total 950,108,
+within the existing 56,623,104-byte static and 4,096-byte initialized-data
+limits. `elf_budget.py` passes: 35 compiler stack-usage records sum to 9,456
+bytes, largest frame 7,264, no dynamic frames, against the 524,288-byte limit.
+This sum covers the compiled C++ records, not unreported SDK/library frames
+or a measured device stack high-water mark. `riscv-none-elf-nm --print-size
+--size-sort --demangle` confirms target retained audio 16,464, workspace
+895,224 and checkpoint 3,192 bytes. Producer's largest own frame is 80 bytes;
+the caller must keep its large workspace outside the stack. Logs and budget:
+`out/build/m6-producer-cross.log`, `out/build/m6-producer-cross/budget.json`.
+
+`python -B tools/check_harness.py`, changed Markdown link checks and
+`git diff --check` pass. No RTL input changed in this C++ unit, so RTL/fit were
+not repeated. This link probe was not executed on Pocket and does not establish
+CPU service speed, mailbox deadlines or combined player/font/framebuffer memory
+acceptance. Whole-Pocket build/package and firmware 2.6 tests remain pending.
+Next are the separately bounded 16-batch display retention, 32-record output
+journal/per-event mapping and sound/storage adapters before integration.

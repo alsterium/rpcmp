@@ -7,7 +7,9 @@ The current task is M6 slice 4: implement the approved
 [MMIO/CDC](../specs/pocket-sound-mmio-v1.md) now passes independent-clock RTL,
 host checks and local fitted timing/CDC. The user approved the 1,000 us mailbox
 watchdog on 2026-09-20; CPU deadline handling remains to be implemented/tested.
-Next are retained MDX production and per-event history mapping.
+The [retained MDX producer](../specs/mdx-source-producer-v1.md) now passes
+copied-batch/retry/epoch host checks and a RISC-V compile/link memory probe.
+Next are bounded output/per-event history and the CPU sound/storage adapters.
 The [synchronous sound session](../specs/pocket-sound-session-v1.md) now passes
 all-phase local control/reset/inhibit tests, host/RTL regressions and registered
 fit/timing; the active milestone records the commands and limitations. Sound/storage adapters
@@ -24,8 +26,9 @@ The [retained media source queue](../specs/media-source-queue-v1.md) now provide
 ordered audio-clock writes/markers with 64 copied entries. Larger MDX batches
 stream through it; the queue distinguishes native busy/receipt backpressure
 from missing input at an eligible dispatch opportunity. Marker dispatch seals
-source supply. The composed progress owner maps loop/end separately; CPU feeding
-and retained per-event history remain to be connected.
+source supply. The composed progress owner maps loop/end separately; the
+retained CPU producer is tested, while MMIO feeding and per-event history
+remain to be connected.
 The explicitly approved source-receipt contract now orders writes and zero-write
 markers and retains their actual transfer/marker edge under backpressure.
 Native receipt tests and the enveloped fault/reset integration pass. These
@@ -111,8 +114,8 @@ The synchronous canvas now draws Tracker, keyboard and library around a shared
 information/control panel. The host SVG mock links UI/contracts only, with
 bounded text and explicit elision. Authored scenarios and browser-rendered
 images verify mock layout; installed host fonts do not establish Pocket metrics.
-The retained CPU/per-event mapping, pending observation storage and
-sound/storage adapters remain to be wired.
+The retained producer still needs MMIO feeding, per-event mapping, pending
+observation storage and sound/storage adapters to be wired.
 See M6 for the executed checks; this does not establish a working Pocket audio
 adapter, rendered Pocket UI or M6 integration acceptance.
 Use the [transition proposal](design/pocket-player-transition-contract.md),

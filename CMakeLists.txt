@@ -124,6 +124,7 @@ add_library(rpcmp_player STATIC
   core/player/src/catalog_session.cpp
   core/player/src/media_loop_envelope.cpp
   core/player/src/mdx_performance_mapper.cpp
+  core/player/src/mdx_source_producer.cpp
   core/player/src/performance_history.cpp
   core/player/src/playback_navigation.cpp
   core/player/src/playback_settings.cpp
@@ -402,6 +403,12 @@ if(BUILD_TESTING)
   target_compile_definitions(rpcmp_mdx_performance_tests PRIVATE RPCMP_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
   rpcmp_test_options(rpcmp_mdx_performance_tests)
   add_test(NAME mdx_performance COMMAND rpcmp_mdx_performance_tests)
+
+  add_executable(rpcmp_mdx_source_producer_tests tests/player/mdx_source_producer_tests.cpp)
+  target_include_directories(rpcmp_mdx_source_producer_tests PRIVATE tests/support)
+  target_link_libraries(rpcmp_mdx_source_producer_tests PRIVATE rpcmp_player)
+  rpcmp_test_options(rpcmp_mdx_source_producer_tests)
+  add_test(NAME mdx_source_producer COMMAND rpcmp_mdx_source_producer_tests)
 
   add_executable(rpcmp_playback_settings_tests tests/player/playback_settings_tests.cpp)
   target_include_directories(rpcmp_playback_settings_tests PRIVATE tests/support)

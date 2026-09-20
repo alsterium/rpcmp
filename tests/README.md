@@ -18,6 +18,14 @@ cmake --build --preset host-msvc --target format-check
 cmake --build --preset host-msvc --target tidy-check
 ```
 
+The host `mdx_source_producer` test checks copied maximum-size MDX batches,
+repeated Full responses on each write/marker, partial feed, cancelled/old
+epochs, malformed batches and token exhaustion. Its real-engine fixture uses
+authored commands and an independently calculated integer tick interval;
+pending audio must not advance the engine or its display checkpoint. It also
+prints host ownership sizes. RISC-V link and Pocket execution are separate
+checks; see [M6 evidence](../docs/milestones/M6-album-player.md).
+
 Run the M0 register spike plus M2 device queue and Pocket AUDIO simulations
 with Questa Altera Starter 2025.2:
 
