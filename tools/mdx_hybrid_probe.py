@@ -132,14 +132,26 @@ def build(args):
          "-DPROBE_SKIP_FM", wrapper, *[src / p for p in UNITS], "-o", args.out / "split.so"])
     run(["gcc", "-O2", "-fPIC", "-shared", args.reference / "classes/objc/lzx042.c",
          "-o", args.out / "lzx.so"])
-    # Existing upstream width warnings remain visible; the pinned core is
-    # research-only. No production lint gate is suppressed by this invocation.
-    # Observation-only taps preserve the existing native outputs. The reference
-    # mixer needs FM headroom before its gain, not an already clipped DAC value.
-    wide = args.out / "jt51-wide"
-    wide.mkdir(exist_ok=True)
+    sources = prepare_jt51_wide(args.jt51, args.out / "jt51-wide")
+    # Upstream width warnings remain visible; own C++ warnings are errors.
+    run(["verilator", "--cc", "--exe", "--build", "-j", "2", "-Wno-fatal", "--top-module", "jt51",
+         "--Mdir", args.out / "obj", *sources, ROOT / "tools/mdx_hybrid_replay.cpp",
+         "-CFLAGS", "-O2 -std=c++17 -Wall -Wextra -Werror"])
+
+
+def prepare_jt51_wide(source, wide):
+    """Add pre-limit output taps and deterministic initial accumulator state."""
+    source, wide = Path(source).resolve(), Path(wide).resolve()
+    if not wide.is_relative_to(ROOT / "out"):
+        raise ValueError("generated JT51 must stay under out")
+    revision = run(["git", "-C", source, "rev-parse", "HEAD"], capture_output=True, text=True).stdout.strip()
+    dirty = run(["git", "-c", "core.autocrlf=true", "-C", source, "status", "--porcelain"],
+                capture_output=True, text=True).stdout
+    if revision != JT51 or dirty:
+        raise ValueError("JT51 checkout is unpinned or modified")
+    wide.mkdir(parents=True, exist_ok=True)
     for name in ("jt51.v", "jt51_acc.v"):
-        shutil.copyfile(args.jt51 / "hdl" / name, wide / name)
+        shutil.copyfile(source / "hdl" / name, wide / name)
     path = wide / "jt51.v"
     text = checked_replace(path.read_text(), "    output  signed  [15:0] xright\n",
                            "    output  signed  [15:0] xright,\n"
@@ -154,16 +166,14 @@ def build(args):
                            "    output reg signed [18:0] wide_left, wide_right\n")
     text = checked_replace(text, "    if( rst ) begin\n        sum_all <= 1'b0;",
                            "    if( rst ) begin\n        sum_all <= 1'b0;\n"
+                           "        pre_left <= 0; pre_right <= 0;\n"
                            "        wide_left <= 0; wide_right <= 0;")
     text = checked_replace(text, "            xleft  <= lim16(pre_left);",
                            "            wide_left <= pre_left; wide_right <= pre_right;\n"
                            "            xleft  <= lim16(pre_left);")
     path.write_text(text)
-    sources = [wide / name if name in ("jt51.v", "jt51_acc.v") else args.jt51 / "hdl" / name
-               for name in (args.jt51 / "hdl/jt51.f").read_text().split()]
-    run(["verilator", "--cc", "--exe", "--build", "-j", "2", "-Wno-fatal", "--top-module", "jt51",
-         "--Mdir", args.out / "obj", *sources, ROOT / "tools/mdx_hybrid_replay.cpp",
-         "-CFLAGS", "-O2 -std=c++17 -Wall -Wextra -Werror"])
+    return [wide / name if name in ("jt51.v", "jt51_acc.v") else source / "hdl" / name
+            for name in (source / "hdl/jt51.f").read_text().split()]
 
 
 def load_library(out, split=False):

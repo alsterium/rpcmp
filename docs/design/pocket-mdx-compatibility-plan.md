@@ -109,8 +109,8 @@ That is useful workflow evidence, not a reason to inherit its 256-track /
 Before adoption, define relative-path rules, Japanese encoding handling,
 MDX-title fallback, missing/ambiguous PDX reporting, LZX bounds and optional
 explicit dependency mapping. M3U lists tracks; it does not resolve PDX by
-itself. Preserve `.rpcmlib` v1 and generic IDs/blob interfaces during an
-explicitly versioned adapter transition. Do not build an index format or
+itself. Keep generic IDs/blob interfaces where useful; the current charter
+does not require preserving `.rpcmlib` v1. Do not build an index format or
 general database merely to begin the audio prototype.
 
 ## Next prototype and decision gates
@@ -143,6 +143,80 @@ pass; [results and reproduction](../research/mdxplayer-compatibility.md#offline-
 record FM gain, wide mixing and serial bus delay. Next implement the smallest
 target streaming connection, keeping select/play/stop and explicit underrun
 handling; do not rebuild the historical completion/history/policy stack first.
+
+### Target streaming connection
+
+Implement a distinct HYB1 MMIO owner in the existing CPU/audio domains. Keep
+two bounded vendor dual-clock FIFOs: 4,096 signed int32 stereo PCM frames and
+1,024 timed FM writes. The CPU stages a left PCM word then commits with the
+right word, or stages a 32-bit internal-sample timestamp then commits an FM
+address/value word. Full/invalid writes fail without losing staged data; the
+CPU polls available space. Only aligned full-word MMIO accesses are accepted.
+The identifier prevents old firmware from treating this as the RSM1 protocol.
+
+Before publishing PCM for a render chunk, enqueue every FM event preceding
+that chunk's end. The two FIFO write domains and read domains are shared, and
+their synchronizer depths match. They are nevertheless separate CDC paths,
+not an atomic publication: the producer must retain refill headroom and the
+audio owner continuously consumes due FM writes. Measure lateness rather than
+assuming simultaneous visibility. FM bus busy causes measurable write delay,
+never a pause of native/audio time. The reference timer remains the sole CPU sequencer.
+Start requires prefilled PCM; streaming starvation latches a fault and mutes
+output until Clear. Counter exhaustion also fails closed.
+
+Clear is Stop plus FIFO/device reset. It is acknowledged across clock domains
+before accepting a new stream, with sufficient native reset time; CPU stages
+are invalidated. Start and Clear use explicit state and synchronized control
+levels, without the previous progress/history/policy mailboxes. Reset both
+domains from the platform reset, synchronize release, and keep audio clock and
+serializer phase continuous during ordinary stops. Do not advertise pause.
+
+The prototype's single-word local bus uses offsets within the existing
+`0x40000400..0x400007ff` AXI region; offsets above `0xff` reject rather than alias.
+Reads and writes require full byte enables. Rejected commits preserve staged
+values, and accepted commits consume them. The MMIO mapping is:
+
+| Offset | Access | Meaning |
+|---|---|---|
+| `00` | R | `0x48594231` (HYB1) |
+| `04` | R | bit 0 control-ready, 1 start accepted, 2 running, 3 ended, 7:4 faults |
+| `08` | W | 1 Clear/Stop, 2 Start; other values reject |
+| `10`, `14` | W | PCM left stage, right commit (signed int32) |
+| `18` | R | PCM free frames, including an unambiguous zero when full |
+| `20`, `24` | W | source-sample timestamp stage, FM operation commit |
+| `28` | R | FM free records |
+
+FM operation bits 15:8 hold address and 7:0 value; bits 31:17 are zero.
+Bit 16 instead denotes an end marker and requires bits 15:0 zero. Timestamps
+must be nondecreasing, including the end marker, after which no FM records
+are accepted. Publish that marker before the final PCM chunk. At its sample
+position the audio owner stops generating and drains already selected output
+before reporting Ended; ordinary FIFO exhaustion remains an error. A new Start
+requires Clear, even after Ended/fault. There is no implicit autoplay/retry.
+Fault bits currently identify PCM starvation (bit 4), output-buffer timing
+(bit 5), reserved (bit 6), and counter exhaustion (bit 7).
+
+Clear holds native reset for at least 4,096 audio clocks and waits another
+16 clocks after releasing the vendor FIFO resets before acknowledging readiness.
+FIFO reset release is synchronized in both domains. The native accumulator's
+two pre-limit sums are explicitly reset: four-state simulation found that the
+first sample otherwise contains uninitialized data, invisible in the earlier
+two-state replay. Wide taps remain needed for pre-clip FM gain. This is an
+initial-state correction to pinned JT51, not a proven cause of the r4 clicks.
+
+The audio clock owns 4 MHz FM, the 62.5 kHz PCM cursor, gain/limiting and fixed
+48 kHz serialization. A start resets only media state and resampler selection;
+PCM and FM sample indices share that start. The source selection must implement
+the reference's `floor(output_index * 125 / 96)` sequence, with a fixed output
+latency, rather than reusing a converter with a different initial phase.
+
+Use the existing native model and offline captures to verify the composed
+audio stream, independent CPU/audio phases, full/backpressure, clear during
+traffic, repeated starts and explicit starvation. The connected CPU-write to
+I2S behavior triggers Full plus affected RTL/cross-build and fit/timing gates.
+Then connect the actual split CPU renderer and measure worst refill latency,
+before preparing the minimal hardware candidate. Queue sizes are prototype
+choices to test, not whole-corpus capacity proofs.
 
 Implement one headless hybrid vertical slice before rebuilding the full
 player. Start with authored eight-FM/eight-PCM loads and the existing private

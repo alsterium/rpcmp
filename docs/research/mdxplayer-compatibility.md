@@ -608,6 +608,61 @@ licenses (JT51 GPL-3.0-or-later; Verilator Artistic-2.0/LGPL-3.0; mixed referenc
 driver/sound notices below); generated binaries and copied sources are not
 distributed by this change.
 
+## Target streaming transport
+
+The next M6 slice implements `rpcmp_hybrid_mmio.sv`, `rpcmp_hybrid_audio.sv`
+and `rpcmp_hybrid_mixer.sv`, using the short HYB1 contract in the active design.
+It connects full-word CPU-side requests to actual Intel dual-clock FIFOs,
+native 4 MHz JT51, 62.5 kHz wide PCM mixing and externally decoded 48 kHz
+stereo pins. No playback history, rich UI or previous RSM1 compatibility
+machinery is in this path. An explicit end record distinguishes EOF from
+starvation; Clear flushes and acknowledges both domains before restart.
+
+Executed checks:
+
+- `pwsh -File tools/rtl-hybrid-verify.ps1`: final transport checks pass at
+  CPU/audio phases 0, 5,555 and 81,379 ps. Each checks 5,569 stereo frames,
+  including irregular live refill beyond the 4,096-frame FIFO, exact fractional
+  sample selection, future/dense ordered FM commands, full/retry on both FIFOs,
+  malformed requests, staged-write invalidation, EOF, stop during a serial word,
+  repeated starts and sticky starvation. Eight analytical mixer vectors also
+  cover pre-gain FM limiting and signed-int32 PCM extrema. All simulator
+  summaries have zero errors/warnings (`out/harness/hybrid-stream-final.log`).
+- Four-state simulation exposed an uninitialized first native FM accumulator
+  sample. Resetting the two pre-limit sums fixes it; this is not evidence that
+  the r4 hardware clicks had that cause. The rebuilt offline experiment passes
+  all 14 authored/private cases. Its 42 native/wide/mixed output files match
+  saved pre-change hashes exactly. The focused probe tests now pass **5/5**,
+  including generated-output scope and source-pin rejection
+  (`hybrid-reset-regression.log`). Private identities/hashes remain local.
+- `pwsh -File tools/host-verify.ps1 -Mode Full`: **87/87**, 587.42 s, including
+  tidy 568.70 s and Core/UI rejection fixtures (`hybrid-stream-full.log`). The
+  initial Fast run rejected the three new RTL paths; the approved slice was
+  added individually, with an independent fixture retaining unknown-RTL rejection.
+- Quartus 25.1std Build 1129 standalone compilation for 5CEBA4F23C8 fits at
+  **1,689 ALMs, 47 RAM blocks, 5 DSP blocks** (`hybrid-synth-width-fix.log`).
+  The first elaboration exposed different simulation/synthesis FIFO defaults;
+  both read widths are now explicit. The scoped CDC constraints identify only
+  first-stage control/status and vendor write-reset synchronizers; later stages
+  remain timed. Resource fit is **not timing acceptance**: the standalone
+  virtual-port experiment still violates its assumed bus I/O timing. Actual
+  shell timing/CDC and pin constraints must be checked on the integrated design.
+
+`pwsh -File tools/rtl-hybrid-verify.ps1 -VoiceOnly` also passes all three phases:
+768 stereo frames and 216 writes each, with a native FM peak of 209,834.
+It exercises eight real FM channels mixed with PCM values outside int16,
+comparing source-domain arithmetic against decoded pins
+(`hybrid-stream-voice.log`). It does not turn same-chip observation into an
+independent FM waveform oracle; the separate software-reference comparison
+remains necessary.
+
+These are local-bus authored tests, not execution of the MXDRV renderer on the
+target CPU. The former production shell/firmware/package inputs are unchanged,
+so their cross-build and APF/package suites were not rerun for this slice.
+The next connected checkpoint is actual AXI plus CPU rendering, refill budget,
+whole-shell fit/timing/CDC, then a matched minimal hardware candidate. No
+whole-corpus, whole-song, listening or hardware acceptance is claimed here.
+
 ## Dependency conditions
 
 The [MDXPlayer README](https://github.com/asaday/MDXPlayer/blob/4076b91c7ced57bf6047f69b87c12a34bd99a438/README.md)

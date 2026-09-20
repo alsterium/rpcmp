@@ -29,7 +29,16 @@ def main():
                 encoding="utf-8",
             )
             assert len(find_violations(root)) == 1, (owner, dependency, "second link call")
-    print("catalog architecture boundaries: PASS")
+    with tempfile.TemporaryDirectory(prefix="rpcmp-rtl-boundary-") as directory:
+        root = Path(directory)
+        rtl = root / "core/rtl/pocket"
+        rtl.mkdir(parents=True)
+        for name in ("mixer", "audio", "mmio"):
+            (rtl / f"rpcmp_hybrid_{name}.sv").write_text("// approved M6 transport\n")
+        assert not find_violations(root), "approved hybrid slice rejected"
+        (rtl / "future_device.sv").write_text("// outside the active slice\n")
+        assert len(find_violations(root)) == 1, "RTL allowlist became unrestricted"
+    print("catalog and RTL architecture boundaries: PASS")
     return 0
 
 

@@ -11,7 +11,9 @@ and playback-policy expansion is deferred. The user approved the
 [simple-implementation charter](../../AGENTS.md#project-charter-2026-09-21),
 waiving backward compatibility with earlier RPCMP APIs/formats. The first
 [offline mixed-audio check](../research/mdxplayer-compatibility.md#offline-hybrid-audio-experiment)
-passes; target CPU/transport timing and hardware acceptance remain pending.
+passes. The [HYB1 streaming transport](../research/mdxplayer-compatibility.md#target-streaming-transport)
+also passes authored CPU-side-write to audio-pin simulation. Target CPU/shell
+timing and hardware acceptance remain pending.
 The original objective, adopted contracts and results
 below remain historical evidence; they do not override this new scope or turn
 the existing FM subset into full MDX compatibility.

@@ -9,10 +9,13 @@ The first connected check now produces 48 kHz mixed audio from reference-driver
 PCM and native JT51 simulation: eight authored cases and six private 10.24-second
 prefixes pass stream/reconstruction checks. See the
 [offline hybrid evidence](research/mdxplayer-compatibility.md#offline-hybrid-audio-experiment).
-Next connect the split renderer to a minimal target audio transport and measure
-refill deadlines, stop/reset and underruns with UI disabled. Apply FM gain before
-its output clips, and retain wide PCM until summation. No rich UI work is
-needed first. Full passed for the charter/harness change; target gates remain open.
+The minimal HYB1 transport now connects CPU-side word writes, two vendor
+dual-clock FIFOs, native FM, wide mixing and 48 kHz audio pins. Three-phase
+simulation verifies continuous refill, stop/reset, EOF and starvation; see the
+[streaming evidence](research/mdxplayer-compatibility.md#target-streaming-transport).
+Next bind it to the actual AXI shell and split CPU renderer, then measure refill
+deadlines with UI disabled. Standalone resource fit passed; whole-shell timing,
+cross-build and hardware gates remain open. No rich UI work is needed first.
 The user selected [asaday/MDXPlayer](https://github.com/asaday/MDXPlayer) as the
 reference: support every locally supplied file that played there, including
 PCM. The MVP is track selection, play and stop. Follow the

@@ -7,6 +7,8 @@ import struct
 import subprocess
 import tempfile
 import unittest
+from unittest.mock import patch
+from types import SimpleNamespace
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -16,6 +18,19 @@ SPEC.loader.exec_module(PROBE)
 
 
 class HybridProbeTests(unittest.TestCase):
+    def test_generated_source_is_scoped_and_pinned(self):
+        with patch.object(PROBE, "run") as run:
+            with self.assertRaises(ValueError):
+                PROBE.prepare_jt51_wide(ROOT / "missing", ROOT / "core/generated")
+            run.assert_not_called()
+        with tempfile.TemporaryDirectory(dir=OPTIONS.out) as temp:
+            for revision, dirty in (("wrong", ""), (PROBE.JT51, " M hdl/jt51.v")):
+                with patch.object(PROBE, "run", side_effect=[SimpleNamespace(stdout=revision),
+                                                           SimpleNamespace(stdout=dirty)]):
+                    with self.assertRaises(ValueError):
+                        PROBE.prepare_jt51_wide(ROOT / "missing", Path(temp) / "generated")
+                    self.assertFalse((Path(temp) / "generated").exists())
+
     def replay(self, data, frames=100):
         with tempfile.TemporaryDirectory(dir=OPTIONS.out) as temp:
             trace, audio = Path(temp) / "events", Path(temp) / "audio"
