@@ -16,12 +16,21 @@ They do not link into the normalized byte writer, Core, UI or Pocket.
 Only `utf8proc.c`, `utf8proc.h`, `utf8proc_data.c` and its license are imported
 from utf8proc. Project CMake compiles the C99 static source without modifying
 it or applying project C++ warning policy to upstream C. CP932 generation is
-project-owned tooling. No font asset or font dependency is integrated here.
+project-owned tooling. The Pocket font added in slice 5 is described separately below.
 The upstream generated `utf8proc_data.c` contains trailing spaces and a final
 blank line. Only those two whitespace checks are excepted for that exact file
 in `.gitattributes`, to preserve the source hash instead of rewriting upstream
 data. The build and `metadata_source_integrity` test verify its complete bytes;
 project source formatting and all other diff checks remain enabled.
+
+## Pocket bitmap font
+
+M6 slice 5 adopts the fixed GNU Unifont Japanese 16.0.04 glyph source under
+SIL OFL 1.1. See [its source, copyright and notices](unifont/README.md).
+The generated derivative is named RPCMP Bitmap JP. Only its read-only index
+and glyph bits link into the CPU renderer; the host-only pinned utf8proc
+helper and Python generator do not link into Pocket. This does not introduce
+a font dependency into Core, the player, or the generic UI.
 
 ## Development tools
 

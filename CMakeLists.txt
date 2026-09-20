@@ -199,6 +199,24 @@ target_include_directories(rpcmp_ui PUBLIC core/ui/include)
 target_link_libraries(rpcmp_ui PUBLIC rpcmp_contracts)
 rpcmp_production_options(rpcmp_ui)
 
+add_executable(rpcmp_font_points utility/src/font_points_main.cpp)
+target_link_libraries(rpcmp_font_points PRIVATE rpcmp_utility rpcmp_utf8proc)
+rpcmp_production_options(rpcmp_font_points)
+set(RPCMP_BITMAP_FONT "${CMAKE_CURRENT_BINARY_DIR}/generated/bitmap_font.inc")
+add_custom_command(OUTPUT "${RPCMP_BITMAP_FONT}"
+  COMMAND ${Python3_EXECUTABLE} -B ${CMAKE_SOURCE_DIR}/tools/bitmap_font_generate.py
+    --repo ${CMAKE_SOURCE_DIR} --normalizer $<TARGET_FILE:rpcmp_font_points>
+    --output "${RPCMP_BITMAP_FONT}"
+  DEPENDS rpcmp_font_points tools/bitmap_font_generate.py third_party/cp932/CP932.TXT
+    third_party/unifont/unifont_jp-16.0.04.hex.gz
+  VERBATIM)
+add_library(rpcmp_pocket_canvas STATIC core/platform/pocket/src/bitmap_font.cpp
+  core/platform/pocket/src/bitmap_canvas.cpp "${RPCMP_BITMAP_FONT}")
+target_include_directories(rpcmp_pocket_canvas PUBLIC core/platform/pocket/include)
+target_include_directories(rpcmp_pocket_canvas PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/generated")
+target_link_libraries(rpcmp_pocket_canvas PUBLIC rpcmp_ui)
+rpcmp_production_options(rpcmp_pocket_canvas)
+
 add_executable(rpcmp_headless_m0 core/platform/host/headless_main.cpp)
 target_link_libraries(rpcmp_headless_m0 PRIVATE rpcmp_runtime)
 rpcmp_production_options(rpcmp_headless_m0)
@@ -599,6 +617,15 @@ if(BUILD_TESTING)
   target_link_libraries(rpcmp_player_render_tests PRIVATE rpcmp_host_svg)
   rpcmp_test_options(rpcmp_player_render_tests)
   add_test(NAME player_render COMMAND rpcmp_player_render_tests)
+
+  add_executable(rpcmp_bitmap_canvas_tests tests/pocket/bitmap_canvas_tests.cpp)
+  target_include_directories(rpcmp_bitmap_canvas_tests PRIVATE tests/support)
+  target_link_libraries(rpcmp_bitmap_canvas_tests PRIVATE rpcmp_pocket_canvas)
+  rpcmp_test_options(rpcmp_bitmap_canvas_tests)
+  add_test(NAME bitmap_canvas COMMAND rpcmp_bitmap_canvas_tests)
+  add_test(NAME bitmap_font_source
+    COMMAND ${Python3_EXECUTABLE} -B ${CMAKE_SOURCE_DIR}/tests/pocket/bitmap_font_tests.py
+      --normalizer $<TARGET_FILE:rpcmp_font_points> --generated "${RPCMP_BITMAP_FONT}")
   add_test(NAME player_ui_svg
     COMMAND "${Python3_EXECUTABLE}" "${CMAKE_SOURCE_DIR}/tests/ui/player_ui_svg_test.py"
             "$<TARGET_FILE:rpcmp_player_ui_mock>")

@@ -10,8 +10,11 @@ three-phase bus/mailbox simulation, related RTL regressions and the host gate.
 The final no-GPU fit uses 16,649/18,480 ALMs, has nonnegative timing across all
 136 reported clock/corner cases, and passes the exhaustive four-mailbox CDC
 audit. Existing shell external/legacy exceptions remain unproven; this is not
-production-substrate promotion. The actual service loop/UI and coherent
-ROM/OS/app package are next. No playable M6 image exists for this binding yet;
+production-substrate promotion. The licensed
+[bitmap canvas](../specs/pocket-bitmap-canvas-v1.md) now renders all three shared
+views with copied commands and bounded pixel work. Input, the actual service
+loop, SDK framebuffer ownership and the coherent ROM/OS/app package are next.
+No playable M6 image exists for this binding yet;
 see the milestone's current evidence.
 On 2026-09-20 the user deferred persistent settings: each application launch
 starts with AlbumOrder / Default (two loops, five-second fade), shuffle off and

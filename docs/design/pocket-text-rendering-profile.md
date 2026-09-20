@@ -2,7 +2,9 @@
 
 Status: host portion adopted in [M6 slice 1](../milestones/M6-album-player.md), 2026-09-13.
 ホスト部分の規範は [host metadata v1](../../specs/host-metadata-v1.md) です。
-以下の文字表示・font部分は引き続き設計提案で、Core/UIの公開 v1 契約を変更しません。
+文字表示・font部分は 2026-09-20 に [Pocket bitmap canvas v1](../../specs/pocket-bitmap-canvas-v1.md)
+として M6 slice 5 の内部 adapter に採用しました。Core/UIの公開 v1 契約は変更しません。
+実際の framebuffer 接続・実機の判読性・取り込み時の欠字通知は引き続き統合作業です。
 [ADR-0005](../adr/0005-m1-utility-language-and-normalization.md) の C++17 utility / 正規化済み
 writer 境界を維持します。
 
@@ -95,7 +97,11 @@ font gzipのSHA-256は `5ba84e901b9f7fad3bce0571c7e4b4b0aef4ce0acc4ee6622ef0cfa2
 
 生成スクリプトや工具のライセンスをglyphのライセンスと混同しません。
 M6 slice 1ではCP932とutf8procのsource hash/noticeを固定してhostに組み込みます。
-font assetは未採用で、採用時にsource revision/hashと全noticeを固定します。
+font asset は slice 5 で採用し、source hash と notice を
+[third_party/unifont](../../third_party/unifont/README.md) に固定しました。
+同じ utf8proc で再計算した集合は 7,488 glyph、bitmap 233,040 bytes、
+実装の明示的な3フィールド index は 89,856 bytesです。元glyphの省略記号と置換文字は8pixel幅で、
+host SVG の仮16pixel幅とは異なります。実機の表示結果はまだ確認していません。
 
 独立した試験例は CP932の上記３例、末尾の先行byte、空曲名、改行、半角カナ、NFC合成と
 衝突、4096-byte境界、欠字、glyph index不正、96-byte/pixel幅での省略です。

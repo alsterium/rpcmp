@@ -2776,3 +2776,62 @@ The next unit is the target service loop, input, licensed bitmap fonts and CPU
 renderer, with coherent ROM/OS/app builds, memory/cadence measurements and
 packaging. Future PCM/UI reserve and firmware 2.6 acceptance remain open.
 No hardware test or playable M6 package is claimed by this binding unit.
+
+## CPU bitmap font and bounded canvas — 2026-09-20
+
+The [Pocket bitmap canvas](../../specs/pocket-bitmap-canvas-v1.md) now implements
+the shared PlayerCanvas independently of player/runtime. It records at most
+2048 copied drawing commands, then rasterizes a caller-bounded pixel count into
+a checked 640x480 indexed surface. Transparent glyph pixels count toward the
+budget; partial/failed frames cannot be reported complete. All three current
+views fit the list. Text is strictly validated, clips by actual glyph advance,
+and keeps the complete 96-byte public prefix when space permits the added
+ellipsis. The maximum Japanese prefix initially lost one unnecessary glyph;
+an authored 32-character case failed before giving the internal copy three
+additional UTF-8 bytes, and passes afterward.
+
+The fixed, licensed RPCMP Bitmap JP generation uses the pinned CP932 table,
+Unifont Japanese 16.0.04 and ingestion's utf8proc 2.11.3. Windows and Linux
+generation produce identical bytes (`1a2c9dba40b52e180e7e95c26a789a27fe5adc13a1bba0f5a5bd844eb976859f`).
+The 7488 glyphs use 233040 bitmap bytes and 89856 index bytes, below the
+8192-glyph / 512 KiB limits. The font's actual ellipsis/replacement advance is
+8 pixels; the existing host SVG mock retains its provisional metrics. Full
+copyright/license notices and source identity are in `third_party/unifont`.
+
+Executed checks:
+
+- `pwsh -File tools/host-verify.ps1`: **83/83 PASS**, 500.83 s, including
+  format, clang-tidy, architecture and rejection fixtures. Final log:
+  `out/build/m6-bitmap-host-final-r2.log`. An earlier full run reported three
+  integer-width diagnostics and one flags-enum diagnostic in the new helper;
+  explicit index/offset types and reuse of ingestion's existing `normalize_utf8`
+  resolved them. No check or warning was suppressed. Focused changed-file tidy
+  passed before this final full run.
+- `ctest --preset host-msvc -R '^(bitmap_canvas|bitmap_font_source)$'`:
+  **2/2 PASS**, 0.28 s. The separate
+  `python -B tests/architecture/catalog_boundary_tests.py` passed, including
+  new canvas-to-player/runtime/library/sound rejection fixtures.
+- Docker `sh out/build/m6-bitmap-linux.sh`: PASS, native pinned NFC generation
+  through the existing ingestion `normalize_utf8`, byte comparison against
+  Windows, and source glyph/index validation. Log: `out/build/m6-bitmap-linux-final.log`.
+- Docker `sh out/build/m6-bitmap-sanitize.sh`: PASS with GCC AddressSanitizer
+  and UndefinedBehaviorSanitizer. Final log: `out/build/m6-bitmap-sanitize-final-r2.log`.
+- Docker `make -f out/build/m6-bitmap-cross/Makefile bitmap-check`: PASS with
+  RISC-V GCC 14.2.0, the pinned SDK, `-Werror`, no exceptions/RTTI and no undefined
+  symbols. This is a standalone renderer link probe: text 346060, initialized
+  data 192, BSS 564200 bytes; conservative recorded stack sum 2208 bytes,
+  largest frame 784. The BSS includes one probe framebuffer and copied view;
+  the canvas itself is 237624 bytes. The probe's 910452 static bytes pass its
+  2 MiB limit, but are not the final application/SDK framebuffer memory budget.
+  Log: `out/build/m6-bitmap-cross-final-r2.log`; budget: `out/build/m6-bitmap-cross/budget.json`.
+- Optional `rpcmp_bitmap_canvas_tests.exe out/build/m6-bitmap-view-` produces
+  authored Tracker/keyboard/library PPMs. The converted PNGs were inspected
+  for actual Japanese/ASCII glyphs, borders and layout. They are host raster
+  output, not Pocket screenshots or hardware readability evidence.
+
+No RTL, FPGA placement or hardware check was rerun: this unit changes the CPU
+font/canvas, build and host tests only. It does not change the verified sound
+binding. Settings remain per-launch defaults with no storage adapter.
+Next: real input, service-loop cadence, SDK framebuffer presentation and the
+coherent ROM/OS/app package. Font-coverage notices during PC ingestion and
+on-device density/readability remain integration work.

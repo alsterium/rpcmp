@@ -289,4 +289,14 @@ pwsh -File tools/pocket-package.ps1
 
 The package gate validates APF JSON roots and bounds, Interact addresses, byte-level RBF reversal, exact file/ZIP layout, and artifact lengths/hashes. It does not install anything on an SD card or access Pocket hardware.
 
+The `bitmap_canvas` host gate exercises the Pocket CPU renderer independently
+of Core: glyph-boundary elision, copied text, vertical clipping, invalid UTF-8,
+buffer/stride canaries, command exhaustion and identical pixels across bounded
+pump sizes for all three shared views. `bitmap_font_source` compares each
+generated glyph to the pinned font, checks NFC examples and rejects source
+drift. Optional mock PPMs can be written with
+`out/build/host-msvc/rpcmp_bitmap_canvas_tests.exe out/build/bitmap-view-`.
+These images use the actual bitmap adapter, but do not establish SDK buffer
+ownership, audio service timing, or readability on Pocket.
+
 Linux/GCC CI is currently deferred. Host checks do not establish Pocket hardware acceptance.

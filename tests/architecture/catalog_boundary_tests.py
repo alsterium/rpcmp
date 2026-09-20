@@ -11,6 +11,8 @@ def main():
         ("player", "ui"), ("ui", "player"), ("ui", "library"),
         ("contracts", "player"), ("contracts", "library"),
         ("contracts", "runtime"), ("contracts", "ui"),
+        ("pocket_canvas", "player"), ("pocket_canvas", "runtime"),
+        ("pocket_canvas", "library"), ("pocket_canvas", "pocket_sound"),
     ]:
         with tempfile.TemporaryDirectory(prefix="rpcmp-catalog-boundary-") as directory:
             root = Path(directory)

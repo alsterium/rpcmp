@@ -49,6 +49,7 @@ def find_violations(root: Path) -> list[str]:
         "player": ("ui",),
         "ui": ("player", "library"),
         "contracts": ("player", "library", "runtime", "ui"),
+        "pocket_canvas": ("player", "library", "runtime", "pocket_sound"),
     }
     for owner, forbidden in catalog_boundaries.items():
         for path in source_files(root / "core" / owner):
