@@ -173,4 +173,11 @@ CatalogTrackError CatalogSession::resolve_track(const LibraryGeneration generati
                                                       : CatalogTrackError::UnknownTrack;
 }
 
+const library::LogicalLibrary*
+CatalogSession::borrow_library(const LibraryGeneration generation) const noexcept {
+  return status_.phase == CatalogPhase::Ready && generation == status_.generation
+             ? &catalog_.library()
+             : nullptr;
+}
+
 } // namespace rpcmp::player

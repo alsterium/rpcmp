@@ -42,6 +42,16 @@ inhibit must survive an older copied Reset success. Journal failure must not
 inhibit audio; all expired slots remain borrowed until their late response is
 drained. These are CPU client checks, not execution of the RTL or Pocket app.
 
+The host `mdx_backend` test joins the actual MDX engine, sound client and
+TransportController/PlayerSession with authored library bytes and copied MMIO
+responses. It checks finite/full/partial-tick prefill, immutable Full retries,
+all controls, old same-epoch captures, cancelled preparation, old-epoch drains,
+critical timeout recovery and natural-end/Closed races. Output frames come
+from explicit independent stimuli; held-pause history survives later captures,
+and a journal-only timeout makes display Waiting without inhibiting sound.
+Absent/dense public snapshots and delayed journal replies must produce the
+same feed offers. These do not measure target service speed or run RTL.
+
 Run the M0 register spike plus M2 device queue and Pocket AUDIO simulations
 with Questa Altera Starter 2025.2:
 

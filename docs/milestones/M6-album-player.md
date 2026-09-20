@@ -2418,3 +2418,83 @@ was added. Logs: `out/build/m6-reset-recovery-{host,rerun}.log`.
 RTL/fit and firmware checks were not rerun for this Core-only correction.
 The separately in-progress MDX backend is not covered by this correction's
 completion evidence; its integration tests and target probes remain pending.
+
+## Slice 4 CPU MDX backend integration — 2026-09-20
+
+The internal [Pocket MDX backend](../../specs/pocket-mdx-backend-v1.md) now
+joins the real MDX preparation/producer, sound MMIO client and output-history
+owner through PreparationPort, AudioTransportPort and PerformanceReader.
+It checks catalog generation before borrowing immutable library data and
+shares the large engine scratch between admission and playback. The original
+MDX preparation helper remains source-compatible. No UI or renderer dependency
+is added, and public reads do no MMIO work.
+
+Controls retain ownership while their mailbox is busy. Captures submitted
+before a control ACK cannot restore an older position, pause state or policy.
+Finite-source prefill and a Full response both permit Start; the first tick
+need not fit in the 64-entry queue. Cancel/reselection retain old mailbox
+ownership through drain. A feed Closed is resolved against a subsequently
+submitted capture, so a natural end is distinct from unexpected closure.
+
+Integration exposed three behavioral failures, reproduced before correction:
+
+- Waiting history lacked the required channel IDs. It now copies the existing
+  unknown-channel representation.
+- Repeated captures of one held pause invalidated the journal drain proof;
+  a journal timeout could also republish earlier data as available. Pause proof
+  now belongs to the acknowledged control, and acquisition failure persists
+  until a valid journal result. Log: `out/build/m6-backend-repro.log`.
+- A failed control completion changes the Core error from DeviceFault to
+  AudioControl. The same latched fault was then mistaken for a new fault,
+  inhibiting/cancelling the recovery Reset. Only a fresh fault edge now starts
+  another recovery. Core regression reproduced six failures; the backend
+  reproduced failed recovery on the control mailbox. Logs:
+  `out/build/m6-backend-controller-repro.log` and
+  `out/build/m6-backend-fault-repro.log`.
+
+`pwsh -File out/build/m6-backend-focused.ps1` passes `mdx_backend`, and
+`pwsh -File out/build/m6-reset-recovery-focused.ps1` passes the updated
+`playback_transport`. Logs: `out/build/m6-backend-focused.log` and
+`out/build/m6-backend-controller.log`. Authored finite/looping MDX and a copied
+MMIO model exercise actual TransportController and PlayerSession. Cases cover
+partial first ticks, verbatim Full retry, all controls, stale captures,
+cancel/reselection, old epochs, control/feed/capture timeouts and recovery,
+terminal Closed races, held-pause frames, journal-only failure and equal feed
+offers with absent/dense publication. The MMIO model is scripted independent
+stimulus, not an RTL simulator. The terminal fixture sets gain zero as required
+by the adopted media contract; its earlier nonzero-gain variant was correctly
+rejected as Protocol. Host backend persistent storage is 1,235,488 bytes.
+
+```powershell
+docker run --rm --mount type=bind,source=F:\source\rpcmp,target=/repo --workdir /repo rpcmp-openfpgaos-toolchain:14.2.0-3 python3 out/build/m6-backend-sanitize.py
+docker run --rm --mount type=bind,source=F:\source\rpcmp,target=/repo --workdir /repo rpcmp-openfpgaos-toolchain:14.2.0-3 make --file out/build/m6-backend-cross/Makefile backend-check
+```
+
+Both final-source Docker checks pass. Native GCC 13.3.0 runs the backend tests
+with AddressSanitizer/UndefinedBehaviorSanitizer, leak detection and
+halt-on-error. RISC-V GCC 14.2.0 compiles/links the backend and PlayerSession
+with the pinned SDK, `rv32imafc/ilp32f`, C++17, `-Werror` and no exceptions/RTTI.
+The ELF32 little-endian probe has no undefined symbols: text 84,616, data 200,
+BSS 1,077,024 bytes, total 1,161,840. All 296 compiled stack records sum to
+107,904 bytes; the largest is probe main at 11,104, with no dynamic frames.
+Limits remain 56,623,104 static / 4,096 initialized-data / 524,288 stack bytes.
+This sum excludes unreported SDK/library frames and is not measured high-water
+usage. The probe uses a placeholder clock and no actual storage/UI loop.
+Logs: `out/build/m6-backend-{sanitize,cross}-final.log`; budget:
+`out/build/m6-backend-cross/budget.json`.
+
+`pwsh -File tools/host-verify.ps1` with pinned LLVM 22.1.8 passes 81/81 in
+501.26 s, including format (0.75 s), tidy (483.50 s), the Core recovery
+regression, architecture rejection fixtures and incremental rebuild. Log:
+`out/build/m6-backend-host.log`. After documentation updates,
+`python -B tools/check_harness.py`, `python -B out/build/m6-backend-links.py`
+(90 local file links) and `git diff --check` pass.
+
+Focused LLVM 22.1.8 analysis found declaration-name mismatches, duplicate
+prefill branches and a test integer-widening expression. These were corrected
+without suppressions; `m6-backend-tidy-rerun.log` records the passing source/test
+rerun. RTL, synthesis/fit, packaging and firmware checks were not repeated:
+this unit changes CPU C++ and its internal connection contract, not RTL/MMIO
+definitions or package inputs. APF settings storage, a real target clock and
+service cadence, whole-Pocket memory/layout and firmware 2.6 acceptance remain
+pending. This completes the scripted CPU backend unit, not M6 slice 4 or Q19.

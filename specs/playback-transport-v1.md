@@ -155,6 +155,8 @@ fault do not issue another emergency request: the original inhibit remains
 latched until that Reset completes. A new fault edge, timeout, terminal state
 or invalid completion still inhibits explicitly. This preserves recovery on
 the sound session, where a newer emergency request supersedes pending Reset.
+Changing the reported error to AudioControl after a failed completion does not
+make the same continuously asserted shared fault a new edge.
 
 ## Deadlines and verification
 

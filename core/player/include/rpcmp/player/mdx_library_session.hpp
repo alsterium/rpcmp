@@ -49,6 +49,13 @@ prepare_mdx_library_session(const library::LogicalLibrary& library, contracts::T
                             MdxLibrarySession& output,
                             MdxLibrarySessionWorkspace& workspace) noexcept;
 
+// Shares the engine scratch with the retained producer; destinations must not alias scratch.
+[[nodiscard]] MdxSessionResult
+prepare_mdx_library_session(const library::LogicalLibrary& library, contracts::TrackId track_id,
+                            MdxLibrarySession& output, runtime::mdx::MdxDocument& document,
+                            runtime::mdx::DocumentValidation& validation,
+                            runtime::mdx::MdxEngineScratch& engine) noexcept;
+
 } // namespace rpcmp::player
 
 #endif // RPCMP_PLAYER_MDX_LIBRARY_SESSION_HPP

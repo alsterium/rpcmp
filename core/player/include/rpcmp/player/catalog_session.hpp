@@ -48,6 +48,9 @@ public:
   [[nodiscard]] CatalogTrackError resolve_track(contracts::LibraryGeneration generation,
                                                 contracts::TrackId track,
                                                 library::TrackView& output) const;
+  // Core-only borrow; the owner retains bytes through playback quiescence.
+  [[nodiscard]] const library::LogicalLibrary*
+  borrow_library(contracts::LibraryGeneration generation) const noexcept;
 
 private:
   [[nodiscard]] CatalogChangeResult invalidate(contracts::CatalogPhase phase);

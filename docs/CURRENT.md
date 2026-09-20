@@ -2,8 +2,9 @@
 
 Active milestone: [M6 — Album Player](milestones/M6-album-player.md)
 
-The current task is M6 slice 4: implement the approved
-[CPU sound connection](design/pocket-cpu-sound-connection.md). Its
+The current task is M6 slice 4: finish the sound/storage adapters under the
+approved [CPU sound connection](design/pocket-cpu-sound-connection.md), with
+the APF settings storage adapter next. Its
 [MMIO/CDC](../specs/pocket-sound-mmio-v1.md) now passes independent-clock RTL,
 host checks and local fitted timing/CDC. The user approved the 1,000 us mailbox
 watchdog on 2026-09-20. The [CPU MMIO client](../specs/pocket-sound-client-v1.md)
@@ -17,12 +18,16 @@ native boundary, overflow/read-cadence and four-mailbox CDC checks with local
 fitted timing. The [16-batch CPU history owner](../specs/mdx-output-history-v1.md)
 now connects copied MDX checkpoints to actual output records with per-event
 frames and explicit display loss; host gates, sanitizer tests and the RISC-V
-memory probe pass. The enclosing sound backend and storage adapter are next;
-MDX feeding, device polling and coherent history publication still require
-their integration through the CPU client.
+memory probe pass. The [MDX backend](../specs/pocket-mdx-backend-v1.md) now
+connects preparation, retained MMIO feeding, coherent control/capture ordering
+and output-history publication. Scripted integration checks cover actual
+TransportController/PlayerSession, cancellation, late responses, failure
+recovery and publication-independent supply. See M6 for exact host/sanitizer
+and RISC-V evidence. Real target clock/service cadence, storage and combined
+Pocket integration remain pending.
 The [synchronous sound session](../specs/pocket-sound-session-v1.md) now passes
 all-phase local control/reset/inhibit tests, host/RTL regressions and registered
-fit/timing; the active milestone records the commands and limitations. Sound/storage adapters
+fit/timing; the active milestone records the commands and limitations. Storage
 and Pocket integration follow. The user's 2026-09-13 review approves this plan;
 local acceptance establishes the recorded functional transfer bounds, not
 the CPU service deadline or Pocket playback.
@@ -37,8 +42,8 @@ ordered audio-clock writes/markers with 64 copied entries. Larger MDX batches
 stream through it; the queue distinguishes native busy/receipt backpressure
 from missing input at an eligible dispatch opportunity. Marker dispatch seals
 source supply. The composed progress owner maps loop/end separately; the
-retained CPU producer is tested, while MMIO feeding and per-event history
-remain to be integrated through the sound adapter.
+retained CPU producer now feeds MMIO and per-event history through the backend.
+Whole-Pocket execution and measured service cadence remain unverified.
 The explicitly approved source-receipt contract now orders writes and zero-write
 markers and retains their actual transfer/marker edge under backpressure.
 Native receipt tests and the enveloped fault/reset integration pass. These
@@ -124,8 +129,8 @@ The synchronous canvas now draws Tracker, keyboard and library around a shared
 information/control panel. The host SVG mock links UI/contracts only, with
 bounded text and explicit elision. Authored scenarios and browser-rendered
 images verify mock layout; installed host fonts do not establish Pocket metrics.
-The retained producer and output-history owner still need MMIO feeding,
-coherent sound observations and sound/storage adapters to be wired.
+The retained producer and output-history owner now connect through the sound
+backend. The APF settings adapter and the Pocket service loop are next.
 See M6 for the executed checks; this does not establish a working Pocket audio
 adapter, rendered Pocket UI or M6 integration acceptance.
 Use the [transition proposal](design/pocket-player-transition-contract.md),

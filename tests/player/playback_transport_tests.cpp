@@ -429,7 +429,7 @@ void end_and_catalog(rpcmp::test::Suite& suite) {
 }
 
 void failures_and_deadlines(rpcmp::test::Suite& suite) {
-  {
+  for (const bool sticky_fault : {false, true}) {
     Rig rig(suite);
     rig.playing();
     rig.accept(TransportIntentKind::Pause);
@@ -439,10 +439,16 @@ void failures_and_deadlines(rpcmp::test::Suite& suite) {
     RPCMP_CHECK(suite, rig.state().failure == TransportFailure::DeviceFault && rig.audio.inhibited);
     rig.audio.complete(
         AudioControlOutcome::Failed); // Failure is shared even after generation change.
-    rig.audio.observation.fault = false;
+    rig.audio.observation.fault = sticky_fault;
     static_cast<void>(rig.tick());
     RPCMP_CHECK(suite, rig.state().failure == TransportFailure::AudioControl &&
                            required(rig.audio.pending).kind == AudioControlKind::Reset);
+    rig.audio.fail_reset_on_inhibit = true;
+    const auto inhibits = rig.audio.inhibits;
+    static_cast<void>(rig.tick());
+    RPCMP_CHECK(suite, !rig.state().terminal && rig.audio.inhibits == inhibits &&
+                           required(rig.audio.pending).kind == AudioControlKind::Reset);
+    rig.audio.observation.fault = false;
     rig.ack();
     RPCMP_CHECK(suite, rig.state().transport == TransportState::Error &&
                            rig.state().silence_confirmed && !rig.state().terminal);

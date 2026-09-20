@@ -798,8 +798,9 @@ TransportController::step(const std::uint64_t now_us, const TransportBatch& batc
       (started_generation_ != 0 ||
        (state_.audio_control && state_.audio_control->request.kind != AudioControlKind::Reset));
   state_.policy_supported = policy_supported;
-  const bool new_fault =
-      observation.fault && (!fault_observed_ || state_.failure != TransportFailure::DeviceFault);
+  // A control failure can update the reported error while the same shared
+  // fault is still latched. Only a fresh edge starts another recovery.
+  const bool new_fault = observation.fault && !fault_observed_;
   fault_observed_ = observation.fault;
   if (new_fault && !state_.terminal)
     fail(TransportFailure::DeviceFault, false);
