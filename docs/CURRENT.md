@@ -7,8 +7,12 @@ approved [CPU sound connection](design/pocket-cpu-sound-connection.md), with
 the APF settings storage adapter in progress. Its
 [flush command transport](../specs/pocket-apf-flush-v1.md) now connects CPU
 requests to the APF handler and passes independent-clock simulation, including
-busy ownership, delayed drain, unknown errors and reset. Atomic save RAM, OS
-arbitration, SD readback and storage deadlines remain to be connected. The sound
+busy ownership, delayed drain, unknown errors and reset. The local
+[settings RAM owner](../specs/pocket-settings-ram-v1.md) now implements atomic
+bank publication, reset-retained leases and separate media-readback storage.
+Its synchronous boundary uses the actual Cyclone V RAM model; CPU/BRIDGE CDC,
+APF size-table ownership, OS arbitration, SD readback and storage deadlines
+remain to be connected. The sound
 [MMIO/CDC](../specs/pocket-sound-mmio-v1.md) now passes independent-clock RTL,
 host checks and local fitted timing/CDC. The user approved the 1,000 us mailbox
 watchdog on 2026-09-20. The [CPU MMIO client](../specs/pocket-sound-client-v1.md)

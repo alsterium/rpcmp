@@ -252,6 +252,17 @@ The disabled profile must advertise zero. `rtl-apf-verify.ps1 -Flush` runs the
 existing lifecycle regression on the same tree; omit `-Flush` for old trees.
 These are command-path checks, not a RAM-bank, durable-save or hardware test.
 
+`pwsh -File tools/rtl-settings-verify.ps1` checks the synchronous M6 settings RAM
+owner with the actual Cyclone V `altsyncram` simulation library (`altera_mf_ver`).
+It covers every interrupted byte prefix, lengths 0..64, partial masks and
+full-width invalid inputs, bank publication, independent slot/Host/CPU read
+leases, simultaneous ports, reset and retained responses, missing/late media
+bytes and a physically separate readback address. A collision assertion ensures
+the owner never relies on unspecified mixed-port read-during-write. A retained
+marker distinguishes CPU-published bytes from Host-loaded bytes across release
+and reset. CPU/BRIDGE CDC, the APF size table, an OS arbiter and actual SD I/O
+remain separate integration checks.
+
 Run the reproducible Quartus template-integration build separately with:
 
 ```powershell

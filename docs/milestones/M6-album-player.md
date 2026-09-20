@@ -133,6 +133,12 @@ while data is borrowed. Journal capability remains unadvertised until its layer.
 
 ## Slices and acceptance
 
+Slice 4 also adopts the internal [settings RAM owner v1](../../specs/pocket-settings-ram-v1.md)
+within the approved storage-adapter direction. It defines synchronous bank,
+read-lock and media-readback ownership without changing the Core record or
+reserving a physical address. APF/CPU integration and durable media evidence
+remain required before advertising settings support on Pocket.
+
 1. **Host metadata:** strict CP932 embedded titles, filename fallback with
    reasons, bounded UTF-8/UTF-16 conversion and NFC. Connect the existing host
    packer while retaining its explicit-title invocation. Verify independent
@@ -2567,3 +2573,70 @@ reserve remain slice 5 gates; this result is not whole-Pocket timing acceptance.
 All logs and generated trees above are ignored under `out/`. SD readback,
 durability, storage deadlines, reset-retained save banks and firmware 2.6
 acceptance remain open; no settings capability is advertised by this unit.
+
+### Atomic settings RAM owner (2026-09-20)
+
+The [settings RAM contract](../../specs/pocket-settings-ram-v1.md) now has a
+synchronous implementation in `rpcmp_settings_ram.sv`. Two 64-byte banks per
+logical slot hide CPU/Host partial writes. Publication switches bank and length
+together. Separate Host/CPU read locks and published CPU leases freeze borrowed
+data across application/Host reset. A separate 64-byte readback area accepts
+only external data and seals after complete byte coverage. A retained
+changed-since-load marker prevents a replacement software session from treating
+a CPU-updated RAM mirror as proof of SD contents. Core CRC/format rules and the
+public settings API are unchanged; this unit reserves no physical address.
+
+Executed evidence:
+
+- `pwsh -File tools/host-verify.ps1` with LLVM 22.1.8: **81/81 PASS**,
+  **483.08 s**, including format, tidy and architecture/dependency fixtures.
+  The first run was 80/81 because this new RTL file was missing from the exact
+  milestone scope list. Registering only that adopted path fixed the failure;
+  `ctest --preset host-msvc -R '^architecture'` passed all five positive/negative
+  cases, followed by the complete successful rerun. Logs:
+  `out/build/m6-settings-host.log` and `out/build/m6-settings-host-final.log`.
+- `pwsh -File tools/rtl-settings-verify.ps1`: **PASS**, 10,871 checked commands,
+  zero simulator errors/warnings, using the actual `altera_mf_ver` Cyclone V
+  RAM model. Every interrupted byte prefix, all lengths 0..64, partial lanes,
+  full-width invalid indexes/lengths/addresses, atomic visibility, separate
+  slots/readback, concurrent ports, reset, late writes, retained responses and
+  media-uncertainty retention are checked. A mixed-port collision assertion
+  ensures unspecified RAM read-during-write is never used as an oracle.
+  Log: `out/build/m6-settings-ram-rtl.log`.
+- `python -B out/build/m6-settings-negative.py`: four ignored mutations fail
+  the authored checks: incomplete publication, overwriting the active bank,
+  premature lease reuse and losing the media-uncertainty marker on release.
+  Production source was not modified for these controls.
+- Sequential `pwsh -File tools/rtl-verify.ps1` and
+  `pwsh -File tools/rtl-jt51-verify.ps1`: **PASS**. Logs:
+  `out/build/m6-settings-rtl-regression.log` and
+  `out/build/m6-settings-jt51-regression.log`.
+- `pwsh -File out/build/m6-settings-fit.ps1` and
+  `python -B out/build/m6-settings-audit.py`: **PASS** for the final registered
+  local probe, Quartus 25.1std.0 Build 1129, 5CEBA4F23C8, seed 1, 74.25 MHz.
+  It uses **711 ALMs**, **606 registers**, **4,096 memory bits / two M10Ks**,
+  and no DSPs. All 20 four-corner timing summaries have zero TNS; minimum
+  setup **2.257 ns**, hold **0.097 ns**, recovery **8.458 ns**, removal
+  **0.275 ns**, pulse width **5.101 ns**. The unconstrained clock/input/output
+  summaries are zero. Reports: `out/build/m6-settings-fit-r3/output_files`;
+  source/probe hashes: `out/build/m6-settings-timing.json`.
+
+The first RAM description expanded to 3,588 ALMs / no block RAM. The final
+implementation directly binds the existing Cyclone V primitive; its platform
+and installed Altera license dependency are recorded in the contract. The
+final map and STA have zero warnings. The local fitter retains three visible
+diagnostics for virtual-pin/LogicLock support, incomplete I/O assignments and
+the unassigned probe clock pin. There are no added timing cuts or suppressions.
+This registered probe measures the local synchronous block; it does not
+establish board pin timing, CPU CDC or combined Pocket resource headroom.
+
+Docker Engine 29.7.2 and container `rpcmp-openfpgaos-toolchain:14.2.0-3` execute
+normally; `riscv-none-elf-gcc --version` reports 14.2.0. A C11 APF-header probe
+also compiles with `-O2 -Wall -Wextra -Werror -march=rv32imafc -mabi=ilp32f`;
+`riscv-none-elf-readelf -h out/build/m6-settings-docker-check.o` confirms ELF32,
+little-endian RISC-V / RVC / single-float ABI. No firmware source/API changed
+in this unit, so no new target firmware image was cross-built or
+packaged. CPU/BRIDGE CDC, APF Host/all-complete routing, reset-retained ID/size
+table ownership, the OS arbiter and actual SD readback remain the next slice 4
+connections. No firmware 2.6 test was performed and no durable-save capability
+is advertised. All generated probes, mutation copies and logs stay under `out/`.

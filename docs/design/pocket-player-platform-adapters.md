@@ -8,7 +8,10 @@ Status: proposal, 2026-09-13. [設定保存](pocket-playback-settings-contract.m
 2026-09-20: 設定保存のうちコマンド転送層を
 [APF flush transport v1](../../specs/pocket-apf-flush-v1.md) として採用しました。
 CPU/CDC/Target handler の flush 発行を実装し、独立クロックで検証しています。
-以下の RAM bank、OS arbiter、媒体の読戻しと期限は引き続き未実装部分です。
+同日の [settings RAM owner v1](../../specs/pocket-settings-ram-v1.md) は、
+二面の bank、所有権の保持、独立した読戻し領域を単一クロック境界として実装します。
+物理アドレス、CPU/BRIDGE CDC、APF size table、OS arbiter、媒体の読戻しと期限の
+接続は引き続き未実装部分です。RAM 単体の検証を SD 保存の成功とは扱いません。
 
 ## 設定は小さいnonvolatile slotで保持する案
 
