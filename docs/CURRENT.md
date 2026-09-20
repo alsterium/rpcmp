@@ -14,6 +14,15 @@ Keep openfpgaOS as the comparison substrate while evaluating the reference
 engine and target execution budget. This is a bounded investigation direction,
 not a new production-substrate decision.
 
+The reference-synthesis RV32 instruction experiment now excludes an unchanged
+reference renderer on the unchanged single-issue 90 MHz CPU for the tested
+eight-FM-channel load: even `-O3 -flto` needs 99.18 million instructions per
+audio second, or 134.95 million with eight ADPCM voices. These are ISA counts,
+not hardware timings. Compare a higher-throughput software-sound CPU/platform
+against FM hardware plus CPU PCM; neither the current OS nor JT51 is mandatory.
+See the baseline's synthesis-budget evidence and portability findings before
+choosing a production design. No replacement design has been adopted.
+
 The following records the implemented slice-5 baseline from the
 [CPU sound connection](design/pocket-cpu-sound-connection.md), not the next work.
 The opt-in [sound AXI binding](../specs/pocket-sound-axi-v1.md) now passes

@@ -148,6 +148,106 @@ These files have empty PDX references and inert PCM tracks; this establishes
 only an approximately 2.32-second FM prefix, not full-song fidelity, PCM support,
 app-binary equivalence or Pocket execution. No generated private audio is saved.
 
+## Software-synthesis execution budget
+
+On 2026-09-21, a separate ignored probe compiled the same seven translation
+units for native Linux with GCC 13.3.0 and RV32IMAFC/ILP32F with GCC 14.2.0.
+It includes the reference core in place of the small `so.cpp` wrapper, directly sets
+authored FM registers/sample buffers, and calls `MXDRVG_GetPCM`. No upstream
+synthesis source is changed for these builds. At 48,000 Hz output the
+reference internally generates 62,500 Hz, with the application's filter mode 0.
+
+This is a synthesis-budget experiment, not playback of MDX or PDX files. Cases
+use zero/one/eight FM channels and zero/eight PCM channels. FM uses four active
+operators per channel, algorithm 7 and sustained tones; sample modes cover
+15,625 Hz ADPCM, 16-bit PCM and 8-bit PCM. Generated sample patterns include
+clipping in the eight-voice cases; this is not an audio-quality acceptance test.
+Each case warms up 256 frames, then measures 128 blocks of 256 stereo frames.
+Allocation warm-up, input, rendering, storage, driver sequencing and output
+transport are outside the measurement. Other algorithms, LFO, note/envelope
+transitions, sample rates, DMA chains and entire songs are not covered.
+
+Instruction execution uses the MIT-licensed research tool
+[rv32emu](https://github.com/sysprog21/rv32emu/tree/61b1a194f808e1a47aa7c2ed1ddae20d8bcff36b),
+with JIT, macro-operation fusion and block chaining disabled. Its interpreter
+increments the counter per guest instruction; `INSTRET` reads that counter.
+An independently counted eight-NOP sequence between CSR reads returns the
+expected delta of nine. This is **retired ISA instructions, not Pocket CPU
+cycles, wall-clock performance, cache simulation or a hardware test**.
+
+| Authored active channels | `-O2`: million instructions/audio second | `-O3 -flto`: million instructions/audio second |
+| --- | ---: | ---: |
+| Silent synthesis path | 17.16 | 13.50 |
+| FM 1 | 33.82 | 28.79 |
+| FM 8 | 103.71 | 99.18 |
+| ADPCM 8, FM silent | 53.79 | 49.26 |
+| 16-bit PCM 8, FM silent | 53.14 | 47.48 |
+| 8-bit PCM 8, FM silent | 49.62 | 44.71 |
+| FM 8 + ADPCM 8 | 140.36 | 134.95 |
+| FM 8 + 16-bit PCM 8 | 139.69 | 133.16 |
+| FM 8 + 8-bit PCM 8 | 136.17 | 130.39 |
+
+The rate is measured instructions times 48,000 / 32,768. Counters include the
+few instructions needed to delimit calls. All **9 cases x 3 builds** exit 0,
+preserve output canaries and match the native per-case output hash after the
+signed-character correction below. This establishes limited cross-target
+agreement, not equivalence to the iOS binary or complete corpus compatibility.
+
+The current fitted `VexiiRiscv_rpcmp` configuration has one decoder/issue lane
+and runs at 90 MHz. Its optimistic ceiling is 90 million instructions/second
+before memory waits, multicycle instructions or OS work. The measured FM-8 and
+combined cases exceed that ceiling even with `-O3 -flto`. Therefore **an unchanged
+reference synthesizer on the unchanged 90 MHz CPU cannot satisfy these cases**.
+Removing rendering or openfpgaOS overhead alone cannot bridge this gap.
+
+This does not eliminate all software sound. The pinned upstream `os20.cfg`
+describes a 96 MHz dual-issue variant with 32 KiB instruction / 64 KiB data
+caches. That is source evidence, not an RPCMP fit or performance result. Two
+issue lanes do not imply twice the throughput: the combined ADPCM case alone
+would require about 1.41 instructions/cycle before other work. Compare that
+candidate, or a lean CPU platform with measured throughput, against FM hardware
+plus CPU PCM. The PCM-only rows leave a plausible budget for the latter but do
+not include a hardware FM transport or prove that composition works. Do not
+retain or discard openfpgaOS/JT51 merely because they already exist.
+
+### Portability and reproducibility
+
+The first cross-target comparison found an 8-bit PCM output mismatch. The
+reference casts sample bytes through plain `char` in `pcm8.cpp`; RV32 GCC
+defines `__CHAR_UNSIGNED__`, while the native comparison compiler does not.
+Explicit `-fsigned-char` restores the intended signed conversion and all nine
+case hashes agree at both optimization levels. Preserve this regression case;
+a successful cross-link alone would not have caught it.
+
+A separate Pocket SDK link succeeds with no undefined symbols: text 109,584,
+data 77,428, BSS 148,044 bytes (335,056 static bytes, excluding heap and stack).
+The SDK's C++ `NULL` is `nullptr`, exposing one upstream assignment to a byte;
+only the copied SDK experiment changes `DisposeStack_L00122e = NULL` to `= 0`.
+The original pinned checkout remains clean. This ELF has not been loaded on
+Pocket and exceeds the existing player's 4 KiB initialized-data budget; it is
+not a packaged candidate or evidence that the current loader/profile accepts it.
+Native builds still report legacy pointer-width warnings.
+
+Commands in the existing `rpcmp-openfpgaos-toolchain:14.2.0-3` image:
+
+```sh
+python3 -B out/build/mdxplayer-synthesis-budget-20260921-build.py
+python3 -B out/build/mdxplayer-synthesis-budget-20260921-run.py
+```
+
+Owned probe sources, ELF files, calibration, final build/results logs and the
+machine-readable `results.json` remain in ignored `out/build`; they contain
+only authored signals. The earlier failed build/comparison logs are retained.
+The emulator is research-only: MIT rv32emu, BSD-3-Clause Berkeley SoftFloat
+at `3b70b5d8147675932c38b36cd09af6df4eedd919`, and ISC Kconfiglib at
+`7a57bfc7adac8a7567805ac5097c706b824aeb28` provide a Linux-hosted ISA interpreter
+and its build configuration, not player dependencies or shipped assets.
+The additionally fetched ieeelib test source is GPL-2.0-or-later with its
+stated GCC linking exception; it is not part of this interpreter build.
+The interpreter's 256 MiB address-space build
+uses the explicit hexadecimal `compute_size=10000000` because the build image
+lacks `bc`. No production code, public engine/device contract or package changes.
+
 ## Dependency conditions
 
 The [MDXPlayer README](https://github.com/asaday/MDXPlayer/blob/4076b91c7ced57bf6047f69b87c12a34bd99a438/README.md)
