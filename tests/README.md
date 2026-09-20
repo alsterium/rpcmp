@@ -252,6 +252,15 @@ The disabled profile must advertise zero. `rtl-apf-verify.ps1 -Flush` runs the
 existing lifecycle regression on the same tree; omit `-Flush` for old trees.
 These are command-path checks, not a RAM-bank, durable-save or hardware test.
 
+`pwsh -File tools/rtl-player-axi-verify.ps1 -PreparedTree <tree>` tests the opt-in
+M6 sound binding prepared with `--apf-lifecycle --apf-flush --player-sound`.
+It extracts the actual top-level sound/reset connections and drives the real
+AXI peripheral, sound MMIO and generated JT51. Three CPU/audio clock phases
+exercise ID/register reads, bundled and delayed writes, R/B backpressure,
+invalid masks/addresses/bursts, all four mailbox channels, physical reset and
+GPU capability removal for the CPU framebuffer profile.
+This is bus integration evidence, not a working application or a fitted core.
+
 `pwsh -File tools/rtl-settings-verify.ps1` checks the synchronous M6 settings RAM
 owner with the actual Cyclone V `altsyncram` simulation library (`altera_mf_ver`).
 It covers every interrupted byte prefix, lengths 0..64, partial masks and
@@ -261,7 +270,8 @@ bytes and a physically separate readback address. A collision assertion ensures
 the owner never relies on unspecified mixed-port read-during-write. A retained
 marker distinguishes CPU-published bytes from Host-loaded bytes across release
 and reset. CPU/BRIDGE CDC, the APF size table, an OS arbiter and actual SD I/O
-remain separate integration checks.
+remain separate integration checks. The user deferred settings persistence on
+2026-09-20; those storage integrations are future work, not current M6 gates.
 
 Run the reproducible Quartus template-integration build separately with:
 

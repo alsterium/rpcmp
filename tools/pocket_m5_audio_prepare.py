@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import re
 import shutil
 import subprocess
@@ -14,6 +15,7 @@ import zipfile
 from pathlib import Path
 
 import pocket_firmware_pair
+import jt51_hold_prepare
 
 
 OPENFPGAOS_REVISION = "618a3eb985759a4154115109c2c8036271252888"
@@ -66,10 +68,14 @@ def main() -> int:
     parser.add_argument("--apf-lifecycle", action="store_true")
     parser.add_argument("--apf-flush", action="store_true",
                         help="enable the M6 APF flush transport (requires --apf-lifecycle)")
+    parser.add_argument("--player-sound", action="store_true",
+                        help="connect M6 sound MMIO to Pocket AXI/AUDIO (requires --apf-flush)")
     args = parser.parse_args()
 
     if args.apf_flush and not args.apf_lifecycle:
         parser.error("--apf-flush requires --apf-lifecycle")
+    if args.player_sound and not args.apf_flush:
+        parser.error("--player-sound requires --apf-flush")
 
     repo = args.repo.resolve()
     upstream = args.openfpgaos.resolve()
@@ -126,6 +132,12 @@ def main() -> int:
         subprocess.run([*flush_args[:2], "--check", *flush_args[2:]], cwd=repo, check=True)
         subprocess.run(flush_args, cwd=repo, check=True)
 
+    if args.player_sound:
+        for name in ("player-sound.patch", "player-cpu-video.patch", "player-sound-timing.patch"):
+            player_args = [*apply_args[:-1], "--unidiff-zero", str(overlay / name)]
+            subprocess.run([*player_args[:2], "--check", *player_args[2:]], cwd=repo, check=True)
+            subprocess.run(player_args, cwd=repo, check=True)
+
     pocket = output / "src" / "fpga" / "targets" / "pocket"
     configs = output / "src" / "fpga" / "vendor" / "vexriscv" / "configs"
     vexii = output / "src" / "fpga" / "vendor" / "vexriscv" / "VexiiRiscv"
@@ -139,6 +151,28 @@ def main() -> int:
     shutil.copyfile(netlist, vexii / "VexiiRiscv_rpcmp.v")
     shutil.copyfile(boot_mif, pocket / "firmware.mif")
     shutil.copyfile(overlay / "build_id.mif", pocket / "apf" / "build_id.mif")
+    if args.player_sound:
+        generated = output / "rpcmp-jt51-hold"
+        manifest = jt51_hold_prepare.prepare(jt51, generated)
+        modules = (
+            "rpcmp_media_output", "rpcmp_jt51_media_source", "rpcmp_media_envelope",
+            "rpcmp_native_completion", "rpcmp_media_source_queue", "rpcmp_jt51_progress_audio",
+            "rpcmp_sound_session", "rpcmp_sound_mailbox", "rpcmp_sound_mmio", "rpcmp_output_journal",
+        )
+        sources = [("SYSTEMVERILOG_FILE", repo / "core/rtl/pocket" / (name + ".sv"))
+                   for name in modules]
+        sources += [("VERILOG_FILE", generated / item["file"]) for item in manifest["files"]]
+        sources.append(("SDC_FILE", overlay / "player-sound.sdc"))
+        with (pocket / "ap_core.qsf").open("a", encoding="utf-8", newline="\n") as qsf:
+            qsf.write("\n")
+            for kind, path in sources:
+                relative = Path(os.path.relpath(path, pocket)).as_posix()
+                qsf.write(f'set_global_assignment -name {kind} "{relative}"\n')
+        (pocket / "variants/rpcmp.mk").write_text(
+            "# RPCMP M6: CPU sound MMIO, retained JT51, no persistent settings.\n"
+            "DEFS := INCLUDE_CLK90 INCLUDE_RPCMP_JT51 INCLUDE_RPCMP_PLAYER EXCLUDE_GPU\n",
+            encoding="utf-8", newline="\n",
+        )
     if pairing is not None:
         (output / "rpcmp-firmware-pair.json").write_text(
             json.dumps(pairing, indent=2, sort_keys=True) + "\n", encoding="utf-8"

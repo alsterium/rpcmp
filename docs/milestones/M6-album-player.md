@@ -2661,3 +2661,118 @@ packaged. CPU/BRIDGE CDC, APF Host/all-complete routing, reset-retained ID/size
 table ownership, the OS arbiter and actual SD readback remain the next slice 4
 connections. No firmware 2.6 test was performed and no durable-save capability
 is advertised. All generated probes, mutation copies and logs stay under `out/`.
+
+## Slice 5 sound AXI binding verified, 2026-09-20
+
+After the user deferred persistence, the current integration adopts
+[sound AXI binding v1](../../specs/pocket-sound-axi-v1.md). The opt-in source
+preparer connects the real peripheral to sound MMIO and generated JT51.
+Reads now assert the sound strobe at the actual read-latch edge. Data/error
+remain held through AXI backpressure; invalid write masks and unsupported
+sound bursts do not submit work. A pending B response cannot be overwritten.
+The default M5 profile remains separately compiled with the new macro absent.
+
+Executed integration evidence so far:
+
+- `pocket_m5_audio_prepare.py` with `--apf-lifecycle --apf-flush --player-sound`
+  generated `out/build/m6-player-sound-prepared` from the pinned inputs. Its
+  peripheral/top source hashes match the initial measured candidate.
+- `pwsh -File tools/rtl-player-axi-verify.ps1 -PreparedTree
+  out/build/m6-player-sound-prepared`: PASS at 0, 5,555 and 81,379 ps phases,
+  72 writes each and respectively 2,589 / 2,588 / 2,589 reads. Each simulator
+  summary has zero errors/warnings. All four mailbox channels cross the actual
+  binding. Log: `out/build/m6-player-axi-final.log`.
+- `python -B out/build/m6-player-negative.py`: both authored negative controls
+  fail at the expected assertions: an early read strobe returns zero instead
+  of RSM1; accepting another AW overwrites the pending-response ownership.
+  Mutations are isolated under `out/sim/player-axi-negative-*`.
+- Sequential `rtl-player-axi-verify.ps1`, `rtl-apf-flush-verify.ps1` and
+  `rtl-apf-verify.ps1 -Flush`, using that prepared tree, followed by
+  `rtl-sound-mmio-verify.ps1`, `rtl-verify.ps1` and `rtl-jt51-verify.ps1`: PASS.
+  Logs: `out/build/m6-player-{axi,apf,lifecycle,mmio,rtl,jt51}-regression.log`.
+- `pwsh -File out/build/m6-player-fit.ps1`: whole-core synthesis passes (zero
+  errors, 1,085 visible warnings), but fitting **fails**. The fitter reports
+  20,870 / 18,480 ALMs (113%) and requires 2,108 LABs versus 1,848 available
+  (errors 170012 and 11802). Timing analysis did not run. The failed fit's
+  entity estimates attribute about 3,810 ALMs to GPU, 7,722 to sound and
+  5,260 to the CPU subsystem; these are not successful placement figures.
+  Logs: `out/build/m6-player-sound-{map,fit}.log`.
+
+The player variant now uses the inherited `EXCLUDE_GPU` branch with inactive
+GPU bus masters; terminal/framebuffer scanout remain available for CPU drawing.
+It clears GPU feature bits and sets the OS capability descriptor's `gpu_base`
+to zero. Other capabilities and the default M5 profile remain unchanged.
+
+- Latest CPU-video prepared source: `out/build/m6-player-cpuvideo`.
+  `rtl-player-axi-verify.ps1` passes its three phases with 2,589 reads and 72
+  writes each, including GPU capability checks. `rtl-apf-flush-verify.ps1`
+  passes the disabled-player regression on the same tree. Logs:
+  `out/build/m6-player-cpuvideo-{axi,apf}.log`.
+- The changed OS `caps_table.c` compiles with container GCC 14.2.0 using
+  `-std=gnu11 -O2 -Wall -Wextra -Werror -march=rv32imafc -mabi=ilp32f`.
+  This is an object compile, not a linked ROM/OS image or boot result.
+- `pwsh -File tools/host-verify.ps1`: final **81/81 PASS**, **577.21 s**,
+  including architecture, format and tidy. Log:
+  `out/build/m6-player-axi-completion-host.log`. The earlier run passed in
+  658.77 s; the final gate includes the subsequent preparation changes.
+  Focused harness, harness-negative, firmware-pair, placement and failure-package
+  checks also pass (5/5 in 2.31 s).
+- `pwsh -File out/build/m6-player-cpuvideo-fit.ps1`: map/fit/STA complete.
+  This resource probe uses **16,550/18,480 ALMs**, 27,831 registers,
+  955,174 memory bits, **151/308 M10Ks** and **8/66 DSP blocks**. It leaves
+  1,930 ALMs (10.4%); this is not an allocation proof for future PCM/UI work.
+  Logs: `out/build/m6-player-cpuvideo-{map,fit,sta}.log`. An earlier no-GPU
+  attempt accidentally concatenated its macro with the last QSF line; its
+  repeated capacity failure was invalid as evidence for GPU removal.
+
+The resource probe uses inherited CPU/audio clock-group cuts. Final player
+preparation removes that blanket cut and adds explicit bundle limits and
+first-stage exceptions from sound MMIO v1. The prior exclusion is retained
+only for CPU/audio paths through the separate legacy PCM serializer/FIFO,
+which does not drive AUDIO in this profile. Same-domain legacy paths remain
+timed. An intermediate fit without that scoped exception exposed the old
+crossings and failed timing; it is not acceptance evidence. Synthesis and
+fitted PLL clock names differ; the constraint now requires exactly one of
+the two observed names. This resolves warning 330000 without skipping checks.
+
+Final prepared source is `out/build/m6-player-cdc`, with project
+`out/build/m6-player-cdc-scoped-fit`, Quartus 25.1std.0 Build 1129,
+5CEBA4F23C8, seed 1 and four processors. Actual commands were
+`quartus_map --write_settings_files=off ap_core`,
+`quartus_fit --write_settings_files=off ap_core`, then
+`pwsh -File out/build/m6-player-cdc-scoped-finish.ps1` (STA and four-corner
+audit). STA does not accept `--write_settings_files`; the driver's initial
+CLI rejection ran no analysis and was corrected before these final checks.
+`python -B out/build/m6-player-final-evidence.py` verifies the reports:
+
+- **16,649/18,480 ALMs**, 27,821 registers, 955,174 memory bits,
+  **151/308 M10Ks**, **8/66 DSP blocks**. Remaining ALMs: 1,831 (9.9%).
+- All **136** timing summary rows have nonnegative slack and zero TNS.
+  Minimum setup/hold/recovery/removal/pulse-width slack is respectively
+  **0.349 / 0.110 / 3.178 / 0.268 / 0.555 ns**.
+- All **32** mailbox/direction/corner cases cover every optimized destination,
+  satisfy the 81.380/11.111 ns data limits and have positive setup slack.
+  Every second synchronizer stage and both local reset-release chains pass
+  setup/hold checks. Timed CPU/audio endpoints match the bundle endpoint totals.
+- The independent negative control (`m6-player-cdc-negative.tcl`) reinstates
+  the blanket clock cut and fails at the expected zero-bundle-path assertion.
+- The final peripheral, top, OS capability source and JT51 manifest are byte
+  identical to the CPU-video sources used in the passing RTL/compiler checks.
+- Final overlay formatting uses the existing zero-context patch convention
+  with sequential application. A fresh preparation at
+  `out/build/m6-player-ready-lf` also reproduces the fitted peripheral, top,
+  core constraints, OS capability source and JT51 manifest byte for byte.
+
+Reports and logs: `out/build/m6-player-cdc-scoped-{map,fit,sta,audit}.log`,
+`m6-player-cdc-scoped-cdc-paths.txt` and `m6-player-final-evidence.json`.
+Missing clocks/endpoints are errors; no warning suppression was added. Visible
+inherited diagnostics include PLL lock/compensation, incomplete/ignored I/O
+assignments, bridge clock routing, unavailable LogicLock, an optimized-away
+analog stride constraint and synthesis warnings. The inherited external-I/O,
+legacy PCM and other shell CDC exclusions still need the broader slice 5
+review; passing constrained paths does not prove those exceptions.
+
+The next unit is the target service loop, input, licensed bitmap fonts and CPU
+renderer, with coherent ROM/OS/app builds, memory/cadence measurements and
+packaging. Future PCM/UI reserve and firmware 2.6 acceptance remain open.
+No hardware test or playable M6 package is claimed by this binding unit.

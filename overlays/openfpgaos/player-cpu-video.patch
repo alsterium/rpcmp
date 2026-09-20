@@ -1,0 +1,19 @@
+--- a/src/fpga/common/axi_periph_slave.v
++++ b/src/fpga/common/axi_periph_slave.v
+@@ -804 +804 @@
+-localparam [31:0] HW_FEATURES_RESOLVED =
++localparam [31:0] HW_FEATURES_CONFIGURED =
+@@ -905,0 +906,8 @@
++// No GPU renderer or DMA is present in the CPU-framebuffer profile.
++// The mask follows the pinned SDK's OF_HW_GPU_* allocation.
++`ifdef EXCLUDE_GPU
++localparam [31:0] HW_FEATURES_RESOLVED = HW_FEATURES_CONFIGURED & ~32'h7efffc10;
++`else
++localparam [31:0] HW_FEATURES_RESOLVED = HW_FEATURES_CONFIGURED;
++`endif
++
+--- a/src/firmware/os/kernel/caps_table.c
++++ b/src/firmware/os/kernel/caps_table.c
+@@ -83 +83 @@
+-    caps->gpu_base            = platform->gpu_base;
++    caps->gpu_base            = (features & HW_FEAT_GPU_SPAN) ? platform->gpu_base : 0u;

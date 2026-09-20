@@ -24,6 +24,8 @@ def generate(tree, output):
     top = (tree / "src/fpga/targets/pocket/core_top.v").read_text(encoding="utf-8")
     axi = (tree / "src/fpga/common/axi_periph_slave.v").read_text(encoding="utf-8")
     header = section(axi, ") (", "\n);")
+    # This regression builds the optional player profile disabled.
+    header = re.sub(r"`ifdef INCLUDE_RPCMP_PLAYER\n.*?`endif", "", header, flags=re.DOTALL)
     # The optional legacy sound ports are present in the test compilation too.
     ports = re.findall(r"^[ \t]*,?[ \t]*(input|output)[ \t]+(?:wire|reg)[ \t]*(\[[^\]]+\])?[ \t]*(\w+)",
                        header, re.MULTILINE)

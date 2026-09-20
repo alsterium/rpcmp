@@ -2,9 +2,17 @@
 
 Active milestone: [M6 — Album Player](milestones/M6-album-player.md)
 
-The current task is M6 slice 5: connect the approved
-[CPU sound connection](design/pocket-cpu-sound-connection.md) to the actual
-Pocket AXI peripheral, then integrate the catalog/player, input and framebuffer.
+The current task is M6 slice 5: integrate the catalog/player, target service
+loop, input and CPU framebuffer, following the approved
+[CPU sound connection](design/pocket-cpu-sound-connection.md).
+The opt-in [sound AXI binding](../specs/pocket-sound-axi-v1.md) now passes
+three-phase bus/mailbox simulation, related RTL regressions and the host gate.
+The final no-GPU fit uses 16,649/18,480 ALMs, has nonnegative timing across all
+136 reported clock/corner cases, and passes the exhaustive four-mailbox CDC
+audit. Existing shell external/legacy exceptions remain unproven; this is not
+production-substrate promotion. The actual service loop/UI and coherent
+ROM/OS/app package are next. No playable M6 image exists for this binding yet;
+see the milestone's current evidence.
 On 2026-09-20 the user deferred persistent settings: each application launch
 starts with AlbumOrder / Default (two loops, five-second fade), shuffle off and
 no autoplay. In-session setting changes remain supported. Do not connect a
@@ -145,7 +153,7 @@ information/control panel. The host SVG mock links UI/contracts only, with
 bounded text and explicit elision. Authored scenarios and browser-rendered
 images verify mock layout; installed host fonts do not establish Pocket metrics.
 The retained producer and output-history owner now connect through the sound
-backend. The actual AXI sound binding and the Pocket service loop are next;
+backend. The actual AXI sound binding is verified; the Pocket service loop is next;
 the APF settings adapter is deferred by the user's updated requirement.
 See M6 for the executed checks; this does not establish a working Pocket audio
 adapter, rendered Pocket UI or M6 integration acceptance.

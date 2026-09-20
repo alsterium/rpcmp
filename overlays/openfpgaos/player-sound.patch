@@ -1,0 +1,94 @@
+--- a/src/fpga/common/axi_periph_slave.v
++++ b/src/fpga/common/axi_periph_slave.v
+@@ -403,0 +404,4 @@
++`ifdef INCLUDE_RPCMP_PLAYER
++    , output wire [3:0]  rpcmp_mmio_be
++    , input  wire        rpcmp_mmio_error
++`endif
+@@ -2055,0 +2060,8 @@
++`ifdef INCLUDE_RPCMP_PLAYER
++// The sound block returns combinational data only while its read strobe is high.
++// Align that strobe with the actual peripheral capture edge, not RD_WAIT.
++reg rpcmp_bad_shape, rpcmp_wlast, rpcmp_read_error;
++assign rpcmp_mmio_rd = req_is_rpcmp && !rpcmp_bad_shape && (state == S_PERIPH_RD_LATCH);
++assign rpcmp_mmio_wr = req_is_rpcmp && !rpcmp_bad_shape && rpcmp_wlast && (state == S_PERIPH_WR);
++assign rpcmp_mmio_be = req_wstrb;
++`else
+@@ -2057,0 +2070 @@
++`endif
+@@ -2141,0 +2155,5 @@
++`ifdef INCLUDE_RPCMP_PLAYER
++        // M6 is a separate capability profile; the M5 queue is absent here.
++        end else if (addr[31:10] == 22'h100001) begin
++            decode_region = REGION_RPCMP;
++`else
+@@ -2144,0 +2163 @@
++`endif
+@@ -2201,0 +2221,5 @@
++`ifdef INCLUDE_RPCMP_PLAYER
++        rpcmp_bad_shape <= 0;
++        rpcmp_wlast <= 0;
++        rpcmp_read_error <= 0;
++`endif
+@@ -2267,0 +2292,3 @@
++`ifdef INCLUDE_RPCMP_PLAYER
++                rpcmp_bad_shape <= (s_axi_arlen != 0);
++`endif
+@@ -2289 +2316,5 @@
+-            end else if (s_axi_awvalid) begin
++            end else if (s_axi_awvalid
++`ifdef INCLUDE_RPCMP_PLAYER
++                         && (!s_axi_bvalid || s_axi_bready)
++`endif
++            ) begin
+@@ -2296,0 +2328,4 @@
++`ifdef INCLUDE_RPCMP_PLAYER
++                rpcmp_bad_shape <= (s_axi_awlen != 0) || s_axi_awburst[1];
++                rpcmp_wlast <= s_axi_wlast;
++`endif
+@@ -2368,0 +2404,3 @@
++`ifdef INCLUDE_RPCMP_PLAYER
++            rpcmp_read_error <= req_is_rpcmp && (rpcmp_bad_shape || rpcmp_mmio_error);
++`endif
+@@ -2389,0 +2428,3 @@
++`ifdef INCLUDE_RPCMP_PLAYER
++                s_axi_rresp <= rpcmp_read_error ? 2'b10 : 2'b00;
++`else
+@@ -2390,0 +2432 @@
++`endif
+@@ -2470,0 +2513,4 @@
++`ifdef INCLUDE_RPCMP_PLAYER
++                if (req_is_rpcmp && (rpcmp_bad_shape || !rpcmp_wlast || rpcmp_mmio_error))
++                    s_axi_bresp <= 2'b10;
++`endif
+@@ -2487,0 +2534,3 @@
++`ifdef INCLUDE_RPCMP_PLAYER
++                rpcmp_wlast <= s_axi_wlast;
++`endif
+--- a/src/fpga/targets/pocket/core_top.v
++++ b/src/fpga/targets/pocket/core_top.v
+@@ -2595,0 +2596,4 @@
++`ifdef INCLUDE_RPCMP_PLAYER
++    wire [3:0] rpcmp_mmio_be;
++    wire rpcmp_mmio_error;
++`endif
+@@ -2842,0 +2847,4 @@
++`ifdef INCLUDE_RPCMP_PLAYER
++        , .rpcmp_mmio_be(rpcmp_mmio_be)
++        , .rpcmp_mmio_error(rpcmp_mmio_error)
++`endif
+@@ -3494,0 +3503,12 @@
++`ifdef INCLUDE_RPCMP_PLAYER
++// Both mailbox domains share physical reset; local release is inside the owner.
++rpcmp_sound_mmio rpcmp_sound (
++    .cpu_clk(clk_cpu), .audio_clk(clk_core_12288),
++    .cpu_reset_n(reset_n), .audio_reset_n(reset_n), .device_fault(1'b0),
++    .mmio_addr(rpcmp_mmio_addr), .mmio_wr_data(rpcmp_mmio_wdata),
++    .byte_enable(rpcmp_mmio_be), .mmio_rd(rpcmp_mmio_rd), .mmio_wr(rpcmp_mmio_wr),
++    .mmio_rd_data(rpcmp_mmio_rdata), .mmio_error(rpcmp_mmio_error),
++    .sound_fault(rpcmp_sound_fault),
++    .audio_mclk(audio_mclk), .audio_lrck(audio_lrck), .audio_dac(audio_dac)
++);
++`else
+@@ -3509,0 +3530 @@
++`endif
