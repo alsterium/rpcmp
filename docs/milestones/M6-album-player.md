@@ -183,8 +183,9 @@ remain required before advertising settings support on Pocket.
    failure silence across relaunch/power cycles. Stop for the user once a
    concrete checked candidate and focused hardware checklist are ready.
 
-Run focused host tests while iterating and `pwsh -File tools/host-verify.ps1`
-for each stable unit. RTL, cross-build, fit and hardware checks are required
+Follow the [harness verification milestones](../development/harness.md): focused
+tests and Fast during iteration, Full when the approved connected behavior works
+and at candidate/acceptance gates. RTL, cross-build, fit and hardware checks are required
 when those paths change; host-only results cannot establish their acceptance.
 
 ## Carried integration gates

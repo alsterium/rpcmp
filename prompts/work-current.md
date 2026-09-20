@@ -6,7 +6,8 @@ Implement the requested bounded task within those contracts. If the next gate
 requires hardware observations, prepare or inspect the evidence and report what
 is pending; do not fabricate observations or begin a future milestone.
 
-Follow [the harness workflow](../docs/development/harness.md). Make routine
+Follow [the harness workflow](../docs/development/harness.md) for Fast/Full
+selection, verification milestones and rerun conditions. Make routine
 reversible decisions autonomously, preserve existing work, and complete the
 relevant verification. Report the result and evidence concisely, including
 unrun checks and the next recommended task.

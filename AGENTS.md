@@ -42,7 +42,9 @@ The documents above are the system of record. If implementation and documentatio
 - State the intended outcome, active milestone/slice, and relevant checks briefly. Read relevant files once; load additional contracts and skills only when needed by the task.
 - Resolve routine, reversible implementation choices using existing contracts. Proceed through implementation and verification without repeated permission requests. Ask when an unresolved decision changes public behavior, scope, or authorization; identify the source of the blocker.
 - Start with a focused failing case for behavioral bugs. Use contract-derived assertions, independently derived traces, boundary cases, and existing fixtures. Do not add tests that merely repeat implementation details for prose-only edits.
-- Run focused checks during iteration and the completion gate once the change is stable. Repeat or broaden checks only after changes, failures, or unresolved concerns. Run RTL suites sequentially because they use shared simulator work directories.
+- During iteration, run focused checks first, then `pwsh -File tools/host-verify.ps1 -Mode Fast` at a coherent checkpoint. Fast omits only tidy; it is not Full acceptance.
+- Before implementation, name the approved connected behavior that will trigger Full (for example, sending a CPU audio request and receiving its matching completion). Run Full when that behavior works, with affected RTL/cross-build/synthesis checks. A file, helper or commit alone is not a Full milestone; do not defer the milestone indefinitely as scope grows. Small commits do not each require Full.
+- Repeat checks only after their inputs change, a failure is fixed, a new concern arises or integration scope expands. After a pass, progress/link-only edits need document checks, not identical C++/RTL reruns; never reuse a pass for subsequently changed code. Run RTL suites sequentially because they use shared simulator work directories.
 - Keep subagent use bounded to independent tasks when explicitly requested. Do not create agents solely to repeat the same review.
 
 ## Observable quality rules
@@ -59,8 +61,8 @@ The documents above are the system of record. If implementation and documentatio
 Before declaring work complete:
 
 - Run the milestone's acceptance tests and all affected unit/integration tests.
-- Run formatting, linting, static analysis, and relevant RTL simulation when configured.
+- Run formatting, linting, static analysis, and relevant RTL simulation at the milestones defined in `docs/development/harness.md`. Hardware candidate submission and milestone acceptance require all applicable gates; Fast never substitutes for Full there.
 - Verify architecture/dependency checks still prevent Core-to-UI coupling.
 - Update docs only when behavior or an approved contract changed.
 - Report files changed, decisions made, tests run, tests not run, known risks, and the next recommended task.
-- For documentation/harness-only work, run the host gate and any affected tooling tests; RTL and hardware checks are not applicable unless their inputs or behavior changed. Explicitly report that distinction. Passing host checks does not complete a hardware milestone.
+- Harness/build/verification-script changes require affected tooling tests and Full. Progress entries and link fixes alone require document/navigation checks, without full C++ analysis. Product specs, public contracts, acceptance criteria, build/verification procedures, agent authority/stop rules, and documents used as test/generation inputs require impact-based checks, including Full when affected; Markdown is not itself grounds for lighter checks. RTL and hardware checks are not applicable unless their inputs or behavior changed. Explicitly report that distinction. Passing host checks does not complete a hardware milestone.

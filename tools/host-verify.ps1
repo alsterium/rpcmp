@@ -1,5 +1,9 @@
 [CmdletBinding()]
-param([switch]$CheckSetupOnly)
+param(
+    [switch]$CheckSetupOnly,
+    [ValidateSet('Full', 'Fast')]
+    [string]$Mode = 'Full'
+)
 
 $ErrorActionPreference = 'Stop'
 $rpcmpRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
@@ -43,11 +47,16 @@ if (-not $rpcmpVsInstall) {
 
 $rpcmpDevCmd = Join-Path $rpcmpVsInstall 'Common7/Tools/VsDevCmd.bat'
 $rpcmpCmake = (Get-Command cmake -ErrorAction Stop).Source
-$rpcmpInvocation = 'call "{0}" -arch=x64 -host_arch=x64 >nul && chcp 65001 >nul && set "VSLANG=1033" && "{1}" --workflow --preset host-verify' -f `
-    $rpcmpDevCmd, $rpcmpCmake
+$rpcmpWorkflow = if ($Mode -eq 'Fast') { 'host-verify-fast' } else { 'host-verify' }
+$rpcmpCoverage = if ($Mode -eq 'Fast') { 'tidy NOT RUN; not full verification' } else { 'all host tests including tidy' }
+$rpcmpInvocation = 'call "{0}" -arch=x64 -host_arch=x64 >nul && chcp 65001 >nul && set "VSLANG=1033" && "{1}" --workflow --preset {2}' -f `
+    $rpcmpDevCmd, $rpcmpCmake, $rpcmpWorkflow
 
 if ($CheckSetupOnly) {
     $rpcmpInvocation = 'call "{0}" -arch=x64 -host_arch=x64 >nul && chcp 65001 >nul && set "VSLANG=1033" && where cl && ninja --version' -f $rpcmpDevCmd
+}
+else {
+    Write-Host "Host verification mode: $Mode ($rpcmpCoverage)"
 }
 
 Push-Location $rpcmpRoot
@@ -58,4 +67,8 @@ try {
     Pop-Location
 }
 if ($rpcmpExitCode -eq 0 -and $CheckSetupOnly) { Write-Host 'Host setup: PASS (no build or tests run)' }
+if (-not $CheckSetupOnly) {
+    $rpcmpResult = if ($rpcmpExitCode -eq 0) { 'PASS' } else { "FAIL (exit $rpcmpExitCode)" }
+    Write-Host "Host verification ${Mode}: $rpcmpResult ($rpcmpCoverage)"
+}
 exit $rpcmpExitCode

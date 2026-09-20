@@ -703,7 +703,8 @@ if(BUILD_TESTING)
     COMMAND ${Python3_EXECUTABLE} -B ${CMAKE_SOURCE_DIR}/tools/check_harness.py
             --root ${CMAKE_SOURCE_DIR})
   add_test(NAME harness_negative
-    COMMAND ${Python3_EXECUTABLE} -B ${CMAKE_SOURCE_DIR}/tests/harness/harness_tests.py)
+    COMMAND ${Python3_EXECUTABLE} -B ${CMAKE_SOURCE_DIR}/tests/harness/harness_tests.py
+            --build-dir ${CMAKE_BINARY_DIR} --ctest ${CMAKE_CTEST_COMMAND})
   add_test(NAME pocket_apf_package
     COMMAND ${Python3_EXECUTABLE} -B ${CMAKE_SOURCE_DIR}/tests/pocket/apf_package_tests.py)
   add_test(

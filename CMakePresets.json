@@ -36,6 +36,13 @@
       "execution": {
         "noTestsAction": "error"
       }
+    },
+    {
+      "name": "host-msvc-fast",
+      "inherits": "host-msvc",
+      "filter": {
+        "exclude": { "name": "^tidy$" }
+      }
     }
   ],
   "workflowPresets": [
@@ -46,6 +53,15 @@
         { "type": "configure", "name": "host-msvc" },
         { "type": "build", "name": "host-msvc" },
         { "type": "test", "name": "host-msvc" }
+      ]
+    },
+    {
+      "name": "host-verify-fast",
+      "displayName": "Configure, build, and verify host except tidy",
+      "steps": [
+        { "type": "configure", "name": "host-msvc" },
+        { "type": "build", "name": "host-msvc" },
+        { "type": "test", "name": "host-msvc-fast" }
       ]
     }
   ]
