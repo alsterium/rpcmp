@@ -2313,3 +2313,71 @@ No RTL, device protocol or package inputs changed in this CPU-only unit.
 RTL simulation/synthesis and firmware 2.6 hardware tests were not rerun;
 the preceding journal evidence remains separate. CPU sound/storage adapters,
 whole-Pocket integration and hardware acceptance remain pending.
+
+## Slice 4 CPU sound-client execution — 2026-09-20
+
+The [CPU client contract](../../specs/pocket-sound-client-v1.md) implements the
+existing four-mailbox MMIO protocol and approved 1,000-us critical watchdog.
+`SoundMmioClient` injects MMIO and a monotonic clock, copies requests/results,
+validates response words and retains borrowed hardware ownership after failure.
+Full is returned to the retained MDX producer without an implicit retry. Normal
+Reset does not cancel old feed/capture/journal requests. Their responses keep
+their original identity until drained; unread CPU results also block reuse.
+
+A matching completion wins at the deadline. Timeout never becomes late success,
+and clock reversal inhibits sound without starting a new timer epoch. Journal
+acquisition has a separate 1,000-us display deadline: its timeout or malformed
+response leaves audio/control/feed/capture available. This internal display
+service choice does not change the approved audio deadline or public schemas.
+
+A focused failure reproduced a copied Reset success clearing the client fault
+after a newer CPU INHIBIT. Recovery is now allowed only when no INHIBIT followed
+that Reset's submission. The immutable earlier wire success remains a past
+response; it cannot clear the newer fault. Reproduction log:
+`out/build/m6-sound-client-inhibit-repro.log`.
+
+Executed focused checks:
+
+- `pwsh -File out/build/m6-sound-client-focused.ps1`: builds and passes
+  `sound_mmio_client`. Independently authored word transcripts check high
+  halves, copied ownership, slot independence, Full/retry, obsolete epochs,
+  malformed echoes/fields, deadline boundaries, late responses, clock reversal
+  and u64/sequence limits. The host client occupies 552 bytes. Log:
+  `out/build/m6-sound-client-focused.log`.
+- LLVM 22.1.8 `clang-tidy -p out/build/host-msvc --config-file=.clang-tidy`
+  on the client source and test: PASS. The invalid-enum fixture uses the same
+  byte-copy corruption technique as existing transport tests, retaining the
+  rejection assertion without adding a warning suppression.
+- `docker run --rm --mount type=bind,source=F:\source\rpcmp,target=/repo --workdir /repo rpcmp-openfpgaos-toolchain:14.2.0-3 python3 out/build/m6-sound-client-sanitize.py`:
+  PASS with native GCC 13.3.0, AddressSanitizer/UndefinedBehaviorSanitizer,
+  leak detection and halt-on-error. Log:
+  `out/build/m6-sound-client-sanitize.log`.
+
+```powershell
+docker run --rm --mount type=bind,source=F:\source\rpcmp,target=/repo --workdir /repo rpcmp-openfpgaos-toolchain:14.2.0-3 make --file out/build/m6-sound-client-cross/Makefile client-check
+```
+
+This RISC-V compile/link probe passes with GCC 14.2.0, C++17,
+`rv32imafc/ilp32f`, `-Werror`, no exceptions/RTTI and the pinned SDK. It links the
+client's four channels with the volatile MMIO adapter and a placeholder clock;
+it is not an executable Pocket service/clock integration. The ELF32
+little-endian image has no undefined symbols: text 11,452, data 200 and BSS
+2,344 bytes, total 13,996. All 51 compiled stack-usage records sum to 1,136
+bytes; the largest frame is probe `main` at 304 bytes, with no dynamic frames.
+Limits remain 56,623,104 static, 4,096 initialized-data and 524,288 stack bytes.
+The sum excludes unreported SDK/library frames and is not a device high-water
+measurement. Target persistent client storage is 544 bytes (ELF symbol 0x220).
+Logs, symbols and budget: `out/build/m6-sound-client-cross.log` and its
+directory's `symbols.txt` / `budget.json`.
+
+`pwsh -File tools/host-verify.ps1` with pinned LLVM 22.1.8 passes 80/80 in
+623.06 s, including format (0.53 s), tidy (605.89 s), architecture rejection
+fixtures and incremental rebuild. Log: `out/build/m6-sound-client-host.log`.
+`python -B tools/check_harness.py`, the changed Markdown link check (82 targets)
+and `git diff --check` pass after the evidence/navigation updates.
+
+No RTL/protocol/package inputs changed in this CPU-only unit; RTL/fit and
+firmware 2.6 hardware checks were not repeated. The enclosing AudioTransportPort
+backend, real producer/history service, storage adapter, combined memory and
+whole-Pocket integration remain pending. Client compile/link and scripted
+clock checks do not establish a measured Pocket service deadline or playback.

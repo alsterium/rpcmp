@@ -6,7 +6,10 @@ The current task is M6 slice 4: implement the approved
 [CPU sound connection](design/pocket-cpu-sound-connection.md). Its
 [MMIO/CDC](../specs/pocket-sound-mmio-v1.md) now passes independent-clock RTL,
 host checks and local fitted timing/CDC. The user approved the 1,000 us mailbox
-watchdog on 2026-09-20; CPU deadline handling remains to be implemented/tested.
+watchdog on 2026-09-20. The [CPU MMIO client](../specs/pocket-sound-client-v1.md)
+now retains each mailbox through completion or late-response drain, checks
+deadline/clock failures and isolates journal errors from audio. Its word-level
+host tests, sanitizer checks and RISC-V compile/link memory probe pass.
 The [retained MDX producer](../specs/mdx-source-producer-v1.md) now passes
 copied-batch/retry/epoch host checks and a RISC-V compile/link memory probe.
 The [32-record output journal](../specs/pocket-output-journal-v1.md) now passes
@@ -14,8 +17,9 @@ native boundary, overflow/read-cadence and four-mailbox CDC checks with local
 fitted timing. The [16-batch CPU history owner](../specs/mdx-output-history-v1.md)
 now connects copied MDX checkpoints to actual output records with per-event
 frames and explicit display loss; host gates, sanitizer tests and the RISC-V
-memory probe pass. The CPU MMIO sound and storage adapters are next; device polling
-and coherent history publication still require their integration.
+memory probe pass. The enclosing sound backend and storage adapter are next;
+MDX feeding, device polling and coherent history publication still require
+their integration through the CPU client.
 The [synchronous sound session](../specs/pocket-sound-session-v1.md) now passes
 all-phase local control/reset/inhibit tests, host/RTL regressions and registered
 fit/timing; the active milestone records the commands and limitations. Sound/storage adapters

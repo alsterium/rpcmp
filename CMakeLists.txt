@@ -143,6 +143,11 @@ target_include_directories(rpcmp_pocket_platform PUBLIC core/platform/pocket/inc
 target_link_libraries(rpcmp_pocket_platform PUBLIC rpcmp_contracts)
 rpcmp_production_options(rpcmp_pocket_platform)
 
+add_library(rpcmp_pocket_sound STATIC core/platform/pocket/src/sound_mmio_client.cpp)
+target_include_directories(rpcmp_pocket_sound PUBLIC core/platform/pocket/include)
+target_link_libraries(rpcmp_pocket_sound PUBLIC rpcmp_player rpcmp_pocket_platform)
+rpcmp_production_options(rpcmp_pocket_sound)
+
 add_library(rpcmp_utility_writer STATIC
   utility/src/stable_id.cpp
   utility/src/writer.cpp)
@@ -615,6 +620,12 @@ if(BUILD_TESTING)
   target_link_libraries(rpcmp_device_queue_mmio_tests PRIVATE rpcmp_pocket_platform)
   rpcmp_test_options(rpcmp_device_queue_mmio_tests)
   add_test(NAME device_queue_mmio COMMAND rpcmp_device_queue_mmio_tests)
+
+  add_executable(rpcmp_sound_mmio_client_tests tests/pocket/sound_mmio_client_tests.cpp)
+  target_include_directories(rpcmp_sound_mmio_client_tests PRIVATE tests/support)
+  target_link_libraries(rpcmp_sound_mmio_client_tests PRIVATE rpcmp_pocket_sound)
+  rpcmp_test_options(rpcmp_sound_mmio_client_tests)
+  add_test(NAME sound_mmio_client COMMAND rpcmp_sound_mmio_client_tests)
 
   add_executable(rpcmp_mdx_trace_fixture_tests tests/pocket/mdx_trace_fixture_tests.cpp)
   target_include_directories(rpcmp_mdx_trace_fixture_tests PRIVATE tests/support)

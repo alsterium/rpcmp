@@ -34,6 +34,14 @@ MDX offers and Full retries must match with dense, sparse or absent display
 reads, including delayed history processing. `performance_history` also checks
 the internal per-event/trailing loss counts and sequence overflow.
 
+The host `sound_mmio_client` test uses independently authored MMIO word
+transcripts and an injected microsecond clock. It checks copied requests and
+responses, high halves, independent busy slots, Full/retry, malformed data,
+old epochs, 999/1000-us deadlines, late completion and clock reversal. A newer
+inhibit must survive an older copied Reset success. Journal failure must not
+inhibit audio; all expired slots remain borrowed until their late response is
+drained. These are CPU client checks, not execution of the RTL or Pocket app.
+
 Run the M0 register spike plus M2 device queue and Pocket AUDIO simulations
 with Questa Altera Starter 2025.2:
 
