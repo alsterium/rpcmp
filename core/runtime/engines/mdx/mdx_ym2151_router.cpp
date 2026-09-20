@@ -281,7 +281,9 @@ DecodeResult route_ym2151_batch(const MdxDocument& document, const DocumentTickB
   }
 
   state = scratch.candidate_state;
-  writes = scratch.pending_batch;
+  std::copy_n(scratch.pending_batch.writes.begin(), scratch.pending_batch.count,
+              writes.writes.begin());
+  writes.count = scratch.pending_batch.count;
   if (performance != nullptr)
     scratch.observation.copy_to(state.observation, static_cast<std::uint16_t>(writes.count),
                                 *performance);

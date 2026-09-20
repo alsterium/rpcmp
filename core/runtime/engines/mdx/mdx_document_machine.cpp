@@ -57,7 +57,9 @@ DecodeResult advance_document_tick(const MdxDocument& document, DocumentPlayback
   if (active)
     scratch.candidate_state.completed_loops = minimum;
   state = scratch.candidate_state;
-  batch = scratch.pending_batch;
+  std::copy_n(scratch.pending_batch.actions.begin(), scratch.pending_batch.count,
+              batch.actions.begin());
+  batch.count = scratch.pending_batch.count;
   return {};
 }
 

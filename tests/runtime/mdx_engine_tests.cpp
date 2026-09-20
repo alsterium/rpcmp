@@ -65,6 +65,21 @@ int main() {
   RPCMP_CHECK(suite, state.ym2151.channels[0].key_on);
   RPCMP_CHECK(suite, state.timeline.scheduler_tick == 688);
 
+  // Reuse the same workspace and output after a voice/note burst. A single
+  // direct write followed by 48 rest ticks must not replay the old suffix.
+  static constexpr std::array<std::uint8_t, 6> kRest{0xfe, 0x1b, 0x02, 0x2f, 0xf1, 0};
+  const auto resting = document_with({kRest.data(), kRest.size()}, {kEnd.data(), kEnd.size()});
+  state = {};
+  for (unsigned tick = 0; tick < 48; ++tick) {
+    RPCMP_CHECK(suite,
+                rpcmp::runtime::mdx::advance_mdx_tick(resting, 48'000, state, batch, scratch).ok());
+    RPCMP_CHECK(suite, batch.count == (tick == 0 ? 1U : 0U));
+    if (tick == 0)
+      RPCMP_CHECK(suite, batch.writes[0].at_tick == 0 && batch.writes[0].write.address == 0x1b &&
+                             batch.writes[0].write.value == 2);
+    RPCMP_CHECK(suite, !state.progress.ended && state.progress.completed_loops == 0);
+  }
+
   static constexpr std::array<std::uint8_t, 6> kMissingVoice{0xfd, 0x04, 0x80, 0x00, 0xf1, 0x00};
   const auto failing =
       document_with({kMissingVoice.data(), kMissingVoice.size()}, {kEnd.data(), kEnd.size()});

@@ -1,5 +1,7 @@
 #include "rpcmp/runtime/mdx_engine.hpp"
 
+#include <algorithm>
+
 namespace rpcmp::runtime::mdx {
 
 DecodeResult prepare_mdx_playback(const MdxDocument& document, DocumentValidation& validation,
@@ -44,7 +46,9 @@ DecodeResult advance_mdx_tick(const MdxDocument& document, const std::uint32_t s
                                       scratch.candidate_state.document.ended};
   scratch.candidate_state.performance.at_tick = state.timeline.scheduler_tick;
   state = scratch.candidate_state;
-  batch = scratch.pending_batch;
+  std::copy_n(scratch.pending_batch.writes.begin(), scratch.pending_batch.count,
+              batch.writes.begin());
+  batch.count = scratch.pending_batch.count;
   return {};
 }
 

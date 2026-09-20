@@ -1,5 +1,6 @@
 #include "rpcmp/runtime/mdx_timeline.hpp"
 
+#include <algorithm>
 #include <limits>
 
 namespace rpcmp::runtime::mdx {
@@ -34,7 +35,9 @@ DecodeResult stamp_ym2151_tick(const DocumentTickBatch& actions, const Ym2151Wri
   scratch.candidate_state.scheduler_tick = state.scheduler_tick + elapsed;
 
   state = scratch.candidate_state;
-  timed = scratch.pending_batch;
+  std::copy_n(scratch.pending_batch.writes.begin(), scratch.pending_batch.count,
+              timed.writes.begin());
+  timed.count = scratch.pending_batch.count;
   return {};
 }
 

@@ -1,9 +1,17 @@
 #include "rpcmp/runtime/mdx_track_machine.hpp"
 
+#include <algorithm>
 #include <limits>
 
 namespace rpcmp::runtime::mdx {
 namespace {
+
+void commit_trace(const TrackTickTrace& pending, TrackTickTrace& trace) noexcept {
+  // Only the counted prefix is output. In particular, ended and held tracks
+  // must not copy the maximum instruction budget on every driver tick.
+  std::copy_n(pending.instructions.begin(), pending.count, trace.instructions.begin());
+  trace.count = pending.count;
+}
 
 DecodeResult failure(const DecodeError error, const std::size_t offset,
                      const std::uint8_t track) noexcept {
@@ -53,14 +61,14 @@ DecodeResult advance_track_tick(const TrackView& track, TrackPlaybackState& stat
   TrackTickTrace& candidate_trace = scratch.pending;
   candidate_trace.count = 0;
   if (candidate.ended || candidate.waiting) {
-    trace = candidate_trace;
+    commit_trace(candidate_trace, trace);
     return {};
   }
   if (candidate.remaining_ticks != 0) {
     --candidate.remaining_ticks;
     if (candidate.remaining_ticks != 0) {
       state = candidate;
-      trace = candidate_trace;
+      commit_trace(candidate_trace, trace);
       return {};
     }
   }
@@ -94,7 +102,7 @@ DecodeResult advance_track_tick(const TrackView& track, TrackPlaybackState& stat
     case InstructionKind::Note:
       candidate.remaining_ticks = instruction.duration_ticks;
       state = candidate;
-      trace = candidate_trace;
+      commit_trace(candidate_trace, trace);
       return {};
     case InstructionKind::RepeatStart:
       if (candidate.repeat_depth == limits.max_repeat_frames) {
@@ -172,12 +180,12 @@ DecodeResult advance_track_tick(const TrackView& track, TrackPlaybackState& stat
     case InstructionKind::TrackEnd:
       candidate.ended = true;
       state = candidate;
-      trace = candidate_trace;
+      commit_trace(candidate_trace, trace);
       return {};
     case InstructionKind::WaitChannel:
       candidate.waiting = true;
       state = candidate;
-      trace = candidate_trace;
+      commit_trace(candidate_trace, trace);
       return {};
     case InstructionKind::TimerB:
     case InstructionKind::DirectWrite:
