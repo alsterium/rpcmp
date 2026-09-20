@@ -26,10 +26,17 @@ choosing a production design. No replacement design has been adopted.
 CPU RTL simulation further measures about 131 million cycles per audio second
 for the reference FM-8 + ADPCM-8 case even on the dual-issue candidate with
 optimistic independent AXI memories. PCM-only cases need about 52–58 million
-cycles on the current CPU. The leading next experiment is reference MXDRV on
-CPU, FPGA FM and software PCM8 through a thin timed audio path, with a minimal
-select/play/stop UI. This is a research recommendation, not a Pocket timing
-pass or adoption of a replacement contract; see the baseline's RTL comparison.
+cycles on the current CPU. The recommended design is reference MXDRV on CPU,
+FPGA FM and software PCM8 through a thin timed audio path, with a minimal
+select/play/stop UI. The
+[design proposal](design/pocket-mdx-compatibility-plan.md) consolidates the
+alternatives, library direction and next prototype's acceptance criteria.
+An 80-track native prefix comparison preserves FM event positions/order and
+PCM output when FM synthesis is removed. A separate 4 MHz native JT51 bus
+experiment passes 3,072 writes and operator-bank checks. These support the
+split; they do not establish a complete hybrid player, whole-corpus playback,
+Pocket timing or adoption of replacement contracts. Next work is the bounded
+headless hybrid prototype described in the proposal, not more UI expansion.
 
 The following records the implemented slice-5 baseline from the
 [CPU sound connection](design/pocket-cpu-sound-connection.md), not the next work.

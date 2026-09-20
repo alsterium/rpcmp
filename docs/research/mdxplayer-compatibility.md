@@ -87,21 +87,22 @@ Noise cause and exact visual/audio offset are not established by these values.
 
 ## Next bounded work
 
-1. Make the pinned bundled decoder runnable headlessly as a private comparison
-   tool. Preserve timer, FM and PCM behavior; first check authored fixtures
-   and representative user-confirmed files. Record any portability patches.
-   Keep per-file time/memory limits around the legacy decoder.
-2. Establish a private per-file reference manifest: dependencies, actual
-   playback result, loops/end, sample use and unresolved cases. Compare FM
-   event timing and PCM operations/audio, then extend to the whole collection.
-3. Propose the engine/device contract from that evidence. Evaluate the existing
-   openfpgaOS/JT51 substrate with a minimal selection/play/stop display and PCM;
-   measure CPU work, transfer/buffer margins and FPGA resources before selecting
-   the production integration. Isolate the existing clicks with identical
-   source data and rendering disabled/enabled.
+The headless reference, CPU comparison and initial PCM/split experiments below
+are complete within their stated limits. Follow the
+[consolidated design proposal](../design/pocket-mdx-compatibility-plan.md):
 
-No RPCMP implementation change, all-file reference playback, PCM target
-benchmark or new hardware pass is claimed here.
+1. Specify the experimental shared audio timeline, wide PCM mixing and FM
+   burst policy, then build a headless hybrid playback prototype. Preserve
+   existing contracts until a replacement is explicitly adopted.
+2. Measure the composed CPU/transport/memory deadline and compare actual FM/PCM
+   timing and sound with the pinned reference, including dense writes, stops,
+   loops and faults. Keep per-file time/memory limits around the legacy decoder.
+3. Extend the private reference manifest beyond prefixes to complete songs or
+   loop boundaries and the whole collection. Resolve dependency failures
+   separately; do not turn successful loading or a prefix into a playback pass.
+
+No production RPCMP implementation change, all-file reference playback,
+composed PCM Pocket benchmark or new hardware pass is claimed here.
 
 ## Host reference feasibility check
 
@@ -386,6 +387,120 @@ out/build/cpu-budget-sim-20260921/compare.py` checks recorded results against
 native runs. These tests establish only the stated authored synthesis cases;
 full-corpus compatibility, final timing, sound quality and hardware acceptance
 remain outstanding.
+
+## Private corpus loading and split feasibility
+
+Further 2026-09-21 research uses the same pinned source, 48,000 Hz output,
+62,500 Hz internal synthesis and filter mode 0. Source files are mounted
+read-only in network-disabled Docker runs. Per-file processes have a
+15-second CPU limit, 25-second wall limit and 512 MiB address-space limit.
+Only aggregate evidence is committed; paths, private hashes, manifests and
+test artifacts remain in ignored `out/build/mdx-corpus-reference-20260921`.
+No generated private audio is saved or distributed.
+
+### Loader and PCM evidence
+
+An app-derived loader lookup over 13,140 loose MDX files finds 8,901 empty
+PDX references, 3,703 resolved dependencies, 535 unresolved beside the MDX
+and one invalid outer MDX envelope. A second same-directory case-folded
+lookup resolves none of those 535. These are lookup results, not reference
+playability classifications. The earlier inventory's 273 unmatched names
+used a broader cross-directory/name-candidate search; the resolution rules
+and count meanings differ. Do not select an unrelated PDX merely because its basename
+matches. Archives and other file formats remain outside this survey.
+
+A deterministic sample covers 24 tracks using 24 distinct PDX files. All
+24 full-mix and 24 FM-muted runs produce the requested 491,520 frames
+(10.24 seconds), advance playback and retain output canaries. Full mixes
+are nonzero in all 24; PCM alone is nonzero in 20. Extending the other four
+PCM-only runs to 20.48 seconds produces PCM in three more. The remaining
+silent prefix does not establish a broken or PCM-free whole song.
+
+The loader also finds three compressed MDX bodies and 54 compressed-PDX
+references. Of these 57 cases, 56 produce nonzero 10.24-second prefixes:
+two compressed MDX bodies and all 54 compressed-PDX references. The original
+LZX decoder returns zero for the remaining MDX body; the pinned app's loader
+would reject that result. This is not proof about the user's installed app
+binary. Seven authored LZX controls pass: literal `ABC`, raw data, two
+declared-size mismatches and three short headers.
+
+The wrapper adds the app's ten-byte driver headers and uses its 64 KiB MDX /
+1 MiB PDX logical allocations. Source buffers have 16 trailing zero bytes,
+and inputs within 16 bytes of those allocation limits are rejected by this
+research wrapper: the legacy driver copy routine transfers trailing words.
+LZX decoded size must equal the declared size; a mismatch is reported as
+unresolved, whereas the app checks only for nonzero. These explicit guards
+do not certify the legacy decoder's memory safety or define production limits.
+
+### Separating FM synthesis from the reference clock
+
+Eighty tracks (the initial 24 plus 56 successfully decoded compressed cases)
+run in three modes: full reference, FM-muted reference, and a research copy
+with only `OPM.Mix` omitted. `OPM.SetReg`, `OPM.Count`, the driver timer,
+PCM8 and downsampling remain present. All **240 runs** complete their
+10.24-second prefixes; there are no comparison failures.
+
+The modes agree on ordered FM writes and their outer-frame/internal-sample
+positions, signed PCM contributions, observed PCM channel mask and playback
+clock/end flag. The two PCM-only modes additionally have identical output
+hashes, peaks and intact canaries. The hooks are checked against **104**
+earlier unmodified-source outputs. Sampling active PCM channels after each
+1,024-frame block observes up to five simultaneous voices; this is a lower
+bound, not a full-song channel maximum. One rejected compressed reference
+case remains explicitly outside these 80, not silently converted to success.
+
+This establishes a useful engine split, not a hybrid output pass: the
+candidate has no FPGA FM, new mixer, target memory or real-time transport.
+Source observations preserve the existing 48 kHz chunk/timer behavior and
+count actual internal samples; changing the driver to a nominal 62.5 kHz
+output API without comparison is not equivalent.
+
+The PCM mixer contributes signed values before saturating the FM+PCM sum.
+One tested prefix reaches magnitude **33,697**, above int16. No audible-sample
+difference from early PCM clipping was observed in these prefixes, but it is
+not algebraically safe: FM=-10,000 and PCM=40,000 should sum to 30,000;
+clipping PCM first instead gives 22,767. The proposed boundary therefore
+preserves signed 32-bit PCM contributions until mixing. Stereo 62.5 kHz
+int32 transport is 500,000 bytes/second by arithmetic, not a bus benchmark.
+
+### FM burst service experiment
+
+An additional observed-reference run over all 80 prefixes matches their
+previous full-output and event/PCM hashes. Its largest nonzero-time burst
+has **242 writes at internal sample 897** (about 14.35 ms): 219 distinct
+registers, 206 operator writes and eight key writes. Initialization at
+sample zero is counted separately. Software register updates at one logical
+sample are not instantaneous physical YM2151 bus transactions.
+
+A hypothetical serial server applied to these traces, excluding sample-zero
+preload, has maximum completion lag 3,872 / 4,356 / 4,840 microseconds at
+16 / 18 / 20 microseconds per write, respectively. Maximum outstanding work
+is 242 writes in each model. These are finite-prefix queue calculations;
+buffering preserves order but cannot remove within-burst timing differences.
+
+A separate Questa 2025.2 experiment uses unmodified pinned JT51 `985a573`,
+continuously enabled, with a research copy of the current bus adapter changed
+from 3,579,545 Hz to the reference's **4 MHz**. Across 32 start offsets it
+passes **3,072 issued/received writes and 2,048 native operator-bank scans**.
+Back-to-back receipts are 202–203 audio-clock edges apart: about 16.44–16.52
+microseconds at 12.288 MHz. The simulation counts edges; it is not a new
+FPGA fit, complete command FIFO or Pocket timing result. Only the research
+copy changes its clock/hold connection. Production RTL remains unchanged.
+
+This makes ordinary ordered bus service plausible, while leaving the
+acceptable FM/PCM skew and dense-burst sound comparison for the prototype.
+The existing 64-entry source queue is not thereby proven sufficient for
+the replacement. Do not drop writes, coalesce key/timer operations, pause
+the audio timeline to drain a queue, or label a desired timestamp an actual
+receipt time.
+
+Reproduction scripts in that ignored directory are `build.py`, `survey.py`,
+`lzx-controls.py`, `followups.py`, `build-split.py`, `compare-split.py` and
+`schedules.py`, run with `python3 -B` in the recorded cross-toolchain Docker
+image. The last four native-comparison outputs are `followups-aggregate.json`,
+`split-aggregate.json`, `schedule-aggregate.json` and `lzx-controls-final.log`.
+`pwsh -NoProfile -File out/build/mdx-corpus-reference-20260921/bus-budget.ps1`
+produces `bus-budget.log`. No production runtime or dependency was added.
 
 ## Dependency conditions
 
