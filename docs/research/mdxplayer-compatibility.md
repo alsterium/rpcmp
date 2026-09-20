@@ -248,6 +248,145 @@ The interpreter's 256 MiB address-space build
 uses the explicit hexadecimal `compute_size=10000000` because the build image
 lacks `bc`. No production code, public engine/device contract or package changes.
 
+## CPU RTL comparison
+
+A second 2026-09-21 experiment executes the reference synthesis workload on
+Verilator CPU models, rather than using ISA instruction counts as cycles.
+The current saved `VexiiRiscv_rpcmp.v` has one issue lane, 16 KiB instruction
+and 32 KiB data caches. A separately generated `rpcmp_budget_dual` follows
+the pinned upstream `os20` settings: two issue lanes, 32 KiB instruction and
+64 KiB data caches, a four-slot/32-operation store buffer and reduced-accuracy
+FMA. This compares complete configurations, not the isolated benefit of a
+second issue lane. No dual-issue FPGA fit or clock frequency is established.
+
+Both models use a research-only bare-metal entry point and independent
+instruction/data AXI memories. They accept requests without SDRAM arbitration,
+return the first read beat one cycle later, and sustain one 32-bit beat per
+cycle per port. CPU pipelines and caches are active. There is no OS, rendering,
+display DMA, real SDRAM controller, storage, MDX sequencing or audio transport.
+This deliberately optimistic memory model can reject a throughput candidate;
+passing it would not establish Pocket real-time performance.
+
+The sound source, optimization, authored signals and 48,000/62,500 Hz rates
+match the instruction experiment. Each case warms up 256 frames and measures
+eight blocks of 256 frames: **2,048 output frames, about 42.67 ms**, not an
+entire song or a sustained hardware run. Buffer canaries, stereo peaks and
+output hashes are compared with independent native processes. The simulator
+supplies its cycle count through an uncached research MMIO register. ELF
+disassembly confirms clock read / synthesis call / clock read ordering;
+reported cycles include the small measurement overhead. Initialization and
+hashing are outside the measured interval.
+
+Both CPU models complete all nine corrected cases with native-matching
+hashes, peaks and intact canaries (**18/18** comparisons). An additional
+fresh-process dual-issue FM+ADPCM run also matches. Both final model batches
+use the same ELF, SHA-256
+`c9e3e1b35157487ed5a203d116b17cc4842f74ab63e33ce6edc843381120c160`.
+Representative results, in million CPU cycles per audio second:
+
+| Authored active channels | Current single-issue configuration | Dual-issue configuration |
+| --- | ---: | ---: |
+| FM 8 | 131.74 | 96.93 |
+| ADPCM 8, FM silent | 56.33 | 46.37 |
+| 16-bit PCM 8, FM silent | 57.86 | 48.03 |
+| 8-bit PCM 8, FM silent | 51.93 | 42.28 |
+| FM 8 + ADPCM 8 | 172.11 | 130.90 |
+
+The separate isolated dual-issue FM+ADPCM case uses 5,594,148 measured cycles
+(131.11 million cycles per audio second); its
+largest 256-frame block uses 699,969 cycles. Even at the upstream candidate's
+claimed 96 MHz, its average compute demand is about **137%** of the available
+time, before the excluded work. An unchanged reference renderer therefore
+does not become viable for this load merely by choosing this stronger CPU.
+This does not rule out a different renderer, major optimization, a different
+CPU or a different device.
+
+The PCM-only measurements make **reference-driver CPU + FPGA FM + software
+PCM8** the leading next experiment. The current CPU's tested PCM paths consume
+roughly 52–58 million cycles per audio second under optimistic memory. That is
+plausible at 90 MHz, but still needs driver, FM command transport, actual memory,
+audio buffering and worst-case corpus measurements. It is not a PCM hardware
+pass or a promise that every file meets deadlines. Retain the reference timer
+owner and compare FM/PCM event positions on one audio timeline when testing
+this split; merely forwarding FM writes loses the original timing relationship.
+
+### Resource evidence and simplification
+
+Inspection of the existing `m6-player-finalbuild/output_files/ap_core.fit.rpt`
+finds these inclusive hierarchy estimates; this is **historical fitted
+evidence, not a new synthesis result**:
+
+| Existing hierarchy | Estimated ALMs needed |
+| --- | ---: |
+| Whole core | 16,648.9 |
+| CPU system, including the CPU | 5,404.9 |
+| VexiiRiscv CPU | 4,631.0 |
+| RPCMP sound MMIO hierarchy, including sound/session processing | 7,683.1 |
+| Hold-capable JT51 itself | 1,186.2 |
+| Media envelope hierarchy | 2,123.9 |
+
+Parent and child rows overlap and must not be added. Fitter estimates are not
+guaranteed savings after removal or redesign. Nevertheless, most of this
+sound hierarchy's area is outside the FM synthesizer. Removing FM hardware
+alone would surrender substantial synthesis throughput for a comparatively
+small area saving. Evaluate a thin, timed FM-command/PCM-sample output path
+for the select/play/stop MVP; the historical fade, progress and completion
+machinery is not automatically part of the replacement design. Do not simply
+delete current paths or weaken their contracts.
+
+The design shortlist is therefore:
+
+1. Reference MXDRV interpretation on CPU, FPGA FM and reference software PCM8,
+   with a bounded audio buffer and minimal selection UI. First establish the
+   execution/timing boundary headlessly; select the smallest CPU that passes.
+2. Add narrowly scoped PCM acceleration only if measured worst-case PCM or
+   memory traffic leaves insufficient margin. Preserve a software oracle.
+3. Full software synthesis remains attractive on a sufficiently capable host,
+   but the tested Pocket CPU configurations do not justify adopting it as-is.
+
+Keep openfpgaOS as a useful integration comparison. Its existing loader,
+memory and APF work may be reused independently; the full OS and current
+RPCMP sound stack are not mandatory. SDL is a presentation choice, not a
+solution to the measured synthesis budget. No replacement public contract,
+production substrate, library schema or new package is adopted here.
+
+### Research tooling and failed attempts
+
+Ignored artifacts live under `out/build/cpu-budget-sim-20260921`: `Dockerfile`,
+`build-firmware.py`, `start.S`, `bare.c`, `bare.ld`, `sim.cpp`, `compare.py`,
+ELFs, native executables, disassembly, logs and `validated-results.json`.
+The Linux-only research image adds Verilator **5.020**, licensed
+Artistic-2.0 or LGPL-3, to the existing cross-toolchain image. It is not a
+player dependency or shipped asset. CPU generation uses the existing cached
+SpinalHDL/VexiiRiscv environment; the VexiiRiscv checkout is
+`580b76c3868512c8316bb7a3d3add81cad49a0dc` (MIT).
+
+The first generation attempt encountered an absolute path embedded in the
+Scala build cache; mounting the source at its original container path fixed
+generation. The generated CPU emits width-truncation and constant-comparison
+warnings. Their expressions were inspected and the simulator build retains
+them with `-Wno-fatal`; this is not a clean RTL-lint claim. Production gates
+and source are unchanged. Early startup probes trap on counter CSRs; the
+exposed TIME input is unused in these generated models, so the final harness
+uses the external MMIO clock instead of adding CPU performance-counter logic.
+
+An initial multi-case run failed the three combined FM/PCM hash comparisons.
+The authored probe had omitted key-off between cases: `Operator::Reset` does
+not clear its `keyon_` latch, so repeated direct register test setup did not
+start all voices. Those low cycle counts are rejected. Explicit key-off after
+each measurement fixes the probe's case isolation without changing the
+reference renderer. A fresh-process combined case independently matches the
+native oracle. This is not evidence of an MDXPlayer application lifecycle bug.
+
+Reproduction uses the research image for `python3 -B
+out/build/cpu-budget-sim-20260921/build-firmware.py`, Verilator builds of the
+two named CPU netlists with `sim.cpp`, and each model executing `bare-8.elf
+9 0 4` for the corrected batch. `python3 -B
+out/build/cpu-budget-sim-20260921/compare.py` checks recorded results against
+native runs. These tests establish only the stated authored synthesis cases;
+full-corpus compatibility, final timing, sound quality and hardware acceptance
+remain outstanding.
+
 ## Dependency conditions
 
 The [MDXPlayer README](https://github.com/asaday/MDXPlayer/blob/4076b91c7ced57bf6047f69b87c12a34bd99a438/README.md)

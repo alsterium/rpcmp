@@ -23,6 +23,14 @@ against FM hardware plus CPU PCM; neither the current OS nor JT51 is mandatory.
 See the baseline's synthesis-budget evidence and portability findings before
 choosing a production design. No replacement design has been adopted.
 
+CPU RTL simulation further measures about 131 million cycles per audio second
+for the reference FM-8 + ADPCM-8 case even on the dual-issue candidate with
+optimistic independent AXI memories. PCM-only cases need about 52–58 million
+cycles on the current CPU. The leading next experiment is reference MXDRV on
+CPU, FPGA FM and software PCM8 through a thin timed audio path, with a minimal
+select/play/stop UI. This is a research recommendation, not a Pocket timing
+pass or adoption of a replacement contract; see the baseline's RTL comparison.
+
 The following records the implemented slice-5 baseline from the
 [CPU sound connection](design/pocket-cpu-sound-connection.md), not the next work.
 The opt-in [sound AXI binding](../specs/pocket-sound-axi-v1.md) now passes
