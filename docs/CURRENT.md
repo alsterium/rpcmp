@@ -2,9 +2,20 @@
 
 Active milestone: [M6 — Album Player](milestones/M6-album-player.md)
 
-The current task is M6 slice 5: integrate the catalog/player, target service
-loop, input and CPU framebuffer, following the approved
-[CPU sound connection](design/pocket-cpu-sound-connection.md).
+The current task is the M6 compatibility reassessment requested on 2026-09-21.
+The user selected [asaday/MDXPlayer](https://github.com/asaday/MDXPlayer) as the
+reference: support every locally supplied file that played there, including
+PCM. The MVP is track selection, play and stop. Follow the
+[pinned source baseline and next comparison work](research/mdxplayer-compatibility.md).
+Further Tracker/keyboard/policy expansion is deferred. Existing v1 behavior,
+the r4 package and historical evidence remain intact; no replacement engine,
+PCM implementation or production substrate has been approved by a test result.
+Keep openfpgaOS as the comparison substrate while evaluating the reference
+engine and target execution budget. This is a bounded investigation direction,
+not a new production-substrate decision.
+
+The following records the implemented slice-5 baseline from the
+[CPU sound connection](design/pocket-cpu-sound-connection.md), not the next work.
 The opt-in [sound AXI binding](../specs/pocket-sound-axi-v1.md) now passes
 three-phase bus/mailbox simulation, related RTL regressions and the host gate.
 The final no-GPU fit uses 16,649/18,480 ALMs, has nonnegative timing across all
@@ -24,9 +35,15 @@ Waiting for performance data. Reported F110–400ms/S10493–20493us do not yet
 establish the target service deadline. r4 fixes continuous read-ahead evicting
 future display checkpoints, reduces bounded raster/Tracker projection work,
 and raises the authored demo's voice level. Host regressions and the RV32
-memory/stack gate pass; r4 display motion, audible level and latency still need
-hardware confirmation. Follow the [M6 hardware check](development/pocket-player-hardware.md)
-for the r4 final candidate and the milestone's exact evidence. D-pad panel
+memory/stack gate pass. The user's Firmware 2.6/r4 report confirms audible
+level, stereo, one-minute infinite playback, moving Tracker/channel-A keys and
+clearing Waiting. Tracker is not synchronized to audio; input delay/audio cuts
+remain view-dependent, and clicks between notes have been reported since M6.
+Reported F is 300/360/250 ms for Tracker/keyboard/library and S is 8870 us.
+The pause/resume/stop/next performance-display field was unanswered. These
+results do not pass timing, noise or full M6 acceptance. The
+[hardware page](development/pocket-player-hardware.md) identifies the preserved
+r4 package; use the compatibility reassessment for the next task. D-pad panel
 navigation and contextual B remain as requested on 2026-09-20.
 On 2026-09-20 the user deferred persistent settings: each application launch
 starts with AlbumOrder / Default (two loops, five-second fade), shuffle off and
@@ -171,8 +188,8 @@ The retained producer and output-history owner now connect through the sound
 backend. The actual AXI sound binding and scripted application service loop
 are verified; the coherent candidate is packaged and target measurements are
 next. The APF settings adapter is deferred by the user's updated requirement.
-See M6 for the executed checks and the user's r3 audible-playback report;
-moving performance views, target timing and full M6 acceptance remain pending.
+See M6 for the executed checks and r3/r4 hardware reports; target timing,
+noise and full playback acceptance remain unresolved.
 Use the [transition proposal](design/pocket-player-transition-contract.md),
 preserve v1 compatibility and adopt each contract before its implementation.
 Slices 1–2 implement [host metadata](../specs/host-metadata-v1.md),
@@ -181,10 +198,10 @@ Slices 1–2 implement [host metadata](../specs/host-metadata-v1.md),
 [Core-owned catalog pages](../specs/catalog-query-v1.md). Windows host checks,
 focused Linux sanitizer tests and the catalog RISC-V link probe passed; see the
 milestone for exact evidence. These are not M6 playback/UI/hardware acceptance.
-The [accepted Q1–Q24 requirements](design/pocket-library-player-spec-draft.md)
-define the intended album player; do not reopen settled product questions.
-Continue through the milestone's host-verifiable slices until a concrete
-hardware check or an unresolved product decision requires the user.
+The [earlier Q1–Q24 requirements](design/pocket-library-player-spec-draft.md)
+describe the fuller album player. The user's 2026-09-21 compatibility target
+and smaller MVP take precedence for current work. Do not resume UI expansion
+from these historical requirements before the playback comparison.
 
 [M5 evidence](milestones/M5-real-mdx-library-playback.md) remains preserved.
 The user closed its investigation on 2026-09-12; M5 is deferred, not passed.

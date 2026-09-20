@@ -1,10 +1,19 @@
 # Retro PC Music Player — Product Requirements Document
 
-**Version:** 0.4  
-**Target:** Analogue Pocket / openFPGA  
-**Architecture:** Utility + Library Container + Player Core + Replaceable UI Layer  
-**Initial format/device target:** X68000 MDX / YM2151  
-**Later targets:** PDX/MSM6258, PCM8, then other PC-98/PC-88/MSX/FM-7 formats and devices
+- **Version:** 0.5
+- **Target:** Analogue Pocket / openFPGA
+- **Architecture:** Utility + Library Container + Player Core + Replaceable UI Layer
+- **MVP target:** MDXPlayer-compatible MDX / YM2151 + PDX/ADPCM/PCM8
+- **Later targets:** rich visualization and other PC-98/PC-88/MSX/FM-7 formats and devices
+
+On 2026-09-21 the user set [asaday/MDXPlayer](https://github.com/asaday/MDXPlayer)
+as the playback compatibility reference: all locally supplied files that played
+there must be supported. The MVP interaction is track selection, play and stop;
+PCM is required. This replaces the earlier FM-only release scope and prioritizes
+compatibility over M6 visualization/policy expansion. See the
+[reference baseline and acceptance definition](research/mdxplayer-compatibility.md).
+Existing v1 contracts remain valid for the implemented subset; extending or
+replacing them requires a separately recorded implementation contract.
 
 ## 1. Product vision
 
@@ -12,11 +21,14 @@ RPCMP is a portable music player that preserves the character of retro-computer 
 
 ## 2. Goals
 
-- Play FM-only MDX accurately through a YM2151-compatible FPGA implementation.
+- Play the user's MDXPlayer-compatible collection with FM and PCM intact,
+  using a YM2151-compatible FPGA implementation for FM unless a later decision
+  changes that device choice.
 - Package tracks, dependencies, metadata, indices, and pre-analysis into a portable `.rpcmlib` container.
 - Keep playback/audio logic independently replaceable from UI layout, navigation, and rendering.
 - Make parsers, scheduling, library access, and UI logic testable on a host without Analogue Pocket hardware.
-- Establish extension points for PDX/MSM6258, PCM8, new formats, new devices, and new UIs.
+- Implement PDX/ADPCM/PCM8 for the MVP and preserve extension points for new
+  formats, devices and UIs.
 - Provide deterministic state suitable for library screens, keyboard views, channel monitors, FM detail, and waveform/activity visualization.
 
 ## 3. Non-goals for the initial release
@@ -25,8 +37,10 @@ RPCMP is a portable music player that preserves the character of retro-computer 
 - Running original X68000 driver binaries or an OS image.
 - Editing, authoring, or converting music.
 - Network services, streaming, accounts, or DRM.
-- PDX/PCM8 playback in the first FM-only milestone.
-- A final visual design during architecture bring-up.
+- Tracker/keyboard visualization, shuffle, counted-loop fades and persistent
+  settings as MVP completion requirements; existing implementations may remain
+  available without delaying playback compatibility.
+- A final visual design during playback bring-up.
 
 ## 4. Product components
 
@@ -101,7 +115,10 @@ The owner of input mapping, navigation, layout, rendering, widgets, and visualiz
 - M0 proves headless Core and mock-driven UI in automated tests.
 - M1 opens a 1,000-track synthetic library and retrieves arbitrary tracks by ID.
 - YM2151 bring-up produces a deterministic fixed test sequence through simulation and hardware audio.
-- MDX FM milestone plays a curated, redistributable or locally supplied FM-only conformance set with event traces matching approved references.
+- The MVP plays every locally supplied file known to play in the selected
+  MDXPlayer reference, with its required PCM dependencies and musical behavior.
+  A successful parse or FM-only result is insufficient. Record unresolved files
+  explicitly rather than excluding them to improve the pass rate.
 - Replacing or adding a UI view requires no playback-engine changes.
 
 ## 9. Open decisions

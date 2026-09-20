@@ -3,6 +3,15 @@
 Status: active on 2026-09-13, following the user's instruction to continue until
 hardware evidence or a new product decision is needed.
 
+Current direction changed on 2026-09-21: the user requires every locally supplied
+file that played in [asaday/MDXPlayer](https://github.com/asaday/MDXPlayer), with
+PCM included. MVP controls are selection, play and stop. Further visualization
+and playback-policy expansion is deferred while the
+[reference-engine comparison](../research/mdxplayer-compatibility.md) and target
+budget are assessed. The original objective, adopted contracts and results
+below remain historical evidence; they do not override this new scope or turn
+the existing FM subset into full MDX compatibility.
+
 ## Objective and adoption
 
 Implement the accepted Q1–Q24 [album-player requirements](../design/pocket-library-player-spec-draft.md):
@@ -3315,3 +3324,31 @@ No command was ignored, no partial audio was packaged and no engine contract
 was relaxed. This corpus is a compatibility target, not currently an admitted
 hardware test library. Source identities, paths, transformed copies and
 per-file results remain only in ignored local outputs.
+
+### MDXPlayer reference and revised MVP — 2026-09-21
+
+The user selected `asaday/MDXPlayer` as the compatibility reference and requires
+every locally supplied file that played there, including PCM. PRD 0.5 and
+CURRENT now prioritize selection/play/stop and the
+[reference comparison](../research/mdxplayer-compatibility.md). That record
+contains the Firmware 2.6/r4 report: display motion and volume pass, while
+visual synchronization, view-dependent delay/audio cuts and clicks remain
+unresolved. No M6 completion or new runtime capability is declared.
+
+The reference source is pinned at `4076b91c7ced57bf6047f69b87c12a34bd99a438`.
+An ignored native Linux build of its seven C++ engine/sound units succeeds
+without source patches, with legacy warnings retained. Authored FM smoke
+checks pass 6/6 at 44.1/48 kHz. A read-only, resource-bounded probe of the
+previous twelve original sixteen-track files produces nonzero stereo PCM for
+the first 102,400 frames in 12/12 cases. These are short host prefixes, not
+full-track, PCM-track, iOS binary or Pocket acceptance; see the reference
+record for commands, failed-wrapper correction and limitations.
+
+`pwsh -File tools/host-verify.ps1` with pinned LLVM 22.1.8 passes **87/87** in
+**528.48 s**, including format, tidy and architecture positive/negative checks.
+Log: `out/build/mdxplayer-baseline-host-20260921.log`.
+`python -B tests/harness/harness_tests.py`: **7/7 PASS**. Changed-document
+local links and `python -B tools/check_harness.py --root .` pass; `git diff
+--check` is clean. RPCMP code, hardware, clocks and package inputs did not
+change. RTL simulation, synthesis, RV32 rebuilding and new hardware tests
+were not run for this requirements/research documentation update.
