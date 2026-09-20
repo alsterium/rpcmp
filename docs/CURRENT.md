@@ -17,15 +17,16 @@ views with copied commands and bounded pixel work. The actual
 catalog/player/backend/UI with APF input, a 64-bit CPU clock and the SDK draw
 surface. Its loop services audio independently of publication and bounded
 rendering; scripted application integration and the full RV32 app link pass.
-The r1 hardware report confirms boot without autoplay, Japanese text and all
-three views, but reports a playback error before selecting a track, no audio
-and roughly one-second input feedback. Host regressions now reproduce and fix
-startup-inhibit and Reset/Capture ordering errors. D-pad panel navigation and
-contextual B replace B panel navigation, as requested on 2026-09-20. Frame work
-is reduced and target timing is displayed. Follow the
-[M6 hardware check](development/pocket-player-hardware.md) for the r2 candidate.
-Actual audio recovery and input latency remain hardware checks; see the
-milestone's current evidence.
+The r2 hardware report confirms startup without an error/autoplay, Japanese
+text, selection and D-pad panel movement. Selecting a track still fails with
+ERR 5; audio is not accepted. Reported F206ms/S84964us and post-recovery SND0800
+do not establish the original failure. r3 removes full-capacity MDX batch copies
+on every tick, retains the first backend failure across recovery Reset, and
+adds readable shuffle ON/OFF. Deterministic output regressions pass; target
+recovery and service timing remain hardware checks. Follow the
+[M6 hardware check](development/pocket-player-hardware.md) for the r3 candidate
+and see the milestone's evidence. D-pad panel navigation and contextual B
+remain as requested on 2026-09-20.
 On 2026-09-20 the user deferred persistent settings: each application launch
 starts with AlbumOrder / Default (two loops, five-second fade), shuffle off and
 no autoplay. In-session setting changes remain supported. Do not connect a

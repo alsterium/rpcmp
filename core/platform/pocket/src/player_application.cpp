@@ -122,12 +122,16 @@ void PlayerApplication::step(const ui::v2::InputSample input) {
                   static_cast<unsigned long long>(metrics_.max_service_gap_us));
     canvas_.text({280, 4, 240, 16}, diagnostic.data(), ui::v2::palette::muted);
     if (ui_.view().snapshot.error) {
-      std::snprintf(diagnostic.data(), diagnostic.size(), "ERR %u SND %04X REC %lluus FLIP %lluus",
+      const auto audio = backend_.diagnostic();
+      std::snprintf(diagnostic.data(), diagnostic.size(), "ERR %u AT %u D %08X SND %04X",
                     static_cast<unsigned>(ui_.view().snapshot.error->code),
-                    static_cast<unsigned>(client_.status()),
+                    static_cast<unsigned>(audio.failure), static_cast<unsigned>(audio.detail),
+                    static_cast<unsigned>(audio.status));
+      canvas_.fill({16, 326, 608, 34}, ui::v2::palette::background);
+      canvas_.text({16, 326, 608, 16}, diagnostic.data(), ui::v2::palette::warning);
+      std::snprintf(diagnostic.data(), diagnostic.size(), "REC %lluus FLIP %lluus",
                     static_cast<unsigned long long>(metrics_.max_record_us),
                     static_cast<unsigned long long>(metrics_.max_present_us));
-      canvas_.fill({16, 344, 608, 16}, ui::v2::palette::background);
       canvas_.text({16, 344, 608, 16}, diagnostic.data(), ui::v2::palette::warning);
     }
     if (!canvas_.seal())

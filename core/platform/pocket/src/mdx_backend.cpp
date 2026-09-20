@@ -31,7 +31,9 @@ void PocketMdxBackend::stop_source() noexcept {
   source_.cancel();
   history_ready_ = false;
 }
-void PocketMdxBackend::fail() noexcept {
+void PocketMdxBackend::fail(const MdxBackendFailure failure, const std::uint32_t detail) noexcept {
+  if (diagnostic_.failure == MdxBackendFailure::None)
+    diagnostic_ = {failure, detail, client_.status()};
   fault_ = true;
   stop_source();
   capture_.reset();
@@ -58,6 +60,7 @@ bool PocketMdxBackend::begin(const player::PreparationRequest& request) {
       epoch_ == 0 || !catalog_.borrow_library(request.selection.library_generation))
     return false;
   preparation_ = request;
+  diagnostic_ = {};
   preparation_state_ = PreparationProgress::Pending;
   document_loaded_ = false;
   prefilled_ = false;
@@ -83,7 +86,7 @@ PreparationProgress PocketMdxBackend::poll(const std::uint64_t operation_id) {
 }
 void PocketMdxBackend::release() {
   if (!quiescent_ || preparation_) {
-    fail();
+    fail(MdxBackendFailure::Release);
     return;
   }
   stop_source();
@@ -122,7 +125,7 @@ void PocketMdxBackend::control_result(const SoundControlCompletion& result) noex
   completion_ = player::AudioControlCompletion{
       request, success ? AudioControlOutcome::Success : AudioControlOutcome::Failed, result.frame};
   if (result.transfer != SoundTransfer::Complete) {
-    fail();
+    fail(MdxBackendFailure::ControlTransfer, static_cast<std::uint32_t>(result.transfer));
     return;
   }
   if (!success)
@@ -130,7 +133,7 @@ void PocketMdxBackend::control_result(const SoundControlCompletion& result) noex
   acknowledged_control_ = request.operation_id;
   if (request.kind == AudioControlKind::Reset) {
     if (client_.faulted() || result.epoch <= epoch_) {
-      fail();
+      fail(MdxBackendFailure::ResetEpoch);
       return;
     }
     epoch_ = result.epoch;
@@ -151,7 +154,7 @@ void PocketMdxBackend::control_result(const SoundControlCompletion& result) noex
 }
 void PocketMdxBackend::capture_result(const SoundCaptureCompletion& result) noexcept {
   if (result.transfer != SoundTransfer::Complete) {
-    fail();
+    fail(MdxBackendFailure::CaptureTransfer, static_cast<std::uint32_t>(result.transfer));
     return;
   }
   // Reset advances the hardware epoch before clearing its old fault. A stale
@@ -165,7 +168,10 @@ void PocketMdxBackend::capture_result(const SoundCaptureCompletion& result) noex
     return;
   if (result.fault || result.media.failure != player::MediaFailure::None ||
       (result.inhibited && !known_inhibit_ && epoch_ != 0)) {
-    fail();
+    fail(MdxBackendFailure::CaptureState,
+         (result.fault ? 1U : 0U) | (result.inhibited ? 2U : 0U) |
+             (static_cast<std::uint32_t>(result.media.failure) << 8U) |
+             (static_cast<std::uint32_t>(result.queued) << 16U));
     return;
   }
   if (result.result != SoundReply::Success || control_ || capture_authority_ == 0 ||
@@ -173,7 +179,7 @@ void PocketMdxBackend::capture_result(const SoundCaptureCompletion& result) noex
     return;
   if (feed_closed_ && result.request.ticket > closed_capture_ticket_) {
     if (!terminal(result.media.end)) {
-      fail();
+      fail(MdxBackendFailure::ClosedFeed, static_cast<std::uint32_t>(result.media.end));
       return;
     }
     stop_source();
@@ -182,7 +188,7 @@ void PocketMdxBackend::capture_result(const SoundCaptureCompletion& result) noex
     return;
   if (result.prepared_generation != reset_generation_ ||
       result.media.play_generation != started_generation_) {
-    fail();
+    fail(MdxBackendFailure::Generation);
     return;
   }
   capture_ = result;
@@ -191,7 +197,7 @@ void PocketMdxBackend::capture_result(const SoundCaptureCompletion& result) noex
 }
 void PocketMdxBackend::feed_result(const SoundFeedCompletion& result) noexcept {
   if (result.transfer != SoundTransfer::Complete) {
-    fail();
+    fail(MdxBackendFailure::FeedTransfer, static_cast<std::uint32_t>(result.transfer));
     return;
   }
   if (!supplying_ || result.item.generation != reset_generation_ || result.item.epoch != epoch_)
@@ -203,7 +209,7 @@ void PocketMdxBackend::feed_result(const SoundFeedCompletion& result) noexcept {
   }
   const auto advanced = source_.complete(result.item);
   if (advanced != MdxSourceResult::Accepted && advanced != MdxSourceResult::Full) {
-    fail();
+    fail(MdxBackendFailure::FeedReply, static_cast<std::uint32_t>(advanced));
     return;
   }
   if (advanced == MdxSourceResult::Full ||
@@ -272,7 +278,9 @@ void PocketMdxBackend::supply() noexcept {
     const auto produced = player::produce_mdx_tick(session_.document, session_.state, source_,
                                                    checkpoint_, workspace_);
     if (produced.status != MdxSourceResult::Accepted) {
-      fail();
+      fail(MdxBackendFailure::Produce,
+           static_cast<std::uint32_t>(produced.status) |
+               (static_cast<std::uint32_t>(produced.engine.error) << 8U));
       return;
     }
     static_cast<void>(history_.retain(checkpoint_));
@@ -286,7 +294,7 @@ void PocketMdxBackend::supply() noexcept {
   if (submitted == SoundSubmit::Accepted)
     offer_.reset();
   else if (submitted != SoundSubmit::Busy)
-    fail();
+    fail(MdxBackendFailure::FeedSubmit, static_cast<std::uint32_t>(submitted));
 }
 void PocketMdxBackend::request_control() noexcept {
   if (!control_ || control_submitted_)
@@ -300,14 +308,14 @@ void PocketMdxBackend::request_control() noexcept {
     completion_ = player::AudioControlCompletion{*control_, AudioControlOutcome::Failed, 0};
     control_.reset();
     if (submitted != SoundSubmit::Invalid)
-      fail();
+      fail(MdxBackendFailure::ControlSubmit, static_cast<std::uint32_t>(submitted));
   }
 }
 void PocketMdxBackend::request_capture() noexcept {
   if (client_.busy(SoundChannel::Capture))
     return;
   if (capture_ticket_ == maximum) {
-    fail();
+    fail(MdxBackendFailure::CaptureTicket);
     return;
   }
   const auto submitted = client_.capture({capture_ticket_ + 1, epoch_});
@@ -315,7 +323,7 @@ void PocketMdxBackend::request_capture() noexcept {
     ++capture_ticket_;
     capture_authority_ = control_ ? 0 : acknowledged_control_;
   } else if (submitted != SoundSubmit::Busy) {
-    fail();
+    fail(MdxBackendFailure::CaptureSubmit, static_cast<std::uint32_t>(submitted));
   }
 }
 void PocketMdxBackend::request_journal() noexcept {
@@ -373,7 +381,7 @@ void PocketMdxBackend::service() noexcept {
   if (const auto result = client_.take_journal())
     journal_result(*result);
   if (client_.faulted() && !known_inhibit_)
-    fail();
+    fail(MdxBackendFailure::Client);
   prepare_document();
   request_control();
   supply();

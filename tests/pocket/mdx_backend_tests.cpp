@@ -461,6 +461,18 @@ void reset_capture_race(rpcmp::test::Suite& suite) {
     rig.steps(2);
     RPCMP_CHECK(suite, rig.controller.snapshot().failure == player::TransportFailure::DeviceFault &&
                            rig.sound.inhibits != 0);
+    const auto diagnostic = rig.backend->diagnostic();
+    RPCMP_CHECK(suite, diagnostic.failure == pocket::MdxBackendFailure::CaptureState &&
+                           (diagnostic.detail & 0xffffU) == 1U);
+    rig.steps(20); // Recovery Reset clears hardware fault but must preserve its cause.
+    RPCMP_CHECK(suite, !rig.sound.fault && rig.controller.snapshot().silence_confirmed &&
+                           rig.backend->diagnostic().failure == diagnostic.failure &&
+                           rig.backend->diagnostic().detail == diagnostic.detail &&
+                           rig.backend->diagnostic().status == diagnostic.status);
+    rig.command(player::TransportIntentKind::PlayTrack);
+    rig.steps(200);
+    RPCMP_CHECK(suite, rig.controller.snapshot().transport == TransportState::Playing &&
+                           rig.backend->diagnostic().failure == pocket::MdxBackendFailure::None);
   }
 }
 
@@ -543,6 +555,12 @@ void critical_timeout_recovery(rpcmp::test::Suite& suite) {
     RPCMP_CHECK(suite, rig.controller.snapshot().failure != player::TransportFailure::None &&
                            rig.sound.inhibits != 0 &&
                            rig.history().availability == api::PerformanceAvailability::Waiting);
+    const std::array<pocket::MdxBackendFailure, 3> failures{
+        pocket::MdxBackendFailure::ControlTransfer, pocket::MdxBackendFailure::FeedTransfer,
+        pocket::MdxBackendFailure::CaptureTransfer};
+    RPCMP_CHECK(suite, rig.backend->diagnostic().failure == failures[channel] &&
+                           rig.backend->diagnostic().detail ==
+                               static_cast<std::uint32_t>(pocket::SoundTransfer::Timeout));
     // The late response drains ownership; it cannot turn the failed operation
     // into success. A subsequent explicit Reset recovers the transport.
     rig.sound.hold[channel] = false;
@@ -722,19 +740,32 @@ void application(rpcmp::test::Suite& suite) {
     press(0x20);
     RPCMP_CHECK(suite,
                 app->view().main == ui::View::Keyboard && app->view().focus == ui::Focus::Shuffle);
+    sound.fault = true;
+    run(200); // Keep the UI alive after a recoverable sound failure and Reset.
+    RPCMP_CHECK(suite, app->view().snapshot.error && !app->view().snapshot.error->terminal &&
+                           app->view().snapshot.transport == TransportState::Error);
+    press(0x10); // Shuffle ON -> OFF through the actual command ingress in Error.
+    RPCMP_CHECK(suite, app->view().snapshot.policy && app->view().snapshot.policy->desired.order ==
+                                                          api::PlaybackOrder::AlbumOrder);
+    press(0x10);
+    RPCMP_CHECK(suite, app->view().snapshot.policy &&
+                           app->view().snapshot.policy->desired.order ==
+                               api::PlaybackOrder::ShuffleLibrary &&
+                           app->view().snapshot.transport == TransportState::Error);
+    const auto recovery_inhibits = sound.inhibits;
     display->busy = false;
     run(1);
     RPCMP_CHECK(suite, display->frames == 1 && app->metrics().frames == 1);
     if (launch == 0) {
       display->broken = true;
       run(5000);
-      RPCMP_CHECK(suite,
-                  app->failure() == pocket::ApplicationFailure::Display && sound.inhibits == 1);
+      RPCMP_CHECK(suite, app->failure() == pocket::ApplicationFailure::Display &&
+                             sound.inhibits == recovery_inhibits + 1);
     } else {
       clock.now = 0;
       app->step({});
-      RPCMP_CHECK(suite,
-                  app->failure() == pocket::ApplicationFailure::Clock && sound.inhibits == 1);
+      RPCMP_CHECK(suite, app->failure() == pocket::ApplicationFailure::Clock &&
+                             sound.inhibits == recovery_inhibits + 1);
     }
   }
   Sound sound;

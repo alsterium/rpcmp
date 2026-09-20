@@ -6,6 +6,29 @@
 
 namespace rpcmp::platform::pocket {
 
+enum class MdxBackendFailure : std::uint8_t {
+  None,
+  Release,
+  ControlTransfer,
+  ResetEpoch,
+  CaptureTransfer,
+  CaptureState,
+  ClosedFeed,
+  Generation,
+  FeedTransfer,
+  FeedReply,
+  Produce,
+  FeedSubmit,
+  ControlSubmit,
+  CaptureTicket,
+  CaptureSubmit,
+  Client
+};
+struct MdxBackendDiagnostic {
+  MdxBackendFailure failure{MdxBackendFailure::None};
+  std::uint32_t detail{}, status{};
+};
+
 // One control owner; keep this large workspace in persistent storage, not a frame.
 class PocketMdxBackend final : public player::PreparationPort,
                                public player::AudioTransportPort,
@@ -27,9 +50,12 @@ public:
   void emergency_silence() override;
   void service() noexcept;
   void copy_to(contracts::v2::PerformanceHistorySnapshot& output) const noexcept override;
+  // Target diagnostics retain the first failure across the recovery Reset.
+  // An accepted preparation starts a fresh attempt. No MMIO is read here.
+  [[nodiscard]] MdxBackendDiagnostic diagnostic() const noexcept { return diagnostic_; }
 
 private:
-  void fail() noexcept;
+  void fail(MdxBackendFailure failure, std::uint32_t detail = 0) noexcept;
   void stop_source() noexcept;
   void control_result(const SoundControlCompletion& result) noexcept;
   void capture_result(const SoundCaptureCompletion& result) noexcept;
@@ -44,6 +70,7 @@ private:
 
   const player::CatalogSession& catalog_;
   SoundMmioClient& client_;
+  MdxBackendDiagnostic diagnostic_{};
   player::MdxLibrarySession session_{};
   runtime::mdx::MdxDocument document_scratch_{};
   runtime::mdx::DocumentValidation validation_scratch_{};

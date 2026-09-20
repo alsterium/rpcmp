@@ -3085,3 +3085,97 @@ or synthesis rerun is claimed for this correction. The next task is the
 [r2 hardware check](../development/pocket-player-hardware.md): startup error,
 audible playback, D-pad panel navigation and actual input/frame timing. M6
 remains open; persistent settings remain deferred.
+
+## r2 hardware report and r3 CPU correction — 2026-09-20
+
+The user confirms r2 boots without an error or autoplay, displays Japanese,
+allows album/track selection and D-pad panel movement, and reports the requested
+button operations as OK. Selecting a track repeatedly fails with
+`Playback failed; select a track to retry` and
+`ERR 5 SND 0800 REC 9178us FLIP 441us`. Reported header values are F206ms and
+S84964us. Restart and power-off reproduce it. No music is heard, so audible
+pause/resume, display switching during playback and automatic advancement
+remain unverified. Repeat changes, but shuffle has no visible change.
+
+ERR 5 maps to DeviceFault. The r2 SND field reads the client's current status
+after the transport's recovery Reset, so 0800 cannot identify the original
+failure. S is a maximum across the launch, including preparation; it does not
+identify which operation consumed 84964 us. Source starvation from expensive
+CPU work is a hypothesis, not a reproduced Pocket fault.
+
+The MDX track/document/router/timeline/engine paths copied entire maximum-sized
+output arrays every driver tick, including held/ended tracks and empty write
+batches. r3 commits only the counted prefix after success, always updating its
+count. Limits, failure rollback, timestamps, pending order and storage capacity
+are unchanged. Dense-to-single-to-empty reuse and existing bounded/transactional
+and exact-trace tests exercise the change.
+
+An ignored local benchmark (`out/build/m6-mdx-bench.cpp` and `.py`) runs 10,000
+ticks of an authored looping one-channel phrase, with a direct linked wrapper
+around memcpy/memmove. Docker `rpcmp-openfpgaos-toolchain:14.2.0-3` runs
+`python3 out/build/m6-mdx-bench.py before` before editing and `after` afterwards.
+Both produce 1,278 writes, 104 completed loops and the same valid-prefix/time/
+loop trace fingerprint `5da7c777d7ef05f3`. Wrapped copy-call volume falls from
+12,508,500,000 to 465,356,770 bytes (96.28%). Three native x86-64 -O2 timings are
+124888/133626/128937 us before and 7452/7911/7646 us after. These are host
+measurements, not RV32 execution times; inline copies are outside that counter.
+The speed ratio is not a Pocket service-deadline guarantee.
+
+Target diagnostics now retain the first backend failure and sampled status
+across recovery Reset, clearing only on accepted preparation for a new attempt.
+ERR/AT/D/SND and REC/FLIP occupy two lines. AT uses `MdxBackendFailure`:
+2/4/8 identify Control/Capture/Feed transfers (D: transfer result);
+5 identifies captured health (D bit 0 fault, bit 1 inhibited, bits 8–15 media
+failure, bits 16–23 queued count); 10 identifies MDX production (D low byte
+source result, next byte decode error). Other cases name release, epoch,
+generation, feed closure/reply, submission, ticket exhaustion or client health.
+This is platform-only diagnostic data; generic Core/UI snapshots are unchanged.
+The original failure policy, emergency silence and mailbox deadline remain intact.
+
+Shuffle previously differed only in stroke color. Its icon now includes ON/OFF.
+A focused rendering test fails before the change and passes after. The actual
+application test changes shuffle on/off after a recoverable sound failure,
+through input and command ingress, without restarting playback. It establishes
+that this state accepts the command; it does not identify the exact reason the
+user saw no change on r2.
+
+Executed checks and candidate:
+
+- `cmake --build --preset host-msvc` and
+  `ctest --preset host-msvc -R 'mdx|pocket_player|player_render' --output-on-failure`:
+  **23/23 PASS**, including existing MDX oracle/trace, render independence,
+  producer and actual backend/application cases. New diagnostics tests cover
+  original fault retention through Reset, clearing on retry, and distinct
+  control/feed/capture timeouts.
+- Docker `python3 out/build/m6-player-r3-sanitize.py`: **PASS** under native
+  ASan/UBSan with leak detection and halt-on-error; log
+  `out/build/m6-player-r3-sanitize.log`.
+- Docker `make -j4 -f spikes/pocket/openfpgaos/player.mk
+  PLAYER_OUT=/repo/out/build/pocket-m6-player-r3 player-check`: **PASS**.
+  Text **472900**, data **228**, BSS **34888272**, static **35361400** bytes;
+  conservative stack **120608**, largest frame **9696**, no dynamic frames or
+  undefined symbols. Log `out/build/m6-player-r3-cross.log`. ELF SHA-256:
+  `b6f8ac38edb6a3b1dfff651526c45652c4482d293215aa4179d5323437d0ca48`.
+- `pocket_player_package.py` with that ELF, the unchanged verified r1 FPGA,
+  r2 firmware directory, SDK and authored library: **PASS**. All three tracks
+  pass Core preflight; member readback and original firmware/FPGA identity
+  checks remain enforced. `out/build/m6-player-candidate-r3.zip` is
+  **1323717 bytes**, SHA-256
+  `37d1a92cda6d9802f43d14845973a3fbf9b732069ca61006e66d9de46f69d414`.
+  Evidence and package log are adjacent; earlier candidates are preserved.
+- With LLVM 22.1.8 prepended, `pwsh -File tools/host-verify.ps1`:
+  **87/87 PASS**, including format, clang-tidy and architecture positive/negative
+  checks. Total **534.86 s**, tidy **512.29 s**; log
+  `out/build/m6-player-r3-host.log`. `check_harness.py --root .` also passes
+  after navigation changes. No check, timeout or capacity bound was relaxed.
+- An ignored host preview links the actual `BitmapCanvas`, pinned bitmap font
+  and UI renderer with the authored rendering fixture. ON and OFF both fit
+  within the selected 44-pixel icon. Images:
+  `out/build/m6-r3-shuffle-{off,on}.png`. This verifies target glyph layout,
+  not physical Pocket readability or the user's button report.
+
+No RTL, ROM/OS, clock constraints or FPGA image changed, so RTL simulation and
+synthesis are not rerun for r3. The next task is the
+[r3 hardware check](../development/pocket-player-hardware.md): first establish
+audible playback, then record F/S and shuffle ON/OFF; if playback fails, retain
+both diagnostic lines. Hardware recovery and M6 completion remain pending.

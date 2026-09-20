@@ -15,9 +15,9 @@ import pocket_package as shared
 
 CORE_ID = 'RPCMP.AlbumPlayer'
 PLATFORM_ID = 'rpcmp_player'
-VERSION = '0.11.0-m6-preview-r2'
+VERSION = '0.11.0-m6-preview-r3'
 # Candidate identity gates, not hardware-acceptance claims.
-APP_SHA256 = 'd52320cef628952799a9c3fee15b5f50e57b4886d2d99534e67b73fdf1c7993a'
+APP_SHA256 = 'b6f8ac38edb6a3b1dfff651526c45652c4482d293215aa4179d5323437d0ca48'
 MIF_SHA256 = 'c479524bb380900a8eb4b0a4433b2513cb4c5e039568fef3d47776c2be002e60'
 OS_SHA256 = 'fcd131fa43ca7f953576b69717c33f77cbcf07d8149e182a6e917066bf6f2080'
 RBF_SHA256 = 'd5d6f7945fe69f17c56e1e9c15cf2d7ecb30fc4b4382e2b79c10d33575d95043'
