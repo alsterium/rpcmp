@@ -2,6 +2,8 @@
 
 #include "rpcmp/runtime/mdx_ym2151_router.hpp"
 
+#include <limits>
+
 namespace rpcmp::player {
 namespace api = contracts::v2;
 namespace mdx = runtime::mdx;
@@ -81,8 +83,18 @@ MdxPerformanceResult MdxPerformanceMapper::commit(const std::uint64_t play_gener
   }
   if (boundary.at_frame > boundary.through_frame)
     return MdxPerformanceResult::Future;
-  PerformanceCommit input{play_generation, boundary.through_frame, channels_,
-                          changes_,        batch.lost_before,      batch.capture_lost};
+  constexpr auto maximum = std::numeric_limits<std::uint64_t>::max();
+  const auto lost_before = boundary.omitted_before > maximum - batch.lost_before
+                               ? maximum
+                               : boundary.omitted_before + batch.lost_before;
+  PerformanceCommit input{play_generation,
+                          boundary.through_frame,
+                          channels_,
+                          changes_,
+                          lost_before,
+                          batch.capture_lost || boundary.capture_lost,
+                          boundary.omitted_before_events,
+                          boundary.omitted_after};
   input.changes.count = batch.count;
   switch (history_.commit(input)) {
   case PerformanceCaptureResult::Applied:

@@ -11,8 +11,11 @@ The [retained MDX producer](../specs/mdx-source-producer-v1.md) now passes
 copied-batch/retry/epoch host checks and a RISC-V compile/link memory probe.
 The [32-record output journal](../specs/pocket-output-journal-v1.md) now passes
 native boundary, overflow/read-cadence and four-mailbox CDC checks with local
-fitted timing. Next are 16-batch CPU display retention/per-event mapping and
-the CPU sound/storage adapters; the journal is not yet public history.
+fitted timing. The [16-batch CPU history owner](../specs/mdx-output-history-v1.md)
+now connects copied MDX checkpoints to actual output records with per-event
+frames and explicit display loss; host gates, sanitizer tests and the RISC-V
+memory probe pass. The CPU MMIO sound and storage adapters are next; device polling
+and coherent history publication still require their integration.
 The [synchronous sound session](../specs/pocket-sound-session-v1.md) now passes
 all-phase local control/reset/inhibit tests, host/RTL regressions and registered
 fit/timing; the active milestone records the commands and limitations. Sound/storage adapters
@@ -31,7 +34,7 @@ stream through it; the queue distinguishes native busy/receipt backpressure
 from missing input at an eligible dispatch opportunity. Marker dispatch seals
 source supply. The composed progress owner maps loop/end separately; the
 retained CPU producer is tested, while MMIO feeding and per-event history
-remain to be connected.
+remain to be integrated through the sound adapter.
 The explicitly approved source-receipt contract now orders writes and zero-write
 markers and retains their actual transfer/marker edge under backpressure.
 Native receipt tests and the enveloped fault/reset integration pass. These
@@ -117,8 +120,8 @@ The synchronous canvas now draws Tracker, keyboard and library around a shared
 information/control panel. The host SVG mock links UI/contracts only, with
 bounded text and explicit elision. Authored scenarios and browser-rendered
 images verify mock layout; installed host fonts do not establish Pocket metrics.
-The retained producer still needs MMIO feeding, per-event mapping, pending
-observation storage and sound/storage adapters to be wired.
+The retained producer and output-history owner still need MMIO feeding,
+coherent sound observations and sound/storage adapters to be wired.
 See M6 for the executed checks; this does not establish a working Pocket audio
 adapter, rendered Pocket UI or M6 integration acceptance.
 Use the [transition proposal](design/pocket-player-transition-contract.md),

@@ -2238,3 +2238,78 @@ publication, combined player memory, and firmware 2.6 hardware tests remain
 pending. The fit is a registered local probe, not board timing acceptance.
 Next is the separately bounded 16-batch CPU display retention and per-event
 mapping, followed by sound/storage adapters and Pocket integration.
+
+## Slice 4 CPU output-history execution — 2026-09-20
+
+The [MDX output-history contract](../../specs/mdx-output-history-v1.md) connects
+the retained producer and output records within the approved CPU plan.
+`MdxOutputHistory` copies 16 display batches independently of audio ownership.
+It preserves individual first-output frames until a whole checkpoint completes,
+then publishes only against a matching proven sound observation. Partial or
+unseen prefixes remain Waiting. Natural end uses the unchanged terminal frame;
+an idle/paused observation adds no events. The eventual sound adapter supplies
+the coherent observation and MMIO journal service; this owner never reads a
+device or executes a playback command.
+
+Known omissions consume sequence numbers at their source positions through
+additive internal per-event/trailing loss inputs. Earlier known timestamps
+survive missing middle records. FIFO overflow discards old display batches,
+and independent latest records can restore complete current channels without
+guessing omitted times. Malformed display input cannot stop audio. Public
+snapshot/event schemas and Q1–Q24 remain unchanged.
+
+A focused failing case reproduced future source-gap loss appearing on an
+earlier intact checkpoint. The correction retains that gap with its following
+batch until its actual output; the regression checks both sides of the gap.
+A second failing case showed repeated zero-sequence latest copies after journal
+exhaustion discarding a pending checkpoint. Such repeated/older copies are now
+inert by their monotonic frame; their later completion retains known event times.
+
+Executed checks:
+
+- `pwsh -File out/build/m6-history-focused.ps1` builds the three affected
+  targets and passes `mdx_output_history`, `performance_history` and
+  `mdx_performance`. Authored records cover distinct/equal frames, several
+  batches on one frame, zero-write/end, deferred publication, middle loss,
+  latest/exhausted-journal recovery, 16-batch overflow, stale/malformed data
+  and u64 boundaries. Real authored MDX supplies identical 320-offer traces
+  (160 accepted items plus Full retries) across dense/sparse/absent reads and
+  delayed display processing. Log: `out/build/m6-history-focused.log`.
+- `out/build/host-msvc/rpcmp_mdx_output_history_tests.exe`: PASS; the host
+  output-history owner occupies 113,312 bytes.
+- `docker run --rm --mount type=bind,source=F:\source\rpcmp,target=/repo --workdir /repo rpcmp-openfpgaos-toolchain:14.2.0-3 python3 out/build/m6-output-history-sanitize.py`:
+  PASS for output history, committed history and retained producer using native
+  GCC 13.3.0 with AddressSanitizer/UndefinedBehaviorSanitizer, leak detection and
+  halt-on-error. Log: `out/build/m6-output-history-sanitize.log`.
+- The Docker RISC-V compile/link probe below passes with GCC 14.2.0,
+  C++17, `rv32imafc/ilp32f`, `-Werror`, no exceptions/RTTI and the pinned SDK.
+  It includes the real MDX engine/producer, mapper, collector, output-history
+  owner and public snapshot validation, with no UI or device adapter.
+
+```powershell
+docker run --rm --mount type=bind,source=F:\source\rpcmp,target=/repo --workdir /repo rpcmp-openfpgaos-toolchain:14.2.0-3 make --file out/build/m6-output-history-cross/Makefile history-check
+```
+
+The resulting ELF32 little-endian RISC-V image has no undefined symbols:
+text 27,260 bytes, data 204, BSS 1,054,392, total 1,081,856. Its 62 compiled
+stack records total 27,312 bytes; the largest is `PerformanceHistory::begin`
+at 8,496 bytes, with no dynamic frames. Limits remain 56,623,104 static bytes,
+4,096 initialized-data bytes and 524,288 stack bytes. ELF symbol sizes confirm
+the target history owner is 113,288 bytes, retained source 16,464, producer
+workspace 895,224 and public history snapshot 8,344. Large owners use persistent
+storage in this probe. These figures do not yet include the complete player,
+framebuffer/font allocation or a target execution measurement. Evidence:
+`out/build/m6-output-history-cross.log` and its directory's `budget.json`.
+
+`pwsh -File tools/host-verify.ps1` with LLVM 22.1.8 passes 79/79 in 450.69 s,
+including format (0.49 s), tidy (434.18 s), architecture rejection fixtures
+and incremental rebuild. Log: `out/build/m6-output-history-host-final.log`.
+Earlier tidy findings were corrected; the final loss span is a plain aggregate
+so omitted initialization is accepted by GCC as well as MSVC, with no warning
+suppression. The final sanitizer/cross probes include these corrections.
+The harness, changed Markdown links (86 targets) and `git diff --check` pass.
+
+No RTL, device protocol or package inputs changed in this CPU-only unit.
+RTL simulation/synthesis and firmware 2.6 hardware tests were not rerun;
+the preceding journal evidence remains separate. CPU sound/storage adapters,
+whole-Pocket integration and hardware acceptance remain pending.

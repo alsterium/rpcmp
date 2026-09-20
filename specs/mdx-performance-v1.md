@@ -75,6 +75,13 @@ every event shares the checkpoint frame; it must not substitute for missing
 per-write timing. An incomplete final checkpoint defers the entire display
 batch; earlier event timestamps remain intact when the checkpoint arrives.
 
+The CPU history owner may filter events with unavailable output times while
+preserving known ones. Its boundary supplies additional u64 prefix loss,
+optional per-retained-event losses, trailing loss and unknown-capture loss to
+the Core collector. They default to zero/absent, do not relax source batch
+validation, and preserve source event order/sequence gaps. Checked totals that
+cannot fit use the collector's existing Exhausted state, never wrapped counts.
+
 Pitch conversion declares the effective chip clock explicitly. The existing
 [RTL adapter](ym2151-rtl-adapter-v1.md) uses 3,579,545 Hz; the MDX Timer B model's
 4,000,000 Hz constant is not evidence of that audio clock. Mapping supports those

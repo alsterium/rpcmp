@@ -7,7 +7,10 @@ namespace api = contracts::v2;
 namespace {
 bool valid_commit(const PerformanceCommit& input, const std::uint64_t previous_frame) noexcept {
   if (input.through_frame < previous_frame || input.changes.count > api::kPerformanceCapacity ||
-      (input.changes.count != 0 && input.changes.data == nullptr))
+      (input.changes.count != 0 && input.changes.data == nullptr) ||
+      (input.lost_before_changes.count != 0 &&
+       (input.lost_before_changes.count != input.changes.count ||
+        input.lost_before_changes.data == nullptr)))
     return false;
   for (std::uint16_t i = 0; i < api::kPerformanceChannels; ++i)
     if (input.channels[i].channel_id != i || !api::valid_performance_channel(input.channels[i]))
@@ -54,17 +57,34 @@ PerformanceCaptureResult PerformanceHistory::commit(const PerformanceCommit& inp
   retained_.observed_through_frame = input.through_frame;
   retained_.channels = input.channels;
   constexpr auto maximum = std::numeric_limits<std::uint64_t>::max();
-  if (retained_.availability == api::PerformanceAvailability::Exhausted ||
-      input.lost_before > maximum - retained_.next_sequence ||
-      input.changes.count > maximum - retained_.next_sequence - input.lost_before) {
+  auto advance = input.lost_before;
+  bool known_loss = input.lost_before != 0 || input.lost_after != 0;
+  bool overflow = false;
+  const auto add = [&advance, &overflow](const std::uint64_t amount) {
+    if (amount > maximum - advance)
+      overflow = true;
+    else
+      advance += amount;
+  };
+  add(input.lost_after);
+  for (std::size_t i = 0; i < input.lost_before_changes.count; ++i) {
+    const auto omitted = input.lost_before_changes.data[i];
+    known_loss |= omitted != 0;
+    add(omitted);
+  }
+  add(input.changes.count);
+  if (retained_.availability == api::PerformanceAvailability::Exhausted || overflow ||
+      advance > maximum - retained_.next_sequence) {
     retained_.next_sequence = maximum;
     retained_.capture_lost = true;
     retained_.availability = api::PerformanceAvailability::Exhausted;
     return PerformanceCaptureResult::Exhausted;
   }
-  retained_.capture_lost |= input.lost_before != 0 || input.unknown_loss;
+  retained_.capture_lost |= known_loss || input.unknown_loss;
   retained_.next_sequence += input.lost_before;
   for (std::size_t i = 0; i < input.changes.count; ++i) {
+    if (input.lost_before_changes.count != 0)
+      retained_.next_sequence += input.lost_before_changes.data[i];
     const auto& change = input.changes.data[i];
     const auto index = (first_ + retained_.count) % api::kPerformanceCapacity;
     retained_.events[index] = {retained_.next_sequence++, change};
@@ -75,6 +95,7 @@ PerformanceCaptureResult PerformanceHistory::commit(const PerformanceCommit& inp
       ++retained_.count;
     }
   }
+  retained_.next_sequence += input.lost_after;
   retained_.availability = retained_.retention_lost || retained_.capture_lost
                                ? api::PerformanceAvailability::Degraded
                                : api::PerformanceAvailability::Available;

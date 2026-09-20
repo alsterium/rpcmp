@@ -169,6 +169,57 @@ void public_validation(rpcmp::test::Suite& suite) {
   unknown.channel.mdx_fm.reset();
   RPCMP_CHECK(suite, api::valid_performance_change(unknown));
 }
+
+void positioned_losses(rpcmp::test::Suite& suite) {
+  const std::array events{change(10, 0, true, 60), change(20, 0, false, 60),
+                          change(30, 0, true, 60)};
+  const std::array<std::uint64_t, 3> omitted{0, 2, 0};
+  auto channels = api::unknown_performance_channels();
+  channels[0] = events[2].channel;
+  PerformanceCommit input{1, 30, channels, events, 1, false, {omitted.data(), omitted.size()}, 3};
+  PerformanceHistory history;
+  RPCMP_CHECK(suite, history.begin(1));
+  RPCMP_CHECK(suite, history.commit(input) == PerformanceCaptureResult::Applied);
+  const auto result = copy(history);
+  RPCMP_CHECK(suite, api::valid_performance_history(result) && result.capture_lost &&
+                         result.count == 3 && result.next_sequence == 10 &&
+                         result.events[0].sequence == 2 && result.events[1].sequence == 5 &&
+                         result.events[2].sequence == 6);
+  for (const bool null_data : {false, true}) {
+    PerformanceHistory invalid;
+    RPCMP_CHECK(suite, invalid.begin(1));
+    auto malformed = input;
+    if (null_data)
+      malformed.lost_before_changes.data = nullptr;
+    else
+      malformed.lost_before_changes.count = 2;
+    RPCMP_CHECK(suite, invalid.commit(malformed) == PerformanceCaptureResult::Invalid);
+    RPCMP_CHECK(suite, copy(invalid).next_sequence == 1 && copy(invalid).count == 0 &&
+                           copy(invalid).observed_through_frame == 0);
+  }
+  // Sum overflow cannot disguise an exhausted event sequence as a small advance.
+  constexpr auto maximum = std::numeric_limits<std::uint64_t>::max();
+  const std::array<std::uint64_t, 3> huge{maximum - 3, 2, 2};
+  input.through_frame = 31;
+  input.changes = {};
+  input.lost_before_changes.count = 0;
+  input.lost_before = maximum - 1;
+  input.lost_after = 3;
+  RPCMP_CHECK(suite, history.commit(input) == PerformanceCaptureResult::Exhausted);
+  const auto exhausted = copy(history);
+  RPCMP_CHECK(suite, exhausted.next_sequence == maximum && exhausted.events == result.events &&
+                         exhausted.channels == channels &&
+                         api::valid_performance_history(exhausted));
+  PerformanceHistory middle_overflow;
+  RPCMP_CHECK(suite, middle_overflow.begin(1));
+  input.changes = events;
+  input.lost_before = 0;
+  input.lost_after = 0;
+  input.lost_before_changes = {huge.data(), huge.size()};
+  RPCMP_CHECK(suite, middle_overflow.commit(input) == PerformanceCaptureResult::Exhausted);
+  RPCMP_CHECK(suite,
+              copy(middle_overflow).count == 0 && copy(middle_overflow).channels == channels);
+}
 } // namespace
 
 int main() {
@@ -177,6 +228,7 @@ int main() {
   sequence_and_loss(suite);
   malformed_and_exhaustion(suite);
   public_validation(suite);
+  positioned_losses(suite);
   std::cout << "bytes: event=" << sizeof(api::PerformanceEvent)
             << " snapshot=" << sizeof(api::PerformanceHistorySnapshot)
             << " collector=" << sizeof(PerformanceHistory) << '\n';

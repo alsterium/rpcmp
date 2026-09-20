@@ -23,6 +23,11 @@ struct PerformanceChanges {
       : data(source.data()), count(N) {}
 };
 
+struct PerformanceLosses {
+  const std::uint64_t* data{};
+  std::size_t count{};
+};
+
 struct PerformanceCommit {
   std::uint64_t play_generation{};
   std::uint64_t through_frame{};
@@ -30,6 +35,8 @@ struct PerformanceCommit {
   PerformanceChanges changes;
   std::uint64_t lost_before{};
   bool unknown_loss{};
+  PerformanceLosses lost_before_changes{};
+  std::uint64_t lost_after{};
 };
 enum class PerformanceCaptureResult : std::uint8_t { Applied, Stale, Invalid, Exhausted };
 

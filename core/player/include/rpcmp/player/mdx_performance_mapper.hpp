@@ -16,6 +16,10 @@ struct MdxPerformanceBoundary {
   std::uint64_t at_frame{};
   std::uint64_t through_frame{};
   std::optional<MdxPerformanceFrames> event_frames{std::nullopt};
+  std::uint64_t omitted_before{};
+  PerformanceLosses omitted_before_events{};
+  std::uint64_t omitted_after{};
+  bool capture_lost{};
 };
 enum class MdxPerformanceResult : std::uint8_t { Applied, Future, Stale, Invalid, Exhausted };
 

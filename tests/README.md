@@ -26,6 +26,14 @@ pending audio must not advance the engine or its display checkpoint. It also
 prints host ownership sizes. RISC-V link and Pocket execution are separate
 checks; see [M6 evidence](../docs/milestones/M6-album-player.md).
 
+The host `mdx_output_history` test connects those copied checkpoints to authored
+output records, checking per-event frames, incomplete batches, middle losses,
+16-batch overflow, epoch/reset and terminal boundaries. Missing event times are
+never estimated; independent channel checkpoints can recover after loss. Real
+MDX offers and Full retries must match with dense, sparse or absent display
+reads, including delayed history processing. `performance_history` also checks
+the internal per-event/trailing loss counts and sequence overflow.
+
 Run the M0 register spike plus M2 device queue and Pocket AUDIO simulations
 with Questa Altera Starter 2025.2:
 

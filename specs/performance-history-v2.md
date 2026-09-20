@@ -52,6 +52,15 @@ must be between the previous and new boundary, inclusive. The adapter owns
 read-ahead retention/mapping and must report all omitted changes as loss; it
 must not call commit with future changes. This collector is not an audio queue.
 
+The M6 CPU output-history owner additionally supplies optional per-change known
+omitted counts (exactly one per retained change) and a trailing omitted count.
+These internal fields default to zero/absent for existing callers. They preserve
+event numbering when a journal loses a middle span rather than only a prefix.
+Validate bounded counts/pointers and the total sequence advance before mutation;
+assign each per-change omission immediately before that change and trailing loss
+after all changes. Any known omission sets capture loss. Overflow retains the
+same Exhausted behavior. Public snapshot/event values are unchanged.
+
 Validate the whole batch before accessing bounded arrays or updating observations.
 Reject older generations without modifying the current song. Other malformed
 batches mark capture loss and preserve the last valid checkpoint. The caller
