@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Prepare a reproducible, isolated openfpgaOS M5 audio integration tree."""
+"""Prepare pinned openfpgaOS audio sources, with optional M6 APF extensions."""
 
 from __future__ import annotations
 
@@ -64,7 +64,12 @@ def main() -> int:
     parser.add_argument("--firmware-elf", type=Path)
     parser.add_argument("--os-image", type=Path)
     parser.add_argument("--apf-lifecycle", action="store_true")
+    parser.add_argument("--apf-flush", action="store_true",
+                        help="enable the M6 APF flush transport (requires --apf-lifecycle)")
     args = parser.parse_args()
+
+    if args.apf_flush and not args.apf_lifecycle:
+        parser.error("--apf-flush requires --apf-lifecycle")
 
     repo = args.repo.resolve()
     upstream = args.openfpgaos.resolve()
@@ -115,6 +120,11 @@ def main() -> int:
         lifecycle_args = [*apply_args[:-1], "--unidiff-zero", str(overlay / "apf-lifecycle.patch")]
         subprocess.run([*lifecycle_args[:2], "--check", *lifecycle_args[2:]], cwd=repo, check=True)
         subprocess.run(lifecycle_args, cwd=repo, check=True)
+
+    if args.apf_flush:
+        flush_args = [*apply_args[:-1], "--unidiff-zero", str(overlay / "apf-flush.patch")]
+        subprocess.run([*flush_args[:2], "--check", *flush_args[2:]], cwd=repo, check=True)
+        subprocess.run(flush_args, cwd=repo, check=True)
 
     pocket = output / "src" / "fpga" / "targets" / "pocket"
     configs = output / "src" / "fpga" / "vendor" / "vexriscv" / "configs"

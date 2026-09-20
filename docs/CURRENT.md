@@ -4,7 +4,11 @@ Active milestone: [M6 — Album Player](milestones/M6-album-player.md)
 
 The current task is M6 slice 4: finish the sound/storage adapters under the
 approved [CPU sound connection](design/pocket-cpu-sound-connection.md), with
-the APF settings storage adapter next. Its
+the APF settings storage adapter in progress. Its
+[flush command transport](../specs/pocket-apf-flush-v1.md) now connects CPU
+requests to the APF handler and passes independent-clock simulation, including
+busy ownership, delayed drain, unknown errors and reset. Atomic save RAM, OS
+arbitration, SD readback and storage deadlines remain to be connected. The sound
 [MMIO/CDC](../specs/pocket-sound-mmio-v1.md) now passes independent-clock RTL,
 host checks and local fitted timing/CDC. The user approved the 1,000 us mailbox
 watchdog on 2026-09-20. The [CPU MMIO client](../specs/pocket-sound-client-v1.md)

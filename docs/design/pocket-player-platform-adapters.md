@@ -5,6 +5,11 @@ Status: proposal, 2026-09-13. [設定保存](pocket-playback-settings-contract.m
 公式APF仕様は同日オンライン確認しました。新しいRTL/SDKや公開v1契約は実装・変更していません。
 調査を区切った過去の起動障害の再試験を、この設計の開始条件に戻しません。
 
+2026-09-20: 設定保存のうちコマンド転送層を
+[APF flush transport v1](../../specs/pocket-apf-flush-v1.md) として採用しました。
+CPU/CDC/Target handler の flush 発行を実装し、独立クロックで検証しています。
+以下の RAM bank、OS arbiter、媒体の読戻しと期限は引き続き未実装部分です。
+
 ## 設定は小さいnonvolatile slotで保持する案
 
 APFにはnonvolatile slot、coreごとの固定ファイル名、Targetのread/write/flushがあります。

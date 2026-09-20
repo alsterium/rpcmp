@@ -1,0 +1,155 @@
+--- a/src/fpga/targets/pocket/core_bridge_cmd.v
++++ b/src/fpga/targets/pocket/core_bridge_cmd.v
+@@ -84,0 +85 @@
++input   wire            target_dataslot_flush,
+@@ -189,0 +191,2 @@
++    reg             target_dataslot_flush_1 = 0, target_dataslot_flush_queue = 0;
++    reg             target_is_flush = 0;
+@@ -242,0 +246 @@
++    target_dataslot_flush_1 <= target_dataslot_flush;
+@@ -254,0 +259,3 @@
++    end
++    if(target_dataslot_flush & ~target_dataslot_flush_1) begin
++        target_dataslot_flush_queue <= 1;
+@@ -403,0 +411 @@
++                target_dataslot_flush_queue <= 0;
+@@ -609,0 +618,10 @@
++        end else if(target_dataslot_flush_queue) begin
++            target_dataslot_flush_queue <= 0;
++            target_0[15:0] <= 16'h0188;
++            target_20 <= {16'd0, target_dataslot_id};
++            // Flush has one parameter; never reuse earlier read/write fields.
++            target_24 <= 0;
++            target_28 <= 0;
++            target_2C <= 0;
++            tstate <= TARG_ST_DATASLOTOP;
++
+@@ -633,0 +652 @@
++        target_is_flush <= target_0[15:0] == 16'h0188;
+@@ -647 +666,2 @@
+-            target_dataslot_err <= rpcmp_active_fault == 1 ? 3'd3 : target_0[2:0];
++            target_dataslot_err <= rpcmp_active_fault == 1 ? 3'd3 :
++                (target_is_flush && |target_0[15:3]) ? 3'd7 : target_0[2:0];
+--- a/src/fpga/common/axi_periph_slave.v
++++ b/src/fpga/common/axi_periph_slave.v
+@@ -108 +108,3 @@
+-    parameter INCLUDE_PARAM_SPAN_Q29 = 1
++    parameter INCLUDE_PARAM_SPAN_Q29 = 1,
++    // RPCMP Pocket APF extension; other targets retain their legacy transport.
++    parameter INCLUDE_APF_FLUSH = 0
+@@ -224,0 +227 @@
++    output reg         target_dataslot_flush,
+@@ -402,0 +406,12 @@
++
++// Declare shared request signals before their first use (Questa/Verilog).
++localparam S_PERIPH_RD      = 3'd2;
++reg [2:0] state;
++reg [31:0] req_addr;
++reg [31:0] req_wdata;
++reg [3:0]  req_wstrb;
++reg sysreg_wr_fire;
++wire uart_rx_empty;
++wire req_is_sysreg;
++wire req_is_uart;
++wire can_push_beat;
+@@ -679 +694 @@
+-    .data_b({32{1'b0}}),
++    .data_b(1'b0),
+@@ -1285 +1299,0 @@
+-reg sysreg_wr_fire;
+@@ -1332,0 +1347 @@
++        target_dataslot_flush <= 0;
+@@ -1401,0 +1417 @@
++            target_dataslot_flush <= 0;
+@@ -1435,0 +1452 @@
++                target_dataslot_flush  <= 0;
+@@ -1459 +1476,6 @@
+-                    if (!(target_dataslot_read || target_dataslot_write || target_dataslot_openfile || target_ack_s)) begin
++                    if (INCLUDE_APF_FLUSH ?
++                        (!ds_cmd_active && !target_ack_s &&
++                         !(target_dataslot_read || target_dataslot_write ||
++                           target_dataslot_openfile || target_dataslot_getfile || target_dataslot_flush) &&
++                         req_wdata >= 32'd1 && req_wdata <= 32'd5) :
++                        !(target_dataslot_read || target_dataslot_write || target_dataslot_openfile || target_ack_s)) begin
+@@ -1469,0 +1492 @@
++                        target_dataslot_flush <= 0;
+@@ -1474,0 +1498 @@
++                            3'd5: if (INCLUDE_APF_FLUSH) target_dataslot_flush <= 1;
+@@ -1751,0 +1776 @@
++                6'd34: sysreg_rdata = INCLUDE_APF_FLUSH ? 32'h0001_0001 : 32'd0; // RPCMP_APF_CAPS
+@@ -1869 +1894 @@
+-wire       uart_rx_empty = (uart_rx_wr_ptr == uart_rx_rd_ptr);
++assign uart_rx_empty = (uart_rx_wr_ptr == uart_rx_rd_ptr);
+@@ -1986 +2010,0 @@
+-localparam S_PERIPH_RD      = 3'd2;
+@@ -1993 +2016,0 @@
+-reg [2:0] state;
+@@ -1996,3 +2018,0 @@
+-reg [31:0] req_addr;
+-reg [31:0] req_wdata;
+-reg [3:0]  req_wstrb;
+@@ -2025 +2045 @@
+-wire req_is_sysreg = (req_region == REGION_SYSREG);
++assign req_is_sysreg = (req_region == REGION_SYSREG);
+@@ -2029 +2049 @@
+-wire req_is_uart   = (req_region == REGION_UART);
++assign req_is_uart = (req_region == REGION_UART);
+@@ -2080 +2100 @@
+-wire can_push_beat = !s_axi_rvalid || (s_axi_rvalid && s_axi_rready);
++assign can_push_beat = !s_axi_rvalid || (s_axi_rvalid && s_axi_rready);
+@@ -2476 +2496 @@
+-                    if (!burst_is_fixed)
++                    if (!burst_is_fixed && burst_count != 0)
+--- a/src/fpga/targets/pocket/core_top.v
++++ b/src/fpga/targets/pocket/core_top.v
+@@ -1766 +1766 @@
+-reg cpu_ds_read_prev, cpu_ds_write_prev, cpu_ds_open_prev, cpu_ds_getfile_prev;
++reg cpu_ds_read_prev, cpu_ds_write_prev, cpu_ds_open_prev, cpu_ds_getfile_prev, cpu_ds_flush_prev;
+@@ -1777 +1777,2 @@
+-wire cpu_ds_start = cpu_ds_read_start || cpu_ds_write_start || cpu_ds_open_start || cpu_ds_getfile_start;
++wire cpu_ds_flush_start = cpu_target_dataslot_flush && !cpu_ds_flush_prev;
++wire cpu_ds_start = cpu_ds_read_start || cpu_ds_write_start || cpu_ds_open_start || cpu_ds_getfile_start || cpu_ds_flush_start;
+@@ -1784,0 +1786 @@
++    cpu_ds_flush_prev <= cpu_target_dataslot_flush;
+@@ -1944,0 +1947 @@
++    wire            cpu_target_dataslot_flush;
+@@ -1961,5 +1964,7 @@
+-
+-    synch_3 sync_ds_read(cpu_target_dataslot_read, target_dataslot_read, clk_74a);
+-    synch_3 sync_ds_write(cpu_target_dataslot_write, target_dataslot_write, clk_74a);
+-    synch_3 sync_ds_openfile(cpu_target_dataslot_openfile, target_dataslot_openfile, clk_74a);
+-    synch_3 sync_ds_getfile(cpu_target_dataslot_getfile, target_dataslot_getfile, clk_74a);
++    wire            target_dataslot_flush;
++
++    synch_3 sync_ds_read(.i(cpu_target_dataslot_read), .o(target_dataslot_read), .clk(clk_74a), .rise(), .fall());
++    synch_3 sync_ds_write(.i(cpu_target_dataslot_write), .o(target_dataslot_write), .clk(clk_74a), .rise(), .fall());
++    synch_3 sync_ds_openfile(.i(cpu_target_dataslot_openfile), .o(target_dataslot_openfile), .clk(clk_74a), .rise(), .fall());
++    synch_3 sync_ds_getfile(.i(cpu_target_dataslot_getfile), .o(target_dataslot_getfile), .clk(clk_74a), .rise(), .fall());
++    synch_3 sync_ds_flush(.i(cpu_target_dataslot_flush), .o(target_dataslot_flush), .clk(clk_74a), .rise(), .fall());
+@@ -1974,0 +1980 @@
++    reg target_dataslot_getfile_1, target_dataslot_flush_1;
+@@ -1998,0 +2005,2 @@
++        target_dataslot_getfile_1 <= target_dataslot_getfile;
++        target_dataslot_flush_1 <= target_dataslot_flush;
+@@ -2002 +2010,3 @@
+-            (target_dataslot_openfile && !target_dataslot_openfile_1)) begin
++            (target_dataslot_openfile && !target_dataslot_openfile_1) ||
++            (target_dataslot_getfile && !target_dataslot_getfile_1) ||
++            (target_dataslot_flush && !target_dataslot_flush_1)) begin
+@@ -2041 +2051,2 @@
+-    (target_dataslot_getfile  && !target_dataslot_getfile_cnt_1);
++    (target_dataslot_getfile  && !target_dataslot_getfile_cnt_1) ||
++    (target_dataslot_flush    && !target_dataslot_flush_1);
+@@ -2311,0 +2323 @@
++    .target_dataslot_flush      ( target_dataslot_flush ),
+@@ -2592,0 +2605 @@
++        .INCLUDE_APF_FLUSH(1),
+@@ -2732,0 +2746 @@
++        .target_dataslot_flush(cpu_target_dataslot_flush),
+--- a/src/firmware/os/hal/regs.h
++++ b/src/firmware/os/hal/regs.h
+@@ -178,0 +179,4 @@
++#define   DS_CMD_FLUSH      5
++/* RPCMP extension: require this exact version before issuing FLUSH. */
++#define RPCMP_APF_CAPS      REG32(SYSREG_BASE + 0x188)
++#define RPCMP_APF_FLUSH_V1  0x00010001u

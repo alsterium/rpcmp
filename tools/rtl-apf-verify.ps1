@@ -1,5 +1,5 @@
 [CmdletBinding()]
-param([Parameter(Mandatory=$true)][string]$PreparedTree)
+param([Parameter(Mandatory=$true)][string]$PreparedTree, [switch]$Flush)
 $ErrorActionPreference = 'Stop'
 $repo = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 $tree = (Resolve-Path -LiteralPath $PreparedTree).Path
@@ -22,7 +22,9 @@ try {
         & $vlib work
         if ($LASTEXITCODE -ne 0) { throw 'vlib failed' }
     }
-    & $vlog -quiet -sv -work work (Join-Path $pocket 'apf/common.v') (Join-Path $pocket 'core_bridge_cmd.v') (Join-Path $repo 'tests/rtl/apf_lifecycle_tb.sv')
+    $defines = @()
+    if ($Flush) { $defines += '+define+RPCMP_APF_FLUSH' }
+    & $vlog -quiet -sv -work work @defines (Join-Path $pocket 'apf/common.v') (Join-Path $pocket 'core_bridge_cmd.v') (Join-Path $repo 'tests/rtl/apf_lifecycle_tb.sv')
     if ($LASTEXITCODE -ne 0) { throw 'APF compilation failed' }
     $result = @(& $vsim -c -quiet -lib work apf_lifecycle_tb -do 'onerror {quit -code 1}; run -all; quit -code 0' 2>&1)
     $code = $LASTEXITCODE

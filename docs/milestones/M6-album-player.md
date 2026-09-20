@@ -2498,3 +2498,72 @@ this unit changes CPU C++ and its internal connection contract, not RTL/MMIO
 definitions or package inputs. APF settings storage, a real target clock and
 service cadence, whole-Pocket memory/layout and firmware 2.6 acceptance remain
 pending. This completes the scripted CPU backend unit, not M6 slice 4 or Q19.
+
+### APF flush command transport (2026-09-20)
+
+Slice 4 adopts [APF flush transport v1](../../specs/pocket-apf-flush-v1.md).
+The opt-in `apf-flush.patch` adds CPU command 5, a versioned capability word,
+copied request ownership and the official APF `0x0188` command. It connects
+through the real Pocket CDC, parameter latch and completion/drain tracker.
+It does not yet implement the atomic save RAM or OS storage service.
+
+The integration test reproduced three existing transport defects: a delayed
+first AXI W beat used AW+4, GETFILE did not latch its own bridge parameters,
+and the busy guard could overwrite a pending request. Authored AXI/APF
+transactions now cover these paths, including a simultaneous first AW/W and
+a second INCR beat. Independently restoring each old behavior fails the
+corresponding check (`out/build/m6-apf-negative-{first-address,busy-overwrite,
+getfile-payload}.log`). An additional `0xFFF8` Host result was truncated to
+success; `m6-apf-error-repro.log` records the failure. Flush now maps unknown
+results above 7 to error 7. Existing file-command result encodings are retained.
+Shared peripheral declarations were moved before first use for Questa, and
+the unused BRAM port's constant was corrected to its declared width.
+
+- `tools/pocket_m5_audio_prepare.py` with the pinned source/netlist/ROM and
+  `--apf-lifecycle --apf-flush` creates a new isolated tree. The original M5
+  invocation remains unchanged. Final-source tree: `out/build/m6-apf-flush-final`.
+- `pwsh -File tools/rtl-apf-flush-verify.ps1 -PreparedTree out/build/m6-apf-flush`:
+  PASS at 0, 173, 5,555 and 11,110 ps phase offsets of 90 MHz/74.25 MHz clocks,
+  plus disabled-capability PASS, all with zero errors/warnings. Scenarios cover
+  repeated flush, explicit/unknown errors, copied identity, busy rejection,
+  stale DONE, delayed drain, Host responsiveness and reset/late result. The
+  fixture compiles actual peripheral/handler code and extracts actual top-level
+  CDC/drain wiring; only the unused PSX controller and datatable memory are
+  modeled. Log: `out/build/m6-apf-flush-rtl-final.log`.
+- `pwsh -File tools/rtl-apf-verify.ps1` passes both the new tree with `-Flush`
+  and the preserved `openfpgaos-m5-apf-primer-final` tree without it. Logs:
+  `m6-apf-lifecycle-{final,legacy}.log`. The sequential `rtl-verify.ps1` and
+  `rtl-jt51-verify.ps1` suites pass; logs: `m6-apf-{rtl,jt51}-regression.log`.
+- `pwsh -File tools/host-verify.ps1` with LLVM 22.1.8: 81/81 PASS, 541.77 s,
+  including format, tidy and architecture checks (`m6-apf-flush-host.log`).
+  Focused `m5_audio_boot_tests.py` (3 tests), `firmware_pair_tests.py` (7 tests)
+  and `check_harness.py` also pass after the tooling changes.
+- Docker 29.7.2 serves the pinned `rpcmp-openfpgaos-toolchain:14.2.0-3` image.
+  RISC-V GCC 14.2.0 compiles `out/build/m6-apf-header.c` against the patched
+  firmware headers with `-std=c11 -O2 -Wall -Wextra -Werror -march=rv32imafc
+  -mabi=ilp32f`. This checks the new register definitions, not an OS save service.
+
+`pwsh -File out/build/m6-apf-fit-final.ps1` completes Quartus 25.1std.0 Build
+1129 map/fit/STA on the final prepared tree, 5CEBA4F23C8, seed 1 and four fitter
+processors. Usage is 13,910/18,480 ALMs, 20,284 registers, 1,184,426 memory bits,
+171 RAM blocks and 13 DSP blocks. `python -B out/build/m6-apf-timing-audit.py`
+checks all 136 four-corner summaries: TNS is zero throughout; minimum setup /
+hold / recovery / removal / pulse-width slack is 0.451 / 0.101 / 3.777 / 0.338 /
+0.555 ns. Logs: `m6-apf-flush-final-{map,fit,sta}.log`; parsed results:
+`m6-apf-flush-timing.json`. The final sources are identical after LF normalization
+to the simulated tree and a second clean preparation (`m6-apf-flush-repro`).
+`m6-apf-final-verify.py` verifies that identity, 93 documentation links and
+rejection of `--apf-flush` without lifecycle before output creation.
+
+These numbers describe the M5-derived substrate with its old Queue-v1 audio,
+not the combined M6 sound/UI. No new clock cuts or warning suppressions were
+added. Map reports 1,089 warnings, fit 13 and STA one; fit diagnostics include
+PLL reset/lock, incomplete/ignored I/O assignments and non-dedicated clock
+routing. STA's unmatched `analog_fb_stride_reg` filter remains visible.
+The inherited asynchronous clock groups and disabled APF SPI delay lines do
+not prove those CDC/external paths. Their review, final combined fit and PCM/UI
+reserve remain slice 5 gates; this result is not whole-Pocket timing acceptance.
+
+All logs and generated trees above are ignored under `out/`. SD readback,
+durability, storage deadlines, reset-retained save banks and firmware 2.6
+acceptance remain open; no settings capability is advertised by this unit.

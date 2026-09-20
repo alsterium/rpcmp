@@ -239,6 +239,19 @@ six unconsumed natural-end boundaries, from actual receipts and sample selection
 These establish local mapping/transfer, not CPU display publication or Pocket
 service speed.
 
+`pwsh -File tools/rtl-apf-flush-verify.ps1 -PreparedTree <tree>` checks the M6
+APF flush transport in a tree prepared with `pocket_m5_audio_prepare.py` plus
+`--apf-lifecycle --apf-flush`. It compiles the actual peripheral and handler;
+`apf_flush_fixture.py` extracts the production CDC/drain wiring and connections.
+The test ties unrelated inputs inactive and models only the unused external
+PSX controller. Vendor BRAM and a synchronous datatable model are explicit.
+Four 90 MHz/74.25 MHz phases cover repeated flush, errors (including unknown
+16-bit results), busy rejection, stale DONE, delayed memory drain, GETFILE
+parameters, Host responsiveness/reset, and separated/simultaneous AXI writes.
+The disabled profile must advertise zero. `rtl-apf-verify.ps1 -Flush` runs the
+existing lifecycle regression on the same tree; omit `-Flush` for old trees.
+These are command-path checks, not a RAM-bank, durable-save or hardware test.
+
 Run the reproducible Quartus template-integration build separately with:
 
 ```powershell

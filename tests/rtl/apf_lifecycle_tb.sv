@@ -58,6 +58,9 @@ module apf_lifecycle_tb;
         .savestate_load_ok(1'b0), .savestate_load_err(1'b0),
         .target_dataslot_read(target_read), .target_dataslot_write(1'b0),
         .target_dataslot_getfile(1'b0), .target_dataslot_openfile(1'b0),
+`ifdef RPCMP_APF_FLUSH
+        .target_dataslot_flush(1'b0),
+`endif
         .target_dataslot_id(slot_id), .target_dataslot_slotoffset(read_offset),
         .target_dataslot_bridgeaddr(32'h20100000), .target_dataslot_length(read_length),
         .target_buffer_param_struct(32'd0), .target_buffer_resp_struct(32'd0),
