@@ -525,6 +525,46 @@ void history(rpcmp::test::Suite& suite) {
   RPCMP_CHECK(suite, rig.ui.view().tracker.count == 16 &&
                          rig.ui.view().tracker.rows[0].first_sequence == 249 &&
                          rig.ui.view().tracker.rows[15].first_sequence == 264);
+  for (std::uint16_t row = 0; row < 16; ++row) {
+    const auto& actual = rig.ui.view().tracker.rows[row];
+    RPCMP_CHECK(suite, actual.first_sequence == 249U + row && actual.at_frame == 441U + row &&
+                           required(actual.cells[0]).channel.note == on.note && !actual.cells[1]);
+  }
+  // Twenty-one two-channel rows retain rows 5..20 in chronological order.
+  for (std::size_t row = 0; row < 21; ++row) {
+    history.events[2 * row] = {265U + 2U * row, {500U + row, on, api::PerformanceKind::KeyOn}};
+    history.events[2 * row + 1] = {266U + 2U * row,
+                                   {500U + row, other, api::PerformanceKind::KeyOn}};
+  }
+  history.count = 42;
+  history.next_sequence = 307;
+  rig.snapshot.performance_history = history;
+  rig.advance();
+  RPCMP_CHECK(suite, rig.ui.view().tracker.count == 16);
+  for (std::uint16_t row = 0; row < 16; ++row) {
+    const auto& actual = rig.ui.view().tracker.rows[row];
+    RPCMP_CHECK(suite, actual.first_sequence == 275U + 2U * row && actual.at_frame == 505U + row &&
+                           required(actual.cells[0]).channel.note == on.note &&
+                           required(actual.cells[1]).channel.note == other.note &&
+                           !actual.cells[2]);
+  }
+  // A sequence gap and a repeated channel each start a row, even at the same frame.
+  history.events[42] = {308, {520, on, api::PerformanceKind::KeyOn}};
+  history.events[43] = {309, {520, off, api::PerformanceKind::KeyOff}};
+  history.count = 44;
+  history.next_sequence = 310;
+  history.capture_lost = true;
+  rig.snapshot.performance_history = history;
+  rig.advance();
+  RPCMP_CHECK(suite, rig.ui.view().tracker.rows[0].first_sequence == 279 &&
+                         rig.ui.view().tracker.rows[14].first_sequence == 308 &&
+                         rig.ui.view().tracker.rows[15].first_sequence == 309 &&
+                         !rig.ui.view().tracker.rows[14].cells[1] &&
+                         required(rig.ui.view().tracker.rows[15].cells[0]).channel.key_on == false);
+  // Start the next generation with the contiguous portion of the fixture.
+  history.count = 42;
+  history.next_sequence = 307;
+  history.capture_lost = false;
   ++rig.snapshot.play_generation;
   history.play_generation = rig.snapshot.play_generation;
   rig.snapshot.performance_history = history;

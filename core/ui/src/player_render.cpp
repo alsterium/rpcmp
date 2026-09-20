@@ -281,13 +281,17 @@ void keyboard(const PlayerView& view, PlayerCanvas& canvas) {
     voice(instrument, current);
     canvas.text({48, static_cast<std::uint16_t>(y + 16), 44, 16}, instrument.value(),
                 palette::muted);
+    // MIDI notes 0..127 contain 75 white keys. Their backgrounds are one
+    // continuous rectangle; only a sounding white key needs another fill.
+    canvas.fill({100, y, 75 * 7, 26}, palette::white_key);
     unsigned white = 0;
     for (unsigned key = 0; key < 128; ++key) {
       if (black_key(key))
         continue;
       const auto x = static_cast<std::uint16_t>(100 + white++ * 7);
       const bool active = sounding && current.note && *current.note == key;
-      canvas.fill({x, y, 7, 26}, active ? highlight : palette::white_key);
+      if (active)
+        canvas.fill({x, y, 7, 26}, highlight);
       canvas.line({static_cast<std::uint16_t>(x + 6), y},
                   {static_cast<std::uint16_t>(x + 6), static_cast<std::uint16_t>(y + 25)},
                   palette::grid);

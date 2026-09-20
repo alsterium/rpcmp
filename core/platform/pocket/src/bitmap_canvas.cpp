@@ -154,6 +154,30 @@ std::uint32_t BitmapCanvas::pump(std::uint8_t* surface, const std::size_t bytes,
       if (position_ == static_cast<std::uint32_t>(box.width) * box.height)
         advance();
     } else if (item.kind == Kind::Line) {
+      // Borders and keyboard separators are axis-aligned. Paint their bounded
+      // span without repeating Bresenham setup for every pixel.
+      if (item.end.x == box.x || item.end.y == box.y) {
+        const bool horizontal = item.end.y == box.y;
+        const auto length = static_cast<std::uint32_t>(
+                                std::abs(horizontal ? static_cast<int>(item.end.x) - box.x
+                                                    : static_cast<int>(item.end.y) - box.y)) +
+                            1U;
+        const auto count = std::min(pixel_budget - used, length - position_);
+        if (horizontal) {
+          const auto x = item.end.x >= box.x ? box.x + position_ : box.x - position_ - (count - 1U);
+          std::fill_n(surface + static_cast<std::size_t>(box.y) * stride + x, count, item.ink);
+        } else {
+          for (std::uint32_t i = 0; i < count; ++i) {
+            const auto y = item.end.y >= box.y ? box.y + position_ + i : box.y - position_ - i;
+            surface[static_cast<std::size_t>(y) * stride + box.x] = item.ink;
+          }
+        }
+        used += count;
+        position_ += count;
+        if (position_ == length)
+          advance();
+        continue;
+      }
       const auto dx = std::abs(static_cast<int>(item.end.x) - box.x);
       const auto dy = -std::abs(static_cast<int>(item.end.y) - box.y);
       if (position_ == 0) {
@@ -187,13 +211,19 @@ std::uint32_t BitmapCanvas::pump(std::uint8_t* surface, const std::size_t bytes,
         glyph_ = bitmap_glyph(scalar({item.text.data(), item.length}, text_offset_));
         position_ = 0;
       }
-      const auto x = position_ % glyph_.width;
-      const auto y = position_ / glyph_.width;
-      const auto bits = glyph_.rows[y * (glyph_.width / 8) + x / 8];
-      if ((bits & (0x80U >> (x % 8))) != 0)
-        surface[(box.y + y) * stride + box.x + text_x_ + x] = item.ink;
-      ++used;
-      if (++position_ == glyph_.width * std::min<std::uint32_t>(box.height, 16)) {
+      // Pinned glyphs are 8 or 16 pixels wide. Consume at most one bitmap byte
+      // per span, including transparent pixels in the caller's work budget.
+      const auto x = position_ & (glyph_.width - 1U);
+      const auto y = position_ >> (glyph_.width == 16 ? 4U : 3U);
+      const auto bits = glyph_.rows[y * (glyph_.width >> 3U) + (x >> 3U)];
+      const auto count = std::min(pixel_budget - used, 8U - (x & 7U));
+      auto* output = surface + static_cast<std::size_t>(box.y + y) * stride + box.x + text_x_ + x;
+      for (std::uint32_t i = 0; i < count; ++i)
+        if ((bits & (0x80U >> ((x & 7U) + i))) != 0)
+          output[i] = item.ink;
+      used += count;
+      position_ += count;
+      if (position_ == glyph_.width * std::min<std::uint32_t>(box.height, 16)) {
         text_x_ += glyph_.width;
         glyph_ = {};
       }

@@ -1,5 +1,6 @@
 #include "rpcmp/ui/player_ui.hpp"
 
+#include <algorithm>
 #include <limits>
 
 namespace rpcmp::ui::v2 {
@@ -514,22 +515,26 @@ void PlayerUi::observe_history() {
   history_next_ = history->next_sequence;
   history_seen_ = true;
   std::uint64_t previous = 0;
+  std::size_t row = 0;
   for (std::uint16_t i = 0; i < history->count; ++i) {
     const auto& event = history->events[i];
     const auto channel = event.change.channel.channel_id;
     if (tracker.count == 0 || event.sequence != previous + 1 ||
-        tracker.rows[tracker.count - 1].at_frame != event.change.at_frame ||
-        tracker.rows[tracker.count - 1].cells[channel]) {
-      if (tracker.count == kTrackerRows) {
-        for (std::uint16_t row = 1; row < kTrackerRows; ++row)
-          tracker.rows[row - 1] = tracker.rows[row];
-        --tracker.count;
-      }
-      tracker.rows[tracker.count++] = {event.sequence, event.change.at_frame, {}};
+        tracker.rows[row].at_frame != event.change.at_frame || tracker.rows[row].cells[channel]) {
+      if (tracker.count != 0)
+        row = (row + 1) % kTrackerRows;
+      if (tracker.count < kTrackerRows)
+        ++tracker.count;
+      tracker.rows[row] = {event.sequence, event.change.at_frame, {}};
     }
-    tracker.rows[tracker.count - 1].cells[channel] = event.change;
+    tracker.rows[row].cells[channel] = event.change;
     previous = event.sequence;
   }
+  // Retain the newest rows in place, then restore chronological order once.
+  if (tracker.count == kTrackerRows)
+    std::rotate(tracker.rows.begin(),
+                tracker.rows.begin() + static_cast<std::ptrdiff_t>((row + 1) % kTrackerRows),
+                tracker.rows.end());
 }
 
 } // namespace rpcmp::ui::v2

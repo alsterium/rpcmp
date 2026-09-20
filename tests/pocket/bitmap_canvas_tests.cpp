@@ -84,6 +84,15 @@ void primitives(rpcmp::test::Suite& suite) {
   canvas->line({7, 2}, {7, 4}, ui::palette::accent);
   for (unsigned y = 2; y <= 4; ++y)
     expected[1 + y * stride + 7] = 5;
+  canvas->line({10, 8}, {0, 8}, ui::palette::accent);
+  for (unsigned x = 0; x <= 10; ++x)
+    expected[1 + 8 * stride + x] = 5;
+  canvas->line({0, 10}, {0, 0}, ui::palette::accent);
+  for (unsigned y = 0; y <= 10; ++y)
+    expected[1 + y * stride] = 5;
+  canvas->line({10, 0}, {20, 0}, ui::palette::accent);
+  for (unsigned x = 10; x <= 20; ++x)
+    expected[1 + x] = 5;
   drain(suite, *canvas, actual, 1);
   RPCMP_CHECK(suite, actual == expected);
 }
