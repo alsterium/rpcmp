@@ -25,7 +25,8 @@ module sound_session_tb;
     logic [63:0] pending_prefix, output_prefix, pending_loops, output_loops;
     logic pending_source_valid, output_source_valid, pending_checkpoint_valid, output_checkpoint_valid;
     logic pending_ended, output_ended, audio_mclk, audio_lrck, audio_dac;
-    rpcmp_sound_session dut(.*);
+    rpcmp_sound_session dut(.journal_clear(), .commit_valid(), .commit_natural_end(),
+        .commit_generation(), .commit_frame(), .commit_prefix(), .*);
     always #5 clk_audio=~clk_audio;
 
     integer wall=0, serial_phase=0, accepted_at=0, accepted_phase=0, latency=0;

@@ -25,12 +25,19 @@ $sources += @('core/rtl/pocket/rpcmp_media_output.sv', 'core/rtl/pocket/rpcmp_jt
               'core/rtl/pocket/rpcmp_media_source_queue.sv', 'core/rtl/pocket/rpcmp_jt51_progress_audio.sv',
               'core/rtl/pocket/rpcmp_sound_session.sv', 'core/rtl/pocket/rpcmp_sound_mailbox.sv',
               'core/rtl/pocket/rpcmp_sound_mmio.sv', 'tests/rtl/sound_mmio_tb.sv',
-              'tests/rtl/sound_mailbox_tb.sv') | ForEach-Object { Join-Path $root $_ }
+              'tests/rtl/sound_mailbox_tb.sv', 'core/rtl/pocket/rpcmp_output_journal.sv',
+              'tests/rtl/output_journal_tb.sv') | ForEach-Object { Join-Path $root $_ }
 Push-Location $output
 try {
     if (-not (Test-Path 'work')) { & $vlib work; if ($LASTEXITCODE) { throw 'vlib failed.' } }
     & $vlog -quiet -sv -work work @sources
     if ($LASTEXITCODE) { throw 'vlog failed.' }
+    $lines = @(& $vsim -c -quiet -lib work output_journal_tb -do 'run -all; quit -code 0' 2>&1)
+    $code = $LASTEXITCODE
+    $lines | Write-Output
+    $text = $lines | Out-String
+    if ($code -ne 0 -or $text -notmatch '(?m)^# output_journal_tb: PASS .+\r?$' -or
+        $text -notmatch '(?m)^# Errors: 0, Warnings: 0\r?$') { throw 'Output journal simulation failed.' }
     $lines = @(& $vsim -c -quiet -lib work sound_mailbox_tb -do 'run -all; quit -code 0' 2>&1)
     $code = $LASTEXITCODE
     $lines | Write-Output
@@ -43,7 +50,7 @@ try {
         $code = $LASTEXITCODE
         $lines | Write-Output
         $text = $lines | Out-String
-        if ($code -ne 0 -or $text -notmatch "(?m)^# sound_mmio_tb: PASS phase_ps=$phase .+ reset_stages=18 nonzero_bits=\d+\r?$" -or
+        if ($code -ne 0 -or $text -notmatch "(?m)^# sound_mmio_tb: PASS phase_ps=$phase .+ reset_stages=24 nonzero_bits=\d+\r?$" -or
             $text -notmatch '(?m)^# Errors: 0, Warnings: 0\r?$') { throw "Sound MMIO simulation failed at phase $phase." }
     }
 } finally { Pop-Location }

@@ -32,6 +32,8 @@ module rpcmp_sound_session (
     output logic pending_checkpoint_valid, output_checkpoint_valid,
     output logic pending_ended, output_ended,
     output logic [63:0] pending_loops, output_loops,
+    output logic journal_clear, commit_valid, commit_natural_end,
+    output logic [63:0] commit_generation, commit_frame, commit_prefix,
     output logic audio_mclk, audio_lrck, audio_dac
 );
     localparam logic [2:0] RESET=0, START=1, PAUSE=2, RESUME=3, SET_POLICY=4;
@@ -58,6 +60,7 @@ module rpcmp_sound_session (
         end_reason==0 && failure==0;
     assign control_action=response_kind==PAUSE ? 2'd1 : response_kind==RESUME ? 2'd2 : 2'd0;
     assign audio_dac=inhibited ? 1'b0 : raw_dac;
+    assign journal_clear=reset_accept || session_reset;
 
     always_comb begin
         item_status=0;
@@ -95,6 +98,8 @@ module rpcmp_sound_session (
         .pending_source_valid(pending_source_valid), .output_source_valid(output_source_valid),
         .pending_checkpoint_valid(pending_checkpoint_valid), .output_checkpoint_valid(output_checkpoint_valid),
         .pending_ended(pending_ended), .output_ended(output_ended), .pending_loops(pending_loops), .output_loops(output_loops),
+        .commit_valid(commit_valid), .commit_natural_end(commit_natural_end),
+        .commit_generation(commit_generation), .commit_frame(commit_frame), .commit_prefix(commit_prefix),
         .audio_mclk(audio_mclk), .audio_lrck(audio_lrck), .audio_dac(raw_dac),
         .audio_underflow(), .audio_overflow(), .audio_clipped(), .selected_count(), .frame_count()
     );

@@ -26,6 +26,18 @@ module rpcmp_sound_mmio (
     logic [159:0] feed_cpu_response, feed_audio_response;
     logic [127:0] capture_stage, capture_audio_request;
     logic [1055:0] capture_cpu_response, capture_audio_response;
+    logic [223:0] journal_stage, journal_audio_request;
+    logic [991:0] journal_cpu_response, journal_audio_response;
+    logic journal_submit, journal_release, journal_ready, journal_valid, journal_write;
+    logic journal_a_valid, journal_a_ready, journal_r_valid, journal_r_ready;
+    logic journal_clear, commit_valid, commit_natural_end;
+    logic [63:0] commit_generation, commit_frame, commit_prefix;
+    logic journal_pop, journal_head_valid, journal_latest_valid, journal_exhausted;
+    logic [1:0] journal_pop_status;
+    logic [5:0] journal_queued;
+    logic [63:0] journal_next, journal_lost;
+    logic [256:0] journal_head, journal_latest;
+    logic [2:0] journal_result;
     logic control_submit, control_release, control_ready, control_valid;
     logic control_a_valid, control_a_ready, control_r_valid, control_r_ready;
     logic feed_submit, feed_release, feed_ready, feed_valid;
@@ -39,6 +51,7 @@ module rpcmp_sound_mmio (
     wire control_staging=offset>=10'h020 && offset<=10'h040;
     wire feed_staging=offset>=10'h080 && offset<=10'h0ac;
     wire capture_staging=offset>=10'h100 && offset<=10'h10c;
+    wire journal_staging=offset>=10'h300 && offset<=10'h318;
 
     logic [63:0] response_id, response_generation, response_revision, response_frame;
     logic [2:0] response_kind, response_result;
@@ -90,9 +103,10 @@ module rpcmp_sound_mmio (
 
     always_comb begin
         mmio_rd_data=0; invalid_access=0; busy_access=0;
-        control_write=0; feed_write=0; capture_write=0; clear_flags=0; inhibit_submit=0;
+        control_write=0; feed_write=0; capture_write=0; journal_write=0; clear_flags=0; inhibit_submit=0;
         control_submit=0; control_release=0; feed_submit=0; feed_release=0;
         capture_submit=0; capture_release=0;
+        journal_submit=0; journal_release=0;
         if (mmio_rd || mmio_wr) begin
             if (!cpu_local_reset_n || mmio_addr[31:10]!=22'h100001 || offset[1:0]!=0 ||
                 (mmio_rd && mmio_wr) || (mmio_wr && byte_enable!=4'hf)) invalid_access=1;
@@ -106,6 +120,10 @@ module rpcmp_sound_mmio (
                         (offset==10'h0ac && mmio_wr_data[31:16]!=0)) invalid_access=1;
                     else feed_write=1;
                 end else if (capture_staging) capture_write=1;
+                else if (journal_staging) begin
+                    if (offset==10'h318 && mmio_wr_data[31:1]!=0) invalid_access=1;
+                    else journal_write=1;
+                end
                 else case (offset)
                     10'h010: if (mmio_wr_data==1) inhibit_submit=1; else invalid_access=1;
                     10'h014: if (mmio_wr_data[31:2]==0) clear_flags=1; else invalid_access=1;
@@ -121,12 +139,21 @@ module rpcmp_sound_mmio (
                         else if (!capture_ready || !online_sync) busy_access=1;
                         else capture_submit=1;
                     10'h114: if (mmio_wr_data==1 && capture_valid) capture_release=1; else invalid_access=1;
+                    10'h31c: if (mmio_wr_data!=1) invalid_access=1;
+                        else if (!journal_ready || !online_sync) busy_access=1;
+                        else journal_submit=1;
+                    10'h320: if (mmio_wr_data==1 && journal_valid) journal_release=1; else invalid_access=1;
                     default: invalid_access=1;
                 endcase
             end else begin
                 if (control_staging) mmio_rd_data=control_stage[(word_index-8'd8)*32 +: 32];
                 else if (feed_staging) mmio_rd_data=feed_stage[(word_index-8'd32)*32 +: 32];
                 else if (capture_staging) mmio_rd_data=capture_stage[(word_index-8'd64)*32 +: 32];
+                else if (journal_staging) mmio_rd_data=journal_stage[(word_index-8'd192)*32 +: 32];
+                else if (offset>=10'h340 && offset<=10'h3b8) begin
+                    if (journal_valid) mmio_rd_data=journal_cpu_response[(word_index-8'd208)*32 +: 32];
+                    else invalid_access=1;
+                end
                 else if (offset>=10'h180 && offset<=10'h1bc) begin
                     if (control_valid) mmio_rd_data=control_cpu_response[(word_index-8'd96)*32 +: 32];
                     else invalid_access=1;
@@ -138,9 +165,9 @@ module rpcmp_sound_mmio (
                     else invalid_access=1;
                 end else case (offset)
                     10'h000: mmio_rd_data=32'h52534d31;
-                    10'h004: mmio_rd_data=32'h00010000;
-                    10'h008: mmio_rd_data=32'h00000007;
-                    10'h00c: mmio_rd_data={20'd0,online_sync,emergency_pending,busy_sticky,invalid_sticky,
+                    10'h004: mmio_rd_data=32'h00010001;
+                    10'h008: mmio_rd_data=32'h0000000f;
+                    10'h00c: mmio_rd_data={18'd0,journal_valid,!journal_ready,online_sync,emergency_pending,busy_sticky,invalid_sticky,
                         inhibited_sync,fault_sync,capture_valid,!capture_ready,feed_valid,!feed_ready,
                         control_valid,!control_ready};
                     10'h018: mmio_rd_data=32'd12288000;
@@ -153,11 +180,12 @@ module rpcmp_sound_mmio (
     end
     always_ff @(posedge cpu_clk or negedge cpu_local_reset_n) begin
         if (!cpu_local_reset_n) begin
-            control_stage<=0; feed_stage<=0; capture_stage<=0; invalid_sticky<=0; busy_sticky<=0;
+            control_stage<=0; feed_stage<=0; capture_stage<=0; journal_stage<=0; invalid_sticky<=0; busy_sticky<=0;
         end else begin
             if (control_write) control_stage[(word_index-8'd8)*32 +: 32]<=mmio_wr_data;
             if (feed_write) feed_stage[(word_index-8'd32)*32 +: 32]<=mmio_wr_data;
             if (capture_write) capture_stage[(word_index-8'd64)*32 +: 32]<=mmio_wr_data;
+            if (journal_write) journal_stage[(word_index-8'd192)*32 +: 32]<=mmio_wr_data;
             if (invalid_access) invalid_sticky<=1;
             else if (clear_flags && mmio_wr_data[0]) invalid_sticky<=0;
             if (busy_access) busy_sticky<=1;
@@ -186,6 +214,54 @@ module rpcmp_sound_mmio (
         .dst_request_valid(capture_a_valid), .dst_request_ready(capture_a_ready), .dst_request(capture_audio_request),
         .dst_response_valid(capture_r_valid), .dst_response_ready(capture_r_ready), .dst_response(capture_audio_response)
     );
+
+    rpcmp_sound_mailbox #(.REQUEST_BITS(224), .RESPONSE_BITS(992)) journal_mailbox (
+        .src_clk(cpu_clk), .dst_clk(audio_clk), .src_reset_n(cpu_local_reset_n), .dst_reset_n(audio_local_reset_n),
+        .src_request_valid(journal_submit), .src_request_ready(journal_ready), .src_request(journal_stage),
+        .src_response_valid(journal_valid), .src_response_ready(journal_release), .src_response(journal_cpu_response),
+        .dst_request_valid(journal_a_valid), .dst_request_ready(journal_a_ready), .dst_request(journal_audio_request),
+        .dst_response_valid(journal_r_valid), .dst_response_ready(journal_r_ready), .dst_response(journal_audio_response)
+    );
+    rpcmp_output_journal journal (
+        .clk_audio(audio_clk), .reset_n(audio_local_reset_n), .clear(journal_clear),
+        .record_valid(commit_valid), .record_natural_end(commit_natural_end),
+        .record_generation(commit_generation), .record_frame(commit_frame), .record_prefix(commit_prefix),
+        .pop_valid(journal_pop), .pop_sequence(journal_audio_request[191:128]), .pop_status(journal_pop_status),
+        .head_valid(journal_head_valid), .latest_valid(journal_latest_valid), .exhausted(journal_exhausted),
+        .queued(journal_queued), .next_sequence(journal_next), .lost(journal_lost),
+        .head_record(journal_head), .latest_record(journal_latest)
+    );
+    assign journal_a_ready=!journal_r_valid;
+    assign journal_pop=journal_a_valid && journal_a_ready && journal_audio_request[63:0]!=0 &&
+        journal_audio_request[127:64]==feed_epoch && !journal_clear && journal_audio_request[192] &&
+        journal_audio_request[191:128]!=0;
+    always_comb begin
+        if (journal_audio_request[63:0]==0 ||
+            (journal_audio_request[192] ? journal_audio_request[191:128]==0 : journal_audio_request[191:128]!=0))
+            journal_result=3;
+        else if (journal_audio_request[127:64]!=feed_epoch || journal_clear) journal_result=4;
+        else if (!journal_head_valid) journal_result=2;
+        else if (journal_audio_request[192] && journal_pop_status!=1) journal_result=4;
+        else journal_result=1;
+    end
+    always_ff @(posedge audio_clk or negedge audio_local_reset_n) begin
+        if (!audio_local_reset_n) begin journal_r_valid<=0; journal_audio_response<=0; end
+        else begin
+            if (journal_r_valid && journal_r_ready) journal_r_valid<=0;
+            if (journal_a_valid && journal_a_ready) begin
+                journal_audio_response[0 +: 128]<=journal_audio_request[127:0];
+                journal_audio_response[128 +: 64]<=feed_epoch;
+                journal_audio_response[192 +: 32]<={29'd0,journal_result};
+                journal_audio_response[224 +: 32]<={26'd0,journal_queued};
+                journal_audio_response[256 +: 64]<=journal_lost;
+                journal_audio_response[320 +: 64]<=journal_next;
+                journal_audio_response[384 +: 32]<={29'd0,journal_exhausted,journal_latest_valid,journal_head_valid};
+                journal_audio_response[416 +: 288]<={31'd0,journal_head};
+                journal_audio_response[704 +: 288]<={31'd0,journal_latest};
+                journal_r_valid<=1;
+            end
+        end
+    end
 
     always_comb begin
         control_audio_response=0;
@@ -262,6 +338,8 @@ module rpcmp_sound_mmio (
         .output_source_valid(output_source_valid), .pending_checkpoint_valid(pending_checkpoint_valid),
         .output_checkpoint_valid(output_checkpoint_valid), .pending_ended(pending_ended), .output_ended(output_ended),
         .pending_loops(pending_loops), .output_loops(output_loops),
+        .journal_clear(journal_clear), .commit_valid(commit_valid), .commit_natural_end(commit_natural_end),
+        .commit_generation(commit_generation), .commit_frame(commit_frame), .commit_prefix(commit_prefix),
         .audio_mclk(audio_mclk), .audio_lrck(audio_lrck), .audio_dac(audio_dac)
     );
 endmodule

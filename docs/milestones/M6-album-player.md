@@ -2145,3 +2145,96 @@ CPU service speed, mailbox deadlines or combined player/font/framebuffer memory
 acceptance. Whole-Pocket build/package and firmware 2.6 tests remain pending.
 Next are the separately bounded 16-batch display retention, 32-record output
 journal/per-event mapping and sound/storage adapters before integration.
+
+## Slice 4 output journal execution — 2026-09-20
+
+The [output-journal contract](../../specs/pocket-output-journal-v1.md) implements
+the approved CPU connection plan's 32-record display retention. The native
+owner now copies the actual consumed prefix and zero-based output frame, and
+separately retains the pending checkpoint applied at NaturalEnd/RepeatOne.
+The latter's PCM is not consumed. Pause, unchanged prefixes, Stop and fault
+do not invent output records. A bounded audio-clock RAM FIFO never returns
+backpressure to audio. Full loses the arriving display record, records a
+saturating loss count and preserves an independent latest copy. Sequence
+exhaustion preserves audio and never wraps.
+
+MMIO minor 1 adds the previously reserved journal capability and a fourth
+copied request/response mailbox. Peek does not pop; Pop requires the expected
+epoch and exact head sequence. A normal Reset clears journal ownership but
+leaves borrowed CPU responses intact. Late old-epoch Pops cannot remove a
+new epoch's head even when its sequence is equal. Public v1 playback and the
+existing MMIO control/feed/capture words retain their meanings.
+
+Executed RTL checks:
+
+- `pwsh -File tools/rtl-enveloped-audio-verify.ps1`: all four benches PASS,
+  zero errors/warnings. The independent native/sample/boundary oracle checks
+  34 output records, including six natural-end records, alongside 316 frames,
+  310 samples, 182 nonzero frames, six starts/ends, fade/restoration and
+  fault recovery. The source queue still passes 8,192 writes/8,195 receipts;
+  the session passes 256 phases and 1,585 responses. The unchanged enveloped
+  compatibility path passes its serialized PCM/gain oracle.
+  Log: `out/build/m6-journal-native.log`.
+- `pwsh -File tools/rtl-sound-mmio-verify.ps1`: FIFO boundary/loss/sequence
+  tests, the 64-request generic mailbox test, and independent-clock phases
+  0, 173, 5,555, 40,690 and 81,379 ps PASS with zero errors/warnings. Each
+  phase checks 17 controls, 198 feeds, 35 captures, 2,371 journal queries and
+  24 either-origin common-reset transfer stages. A 64-marker real native
+  stream produces identical output record frames/prefixes/end flags with no
+  reader (32 dropped records) and frequent Pops (zero drops). It reaches the
+  same natural end; latest survives overflow. Full-width fields are checked
+  with explicitly injected observation values, not a claimed long device run.
+  Log: `out/build/m6-journal-mmio-final.log`.
+- `pwsh -File out/build/m6-journal-negative.ps1`: four generated mutants are
+  rejected by their expected assertions: next-frame timestamp, natural end
+  from the cleared output rather than applied pending checkpoint, old-epoch
+  Pop, and live rather than copied head data. Each has one expected error,
+  zero warnings and no PASS. Production sources were not mutated.
+- `pwsh -File tools/rtl-verify.ps1`, then
+  `pwsh -File tools/rtl-jt51-verify.ps1`: nine and five benches PASS with zero
+  errors/warnings. These and the final MMIO/negative checks run sequentially
+  in `out/build/m6-journal-regressions.ps1`; logs use
+  `out/build/m6-journal-{base,jt51,negative}.log`.
+
+`pwsh -File out/build/m6-journal-fit.ps1` uses Quartus 25.1std.0 Build 1129,
+5CEBA4F23C8, seed 1, Standard Fit / Extra physical synthesis and the preceding
+probe's 90 MHz CPU / 12.288 MHz audio constraints, including its stronger
+0.100 ns receipt-to-RAM hold requirement. All 40 timing summaries have positive
+slack and zero TNS. There are no unconstrained input/output paths or clocks.
+
+| Timing model / clock | Setup | Hold | Recovery | Removal | Pulse width |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Slow 85 C / CPU | 1.460 | 0.378 | 3.199 | 4.353 | 4.750 |
+| Slow 85 C / audio | 13.655 | 0.258 | 65.460 | 2.014 | 39.083 |
+| Slow 0 C / CPU | 1.495 | 0.373 | 3.255 | 4.280 | 4.597 |
+| Slow 0 C / audio | 11.275 | 0.245 | 66.202 | 1.897 | 38.997 |
+| Fast 85 C / CPU | 6.005 | 0.164 | 7.568 | 2.260 | 4.962 |
+| Fast 85 C / audio | 51.874 | 0.131 | 73.072 | 0.815 | 39.475 |
+| Fast 0 C / CPU | 6.390 | 0.149 | 7.756 | 2.127 | 4.962 |
+| Fast 0 C / audio | 53.433 | 0.104 | 74.058 | 0.732 | 39.465 |
+
+All slacks are ns. The registered local probe uses 7,855 ALMs, 14,690 registers,
+80,392 memory bits, 34 M10Ks and three DSPs. Its nine fixture pins are not Pocket
+pin assignments. Map has the same nine unused upstream ROM write-net warnings;
+fit has three license/incomplete-fixture-pin diagnostics; STA has zero warnings.
+The CDC audit covers every optimized destination at four corners: 887 request
+and 2,267 response endpoints, exactly matching the complete clock-to-clock
+queries. All 15 explicit synchronizer pairs have positive setup/hold. Maximum
+bundle delays are 5.291 ns request and 4.909 ns response, with minimum setup
+slack 6.103 ns. No blanket clock-group exception is used. Logs are
+`out/build/m6-journal-{map,fit,sta,cdc-audit}.log`; endpoint evidence is
+`out/build/m6-journal-cdc-paths.txt`. `python -B out/build/m6-journal-evidence.py`
+passes all 11 source/probe hashes, summary/endpoint coverage and warning counts.
+
+`pwsh -File tools/host-verify.ps1` with the pinned LLVM 22.1.8 process/cache
+paths passes 78/78 in 519.11 s, including format (0.85 s), tidy (497.36 s),
+architecture rejection fixtures and incremental rebuild. Log:
+`out/build/m6-journal-host.log`. The harness, changed Markdown link checks and
+`git diff --check` pass after evidence/navigation updates. No warning suppression,
+relaxed bound, regenerated audio golden or global tool change was introduced.
+
+Whole-Pocket decoder/build/package, CPU journal service and performance-history
+publication, combined player memory, and firmware 2.6 hardware tests remain
+pending. The fit is a registered local probe, not board timing acceptance.
+Next is the separately bounded 16-batch CPU display retention and per-event
+mapping, followed by sound/storage adapters and Pocket integration.

@@ -26,8 +26,8 @@ new submit are separate CPU transactions. Common reset clears all diagnostics.
 | Offset | Access | Meaning |
 | --- | --- | --- |
 | 000 | R | ID `0x52534D31` (RSM1) |
-| 004 | R | version `0x00010000` (major 1, minor 0) |
-| 008 | R | capability bits 0 control, 1 feed, 2 capture: `0x7` |
+| 004 | R | version `0x00010001` (major 1, minor 1) |
+| 008 | R | capability bits 0 control, 1 feed, 2 capture, 3 journal: `0xF` |
 | 00C | R | status described below |
 | 010 | W | INHIBIT, value 1 sets the independent emergency request |
 | 014 | W | CLEAR, bit 0 invalid, bit 1 busy; other bits zero |
@@ -61,12 +61,13 @@ new submit are separate CPU transactions. Common reset clears all diagnostics.
 STATUS bits: 0 control busy, 1 control response valid, 2 feed busy, 3 feed
 response valid, 4 capture busy, 5 capture response valid, 6 synchronized audio
 fault, 7 synchronized audio inhibit, 8 invalid access, 9 busy rejection,
-10 emergency delivery pending, 11 synchronized audio online. Other bits zero.
+10 emergency delivery pending, 11 synchronized audio online, 12 journal busy,
+13 journal response valid. Other bits zero.
 Busy includes unread completion. Single-bit audio status is diagnostic; use
 capture for a coherent multiword observation. Online means reset release,
-not native quiescence or Reset completion. Capability bit 3 and `0x300..0x3FF`
-are reserved for the approved subsequent output-journal layer and are not
-advertised/implemented by this transport-only revision. All other unlisted
+not native quiescence or Reset completion. Minor 1 adds the approved
+[output journal](pocket-output-journal-v1.md) in the formerly reserved range.
+Minor 0 has capabilities `0x7` and rejects all journal accesses. All unlisted
 offsets are reserved and invalid, not readable zero-filled registers.
 
 Malformed control payloads (zero IDs, kinds 5..7, conflicting policy, etc.)
@@ -129,12 +130,57 @@ to publish as a successful current-generation observation.
 | 280 | capture result |
 
 All unused bits are zero. Pending fields are not audible history. Latest
-output prefix alone is not an event journal; the subsequent journal must
-retain first output frames and natural-end checkpoints independently.
+output prefix alone is not an event journal; minor 1 retains first output
+frames and natural-end checkpoints independently in its journal.
+
+## Output journal (minor 1)
+
+| Offset | Access | Meaning |
+| --- | --- | --- |
+| 300/304 | RW | query ticket low/high, nonzero u64 |
+| 308/30C | RW | expected feed epoch low/high |
+| 310/314 | RW | expected head sequence low/high, zero for Peek, nonzero for Pop |
+| 318 | RW | action bit 0: Peek=0, Pop=1; other bits zero |
+| 31C | W | journal SUBMIT |
+| 320 | W | journal response RELEASE (does not pop a record) |
+| 340/344 | R | echoed ticket low/high |
+| 348/34C | R | echoed expected epoch low/high |
+| 350/354 | R | actual feed epoch low/high |
+| 358 | R | Success=1, Empty=2, Invalid=3, Stale=4 |
+| 35C | R | pre-operation queued count, low 6 bits |
+| 360/364 | R | dropped record count low/high, saturating u64 |
+| 368/36C | R | next record sequence low/high, UINT64_MAX means exhausted |
+| 370 | R | head valid bit 0, latest valid bit 1, exhausted bit 2 |
+| 374/378 | R | head sequence low/high |
+| 37C/380 | R | head generation low/high |
+| 384/388 | R | head frame low/high |
+| 38C/390 | R | head prefix low/high |
+| 394 | R | head natural-end bit 0 |
+| 398/39C | R | latest sequence low/high |
+| 3A0/3A4 | R | latest generation low/high |
+| 3A8/3AC | R | latest frame low/high |
+| 3B0/3B4 | R | latest prefix low/high |
+| 3B8 | R | latest natural-end bit 0 |
+
+All response fields are one coherent pre-operation audio-edge copy, including
+the head removed by a successful Pop. A simultaneous output arrival is visible
+to a later query. Missing head/latest data and reserved bits read as zero.
+Peek never removes a record. Pop succeeds only with a matching epoch and head
+sequence. Invalid ticket/sequence encoding returns Invalid before other checks;
+epoch mismatch or simultaneous session Reset returns Stale. Empty applies to
+either action after those checks. A nonmatching present head returns Stale.
+The query never waits for a record to arrive and is independent of control,
+feed and capture. Reading/releasing a copied response cannot pop again.
+Normal Reset leaves a copied old response intact; inspect its actual epoch
+before use. The CPU must not infer current loss/latest values from an old copy.
+
+The ideal-edge query visibility bound is the same 5 audio plus 3 CPU periods
+as capture. Journal expiry is a display failure, never an audio stop; its CPU
+service policy remains to be connected and checked in the adapter.
 
 ## CDC, reset and ownership
 
-Three independent single-request mailboxes carry control, feed and capture.
+Four independent single-request mailboxes carry control, feed, capture and journal.
 Each sender registers a complete request and toggles request. Two destination
 synchronizers precede copying it into a destination register. The destination
 holds valid until acceptance; response is copied into a held bundle and ACK
@@ -156,7 +202,7 @@ advances only on a valid admitted normal Reset; an Invalid/Stale control does
 not cancel playback. Feed responses echo the offered epoch; capture echoes
 the expected epoch and records the actual epoch. Normal Reset never clears a
 toggle while a bundle is borrowed. Old transfers drain with their original
-identity; software discards/releases old feed/capture responses before reusing
+identity; software discards/releases old feed/capture/journal responses before reusing
 those independent slots for the new epoch. A stale response cannot complete a
 new request. Reset completion itself never releases a still-borrowed bundle.
 
@@ -180,7 +226,7 @@ designed submit-to-CPU-visible-response bound is `(L+5)*Taudio + 3*Tcpu`.
 It comprises up to three destination edges for toggle synchronization/copy,
 one for request acceptance, L local edges, one for response copy, then up to
 three sender edges. L is 2,050 Reset, 259 Start, 257 boundary controls, zero
-for a single feed offer/capture. Independent-clock tests and local CDC/timing
+for a single feed offer/capture/journal query. Independent-clock tests and local CDC/timing
 checks now pass; M6 records their scope. At the nominal rates the resulting
 bounds, rounded upward, are:
 
@@ -189,7 +235,7 @@ bounds, rounded upward, are:
 | Reset | 167.270 | 15,055 |
 | Start | 21.518 | 1,937 |
 | Pause / Resume / SetPolicy | 21.355 | 1,922 |
-| One feed offer / capture | 0.441 | 40 |
+| One feed offer / capture / journal query | 0.441 | 40 |
 
 These ideal-edge bounds exclude CPU service/polling time and analog
 metastability delays; they do not themselves set a CPU watchdog constant.
@@ -218,4 +264,4 @@ staging mutation, coherent copies across frame/policy changes, every reset
 transfer stage and either reset origin, stale epochs, Full/retry and emergency
 during pending/unread operations. Use actual JT51, shifted independent clocks,
 unchanged native/host regressions, negative controls and a constrained dual-clock
-fit. Whole-Pocket decode, CPU backend, journal and firmware acceptance follow.
+fit. Whole-Pocket decode, CPU history/backend and firmware acceptance follow.

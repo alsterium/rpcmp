@@ -20,25 +20,34 @@ module sound_mmio_tb;
     logic [31:0] exp_target;
     logic [31:0] words[0:32], saved[0:32], value;
     logic [63:0] epoch=0, prepared=0, ack_frame=0, pause_frame=0;
-    integer controls=0, feeds=0, captures=0, reset_cases=0, nonzero_bits=0;
+    integer controls=0, feeds=0, captures=0, journals=0, reset_cases=0, nonzero_bits=0;
+    logic [31:0] journal_words[0:30], journal_saved[0:30];
+    logic [63:0] journal_epoch, journal_head_sequence;
     integer native_writes=0, emergency_deliveries=0;
+    logic compare_reads=0;
+    integer reader_mode=0, record_index=0, reference_records=0;
+    logic [128:0] reference_trace[0:127];
     logic check_tone=0;
     logic [7:0] native_address=0;
     logic [63:0] offered_gen, offered_feed_epoch, offered_at, offered_until, offered_loops;
     logic [1:0] offered_flags;
     logic [15:0] offered_bytes, native_expected;
     integer selected_channel=0;
-    wire selected_request=selected_channel==0 ? dut.control_a_valid : selected_channel==1 ? dut.feed_a_valid : dut.capture_a_valid;
-    wire selected_reply=selected_channel==0 ? dut.control_r_valid : selected_channel==1 ? dut.feed_r_valid : dut.capture_r_valid;
-    wire selected_visible=selected_channel==0 ? dut.control_valid : selected_channel==1 ? dut.feed_valid : dut.capture_valid;
+    wire selected_request=selected_channel==0 ? dut.control_a_valid : selected_channel==1 ? dut.feed_a_valid :
+        selected_channel==2 ? dut.capture_a_valid : dut.journal_a_valid;
+    wire selected_reply=selected_channel==0 ? dut.control_r_valid : selected_channel==1 ? dut.feed_r_valid :
+        selected_channel==2 ? dut.capture_r_valid : dut.journal_r_valid;
+    wire selected_visible=selected_channel==0 ? dut.control_valid : selected_channel==1 ? dut.feed_valid :
+        selected_channel==2 ? dut.capture_valid : dut.journal_valid;
     wire selected_ack=selected_channel==0 ? dut.control_mailbox.ack_toggle!=dut.control_mailbox.ack_sync :
         selected_channel==1 ? dut.feed_mailbox.ack_toggle!=dut.feed_mailbox.ack_sync :
-        dut.capture_mailbox.ack_toggle!=dut.capture_mailbox.ack_sync;
-    realtime control_at=0, feed_at=0, capture_at=0;
+        selected_channel==2 ? dut.capture_mailbox.ack_toggle!=dut.capture_mailbox.ack_sync :
+        dut.journal_mailbox.ack_toggle!=dut.journal_mailbox.ack_sync;
+    realtime control_at=0, feed_at=0, capture_at=0, journal_at=0;
     real control_limit=0;
-    logic was_control=0, was_feed=0, was_capture=0;
+    logic was_control=0, was_feed=0, was_capture=0, was_journal=0;
     always @(posedge cpu_clk) begin
-        if (!dut.cpu_local_reset_n) begin was_control=0; was_feed=0; was_capture=0; end
+        if (!dut.cpu_local_reset_n) begin was_control=0; was_feed=0; was_capture=0; was_journal=0; end
         else begin
             // Record actual CPU acceptance and first visibility, independently
             // of the software polling frequency used below.
@@ -48,6 +57,7 @@ module sound_mmio_tb;
             end
             if (mmio_wr && !mmio_error && mmio_addr==BASE+32'hb0) feed_at=$realtime;
             if (mmio_wr && !mmio_error && mmio_addr==BASE+32'h110) capture_at=$realtime;
+            if (mmio_wr && !mmio_error && mmio_addr==BASE+32'h31c) journal_at=$realtime;
             #0.001;
             if (dut.control_valid && !was_control && $realtime-control_at>control_limit+0.002)
                 $fatal(1,"control CDC latency exceeded derived edge budget");
@@ -55,10 +65,19 @@ module sound_mmio_tb;
                 $fatal(1,"feed CDC latency exceeded derived edge budget");
             if (dut.capture_valid && !was_capture && $realtime-capture_at>5*81.380+3*11.112+0.002)
                 $fatal(1,"capture CDC latency exceeded derived edge budget");
-            was_control=dut.control_valid; was_feed=dut.feed_valid; was_capture=dut.capture_valid;
+            if (dut.journal_valid && !was_journal && $realtime-journal_at>5*81.380+3*11.112+0.002)
+                $fatal(1,"journal CDC latency exceeded derived edge budget");
+            was_control=dut.control_valid; was_feed=dut.feed_valid; was_capture=dut.capture_valid; was_journal=dut.journal_valid;
         end
     end
     always @(posedge audio_clk) begin
+        if(compare_reads && dut.commit_valid) begin
+            if(record_index>=128) $fatal(1,"journal trace capacity");
+            if(reader_mode==0) reference_trace[record_index]={dut.commit_frame,dut.commit_prefix,dut.commit_natural_end};
+            else if(reference_trace[record_index]!=={dut.commit_frame,dut.commit_prefix,dut.commit_natural_end})
+                $fatal(1,"output trace changed with journal read cadence index=%0d",record_index);
+            record_index=record_index+1;
+        end
         if (dut.audio_local_reset_n && dut.emergency_pulse) emergency_deliveries=emergency_deliveries+1;
         if (dut.feed_a_valid && dut.feed_a_ready &&
             {dut.session.item_generation,dut.session.item_epoch,dut.session.item_at,dut.session.item_until,
@@ -168,6 +187,24 @@ module sound_mmio_tb;
     task automatic capture(input logic [63:0] expected_epoch, input logic [31:0] result=1);
         stage_capture(TICKET,expected_epoch); wr('h110,1); read_capture(TICKET,expected_epoch,result);
     endtask
+    task automatic stage_journal(input logic [63:0] expected_epoch, seq=0, ticket=TICKET, input logic pop=0);
+        write64('h300,ticket); write64('h308,expected_epoch); write64('h310,seq); wr('h318,{31'd0,pop});
+    endtask
+    task automatic read_journal(input logic [63:0] expected_epoch, input logic [31:0] result,
+                                input logic release_it=1, input logic [63:0] ticket=TICKET);
+        wait_status(13);
+        for(integer i=0;i<31;i=i+1) rd('h340+i*4,journal_words[i]);
+        if({journal_words[1],journal_words[0]}!==ticket || {journal_words[3],journal_words[2]}!==expected_epoch ||
+           (result!=0 && journal_words[6]!==result) || journal_words[7]>32 || journal_words[12][31:3]!=0 ||
+           journal_words[21][31:1]!=0 || journal_words[30][31:1]!=0)
+            $fatal(1,"journal identity/status/reserved fields mismatch expected=%0d actual=%0d",result,journal_words[6]);
+        journals=journals+1;
+        if(release_it) wr('h320,1);
+    endtask
+    task automatic query_journal(input logic [63:0] expected_epoch, seq=0, input logic pop=0,
+                                 input logic [31:0] result=1, input logic release_it=1);
+        stage_journal(expected_epoch,seq,TICKET,pop); wr('h31c,1); read_journal(expected_epoch,result,release_it);
+    endtask
     function automatic logic [15:0] tone(input integer i);
         integer op, group_index;
         if(i==0) return 16'h20c7;
@@ -201,16 +238,17 @@ module sound_mmio_tb;
         repeat(4) @(negedge audio_clk); cpu_reset_n=1; audio_reset_n=1;
         repeat(8) @(negedge audio_clk);
         rd(0,value); if(value!==32'h52534d31) $fatal(1,"ID");
-        rd(4,value); if(value!==32'h00010000) $fatal(1,"version");
-        rd(8,value); if(value!==7) $fatal(1,"unimplemented capabilities advertised");
+        rd(4,value); if(value!==32'h00010001) $fatal(1,"version");
+        rd(8,value); if(value!==15) $fatal(1,"journal capabilities");
         rd('h18,value); if(value!==12288000) $fatal(1,"source rate");
         rd('h1c,value); if(value!==48000) $fatal(1,"frame rate");
         for(integer o=0;o<1024;o=o+4) begin
-            if ((o>='h20 && o<='h40) || (o>='h80 && o<='hac) || (o>='h100 && o<='h10c)) begin
+            if ((o>='h20 && o<='h40) || (o>='h80 && o<='hac) || (o>='h100 && o<='h10c) || (o>='h300 && o<='h318)) begin
                 rd(o,value); if(value!=0) $fatal(1,"staging not reset");
             end else if (!(o==0 || o==4 || o==8 || o==12 || o==24 || o==28)) rd(o,value,1);
-            if (!((o>='h20 && o<='h40) || (o>='h80 && o<='hac) || (o>='h100 && o<='h10c) ||
-                  o=='h10 || o=='h14 || o=='h44 || o=='h48 || o=='hb0 || o=='hb4 || o=='h110 || o=='h114)) wr(o,0,1);
+            if (!((o>='h20 && o<='h40) || (o>='h80 && o<='hac) || (o>='h100 && o<='h10c) || (o>='h300 && o<='h318) ||
+                  o=='h10 || o=='h14 || o=='h44 || o=='h48 || o=='hb0 || o=='hb4 || o=='h110 || o=='h114 ||
+                  o=='h31c || o=='h320)) wr(o,0,1);
         end
         for(integer lanes=0;lanes<15;lanes=lanes+1) write_abs(BASE+'h20,32'hbadc0ffe,1,4'(lanes));
         rd('h20,value); if(value!=0) $fatal(1,"partial write changed staging");
@@ -219,12 +257,19 @@ module sound_mmio_tb;
         read_abs(BASE-4,value,1); read_abs(BASE+1024,value,1);
         wr(0,1,1); wr('h30,8,1); wr('h3c,2,1); wr('ha8,4,1); wr('hac,32'h10000,1);
         wr('h44,0,1); wr('h48,1,1); wr('hb4,1,1); wr('h114,1,1); wr('h14,4,1);
+        wr('h318,2,1); wr('h31c,0,1); wr('h320,1,1);
         @(negedge cpu_clk); mmio_addr=BASE+'h20; mmio_rd=1; mmio_wr=1; mmio_wr_data=1; byte_enable=15;
         #0.001; if(!mmio_error || mmio_rd_data!=0) $fatal(1,"simultaneous read/write accepted");
         @(posedge cpu_clk); #0.001;
         @(negedge cpu_clk); mmio_rd=0; mmio_wr=0;
         rd('h20,value); if(value!=0) $fatal(1,"rejected access changed staging");
         wr('h14,3); rd('h0c,value); if(value[9:8]!=0) $fatal(1,"diagnostic clear");
+
+        query_journal(0,0,0,2);
+        if(journal_words[7]!=0 || journal_words[10]!=1 || journal_words[12]!=0)
+            $fatal(1,"empty journal state");
+        query_journal(99,0,0,4); query_journal(0,1,0,3); query_journal(0,0,1,3);
+        stage_journal(0,0,0); wr('h31c,1); read_journal(0,3,1,0);
 
         // Keep old state and old feed responses owned while Reset executes.
         stage_capture(TICKET,0); wr('h110,1); read_capture(TICKET,0,1,0);
@@ -254,6 +299,15 @@ module sound_mmio_tb;
         wr('hb4,1); wr('hb0,1); feed_result(1,GEN,epoch);
         repeat(18000) @(negedge audio_clk);
         if(nonzero_bits==0 || sound_fault || native_writes!=28) $fatal(1,"real tone failed through MMIO");
+        query_journal(epoch,0,0,1,0);
+        for(integer i=0;i<31;i=i+1) journal_saved[i]=journal_words[i];
+        if(journal_words[7]==0 || journal_words[12]!=3 || {journal_words[16],journal_words[15]}!=GEN ||
+           {journal_words[20],journal_words[19]}==0 || journal_words[21]!=0 ||
+           {journal_words[29],journal_words[28]}!=29 || journal_words[30]!=0)
+            $fatal(1,"real tone output journal missing");
+        journal_head_sequence={journal_words[14],journal_words[13]};
+        for(integer o='h300;o<='h318;o=o+4) wr(o,0);
+        wr('h31c,1,1);
         control(2,GEN,1,1,2); pause_frame=ack_frame;
         capture(epoch);
         if({words[9],words[8]}!=GEN || {words[11],words[10]}!=pause_frame || {words[13],words[12]}!=1 ||
@@ -270,6 +324,14 @@ module sound_mmio_tb;
         wr('h114,1); capture(epoch);
         if({words[11],words[10]}<=pause_frame || {words[13],words[12]}!=2 || words[16]!=5 || words[18]!=2)
             $fatal(1,"live policy capture");
+        for(integer i=0;i<31;i=i+1) begin rd('h340+i*4,value); if(value!==journal_saved[i]) $fatal(1,"unread journal response changed"); end
+        wr('h320,1);
+        query_journal(epoch,journal_head_sequence+1,1,4);
+        query_journal(epoch,journal_head_sequence,1);
+        if({journal_words[14],journal_words[13]}!=journal_head_sequence) $fatal(1,"Pop did not return removed head");
+        query_journal(epoch,journal_head_sequence,1,4);
+        query_journal(epoch,0,0,1,0); journal_epoch=epoch;
+        for(integer i=0;i<31;i=i+1) journal_saved[i]=journal_words[i];
 
         // Every emergency write remains deliverable, including a coalesced follow-up.
         check_tone=0;
@@ -282,22 +344,65 @@ module sound_mmio_tb;
         if(emergency_deliveries!=3) $fatal(1,"later emergency delivery missing");
         control(0,GEN+1); capture(epoch);
         if(words[17]!=20 || words[18]!=0 || words[19]!=0) $fatal(1,"emergency recovery snapshot");
+        for(integer i=0;i<31;i=i+1) begin rd('h340+i*4,value); if(value!==journal_saved[i]) $fatal(1,"Reset changed borrowed journal response"); end
+        wr('h320,1); query_journal(journal_epoch,journal_head_sequence,1,4); query_journal(epoch,0,0,2);
         feed(0,0,0,3); control(1,GEN+1,1);
         repeat(10000) @(negedge audio_clk); capture(epoch);
         if(words[18]!=(3<<2) || words[19]!=0 || sound_fault) $fatal(1,"natural end across CDC");
+        query_journal(epoch);
+        if(journal_words[7]!=1 || journal_words[13]!=1 || {journal_words[16],journal_words[15]}!=GEN+1 ||
+           journal_words[19]!=1 || journal_words[21]!=1 || journal_words[30]!=1 ||
+           {journal_words[18],journal_words[17]}!={words[11],words[10]})
+            $fatal(1,"natural end must retain the applied unconsumed checkpoint");
+        query_journal(journal_epoch,1,1,4);
+        query_journal(epoch);
+        if(journal_words[7]!=1 || journal_words[13]!=1) $fatal(1,"old epoch Pop removed the new epoch's same-sequence head");
         control(0,GEN+2); feed(0,0,0,0,16'h20c7); control(1,GEN+2,1);
         repeat(3000) @(negedge audio_clk); rd('h0c,value);
         if(!value[7] || !value[6]) $fatal(1,"real source starvation not visible to CPU");
+        query_journal(epoch,0,0,2);
+        if(journal_words[12]!=0) $fatal(1,"fault published an uncommitted future checkpoint");
+
+        // Identical authored zero-write ticks, once with no reader and once
+        // with frequent explicit Pops. Overflow must change only retention.
+        for(integer mode=0;mode<2;mode=mode+1) begin
+            control(0,GEN+64'(mode+3));
+            for(integer i=0;i<63;i=i+1) feed(64'(i)*512,64'(i+1)*512,64'(i),1);
+            feed(63*512,0,63,3);
+            reader_mode=mode; record_index=0; compare_reads=1;
+            control(1,GEN+64'(mode+3),1);
+            if(mode==0) repeat(41000) @(negedge audio_clk);
+            else begin
+                while(dut.end_reason==0) begin
+                    query_journal(epoch,0,0,0);
+                    if(journal_words[6]==1) query_journal(epoch,{journal_words[14],journal_words[13]},1);
+                    else if(journal_words[6]!=2) $fatal(1,"active journal query failed");
+                end
+                repeat(10) @(negedge audio_clk);
+            end
+            compare_reads=0;
+            if(sound_fault || dut.end_reason!=3 || record_index<33) $fatal(1,"overflow scenario did not finish");
+            query_journal(epoch,0,0,0);
+            if({journal_words[29],journal_words[28]}!=64 || journal_words[30]!=1)
+                $fatal(1,"latest checkpoint lost with FIFO overflow");
+            if(mode==0) begin
+                reference_records=record_index;
+                if(journal_words[7]!=32 || {journal_words[9],journal_words[8]}!=64'(record_index-32))
+                    $fatal(1,"unread journal did not report exact loss");
+            end else if(record_index!=reference_records || {journal_words[9],journal_words[8]}!=0)
+                $fatal(1,"journal reader changed audio or lost records despite timely reads");
+        end
 
         // Assert each reset origin at all transfer stages for each mailbox.
         common_reset(1);
-        for(integer c=0;c<3;c=c+1) begin
+        for(integer c=0;c<4;c=c+1) begin
             selected_channel=c;
             for(integer s=0;s<6;s=s+1) begin
                 case(c)
                     0:begin stage_control(0,GEN); wr('h44,1); end
                     1:begin stage_feed(GEN,0,0,0,0,0,16'h20c7); wr('hb0,1); end
                     2:begin stage_capture(TICKET,0); wr('h110,1); end
+                    3:begin stage_journal(0); wr('h31c,1); end
                 endcase
                 case(s)
                     0: ;
@@ -310,11 +415,35 @@ module sound_mmio_tb;
                 common_reset((s%2)==0); reset_cases=reset_cases+1;
             end
         end
+        // Transport-width fixture: independently chosen high words cannot be
+        // reached by a short audio run. Only the observation tap is injected.
+        @(negedge audio_clk);
+        force dut.journal.next_sequence=64'h0102030405060708;
+        force dut.journal.lost=64'hdeadbeef01234567;
+        #0.001; release dut.journal.next_sequence; release dut.journal.lost;
+        force dut.commit_valid=1;
+        force dut.commit_generation=64'h89abcdef01234567;
+        force dut.commit_frame=64'h3456789abcdef012;
+        force dut.commit_prefix=64'h456789abcdef0123;
+        force dut.commit_natural_end=1;
+        @(posedge audio_clk); #0.001; force dut.commit_valid=0;
+        @(negedge audio_clk); release dut.commit_valid; release dut.commit_generation;
+        release dut.commit_frame; release dut.commit_prefix; release dut.commit_natural_end;
+        query_journal(0);
+        if({journal_words[14],journal_words[13]}!==64'h0102030405060708 ||
+           {journal_words[16],journal_words[15]}!==64'h89abcdef01234567 ||
+           {journal_words[18],journal_words[17]}!==64'h3456789abcdef012 ||
+           {journal_words[20],journal_words[19]}!==64'h456789abcdef0123 || journal_words[21]!=1 ||
+           {journal_words[9],journal_words[8]}!==64'hdeadbeef01234567 ||
+           {journal_words[11],journal_words[10]}!==64'h0102030405060709)
+            $fatal(1,"full-width journal response fields changed");
+        for(integer i=0;i<9;i=i+1) if(journal_words[13+i]!==journal_words[22+i])
+            $fatal(1,"independent latest record did not copy all words");
         control(0,GEN); feed(0,0,0,3); control(1,GEN,1);
         repeat(10000) @(negedge audio_clk); capture(epoch);
-        if(words[18]!=(3<<2) || sound_fault || reset_cases!=18) $fatal(1,"post-common-reset generation did not recover");
-        $display("sound_mmio_tb: PASS phase_ps=%0d controls=%0d feeds=%0d captures=%0d reset_stages=%0d nonzero_bits=%0d",
-                 phase_ps,controls,feeds,captures,reset_cases,nonzero_bits);
+        if(words[18]!=(3<<2) || sound_fault || reset_cases!=24) $fatal(1,"post-common-reset generation did not recover");
+        $display("sound_mmio_tb: PASS phase_ps=%0d controls=%0d feeds=%0d captures=%0d journals=%0d cadence_records=%0d reset_stages=%0d nonzero_bits=%0d",
+                 phase_ps,controls,feeds,captures,journals,reference_records,reset_cases,nonzero_bits);
         $finish;
     end
 endmodule

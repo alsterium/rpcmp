@@ -9,7 +9,10 @@ host checks and local fitted timing/CDC. The user approved the 1,000 us mailbox
 watchdog on 2026-09-20; CPU deadline handling remains to be implemented/tested.
 The [retained MDX producer](../specs/mdx-source-producer-v1.md) now passes
 copied-batch/retry/epoch host checks and a RISC-V compile/link memory probe.
-Next are bounded output/per-event history and the CPU sound/storage adapters.
+The [32-record output journal](../specs/pocket-output-journal-v1.md) now passes
+native boundary, overflow/read-cadence and four-mailbox CDC checks with local
+fitted timing. Next are 16-batch CPU display retention/per-event mapping and
+the CPU sound/storage adapters; the journal is not yet public history.
 The [synchronous sound session](../specs/pocket-sound-session-v1.md) now passes
 all-phase local control/reset/inhibit tests, host/RTL regressions and registered
 fit/timing; the active milestone records the commands and limitations. Sound/storage adapters

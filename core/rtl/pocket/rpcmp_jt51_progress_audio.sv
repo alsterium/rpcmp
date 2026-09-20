@@ -34,6 +34,8 @@ module rpcmp_jt51_progress_audio (
     output logic pending_checkpoint_valid, output_checkpoint_valid,
     output logic pending_ended, output_ended,
     output logic [63:0] pending_loops, output_loops,
+    output logic commit_valid, commit_natural_end,
+    output logic [63:0] commit_generation, commit_frame, commit_prefix,
     output logic audio_mclk, audio_lrck, audio_dac,
     output logic audio_underflow, audio_overflow, audio_clipped,
     output logic [31:0] selected_count, frame_count
@@ -55,6 +57,37 @@ module rpcmp_jt51_progress_audio (
     logic [63:0] native_prefix;
     logic signed [15:0] jt_left, jt_right, source_left, source_right;
     logic signed [15:0] transformed_left, transformed_right;
+    logic [63:0] last_commit_prefix, boundary_generation, boundary_frame, boundary_prefix;
+    logic boundary_end, terminal_recorded;
+
+    // The natural-end boundary applies a pending checkpoint without consuming
+    // PCM. Retain the pre-boundary copy until the envelope confirms its result.
+    always_ff @(posedge clk_audio or negedge reset_n) begin
+        if (!reset_n) begin
+            commit_valid<=0; commit_natural_end<=0; commit_generation<=0;
+            commit_frame<=0; commit_prefix<=0; last_commit_prefix<=0;
+            boundary_end<=0; boundary_generation<=0; boundary_frame<=0; boundary_prefix<=0;
+            terminal_recorded<=0;
+        end else if (session_reset || stream_reset || begin_status==1) begin
+            commit_valid<=0; boundary_end<=0; terminal_recorded<=0; last_commit_prefix<=0;
+        end else begin
+            commit_valid<=0; boundary_end<=0;
+            if (frame_boundary && !resetting && armed) begin
+                boundary_end<=pending_checkpoint_valid && pending_ended;
+                boundary_generation<=generation; boundary_frame<=media_frame; boundary_prefix<=pending_prefix;
+            end
+            if (consume && pending_source_valid && pending_prefix>last_commit_prefix) begin
+                commit_valid<=1; commit_natural_end<=0; commit_generation<=generation;
+                commit_frame<=media_frame; commit_prefix<=pending_prefix;
+                last_commit_prefix<=pending_prefix;
+            end else if (boundary_end && !terminal_recorded && failure==0 &&
+                         (end_reason==2 || end_reason==3)) begin
+                commit_valid<=1; commit_natural_end<=1; commit_generation<=boundary_generation;
+                commit_frame<=boundary_frame; commit_prefix<=boundary_prefix;
+                last_commit_prefix<=boundary_prefix; terminal_recorded<=1;
+            end
+        end
+    end
 
     assign terminal = end_reason!=0 || failure!=0;
     assign active = generation!=0 && !terminal;

@@ -75,8 +75,13 @@ module jt51_progress_audio_tb;
     integer model_gain=0, model_phase=0, model_elapsed=0, model_target=0, model_end=0, anchor=0;
     integer old_gain, frame_before;
     logic reached;
+    logic expected_commit=0, expected_natural=0, natural_due=0;
+    logic [63:0] expected_commit_frame=0, expected_commit_prefix=0, journal_prefix=0, journal_generation=0;
+    logic [63:0] natural_frame=0, natural_prefix=0;
+    integer checked_commits=0, checked_natural=0;
     always #5 clk_audio=~clk_audio;
-    rpcmp_jt51_progress_audio dut(.session_reset(1'b0), .*);
+    rpcmp_jt51_progress_audio dut(.session_reset(1'b0), .commit_valid(), .commit_natural_end(),
+        .commit_generation(), .commit_frame(), .commit_prefix(), .*);
 
     function automatic logic [15:0] scaled(input logic signed [15:0] value, input integer factor);
         longint signed product;
@@ -90,9 +95,12 @@ module jt51_progress_audio_tb;
         if (!reset_n) serial_phase=0;
         else serial_phase=(serial_phase+1)%256;
         if (checking) begin
+            expected_commit=natural_due; expected_natural=natural_due;
+            expected_commit_frame=natural_frame; expected_commit_prefix=natural_prefix; natural_due=0;
             if (!was_reset && (failure || audio_underflow || audio_overflow))
                 $fatal(1,"unexpected mapped stream fault frame=%0d failure=%0d",media_frame,failure);
             if (begin_status==1) begin
+                expected_commit=0; journal_prefix=0; journal_generation=begin_generation;
                 model_started=1; model_frame=0; model_loops=0; model_paused=0; model_end=0;
                 model_gain=240000; model_phase=0; model_elapsed=0;
                 model_target_enabled=begin_target_enabled; model_target=int'(begin_target);
@@ -112,6 +120,7 @@ module jt51_progress_audio_tb;
                     model_loops=model_pending ? model_pending_data[63:0] : 64'd0;
                     if (model_pending && model_pending_data[64]) begin
                         model_end=model_target_enabled ? 2 : 3; ends=ends+1;
+                        natural_due=1; natural_frame=model_frame; natural_prefix=model_pending_prefix;
                     end else begin
                         reached=model_target_enabled && model_loops>=64'(model_target);
                         if (reached && model_phase!=1) begin
@@ -120,6 +129,10 @@ module jt51_progress_audio_tb;
                             model_phase=2; model_elapsed=0; anchor=model_gain; restores=restores+1;
                         end
                         consuming=1; model_frame=model_frame+1;
+                        if(model_pending && model_pending_prefix>journal_prefix) begin
+                            expected_commit=1; expected_natural=0; expected_commit_frame=64'(frame_before);
+                            expected_commit_prefix=model_pending_prefix; journal_prefix=model_pending_prefix;
+                        end
                         if (model_phase!=0) begin
                             model_elapsed=model_elapsed+1;
                             if (model_phase==1) model_gain=anchor-(anchor*model_elapsed)/240000;
@@ -203,6 +216,14 @@ module jt51_progress_audio_tb;
                 if (enabled) retained=retained+1;
             end
             #1;
+            if(dut.commit_valid!==expected_commit || (expected_commit &&
+               {dut.commit_generation,dut.commit_frame,dut.commit_prefix,dut.commit_natural_end}!==
+               {journal_generation,expected_commit_frame,expected_commit_prefix,expected_natural}))
+                $fatal(1,"output record differs from independent native/sample/boundary oracle frame=%0d",model_frame);
+            if(expected_commit) begin
+                checked_commits=checked_commits+1;
+                if(expected_natural) checked_natural=checked_natural+1;
+            end
             if (model_started && (media_frame!==model_frame || completed_loops!==model_loops ||
                 gain!==18'(model_gain) || phase!==2'(model_phase) || ramp_elapsed!==18'(model_elapsed) ||
                 paused!==model_paused || end_reason!==3'(model_end)))
@@ -290,6 +311,7 @@ module jt51_progress_audio_tb;
         if(checked_frames<300 || checked_samples<290 || nonzero<100 || starts!=6 || ends!=6)
             $fatal(1,"missing mapped progress coverage frames=%0d samples=%0d nonzero=%0d starts=%0d ends=%0d",
                 checked_frames,checked_samples,nonzero,starts,ends);
+        if(checked_commits<6 || checked_natural!=6) $fatal(1,"missing independently checked output records");
         // One write without a sealing marker must cause a real supply fault.
         checking=0; offer(0,0,0,0,0,16'h20c7,1); start(16,7);
         wait(failure!=0); if(failure!=1) $fatal(1,"source starvation not DeviceFault");
@@ -299,8 +321,8 @@ module jt51_progress_audio_tb;
         begin_target_enabled=0;
         offer(1,1,0,0,0,0,1); start(32,8); wait(quiescent);
         if(failure || end_reason!=3) $fatal(1,"fresh generation did not recover after fault");
-        $display("jt51_progress_audio_tb: PASS frames=%0d samples=%0d nonzero=%0d starts=%0d fades=%0d restores=%0d ends=%0d marker_replacement=%0d merged=%0d fault_recovery=1",
-            checked_frames,checked_samples,nonzero,starts,fades,restores,ends,marker_replacement,merged);
+        $display("jt51_progress_audio_tb: PASS frames=%0d samples=%0d nonzero=%0d starts=%0d fades=%0d restores=%0d ends=%0d marker_replacement=%0d merged=%0d commits=%0d natural_records=%0d fault_recovery=1",
+            checked_frames,checked_samples,nonzero,starts,fades,restores,ends,marker_replacement,merged,checked_commits,checked_natural);
         $finish;
     end
 endmodule

@@ -200,6 +200,19 @@ Every invocation also runs the generic mailbox bench with 64 full-width
 requests/responses, destination acceptance/response delays and unread source
 completions, checking that borrowed bundles stay fixed without loss or repeats.
 
+The same command checks the 32-record output journal: empty/full/simultaneous
+Pop, RAM wrap, loss saturation and sequence exhaustion, then its independent
+CPU mailbox at all five phases. A 64-marker native stream has identical output
+record frames/prefixes with no reader (32 lost) and frequent Pops (zero lost).
+Copied responses survive playback changes and normal Reset; old-epoch Pops
+cannot remove a new epoch's equal-sequence head. Every register direction and
+all four mailboxes' six reset stages are checked. Full-width record fields use
+an explicitly injected observation fixture, not a claimed long hardware run.
+The native progress bench independently derives 34 output records, including
+six unconsumed natural-end boundaries, from actual receipts and sample selection.
+These establish local mapping/transfer, not CPU display publication or Pocket
+service speed.
+
 Run the reproducible Quartus template-integration build separately with:
 
 ```powershell
