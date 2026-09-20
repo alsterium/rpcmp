@@ -7,8 +7,13 @@ hardware evidence or a new product decision is needed.
 
 Implement the accepted Q1–Q24 [album-player requirements](../design/pocket-library-player-spec-draft.md):
 100–300 FM-only tracks, album browsing, transport/loop/shuffle controls,
-Tracker/keyboard/library views and persistent playback settings. Audio remains
-independent of UI. Work proceeds one slice at a time.
+Tracker/keyboard/library views and playback settings. On 2026-09-20 the user
+deferred persistence: every application launch starts with AlbumOrder / Default
+(two loops with five-second fade), shuffle off and no autoplay. Live setting
+changes remain required. Persistent settings and their APF storage integration
+are future work, not completion gates for this milestone. Existing optional
+contracts and tested components remain available without enabling them in the
+Pocket build. Audio remains independent of UI. Work proceeds one slice at a time.
 
 Slice 1 adopts the host portion of the [text profile](../design/pocket-text-rendering-profile.md)
 as [host metadata v1](../../specs/host-metadata-v1.md). CP932 table 2.01 and
@@ -154,17 +159,18 @@ remain required before advertising settings support on Pocket.
    contracts and input tables. Prove transitions, cancellation, loop counting,
    shuffle completion, save races and focus/commands against injected ports and
    snapshots. Preserve v1 compatibility; prove no renderer dependency.
-4. **Sound and storage feasibility:** prove state-preserving pause, stereo
+4. **Sound feasibility:** prove state-preserving pause, stereo
    frame boundaries, cancellable fade reservations and audible commit in RTL;
    derive the sound-control port/CDC/ACK contract from those results. Implement
-   asynchronous APF RAM-slot flush/readback and timeout ownership. Use sequential
-   RTL suites and fault injection before target integration.
+   the sound adapter. Use sequential RTL suites and fault injection before
+   target integration. The previously planned APF settings RAM-slot
+   flush/readback and timeout ownership are deferred by the 2026-09-20 decision.
 5. **Pocket UI and integration:** generate licensed bitmap fonts, connect the
    real input/framebuffer/catalog/player adapters, cross-build and measure ELF,
    stack and framebuffer/font allocation. Review exact official APF mappings
    when implementing them. Run synthesis/timing/CDC and package-coherence checks.
 6. **Hardware acceptance:** firmware 2.6 verifies playback, pause/resume, fade,
-   navigation while playing, layout/readability, settings persistence and
+   navigation while playing, layout/readability, settings returning to defaults and
    failure silence across relaunch/power cycles. Stop for the user once a
    concrete checked candidate and focused hardware checklist are ready.
 
@@ -173,6 +179,21 @@ for each stable unit. RTL, cross-build, fit and hardware checks are required
 when those paths change; host-only results cannot establish their acceptance.
 
 ## Carried integration gates
+
+On 2026-09-20 the user explicitly replaced Q19's persistence requirement with
+per-launch defaults. This resolves the scope change without changing the
+optional settings protocol. Pocket integration omits its storage controller,
+capability and save-status UI. In-session policy changes, audio behavior and
+all other carried gates remain required. Historical storage evidence below is
+retained; its statements of what was next do not override this decision or
+[CURRENT](../CURRENT.md).
+
+For this documentation change, `pwsh -File tools/host-verify.ps1 -CheckSetupOnly`
+passed, then `pwsh -File tools/host-verify.ps1` passed **81/81** in **483.99 s**,
+including format, tidy and architecture checks. Log:
+`out/build/m6-settings-deferred-host.log`. Production code/package inputs did
+not change in this unit; RTL and hardware acceptance do not apply to the
+documentation update. The subsequent AXI integration has separate evidence.
 
 [M5](M5-real-mdx-library-playback.md) is deferred with its historical evidence,
 not declared complete. Its diagnosis workstream remains closed by the user's

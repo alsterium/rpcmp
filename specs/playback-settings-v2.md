@@ -9,6 +9,11 @@ not change policy, stop playback or become an audio/reset result.
 
 ## Public observation and startup
 
+Pocket deployment note (2026-09-20): the user deferred persistence for M6.
+That build does not inject this optional controller or advertise its capability;
+each launch uses the policy profile's defaults. The contract below remains
+unchanged for consumers that opt into persistent settings.
+
 Capability bit 7 (`kPlaybackSettings`) declares an optional copied `settings`
 value in PlayerSnapshot. Absence preserves existing constructors/backends.
 It contains the current policy revision, optional persisted revision, restore

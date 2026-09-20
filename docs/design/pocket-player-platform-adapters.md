@@ -1,5 +1,9 @@
 # Pocket の設定保存・音声制御アダプター案
 
+2026-09-20 更新：ユーザー指示により設定の永続保存は将来対応に延期しました。
+今回は毎起動で既定値に戻し、保存用 APF/SDK/RAM 接続と媒体検証を完成条件から外します。
+以下の保存部分は将来用の提案です。音声制御と Pocket 統合は引き続き進めます。
+
 Status: proposal, 2026-09-13. [設定保存](pocket-playback-settings-contract.md) と
 [再生状態遷移](pocket-player-transition-contract.md) をPocketへ接続する方式案です。
 公式APF仕様は同日オンライン確認しました。新しいRTL/SDKや公開v1契約は実装・変更していません。

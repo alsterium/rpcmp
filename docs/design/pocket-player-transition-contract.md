@@ -53,7 +53,7 @@ Stopped に入り、暗黙には再生しません。不明 ID / 古い generati
 止める前に拒否します。既存の accepted は完了を意味せず、最終状態は snapshot で読みます。
 
 `SetPlaybackPolicy` は次の全体を１回で置き換えます。初回の既定値は AlbumOrder / Default。
-Q19 により、次回起動時には保存済みの有効な policy を復元します。
+2026-09-20 の Q19 変更により、今回の Pocket は毎起動この既定値に戻します。
 
 | フィールド | 値 |
 | --- | --- |
@@ -63,10 +63,10 @@ Q19 により、次回起動時には保存済みの有効な policy を復元�
 
 Default の loop target は２、Counted は count、RepeatOne は無期限です。
 policy は曲や library の ID と独立したプレイヤー設定として、曲切替・Stop・library の変更で
-維持する案です。Q19 の回答により、旧案の「電源断保存を含めない」は撤回します。
-保存対象は上表の３フィールドで、再生位置・選択曲・shuffle 履歴の復元や自動再生は含めません。
-[設定保存契約案](pocket-playback-settings-contract.md) に形式・非同期 port・変更番号を定義し、
-設定の適用・永続化の成功を別々に確認可能にします。Q24 の初期UIは2周→3周→5周→無限を
+維持します。設定保存は将来対応に延期し、今回は保存 port を接続しません。
+[設定保存契約案](pocket-playback-settings-contract.md) と optional profile は将来用に残し、
+再生位置・選択曲・shuffle 履歴の復元や自動再生も行いません。
+Q24 の初期UIは2周→3周→5周→無限を
 循環しますが、ここで定める Counted の有効範囲は変更しません。
 コマンド queue は32、結果の replay window は
 64件、ID / stale sequence / 投影状態の検証順は M0 の規則を継承します。

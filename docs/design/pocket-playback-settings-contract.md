@@ -1,6 +1,9 @@
 # Pocket 再生設定の保存契約案
 
-Status: proposal, 2026-09-13. Q19 の電源断後の設定復元と Q24 のアイコン操作を具体化します。
+Status: persistence deferred by the user, 2026-09-20. 当初の Q19 の電源断後の
+設定復元は将来対応に延期しました。今回の Pocket は毎起動 AlbumOrder / Default に戻し、
+保存 port と保存能力を有効にしません。Q24 のアイコン操作と起動中の設定変更は維持します。
+以下の永続化設計は将来用であり、M6 の完了条件ではありません。
 保存・復元と公開観測は [settings profile](../../specs/playback-settings-v2.md) で採用しました。
 アイコン操作の直列化と結果通知は [Album UI v1](../../specs/player-ui-v1.md) で採用しました。
 `settings.last_policy_result` 案は保存対応に依存しない `policy_commands.last` として実装します。

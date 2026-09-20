@@ -2,9 +2,16 @@
 
 Active milestone: [M6 — Album Player](milestones/M6-album-player.md)
 
-The current task is M6 slice 4: finish the sound/storage adapters under the
-approved [CPU sound connection](design/pocket-cpu-sound-connection.md), with
-the APF settings storage adapter in progress. Its
+The current task is M6 slice 5: connect the approved
+[CPU sound connection](design/pocket-cpu-sound-connection.md) to the actual
+Pocket AXI peripheral, then integrate the catalog/player, input and framebuffer.
+On 2026-09-20 the user deferred persistent settings: each application launch
+starts with AlbumOrder / Default (two loops, five-second fade), shuffle off and
+no autoplay. In-session setting changes remain supported. Do not connect a
+settings storage port or advertise `kPlaybackSettings` in this Pocket profile.
+APF settings integration, SD readback and storage deadlines are future work,
+not M6 completion gates. Preserve the already-tested optional components. The
+settings adapter's
 [flush command transport](../specs/pocket-apf-flush-v1.md) now connects CPU
 requests to the APF handler and passes independent-clock simulation, including
 busy ownership, delayed drain, unknown errors and reset. The local
@@ -12,7 +19,7 @@ busy ownership, delayed drain, unknown errors and reset. The local
 bank publication, reset-retained leases and separate media-readback storage.
 Its synchronous boundary uses the actual Cyclone V RAM model; CPU/BRIDGE CDC,
 APF size-table ownership, OS arbitration, SD readback and storage deadlines
-remain to be connected. The sound
+remain deferred. The sound
 [MMIO/CDC](../specs/pocket-sound-mmio-v1.md) now passes independent-clock RTL,
 host checks and local fitted timing/CDC. The user approved the 1,000 us mailbox
 watchdog on 2026-09-20. The [CPU MMIO client](../specs/pocket-sound-client-v1.md)
@@ -31,12 +38,12 @@ connects preparation, retained MMIO feeding, coherent control/capture ordering
 and output-history publication. Scripted integration checks cover actual
 TransportController/PlayerSession, cancellation, late responses, failure
 recovery and publication-independent supply. See M6 for exact host/sanitizer
-and RISC-V evidence. Real target clock/service cadence, storage and combined
+and RISC-V evidence. Real target clock/service cadence and combined
 Pocket integration remain pending.
 The [synchronous sound session](../specs/pocket-sound-session-v1.md) now passes
 all-phase local control/reset/inhibit tests, host/RTL regressions and registered
-fit/timing; the active milestone records the commands and limitations. Storage
-and Pocket integration follow. The user's 2026-09-13 review approves this plan;
+fit/timing; the active milestone records the commands and limitations. Pocket
+integration follows. The user's 2026-09-13 review approves the sound plan;
 local acceptance establishes the recorded functional transfer bounds, not
 the CPU service deadline or Pocket playback.
 The explicitly approved
@@ -138,7 +145,8 @@ information/control panel. The host SVG mock links UI/contracts only, with
 bounded text and explicit elision. Authored scenarios and browser-rendered
 images verify mock layout; installed host fonts do not establish Pocket metrics.
 The retained producer and output-history owner now connect through the sound
-backend. The APF settings adapter and the Pocket service loop are next.
+backend. The actual AXI sound binding and the Pocket service loop are next;
+the APF settings adapter is deferred by the user's updated requirement.
 See M6 for the executed checks; this does not establish a working Pocket audio
 adapter, rendered Pocket UI or M6 integration acceptance.
 Use the [transition proposal](design/pocket-player-transition-contract.md),
