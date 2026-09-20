@@ -91,9 +91,10 @@ The headless reference, CPU comparison and initial PCM/split experiments below
 are complete within their stated limits. Follow the
 [consolidated design proposal](../design/pocket-mdx-compatibility-plan.md):
 
-1. Specify the experimental shared audio timeline, wide PCM mixing and FM
-   burst policy, then build a headless hybrid playback prototype. Preserve
-   existing contracts until a replacement is explicitly adopted.
+1. The offline shared-timeline mix below now works. Connect the split renderer
+   to a minimal target PCM/FM transport and test start/stop/reset/underrun.
+   The user approved this direction and waived previous RPCMP compatibility;
+   document the concrete changed boundary without adding compatibility layers.
 2. Measure the composed CPU/transport/memory deadline and compare actual FM/PCM
    timing and sound with the pinned reference, including dense writes, stops,
    loops and faults. Keep per-file time/memory limits around the legacy decoder.
@@ -501,6 +502,111 @@ image. The last four native-comparison outputs are `followups-aggregate.json`,
 `split-aggregate.json`, `schedule-aggregate.json` and `lzx-controls-final.log`.
 `pwsh -NoProfile -File out/build/mdx-corpus-reference-20260921/bus-budget.ps1`
 produces `bus-budget.log`. No production runtime or dependency was added.
+
+## Offline hybrid audio experiment
+
+On 2026-09-21 the user approved implementation and the simple-development
+charter. The committed runner `tools/mdx_hybrid_probe.py` and native bus adapter
+`tools/mdx_hybrid_replay.cpp` connect the pinned reference to native JT51.
+This is offline replay; it adds no production dependency, MMIO or FPGA package.
+
+The runner makes two disposable reference builds. The candidate omits only
+`OPM.Mix`; both retain the timer, original 48 kHz rendering chunks, PCM8 and
+instrumented FM/PCM outputs. It compares their ordered sample-timestamped FM
+events, signed int32 PCM and chunk records byte for byte. JT51 receives the
+captured writes at a 4 MHz simulated clock, with busy polling and data held
+through `cen_p1`. A generated JT51 copy adds two registered 19-bit accumulator
+observation ports at the same edge as its existing `xleft`/`xright`; operator,
+timer and native DAC outputs remain unchanged. Apply the reference FM limiter
+(-65,536 to 65,535), Q14 gain and int16 FM saturation, then add wide PCM and
+saturate the final 62,500 Hz mix. Use the reference's fast 48 kHz resampler with
+the recorded chunk sizes.
+Native FM advances continuously while writes wait. No hardware IRQ calls the
+driver a second time; no UI participates in this path.
+
+Results:
+
+- Eight authored 2.048-second controls (silence, FM 1/8, loud FM 8, ADPCM 8,
+  16-bit PCM 8, 8-bit PCM 8, FM 8 + ADPCM 8) and six private 10.24-second prefixes complete.
+  Private selection includes two compressed MDX cases, compressed PDX, the
+  previously observed 242-write burst and wide PCM/five active PCM channels.
+  These are representatives, not a random or whole-corpus coverage claim.
+- All 14 cases preserve candidate/reference FM events, PCM and resampler chunks.
+  Recombining captured software FM and PCM reproduces the full reference output
+  exactly. All six private reference outputs also match their earlier unmodified
+  source results. Silence and authored PCM-only hybrid output are byte-identical
+  to the reference. Native replay accounts for all 79,034 in-prefix writes and
+  all requested samples. FM key-off/re-key-on controls and a repeated clean start
+  pass. These are not streamed player stop/restart tests.
+  All 14 original native int16 streams also match the saved unmodified-JT51
+  baseline byte for byte after adding the observation ports; the pinned source
+  checkouts remain clean. The fix uses the extra wide stream only at the mixer.
+- Raw JT51 FM is about twice the reference amplitude in the authored controls.
+  FMGEN's `SetVolume(-12)` computes `int(16384 * 10^(-12/40)) = 8211`, rather than
+  treating that parameter as a conventional -12 dB amplitude setting. However,
+  applying gain after native int16/DAC clipping drops the loud eight-channel
+  control to **0.70863** of reference RMS. Fixing the gain/limiter order using
+  the wide accumulator gives RMS ratios **0.99972** (one channel), **1.00329**
+  (eight channels) and **0.99833** (loud eight channels). The loud accumulator
+  reaches 211,066 before limiting. The authored check rejects deviations above
+  5% to catch gross level/clipping regressions; that is a local control bound,
+  not an accepted whole-corpus fidelity tolerance or waveform-identity claim.
+- Preserve wide PCM until the final sum. Clipping it early changes **2,386**
+  scalar samples in the authored FM/ADPCM mix. The private wide-PCM case reaches
+  **33,697**; its final output saturates on 20 scalar samples, with reference FM
+  and JT51 both silent in that prefix. That existing saturation is not a newly
+  introduced noise failure. Click-free output or the r4 noise cause is unproven.
+- The largest runtime bus delay is **4,098.25 us**, including the C++ adapter's
+  transfer completion overhead. This uses native busy at a direct 4 MHz clock;
+  it is separate from the earlier 12.288 MHz RTL adapter measurement. Desired
+  timestamp, bus transfer and audible effect are not interchangeable. Buffering
+  CPU supply cannot eliminate this serial burst delay.
+
+Reproduce with the existing Linux image `rpcmp-cpu-budget-sim:20260921`
+(the image ID recorded above), Verilator 5.020, and the two pinned clean
+checkouts. Bind the repository at `/repo` and the private corpus read-only at
+`/corpus`; run with networking disabled. The reference build retains its legacy
+pointer-conversion warnings; this is not production decoder hardening.
+
+```text
+python3 -B tools/mdx_hybrid_probe.py --out /repo/out/build/mdx-hybrid-20260921 --build --manifest /repo/out/build/mdx-hybrid-20260921/private-inputs.json
+python3 -B tests/rtl/mdx_hybrid_probe_tests.py --out /repo/out/build/mdx-hybrid-20260921
+```
+
+Omit `--manifest` for authored-only reproduction and omit `--build` after a
+build when sources have not changed. A private manifest is a JSON list of
+`mdx`, optional resolved `pdx`, `blocks` (1–960, default 480), and optional
+`reference_sha256` from an independent prior run. Capture uses isolated child
+processes, time/memory limits, bounded LZX sizes and output canaries. Inputs
+remain read-only. This is a research guard, not proof that every legacy decoder
+path safely handles arbitrary untrusted input. Private paths, captures, hashes
+and generated stereo WAVs stay under ignored `out/build/mdx-hybrid-20260921/`.
+
+The focused test command passes **4/4**, including malformed/truncated/oversized
+event records, zero/oversized duration, endpoint handling, clean-start audio
+repeatability, inconsistent resampler lengths and analytically derived fractional
+resampler positions. A final replay of the bounded converter preserves all 14
+reference and 14 hybrid outputs (`hybrid-resampler-final.log`). The
+charter/harness Full run passes **87/87** (537.36 s, tidy 519.38 s); Core/UI
+dependency tests remain enabled. Logs are `out/harness/charter-full.log`,
+`hybrid-headroom.log`, `hybrid-wide.log` and `hybrid-focused.log`.
+The probe compiles its C++ adapter with `-Wall -Wextra -Werror` and has a separate
+clang-format check; its optional Linux/native-source checks are not in CTest.
+The adapter also passes `g++ -std=c++17 -O0 -Wall -Wextra -Werror -fanalyzer`
+with the generated-model include path and installed Verilator headers passed
+with `-isystem` (`hybrid-analyzer-system.log`). An initial ordinary `-I` compile
+failed on unused parameters in those installed headers; only that external
+header classification changed. Adapter warnings and analyzer checks stayed on.
+
+No production RTL was edited, so the unchanged production RTL regressions,
+cross-build, synthesis/fit, APF/package and hardware gates were not rerun for
+this offline experiment. Live target refill, queue capacity, CDC, underrun,
+streamed stop/reset, full songs/loops and listening acceptance remain open.
+Next work is that minimal target audio connection, not another architecture
+comparison or richer UI. Research dependencies retain the earlier component
+licenses (JT51 GPL-3.0-or-later; Verilator Artistic-2.0/LGPL-3.0; mixed reference
+driver/sound notices below); generated binaries and copied sources are not
+distributed by this change.
 
 ## Dependency conditions
 

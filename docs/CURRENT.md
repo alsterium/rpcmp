@@ -2,11 +2,22 @@
 
 Active milestone: [M6 — Album Player](milestones/M6-album-player.md)
 
-The current task is the M6 compatibility reassessment requested on 2026-09-21.
+The current task is the M6 headless hybrid verification approved on 2026-09-21,
+following the [project charter](../AGENTS.md#project-charter-2026-09-21): use the
+shortest practical implementation; previous RPCMP compatibility is not required.
+The first connected check now produces 48 kHz mixed audio from reference-driver
+PCM and native JT51 simulation: eight authored cases and six private 10.24-second
+prefixes pass stream/reconstruction checks. See the
+[offline hybrid evidence](research/mdxplayer-compatibility.md#offline-hybrid-audio-experiment).
+Next connect the split renderer to a minimal target audio transport and measure
+refill deadlines, stop/reset and underruns with UI disabled. Apply FM gain before
+its output clips, and retain wide PCM until summation. No rich UI work is
+needed first. Full passed for the charter/harness change; target gates remain open.
 The user selected [asaday/MDXPlayer](https://github.com/asaday/MDXPlayer) as the
 reference: support every locally supplied file that played there, including
 PCM. The MVP is track selection, play and stop. Follow the
-[pinned source baseline and next comparison work](research/mdxplayer-compatibility.md).
+[approved prototype direction](design/pocket-mdx-compatibility-plan.md) and its
+[pinned source evidence](research/mdxplayer-compatibility.md).
 Further Tracker/keyboard/policy expansion is deferred. Existing v1 behavior,
 the r4 package and historical evidence remain intact; no replacement engine,
 PCM implementation or production substrate has been approved by a test result.
@@ -18,10 +29,10 @@ The reference-synthesis RV32 instruction experiment now excludes an unchanged
 reference renderer on the unchanged single-issue 90 MHz CPU for the tested
 eight-FM-channel load: even `-O3 -flto` needs 99.18 million instructions per
 audio second, or 134.95 million with eight ADPCM voices. These are ISA counts,
-not hardware timings. Compare a higher-throughput software-sound CPU/platform
-against FM hardware plus CPU PCM; neither the current OS nor JT51 is mandatory.
-See the baseline's synthesis-budget evidence and portability findings before
-choosing a production design. No replacement design has been adopted.
+not hardware timings. The CPU/FPGA comparison selected hardware FM plus CPU PCM
+for the prototype; neither the current OS nor JT51 is mandatory if it fails.
+See the baseline's synthesis-budget evidence and portability findings. The
+hybrid prototype direction is approved; production acceptance remains pending.
 
 CPU RTL simulation further measures about 131 million cycles per audio second
 for the reference FM-8 + ADPCM-8 case even on the dual-issue candidate with
@@ -35,8 +46,8 @@ An 80-track native prefix comparison preserves FM event positions/order and
 PCM output when FM synthesis is removed. A separate 4 MHz native JT51 bus
 experiment passes 3,072 writes and operator-bank checks. These support the
 split; they do not establish a complete hybrid player, whole-corpus playback,
-Pocket timing or adoption of replacement contracts. Next work is the bounded
-headless hybrid prototype described in the proposal, not more UI expansion.
+Pocket timing or production acceptance. The offline mix is now connected;
+the next headless step is the target transport described above.
 
 The following records the implemented slice-5 baseline from the
 [CPU sound connection](design/pocket-cpu-sound-connection.md), not the next work.
@@ -214,8 +225,9 @@ are verified; the coherent candidate is packaged and target measurements are
 next. The APF settings adapter is deferred by the user's updated requirement.
 See M6 for the executed checks and r3/r4 hardware reports; target timing,
 noise and full playback acceptance remain unresolved.
-Use the [transition proposal](design/pocket-player-transition-contract.md),
-preserve v1 compatibility and adopt each contract before its implementation.
+The [transition proposal](design/pocket-player-transition-contract.md) records
+the historical v1-compatible approach. The current charter supersedes its
+compatibility requirement for the replacement player.
 Slices 1–2 implement [host metadata](../specs/host-metadata-v1.md),
 [ALBM storage](../specs/album-catalog-v1.md),
 [folder ingestion](../specs/album-ingestion-v1.md) and

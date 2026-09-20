@@ -1,8 +1,9 @@
 # MDX-compatible Pocket player design proposal
 
-Status: recommended design, 2026-09-21. This closes the architecture comparison
-with a concrete next prototype. It does not adopt replacement public contracts,
-change the r4 package or claim all-file/hardware acceptance. Evidence and
+Status: prototype direction approved by the user, 2026-09-21. The user also
+waived backward compatibility with earlier RPCMP implementations and requested
+the simplest practical implementation under the [project charter](../../AGENTS.md#project-charter-2026-09-21).
+This does not change the r4 package or claim all-file/hardware acceptance. Evidence and
 reproduction details are in the [compatibility baseline](../research/mdxplayer-compatibility.md).
 
 ## Recommendation
@@ -113,6 +114,35 @@ explicitly versioned adapter transition. Do not build an index format or
 general database merely to begin the audio prototype.
 
 ## Next prototype and decision gates
+
+### First connected experiment
+
+The first implementation is an offline headless replay, not a new runtime API:
+capture ordered `(internal_sample, register, value)` FM writes, signed int32
+stereo PCM contributions and the original resampler chunk boundaries from the
+pinned reference. Replay FM through pinned JT51 at 4 MHz. Observe its 19-bit
+accumulator alongside the unchanged native output; apply the reference's 17-bit
+FM limiter, Q14 gain and int16 FM limit before adding wide PCM and saturating
+the mix. Then use the reference's 48 kHz resampler on the 62.5 kHz timeline.
+Keep the driver timer in the reference process; JT51 IRQ never ticks it again.
+Measure actual bus delay and audio levels instead of asserting waveform identity.
+Keep all private captures and generated audio under ignored `out/`.
+
+Use a small standalone runner with authored silence/FM/PCM/mixed controls and
+representative private prefixes (including dense bursts and wide PCM). Check
+event consumption, repeatability, unchanged PCM-only output and exact offline
+reconstruction of the software oracle. No new MMIO, queue protocol, UI, catalog
+or compatibility layer is needed for this first experiment. Its completion
+triggers Full plus the native JT51 simulation checks. CPU refill, bounded target
+queues, stop/reset during streaming, CDC and hardware acceptance follow in the
+target connection; preloaded offline replay cannot establish those properties.
+
+This experiment is implemented in `tools/mdx_hybrid_probe.py` and
+`tools/mdx_hybrid_replay.cpp`. Its eight authored cases and six private prefixes
+pass; [results and reproduction](../research/mdxplayer-compatibility.md#offline-hybrid-audio-experiment)
+record FM gain, wide mixing and serial bus delay. Next implement the smallest
+target streaming connection, keeping select/play/stop and explicit underrun
+handling; do not rebuild the historical completion/history/policy stack first.
 
 Implement one headless hybrid vertical slice before rebuilding the full
 player. Start with authored eight-FM/eight-PCM loads and the existing private

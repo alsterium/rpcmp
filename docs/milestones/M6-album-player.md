@@ -6,9 +6,13 @@ hardware evidence or a new product decision is needed.
 Current direction changed on 2026-09-21: the user requires every locally supplied
 file that played in [asaday/MDXPlayer](https://github.com/asaday/MDXPlayer), with
 PCM included. MVP controls are selection, play and stop. Further visualization
-and playback-policy expansion is deferred while the
-[reference-engine comparison](../research/mdxplayer-compatibility.md) and target
-budget are assessed. The original objective, adopted contracts and results
+and playback-policy expansion is deferred. The user approved the
+[hybrid prototype](../design/pocket-mdx-compatibility-plan.md) and the
+[simple-implementation charter](../../AGENTS.md#project-charter-2026-09-21),
+waiving backward compatibility with earlier RPCMP APIs/formats. The first
+[offline mixed-audio check](../research/mdxplayer-compatibility.md#offline-hybrid-audio-experiment)
+passes; target CPU/transport timing and hardware acceptance remain pending.
+The original objective, adopted contracts and results
 below remain historical evidence; they do not override this new scope or turn
 the existing FM subset into full MDX compatibility.
 
