@@ -475,14 +475,15 @@ void icon(const PlayerView& view, PlayerCanvas& canvas, const Focus focus, const
     const auto active = view.valid_snapshot && view.snapshot.policy &&
                         view.snapshot.policy->desired.order == api::PlaybackOrder::ShuffleLibrary;
     const auto ink = active ? palette::accent : color;
-    canvas.line({static_cast<std::uint16_t>(x - 3), y},
-                {static_cast<std::uint16_t>(x + 12), static_cast<std::uint16_t>(y + 9)}, ink);
-    canvas.line({static_cast<std::uint16_t>(x - 3), static_cast<std::uint16_t>(y + 9)},
-                {static_cast<std::uint16_t>(x + 12), y}, ink);
-    canvas.line({static_cast<std::uint16_t>(x + 8), y}, {static_cast<std::uint16_t>(x + 12), y},
-                ink);
-    canvas.line({static_cast<std::uint16_t>(x + 12), y},
-                {static_cast<std::uint16_t>(x + 12), static_cast<std::uint16_t>(y + 4)}, ink);
+    const auto left = static_cast<std::uint16_t>(box.x + 3);
+    const auto right = static_cast<std::uint16_t>(box.x + 13);
+    canvas.line({left, y}, {right, static_cast<std::uint16_t>(y + 9)}, ink);
+    canvas.line({left, static_cast<std::uint16_t>(y + 9)}, {right, y}, ink);
+    canvas.line({static_cast<std::uint16_t>(right - 3), y}, {right, y}, ink);
+    canvas.line({right, y}, {right, static_cast<std::uint16_t>(y + 3)}, ink);
+    canvas.text(
+        {static_cast<std::uint16_t>(box.x + 17), static_cast<std::uint16_t>(box.y + 3), 24, 16},
+        active ? "ON" : "OFF", ink);
     break;
   }
   case Focus::List:

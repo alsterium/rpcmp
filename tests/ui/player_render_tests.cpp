@@ -129,6 +129,12 @@ void model_rendering(rpcmp::test::Suite& suite) {
                          c::valid_catalog_page(view.browser.tracks));
   Canvas tracker(suite);
   render_player(view, tracker);
+  RPCMP_CHECK(suite, tracker.contains("OFF")); // Shuffle state must be readable without color.
+  required(view.snapshot.policy).desired.order = api::PlaybackOrder::ShuffleLibrary;
+  Canvas shuffled(suite);
+  render_player(view, shuffled);
+  RPCMP_CHECK(suite, shuffled.contains("ON"));
+  required(view.snapshot.policy).desired.order = api::PlaybackOrder::AlbumOrder;
   RPCMP_CHECK(suite,
               tracker.contains("C-4 2A") && tracker.contains("OFF --") && tracker.contains("0001"));
   RPCMP_CHECK(suite,
