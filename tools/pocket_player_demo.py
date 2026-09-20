@@ -7,9 +7,10 @@ from pathlib import Path
 
 
 def mdx(title, notes, loop):
-    # Tempo 200, voice 0, stereo, volume 8. Algorithm 7, operator 0 is
-    # the only keyed carrier; the other operators have maximum attenuation.
-    track = bytearray([0xff, 200, 0xfd, 0, 0xfc, 3, 0xfb, 8])
+    # Tempo 200, voice 0, stereo, volume 15. The only keyed carrier's
+    # effective TL is 10 + 2 = 12 (previously 30 + 21 = 51). This sets the
+    # authored test tone's level, without changing player gain for real music.
+    track = bytearray([0xff, 200, 0xfd, 0, 0xfc, 3, 0xfb, 15])
     start = len(track)
     for note in notes:
         track.extend((0x80 + note, 47))
@@ -20,7 +21,7 @@ def mdx(title, notes, loop):
         track.extend((0xf1, 0))
     offsets = [20 + len(track) + 16, 20]
     offsets.extend(20 + len(track) + i * 2 for i in range(8))
-    voice = bytes([0, 7, 1] + [1] * 4 + [30, 127, 127, 127] +
+    voice = bytes([0, 7, 1] + [1] * 4 + [10, 127, 127, 127] +
                   [31] * 4 + [0] * 4 + [0] * 4 + [15] * 4)
     return (title.encode('cp932') + b'\r\n\x1a\0' + struct.pack('>10H', *offsets) +
             track + b'\xf1\0' * 8 + voice)

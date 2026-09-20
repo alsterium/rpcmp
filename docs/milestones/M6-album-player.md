@@ -3179,3 +3179,139 @@ synthesis are not rerun for r3. The next task is the
 [r3 hardware check](../development/pocket-player-hardware.md): first establish
 audible playback, then record F/S and shuffle ON/OFF; if playback fails, retain
 both diagnostic lines. Hardware recovery and M6 completion remain pending.
+
+## r3 hardware report and r4 performance display correction — 2026-09-21
+
+The user's Firmware 2.6 r3 report confirms startup without an error/autoplay,
+Japanese album/track selection, stereo playback for one minute in infinite
+mode, D-pad focus, A pause/resume, B stop/list back, L/R, two loops plus fade,
+next track, album-end stop, both setting icons and restart/power-off defaults.
+The sound is quiet. Tracker and keyboard do not change during playback; the
+keyboard continually says `Waiting for performance data`.
+Reported header observations are idle library F110/S20493us, keyboard
+F250 then F400/S10493us, and Tracker/album playback F250/S10593us. These are
+user observations, not a controlled latency comparison or a service bound.
+
+The 16-batch display history was smaller than the 64-item audio read-ahead
+queue. During long held notes, empty MDX ticks still enqueue markers, so the
+producer continuously evicted not-yet-output channel checkpoints before the
+matching output record arrived. This was reproduced in the actual backend
+with an authored 48-tick rest and a continuously replenished 64-item queue.
+The regression observes the public SnapshotPublisher: every consumed marker
+must publish Available/current key-on, with no fault/inhibit. It fails at 16
+and passes at 128. The internal history contract now allows 128 batches,
+covering 64 queued items, a pending producer and 32 output records awaiting
+acquisition. Arbitrary overflow still reports display loss without blocking
+audio; public snapshot capacity and schema are unchanged. The original device
+symptom is consistent with this reproduction; r4 hardware motion is pending.
+
+The larger target owner adds 616448 BSS bytes over r3. Host history fixtures
+now allocate their large owners on the heap, matching the target's existing
+static ownership rather than enlarging the host stack. Retention-overflow
+assertions use 132 checkpoints (4 dropped, 128 retained); audio-independence
+still crosses the new capacity, with the same independently authored 800
+tokens and backpressure retry sequence under dense/sparse/absent reads.
+
+CPU rendering changes preserve the same view contract:
+
+- Axis-aligned lines process bounded spans; glyph rasterization consumes up
+  to eight bits at a time. Transparent pixels still count against work budgets.
+- Keyboard white-key backgrounds share one rectangle per channel; sounding
+  white keys remain overlays and black keys/separators keep their order.
+- Tracker projection overwrites its oldest row in place, then restores the
+  newest sixteen rows' chronological order once. Tests check every retained
+  row, two channels at one frame, sequence gaps and repeated-channel events.
+
+Before/after actual bitmap fixture PPMs have identical SHA-256 in all views:
+Tracker `41c763669e117da59ccaf66233b12cc24c9f87ceb5367784381cc00d401fe9f1`,
+keyboard `b9854d45e098f7603cc11fec7eec11ed25afadd7a52adb9be63a5f0c72450aaf`,
+library `78a81b489027ec054c862dbf50c355e68a11229c3751e3ee351fd901ba1e290d`.
+Ignored files: `out/build/m6-r4-{before,after}-{0,1,2}.ppm`.
+An ignored native GCC -Os benchmark (`m6-r4-canvas-bench.cpp/.py`) runs 500
+frames per view: recording/raster us change from 3917/35545 to 3599/16847
+(Tracker), 11363/107786 to 7497/40811 (keyboard), and 1613/25829 to 1600/12766
+(library). Pixel fingerprints and total pixel work remain identical; idle
+keyboard commands fall from 1763 to 1171. A separate
+`m6-r4-ui-bench.cpp/.py` checks the final sixteen rows across 10,000 updates
+of 256 events: 102198 us before, 37270 us after. These are single host runs,
+not Pocket frame times or latency guarantees. Logs are in `out/build/`.
+
+The original demo specified a keyed carrier TL of 30 with MDX volume 8,
+giving effective TL51. r4 uses voice TL10 and volume15, giving TL12. The
+ignored `m6-r4-tone-check.cpp/.py` runs actual parse/preparation/initial-tick
+code and confirms TL51 for the old tone and TL12 for all three new tones,
+with stereo pan3 and gate8 retained (`m6-r4-tone.log`). Player gain and
+arbitrary library data are unchanged; perceptual volume remains a hardware
+check. The fresh authored corpus is `out/build/m6-player-demo-r4`, packed as
+`m6-player-demo-r4.rpcmlib`: 2 albums, 3 tracks, 1712 bytes, no exclusions.
+
+Executed build/package evidence:
+
+- Focused UI/history/backend/canvas/preflight checks pass. Two whole
+  `pwsh -File tools/host-verify.ps1` runs each passed **86/87**; clang-tidy
+  found offset arithmetic/unchecked test optionals, then the Tracker iterator's
+  unsigned-to-signed offset. All were corrected with checked access or explicit
+  bounded types, without disabling diagnostics. The final verification runs
+  `cmake --build --preset host-msvc` and
+  `ctest --preset host-msvc -E '^tidy$' --output-on-failure`: **86/86 PASS**,
+  **18.65 s**, including format and architecture positive/negative cases.
+  `python -B out/build/m6-r4-tidy-parallel.py` then extracts the registered
+  tidy command through CTest JSON and checks **all 124 translation units** in
+  four independent groups: **all PASS**. The source list, pinned LLVM 22.1.8,
+  compilation database and `.clang-tidy` flags are identical to CTest's.
+  Logs: `out/build/m6-player-r4-final-verification.log` and `m6-player-r4-tidy-*.log`.
+  This is the final combined evidence, not an 87/87 result from either earlier run.
+- Docker `python3 out/build/m6-player-r4-sanitize.py`: **PASS** for backend,
+  history, bitmap canvas and UI with native ASan/UBSan, leak detection and
+  halt-on-error. After the final iterator cast, `--reuse-unchanged` recompiles
+  the changed implementation and reruns all four tests: **PASS**; headers and
+  flags are unchanged. Logs: `out/build/m6-player-r4-final-sanitize-recheck.log`
+  and `m6-player-r4-final-sanitize-signed-index.log`.
+- Docker `python3 out/build/m6-r4-demo-history.py`: **PASS**, linking those
+  sanitized objects with an ignored actual-demo integration fixture. Across
+  600 consumed audio items, all 480 marker snapshots are Available; the
+  packaged scale's relative intervals 0/4/7/12/7/4/0 reach the public snapshot
+  and UI, and sixteen Tracker rows remain populated with the queue at 64.
+  No inhibit or protocol violation is observed. This is scripted output-frame
+  evidence, not actual FPGA/audio timing. Log: `out/build/m6-r4-demo-history.log`.
+- Docker `make -j4 -f spikes/pocket/openfpgaos/player.mk
+  PLAYER_OUT=/repo/out/build/pocket-m6-player-r4-final player-check`: **PASS**,
+  including the final arithmetic/iterator corrections. Text **473932**, data **228**,
+  BSS **35504720**, static **35978880** bytes, with **20644224** bytes headroom.
+  Conservative stack **120880**, largest frame **9696**, no dynamic frames or
+  undefined symbols. Log: `out/build/m6-player-r4-final-cross-signed-index.log`.
+  ELF SHA-256:
+  `3052cf02ebeba8d3feb64d6426f2ffd0d538c39d2cadd30f8b2d0ef98f75a3fc`.
+- `python -B tools/pocket_player_package.py --repo .
+  --sdk out/research/openfpgaSDK-a408ddc
+  --elf out/build/pocket-m6-player-r4-final/rpcmp-player.elf
+  --fpga out/build/m6-player-finalbuild
+  --firmware out/build/m6-player-firmware-r2/src/firmware/os/bld/pocket
+  --library out/build/m6-player-demo-r4.rpcmlib
+  --preflight out/build/host-msvc/rpcmp_player_preflight.exe
+  --name m6-player-candidate-r4-final`: **PASS**. Core preflight admits every
+  track and exact member readback/firmware identities pass. The final
+  arithmetic/iterator corrections yield the same ELF and budget hashes as the ZIP.
+  ZIP **1324561 bytes**, SHA-256
+  `97f0b2c686629b4c7966c38fd704c91ab0e4bdd72ce7132c87e433241f0b7557`.
+  `.evidence.json` is adjacent; earlier candidates are preserved. Version
+  `0.11.0-m6-preview-r4` keeps `version_required: 2.2`.
+
+The FPGA, ROM/OS, sound registers, clocks and constraints are unchanged from
+the verified candidate, so RTL simulation and synthesis are not rerun here.
+The next task is the [r4 hardware check](../development/pocket-player-hardware.md):
+moving Tracker/channel-A keys, clearing Waiting, audio level and F/S while
+playing and switching views. Full M6 acceptance and 100–300 real-track load
+remain open; this three-track host evidence does not complete either gate.
+
+The user also supplied a private 12-file corpus for possible hardware testing.
+`rpcmp_album_pack` excludes all twelve with `UnsupportedPcm8Layout`; the
+structural audit finds sixteen-track tables and empty PDX references in every
+file. All eight PCM regions contain only the two-byte TrackEnd instruction.
+An ignored local conversion experiment preserves all retained FM/voice/P bytes
+and the original files while rebuilding ordinary nine-track copies. All twelve
+then fail admission with `UnsupportedOpcode` at the same first E9 instruction.
+No command was ignored, no partial audio was packaged and no engine contract
+was relaxed. This corpus is a compatibility target, not currently an admitted
+hardware test library. Source identities, paths, transformed copies and
+per-file results remain only in ignored local outputs.

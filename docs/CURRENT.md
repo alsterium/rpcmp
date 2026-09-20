@@ -17,16 +17,17 @@ views with copied commands and bounded pixel work. The actual
 catalog/player/backend/UI with APF input, a 64-bit CPU clock and the SDK draw
 surface. Its loop services audio independently of publication and bounded
 rendering; scripted application integration and the full RV32 app link pass.
-The r2 hardware report confirms startup without an error/autoplay, Japanese
-text, selection and D-pad panel movement. Selecting a track still fails with
-ERR 5; audio is not accepted. Reported F206ms/S84964us and post-recovery SND0800
-do not establish the original failure. r3 removes full-capacity MDX batch copies
-on every tick, retains the first backend failure across recovery Reset, and
-adds readable shuffle ON/OFF. Deterministic output regressions pass; target
-recovery and service timing remain hardware checks. Follow the
-[M6 hardware check](development/pocket-player-hardware.md) for the r3 candidate
-and see the milestone's evidence. D-pad panel navigation and contextual B
-remain as requested on 2026-09-20.
+The r3 hardware report confirms stereo playback, pause/resume, stop, navigation,
+two-loop fade/next/end, shuffle and restart defaults on Firmware 2.6. Its test
+tone is quiet; Tracker/keyboard remain frozen, with the keyboard stuck at
+Waiting for performance data. Reported F110–400ms/S10493–20493us do not yet
+establish the target service deadline. r4 fixes continuous read-ahead evicting
+future display checkpoints, reduces bounded raster/Tracker projection work,
+and raises the authored demo's voice level. Host regressions and the RV32
+memory/stack gate pass; r4 display motion, audible level and latency still need
+hardware confirmation. Follow the [M6 hardware check](development/pocket-player-hardware.md)
+for the r4 final candidate and the milestone's exact evidence. D-pad panel
+navigation and contextual B remain as requested on 2026-09-20.
 On 2026-09-20 the user deferred persistent settings: each application launch
 starts with AlbumOrder / Default (two loops, five-second fade), shuffle off and
 no autoplay. In-session setting changes remain supported. Do not connect a
@@ -52,7 +53,7 @@ The [retained MDX producer](../specs/mdx-source-producer-v1.md) now passes
 copied-batch/retry/epoch host checks and a RISC-V compile/link memory probe.
 The [32-record output journal](../specs/pocket-output-journal-v1.md) now passes
 native boundary, overflow/read-cadence and four-mailbox CDC checks with local
-fitted timing. The [16-batch CPU history owner](../specs/mdx-output-history-v1.md)
+fitted timing. The [128-batch CPU history owner](../specs/mdx-output-history-v1.md)
 now connects copied MDX checkpoints to actual output records with per-event
 frames and explicit display loss; host gates, sanitizer tests and the RISC-V
 memory probe pass. The [MDX backend](../specs/pocket-mdx-backend-v1.md) now
@@ -61,7 +62,7 @@ and output-history publication. Scripted integration checks cover actual
 TransportController/PlayerSession, cancellation, late responses, failure
 recovery and publication-independent supply. See M6 for exact host/sanitizer
 and RISC-V evidence. The CPU clock and application loop are now connected;
-measured target cadence and combined Pocket hardware acceptance remain pending.
+bounded target cadence and combined Pocket hardware acceptance remain pending.
 The [synchronous sound session](../specs/pocket-sound-session-v1.md) now passes
 all-phase local control/reset/inhibit tests, host/RTL regressions and registered
 fit/timing; the active milestone records the commands and limitations. Pocket
@@ -80,7 +81,7 @@ stream through it; the queue distinguishes native busy/receipt backpressure
 from missing input at an eligible dispatch opportunity. Marker dispatch seals
 source supply. The composed progress owner maps loop/end separately; the
 retained CPU producer now feeds MMIO and per-event history through the backend.
-Whole-Pocket execution and measured service cadence remain unverified.
+Full-load Pocket execution and bounded service cadence remain unverified.
 The explicitly approved source-receipt contract now orders writes and zero-write
 markers and retains their actual transfer/marker edge under backpressure.
 Native receipt tests and the enveloped fault/reset integration pass. These
@@ -170,8 +171,8 @@ The retained producer and output-history owner now connect through the sound
 backend. The actual AXI sound binding and scripted application service loop
 are verified; the coherent candidate is packaged and target measurements are
 next. The APF settings adapter is deferred by the user's updated requirement.
-See M6 for the executed checks and the user's rendered-UI report; audible
-Pocket playback and M6 integration acceptance remain unverified.
+See M6 for the executed checks and the user's r3 audible-playback report;
+moving performance views, target timing and full M6 acceptance remain pending.
 Use the [transition proposal](design/pocket-player-transition-contract.md),
 preserve v1 compatibility and adopt each contract before its implementation.
 Slices 1–2 implement [host metadata](../specs/host-metadata-v1.md),

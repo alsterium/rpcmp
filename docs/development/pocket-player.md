@@ -48,8 +48,8 @@ must include the font notices in `third_party/unifont`.
 - The pinned SDK adapter checks 640x480, stride 640, indexed 8-bit mode and the
   no-GPU capability profile. It polls `FB_SWAP_CTRL.pending` before calling
   the OS triple-buffer flip. It does not call GPU or wait-for-vblank services
-  during playback. The OS flip still cleans the **whole frame**; target CPU
-  duration is unmeasured and may require further integration work.
+  during playback. The OS flip still cleans the **whole frame**; the r2 user
+  report recorded a maximum FLIP of 441 us, not a bound for all conditions.
 - Time comes from coherent bounded high/low/high reads of the pinned CPU cycle
   registers and the OS's live CPU frequency, rather than a wrapping 32-bit
   microsecond timer. Invalid frequency, exhausted reads or reversed time stop
@@ -68,9 +68,11 @@ must include the font notices in `third_party/unifont`.
 The application records maximum sound-service gaps and record/pump/present
 durations. The target-only header shows `F<n>ms` (previous completed frame,
 including presentation backpressure) and `S<n>us` (maximum service gap).
-On playback error, the main panel's bottom line adds `ERR` (public error code),
-`SND` (last sound status in hex), `REC` (maximum command-recording us) and `FLIP`
-(maximum presentation us). Fatal app diagnostics print timings after INHIBIT. They are
+On playback error, two lines add `ERR` (public error code), `AT`/`D` (backend
+failure location/detail), `SND` (sound status latched at that failure), `REC`
+(maximum command-recording us) and `FLIP` (maximum presentation us). The first
+failure survives recovery Reset and clears on accepted preparation for a new
+attempt. Fatal app diagnostics print timings after INHIBIT. They are
 measurements of CPU work, not proofs of audio delivery. Ordinary recoverable
 playback errors remain in the shared UI/transport recovery path.
 
@@ -85,12 +87,14 @@ clock / canvas failures. Separate cases cover timer rollover/retry, disconnect
 and reconnect, and the full 32 MiB input bound. The scripted device is not an
 RTL engine or a proof of audible playback.
 
-The candidate now includes M6 boot-failure sound handling and coherent
-ROM/OS/app packaging. Still required: actual display/input/audio checks on Pocket,
-measured service gaps (including MDX admission, synchronous command recording
-and OS cache maintenance), and
-Japanese readability at the real screen size. No hardware acceptance follows
-from host tests or the ELF budget.
+The candidate includes M6 boot-failure sound handling and coherent ROM/OS/app
+packaging. The r3 user report confirms Japanese display, input and stereo
+playback, but not moving Tracker/keyboard data. r4 retains 128 display batches
+to cover sparse-tick audio read-ahead and output journal acquisition, with
+unchanged loss reporting on overflow. It also reduces Tracker row copying,
+axis-aligned line/glyph raster work and keyboard background commands.
+Still required: moving performance views and measured target cadence under
+playback/load. No hardware acceptance follows from host tests or the ELF budget.
 
 ## Candidate build and packaging
 
@@ -135,4 +139,7 @@ The original synthetic scale corpus is reproducible with
 `rpcmp_album_pack <new-folder> <music.rpcmlib>`. It contains one looping and one
 finite track in the first album, plus a different looping track in the second.
 It uses FM channel A with stereo panning; it contains no copied music or ROM.
+The r4 demo raises the keyed carrier's effective YM2151 total level from 51 to
+12 (smaller means less attenuation). This changes the authored source only;
+library playback gain is unchanged.
 Preflight proves parse/admission only; audible output is a hardware check.
