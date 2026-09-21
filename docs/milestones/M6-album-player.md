@@ -78,8 +78,12 @@ beginning even from pause/stop. Q7 disables the unavailable direction at the
 first/last entry without wrapping or changing playback state. Q8 remembers
 control-icon focus during the session and retains list cursor/page positions.
 Q9 removes the back row from track pages; B returns to playlists. The operation
-table is consolidated. Screen layout, information display and placement-dependent
-focus navigation remain to be settled; r5 is unchanged.
+table is consolidated. Q10 selects elapsed time only, frozen during pause.
+Q11 scrolls the selected overlong name after a brief dwell and elides other rows.
+Q12 fixes the lower information as playback title, playback playlist name,
+entry number / count, elapsed time and transport state, with the repeat setting
+on its control icon. Layout and placement-dependent focus navigation remain to
+be settled; r5 is unchanged.
 This closes the compatibility investigation, not M6 as a whole. Inherited shell
 external timing constraints and the remaining player integration stay separate.
 The original objective, adopted contracts and results

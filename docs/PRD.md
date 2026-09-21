@@ -84,9 +84,13 @@ repeat-count icons. Q6 starts the target from its beginning even from pause/stop
 Q7 disables the unavailable direction at the first/last entry, without wrapping
 or changing playback state. Q8 remembers control-icon focus during the session
 and retains list cursor/page positions. Q9 removes the back row from track
-pages; B returns to playlists. The operation table is consolidated; screen
-layout, information display and placement-dependent focus navigation remain
-to be settled. These requirements have not yet been implemented in r5.
+pages; B returns to playlists. The operation table is consolidated. Q10 selects
+elapsed time only, frozen during pause. Q11 scrolls the selected overlong name
+after a brief dwell and elides other rows. Q12 keeps the playback title, playback
+playlist name, entry number / count, elapsed time and transport state in the
+lower information area, with the repeat setting on its control icon. Layout
+and placement-dependent focus navigation remain to be settled. These
+requirements have not yet been implemented in r5.
 
 ## 1. Product vision
 

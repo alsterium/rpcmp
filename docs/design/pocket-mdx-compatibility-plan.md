@@ -520,6 +520,43 @@ only tracks in the list and use B to return to the playlist list. Preserve each
 playlist's track/page position on return and reopening; returning is browsing,
 not a stop or a change of playback playlist.
 
+#### Information display requirements
+
+After Q9, the user selected information organization as the next part of the
+same UI requirements task. Keep browsing information distinct from the playback
+track's information; browsing another list does not change the playback target.
+
+**Q10 — decided:** Display elapsed playback time only, for example `01:23`.
+The value freezes while paused. Do not add total-duration analysis, remaining
+time or a duration/progress bar as part of this choice. The current minimal
+snapshot has no elapsed-time field; implementation must publish playback-owned
+time through the snapshot, rather than infer it from UI frames or text updates.
+
+**Q11 — decided:** If a track or playlist name does not fit, horizontally
+scroll only the selected name after a brief dwell so the full name can be read.
+Other rows use a trailing ellipsis and remain stationary. This is UI-local
+presentation timing and must not drive audio, change selection or start music.
+The exact dwell, speed and fitting text width belong to the layout pass.
+
+**Q12 — decided:** Continuously show the playback track's title, playback
+playlist name, entry number / entry count, elapsed time and transport state in
+the lower information area. The entry number/count belong to the playback
+playlist, not the global collection or the currently browsed list. Browsing
+another playlist does not replace these values with the highlighted row's
+metadata. Show the repeat setting with its control icon.
+
+| Information area | Content and source |
+| --- | --- |
+| Main browsing area | Browsed list heading, playlist/track entries and browsing position; retain the accepted separate playing marker. |
+| Lower playback information | Playback track title, playback playlist name, entry number / count, elapsed time and transport state. |
+| Control panel | Five action icons and the current repeat setting. |
+
+These fields settle the information grouping, not exact sizes, line breaks or
+icon placement. The working layout retains a large main area above the lower
+playback information, with controls to its right. Next lay out these values
+and the focus indicators together so browsing selection, playback identity,
+control focus and disabled actions remain distinguishable.
+
 #### Consolidated operation table
 
 The table describes the next UI, not the installed r5 controls. Top-level B
@@ -555,9 +592,9 @@ L/R mapping belong to the next layout pass, not new playback features.
 The working layout proposal reuses the earlier preference for a large main
 area, track information below it and control icons to the right of that
 information. First organize the list, information and playback controls;
-Tracker/keyboard reintroduction is not approved by Q1–Q9. The basic operation
-table is now consolidated; next settle the screen layout, information display
-and placement-dependent focus navigation before implementation.
+Tracker/keyboard reintroduction is not approved by Q1–Q12. The operation table
+and information grouping are consolidated. Next settle layout and
+placement-dependent focus navigation before implementation.
 
 These are prospective product requirements, not a hardware candidate or a
 claim of implemented behavior. No runtime, package, test/generator input or
