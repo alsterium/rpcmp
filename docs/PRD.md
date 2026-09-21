@@ -83,9 +83,10 @@ Q5 adds previous/next within the playback playlist to play/pause, stop and
 repeat-count icons. Q6 starts the target from its beginning even from pause/stop.
 Q7 disables the unavailable direction at the first/last entry, without wrapping
 or changing playback state. Q8 remembers control-icon focus during the session
-and retains list cursor/page positions. The remaining operation table/layout
-details are under discussion; these requirements have not yet been implemented
-in r5.
+and retains list cursor/page positions. Q9 removes the back row from track
+pages; B returns to playlists. The operation table is consolidated; screen
+layout, information display and placement-dependent focus navigation remain
+to be settled. These requirements have not yet been implemented in r5.
 
 ## 1. Product vision
 

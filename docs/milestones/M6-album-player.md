@@ -77,7 +77,9 @@ to the play/pause, stop and repeat-count icons. Q6 starts the target from its
 beginning even from pause/stop. Q7 disables the unavailable direction at the
 first/last entry without wrapping or changing playback state. Q8 remembers
 control-icon focus during the session and retains list cursor/page positions.
-The remaining operation table/layout details are under discussion; r5 is unchanged.
+Q9 removes the back row from track pages; B returns to playlists. The operation
+table is consolidated. Screen layout, information display and placement-dependent
+focus navigation remain to be settled; r5 is unchanged.
 This closes the compatibility investigation, not M6 as a whole. Inherited shell
 external timing constraints and the remaining player integration stay separate.
 The original objective, adopted contracts and results

@@ -465,8 +465,8 @@ to the playlist list without stopping or changing the playing track. In the
 control panel, it stops playback using the existing stop semantics, including
 cancelling automatic advancement. B never moves focus between panels.
 This replaces r5's global B-to-stop binding in the next UI; r5 itself still has
-the documented global stop behavior. B at the playlist root and removal or
-retention of the existing back row remain to be settled.
+the documented global stop behavior. At the playlist root there is no parent;
+B does nothing and does not stop playback. Q9 removes the existing back row.
 
 **Q2 — decided:** L/R switches focus between the list and control panels. The
 D-pad operates within the focused panel. In lists, up/down selects entries and
@@ -515,12 +515,49 @@ scope. Use play/pause as the initial icon when there is no prior control focus.
 An icon becoming unavailable does not activate another action; Q7's disabled
 behavior still applies when the remembered previous/next icon is unavailable.
 
+**Q9 — decided:** Remove the 「プレイリスト一覧へ」 row from track pages. Show
+only tracks in the list and use B to return to the playlist list. Preserve each
+playlist's track/page position on return and reopening; returning is browsing,
+not a stop or a change of playback playlist.
+
+#### Consolidated operation table
+
+The table describes the next UI, not the installed r5 controls. Top-level B
+being a no-op follows from having no parent and Q1's panel-specific stop action.
+Physical bindings remain replaceable in UI/platform; playback commands and
+audio timing remain independent of focus and rendering.
+
+| Input | Playlist list | Track list | Control panel |
+| --- | --- | --- | --- |
+| D-pad up/down | Select list | Select track | Select an icon according to its placement |
+| D-pad left/right | Change page | Change page | Select an icon according to its placement |
+| A | Open selected list without changing playback | Start selected track from its beginning and use its playlist | Activate selected icon |
+| B | No action | Return to playlist list without changing playback | Stop playback and cancel automatic advance |
+| L/R | Switch panels without changing playback | Switch panels without changing playback | Switch panels without changing playback |
+| X/Y | Unassigned | Unassigned | Unassigned |
+
+| Control icon | Action |
+| --- | --- |
+| Play/pause | Playing: pause; paused: resume at the same position; stopped: restart the last-played track from its beginning. Unavailable before initial track-list playback. |
+| Stop | Stop playback and cancel automatic advance; do not navigate. |
+| Repeat count | Cycle 2 -> 3 -> 5 -> infinite -> 2 using the accepted live repeat behavior, including while stopped or paused. |
+| Previous | Start the previous entry in the playback playlist from its beginning. Disabled at the first entry. |
+| Next | Start the next entry in the playback playlist from its beginning. Disabled at the last entry. |
+
+Before initial playback there is no playback playlist/track for previous/next;
+those icons cannot start music. Browsing, returning and switching panels do not
+alter playback, and automatic advance does not move the browsing cursor.
+Remember control-icon focus and list positions for the session only. Launch
+still starts silently at the playlist list with two loops; no setting or focus
+persistence is added. Exact icon placement, D-pad adjacency and the directional
+L/R mapping belong to the next layout pass, not new playback features.
+
 The working layout proposal reuses the earlier preference for a large main
 area, track information below it and control icons to the right of that
 information. First organize the list, information and playback controls;
-Tracker/keyboard reintroduction is not approved by Q1–Q8.
-Complete the operation table and focus behavior before
-implementation; do not infer new playback features from this discussion.
+Tracker/keyboard reintroduction is not approved by Q1–Q9. The basic operation
+table is now consolidated; next settle the screen layout, information display
+and placement-dependent focus navigation before implementation.
 
 These are prospective product requirements, not a hardware candidate or a
 claim of implemented behavior. No runtime, package, test/generator input or
