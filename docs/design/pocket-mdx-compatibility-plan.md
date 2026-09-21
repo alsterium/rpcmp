@@ -472,8 +472,8 @@ retention of the existing back row remain to be settled.
 D-pad operates within the focused panel. In lists, up/down selects entries and
 left/right retains page navigation. Moving focus does not start, stop or switch
 music. This supersedes the earlier D-pad-between-panels preference for this UI.
-The specific icon arrangement/navigation and focus restoration remain to be
-defined; L/R is not a previous/next-track shortcut in this UI.
+The specific icon arrangement/navigation remains to be defined; Q8 settles
+control focus restoration. L/R is not a previous/next-track shortcut in this UI.
 
 **Q3 — decided:** Do not assign X/Y shortcuts. Select playback/repeat control
 icons with the D-pad and activate them with A. Q1's contextual B stop/return
@@ -491,14 +491,34 @@ session's repeat setting.
 
 **Q5 — decided:** Provide five control icons: play/pause, stop, repeat count,
 previous track and next track. Previous/next operates within the playback
-playlist, independently of the list currently being browsed. The exact layout,
-previous/next behavior while paused or stopped and list-boundary behavior remain
-to be settled; adding these icons does not authorize cross-playlist navigation.
+playlist, independently of the list currently being browsed. Adding these icons
+does not authorize cross-playlist navigation. Q6–Q7 settle their playback-state
+and list-boundary behavior; the exact layout remains to be defined.
+
+**Q6 — decided:** A previous/next action with an available target switches to
+that track and starts playback from its beginning, including when the original
+track is paused or stopped. Do not carry the paused/stopped state to the target.
+Keep the session's repeat setting and the existing separation between browsing
+and playback.
+
+**Q7 — decided:** Disable previous on the playback playlist's first entry and
+next on its last entry. Show the unavailable action as disabled; activating it
+does not change the track, position or playback state. Do not wrap within the
+playlist or cross into another playlist. This applies while playing, paused and
+stopped, including repeat-one mode; both directions are unavailable for a
+one-entry list. It does not change automatic list-end/repeat behavior.
+
+**Q8 — decided:** On entering the control panel, restore the previously focused
+icon. Returning to the list retains the existing cursor/page position. The
+remembered icon is session-local, consistent with the current no-persistence
+scope. Use play/pause as the initial icon when there is no prior control focus.
+An icon becoming unavailable does not activate another action; Q7's disabled
+behavior still applies when the remembered previous/next icon is unavailable.
 
 The working layout proposal reuses the earlier preference for a large main
 area, track information below it and control icons to the right of that
 information. First organize the list, information and playback controls;
-Tracker/keyboard reintroduction is not approved by Q1–Q5.
+Tracker/keyboard reintroduction is not approved by Q1–Q8.
 Complete the operation table and focus behavior before
 implementation; do not infer new playback features from this discussion.
 

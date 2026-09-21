@@ -80,8 +80,12 @@ lists. Q3 leaves X/Y unassigned and uses A on control icons. Q4 makes the
 play/pause icon act on the playback track: pause/resume, or restart the
 last-played track after stop. Initial playback starts from the track list.
 Q5 adds previous/next within the playback playlist to play/pause, stop and
-repeat-count icons. Their state/boundary behavior and the remaining focus rules
-are under discussion; these requirements have not yet been implemented in r5.
+repeat-count icons. Q6 starts the target from its beginning even from pause/stop.
+Q7 disables the unavailable direction at the first/last entry, without wrapping
+or changing playback state. Q8 remembers control-icon focus during the session
+and retains list cursor/page positions. The remaining operation table/layout
+details are under discussion; these requirements have not yet been implemented
+in r5.
 
 ## 1. Product vision
 
