@@ -47,14 +47,18 @@ expected to change when the UI is developed. Keep it separate from playback
 commands. Pausing holds song/fade progress and automatic advancement while
 list browsing remains available. Minimal Player r3 implements this boundary and
 passes the user's [Firmware 2.6 hardware report](milestones/M6-album-player.md#minimal-player-r3-hardware-result--2026-09-22).
-It is now the accepted hardware baseline for the next small slice. See the
+It established the hardware baseline for the following loop/repeat slice. See the
 [implementation evidence](milestones/M6-album-player.md#pause-and-resume-implementation--2026-09-22).
 
-The next approved small slice is [loop/repeat switching](design/pocket-mdx-compatibility-plan.md#loop-and-repeat-switching-boundary):
+The subsequent approved slice is [loop/repeat switching](design/pocket-mdx-compatibility-plan.md#loop-and-repeat-switching-boundary):
 Y cycles two, three, five loops and repeat one. Changes affect the current song;
 the setting is shown and retained during the session, resetting to two at launch.
 Counted modes retain five-second fades and M3U advancement; repeat one repeats
 the same song. This supersedes the configurable-loop deferral below for this slice.
+Minimal Player r4 passes the user's [Firmware 2.6 hardware report](milestones/M6-album-player.md#minimal-player-r4-hardware-result--2026-09-22)
+and is now the accepted hardware baseline. Failed-track skipping was not reported
+in this check; its host evidence remains separate. The next small requirement
+has not yet been selected.
 
 ## 1. Product vision
 

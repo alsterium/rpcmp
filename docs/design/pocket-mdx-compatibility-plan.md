@@ -43,10 +43,14 @@ small slice, with provisional X input. Minimal Player r3 implements it; see the
 [implementation evidence](../milestones/M6-album-player.md#pause-and-resume-implementation--2026-09-22).
 The subsequent [Firmware 2.6 / r3 report](../milestones/M6-album-player.md#minimal-player-r3-hardware-result--2026-09-22)
 passes pause/resume, browsing and transport controls, fade/automatic advance,
-audio continuity and restart/power-cycle recovery. r3 is now the accepted
+audio continuity and restart/power-cycle recovery. r3 became the accepted
 hardware baseline. The user then approved [loop/repeat switching](#loop-and-repeat-switching-boundary)
 with provisional Y input. The [r4 candidate](../development/pocket-minimal-player.md)
-passes its local verification gates; its Pocket acceptance is pending.
+passes its local verification gates and the subsequent
+[Firmware 2.6 / r4 hardware report](../milestones/M6-album-player.md#minimal-player-r4-hardware-result--2026-09-22).
+This accepts loop/repeat switching and establishes r4 as the hardware baseline.
+Failed-track skipping was not reported in that hardware check. The next small
+requirement remains to be selected; no further implementation is authorized yet.
 Tracker/keyboard expansion, shuffle and persistent settings remain deferred.
 Keep relevant input bounds, focused regressions and integration checks; do not
 restart a broad compatibility campaign as a prerequisite for this next step.

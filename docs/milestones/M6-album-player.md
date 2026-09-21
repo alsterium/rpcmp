@@ -49,10 +49,12 @@ exercised on hardware because no errors occurred. The subsequent approved slice 
 [pause/resume with provisional X input](../design/pocket-mdx-compatibility-plan.md#pause-and-resume-boundary);
 the [r3 implementation](#pause-and-resume-implementation--2026-09-22) now passes
 its [Firmware 2.6 hardware report](#minimal-player-r3-hardware-result--2026-09-22).
-r3 is the accepted hardware baseline. The user subsequently approved
+r3 was the preceding accepted hardware baseline. The user subsequently approved
 [loop/repeat switching with provisional Y input](../design/pocket-mdx-compatibility-plan.md#loop-and-repeat-switching-boundary).
-r4 passes Full 90/90 and its affected integration gates; its candidate is ready
-for hardware verification, with r3 remaining the accepted hardware baseline.
+r4 passes Full 90/90, its affected integration gates and the subsequent
+[Firmware 2.6 hardware report](#minimal-player-r4-hardware-result--2026-09-22).
+r4 is now the accepted hardware baseline. The next small requirement remains
+to be selected; no further implementation is authorized by this report alone.
 This closes the compatibility investigation, not M6 as a whole. Inherited shell
 external timing constraints and the remaining player integration stay separate.
 The original objective, adopted contracts and results
@@ -3995,3 +3997,39 @@ core `0.16.0-player-r4`、HYB4のFPGA/起動ROM/アプリを組み合わせて�
 `python -B out/harness/continuous-document-links.py`（HEADとの差分のリンク/アンカー7件）、
 `git diff --check` はPASSです。この追記は結果・進捗だけで、仕様・確認手順・コード・
 配布物は変えていません。入力が同一のFull・RTL・クロスビルド・合成は再実行しません。
+
+## Minimal Player r4 hardware result — 2026-09-22
+
+ユーザーの **Firmware 2.6 / Minimal Player r4** 報告を受領しました。
+以下はユーザーによる実機確認で、エージェントの再測定ではありません。
+
+- 曲一覧、起動時の無音・2周表示、日本語の曲名は問題なし。曲数の具体的な数字は未報告。
+- Yで2→3→5→無限→2、停止中の無音、Y長押しは問題なし。
+- ループ曲の2・3・5周、約5秒フェード、FM・PCM両方は問題なし。
+- 無限で2周以上継続し、2周へ戻すと位置を保ってフェードする動作は問題なし。
+- フェード中に3周・無限へ変更すると音量が戻り、その位置から継続する動作は問題なし。
+- 一時停止中のY切替、無音・位置保持、新設定での再開は問題なし。
+  フェード中のX一時停止・再開と残りのフェードも問題なし。
+- 自然終了曲は回数設定で1回、無限で先頭から繰り返す動作は問題なし。
+  M3U末尾では回数設定で停止し、無限で同じ曲を繰り返す動作も問題なし。
+- Aで選択曲へ、B停止、停止後Xで無音、Aで先頭から再生は問題なし。
+  停止・選曲・自動送りでの設定保持と、カーソル・ページ保持も問題なし。
+- FM・PCM・左右、音切れ・ノイズ・位置の飛び・テンポ・入力遅延は問題なし。
+- 通常再起動・電源OFF後の無音、2周への設定リセット、再生は問題なし。
+
+停止後の観測値は **R 5161 us / F 434 us / D 1307 us / V 671 us / Q 1023 frames**。
+R/F/Qは直近の再生、D/Vは起動後の計測です。曲・条件を揃えた比較ではないため、
+r3からの性能改善や全曲の最大負荷を示す値とは扱いません。
+エラー曲スキップは今回未報告です。実機での異常曲試験の合格は追加せず、
+既存のホスト試験をその経路の証拠として維持します。
+
+[実装時のFull・RTL・ビルド・パッケージ検証](#loop-and-repeat-implementation--2026-09-22)
+と今回の実機報告を合わせ、承認済みのループ・リピート切り替えスライスを合格とし、
+**r4を受入済みの基準**に更新します。M6全体や、既存の外部I/O制約を含む基板全体の
+本番受入を完了したという意味ではありません。次は小さな追加機能の要件決めです。
+
+今回の変更は実機結果と進捗リンクのみです。コード・仕様の動作・確認手順・配布物は
+変更していません。Full・RTL・クロスビルド・合成は入力が変わらないため再実行せず、
+`python -B tools/check_harness.py --root .`、
+`python -B out/harness/continuous-document-links.py`（変更リンク/アンカー8件）、
+`git diff --check` はPASSです。

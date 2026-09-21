@@ -2,13 +2,20 @@
 
 Active milestone: [M6 — Album Player](milestones/M6-album-player.md)
 
-The current task is **Pocket hardware verification of Minimal Player r4 loop/repeat switching** after accepting
-the [Firmware 2.6 / Minimal Player r3 hardware report](milestones/M6-album-player.md#minimal-player-r3-hardware-result--2026-09-22).
-The user approved Y cycling through 2, 3, 5 loops and repeat one. Follow the
-[loop/repeat boundary](design/pocket-mdx-compatibility-plan.md#loop-and-repeat-switching-boundary)
-on the accepted r3 baseline. The [r4 evidence](milestones/M6-album-player.md#loop-and-repeat-implementation--2026-09-22)
-records Full 90/90, native/reference, RTL, RV32, fit/CDC and package checks passing.
-The r4 candidate is ready; hardware acceptance is pending.
+The current task is **choosing the next small M6 requirement** after accepting
+the [Firmware 2.6 / Minimal Player r4 hardware report](milestones/M6-album-player.md#minimal-player-r4-hardware-result--2026-09-22).
+No next feature has been selected or authorized for implementation yet.
+Minimal Player r4 is the accepted hardware baseline. It passes the
+[loop/repeat boundary](design/pocket-mdx-compatibility-plan.md#loop-and-repeat-switching-boundary):
+Y cycles 2, 3, 5 loops and repeat one, including changes during playback, pause
+and fading. Natural endings, M3U-end behavior, session-setting retention,
+manual controls, browsing and silent/two-loop restart defaults also pass.
+No noise, dropout, position jump, tempo problem or input delay was reported.
+Observations: R 5161 us, F 434 us, D 1307 us, V 671 us and Q 1023 frames.
+The numeric track count and failed-track skipping were not reported in this
+check. The [r4 implementation evidence](milestones/M6-album-player.md#loop-and-repeat-implementation--2026-09-22)
+records Full 90/90, native/reference, RTL, RV32, fit/CDC and package checks.
+This completes the loop/repeat slice, not M6 or production-substrate acceptance.
 The [pause/resume boundary](design/pocket-mdx-compatibility-plan.md#pause-and-resume-boundary)
 uses X to pause/resume, A to start the selected track from its beginning and B
 to stop. The implementation keeps X in the replaceable input bindings and holds
@@ -17,7 +24,7 @@ FM/PCM, fade progress and buffered audio at a stereo frame boundary. For r4, fol
 `out/build/minimal-player-r4-update.zip`; it preserves the installed M3U/HPL1
 collection and updates the matching HYB4 FPGA/boot ROM/application together.
 See the [implementation evidence](milestones/M6-album-player.md#pause-and-resume-implementation--2026-09-22).
-Minimal Player r3 is now the accepted hardware baseline: the 27-track list,
+Minimal Player r3 was the preceding accepted hardware baseline: the 27-track list,
 FM/PCM pause and resume, browsing while paused, A/B controls, held/repeated X,
 fade continuation, automatic advance and restart/power-cycle recovery all pass
 the user's report. No noise, position jump, tempo problem or input delay was
