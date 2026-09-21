@@ -56,7 +56,7 @@ the setting is shown and retained during the session, resetting to two at launch
 Counted modes retain five-second fades and M3U advancement; repeat one repeats
 the same song. This supersedes the configurable-loop deferral below for this slice.
 Minimal Player r4 passes the user's [Firmware 2.6 hardware report](milestones/M6-album-player.md#minimal-player-r4-hardware-result--2026-09-22)
-and is now the accepted hardware baseline. Failed-track skipping was not reported
+and established the preceding hardware baseline. Failed-track skipping was not reported
 in this check; its host evidence remains separate. The user subsequently selected
 [multiple-playlist support](design/pocket-mdx-compatibility-plan.md#multiple-playlist-requirements)
 and settled its Q1–Q6 requirements. Import multiple M3Us on the PC, with optional
@@ -65,9 +65,12 @@ its original list until a track is selected. Retain each list's cursor/page duri
 the session. Minimal Player r5 implements 100 lists of up to 300 entries using
 HPL2; existing HPL1 collections require reimport. The target build uses
 4,486,412 bytes of static memory, including the resident index. Host checks cover
-30,000 registrations; startup time and playback while browsing at that scale
-remain hardware checks. See the [implementation evidence](milestones/M6-album-player.md#multiple-playlist-implementation--2026-09-22).
-r4 remains the accepted hardware baseline until the r5 report is received.
+30,000 registrations. The user's [Firmware 2.6 / r5 hardware report](milestones/M6-album-player.md#minimal-player-r5-hardware-result--2026-09-22)
+passes the normal three-list/42-entry flow and reports the 100 × 300 entry check
+as OK. Index load/validation takes 20 ms normally and 6,598 ms for the scale
+collection; total boot time and Q were not separately reported. See the
+[implementation evidence](milestones/M6-album-player.md#multiple-playlist-implementation--2026-09-22).
+r5 is now the accepted hardware baseline for the next small feature decision.
 
 ## 1. Product vision
 

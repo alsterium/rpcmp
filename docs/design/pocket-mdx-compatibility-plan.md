@@ -54,7 +54,8 @@ Failed-track skipping was not reported in that hardware check. The user selected
 and settled its Q1–Q6 requirements. The subsequent instruction to continue until
 hardware verification is needed authorizes implementation and its handoff.
 The [r5 implementation](../milestones/M6-album-player.md#multiple-playlist-implementation--2026-09-22)
-now awaits that hardware report; r4 remains the accepted hardware baseline.
+passes the subsequent [Firmware 2.6 / r5 hardware report](../milestones/M6-album-player.md#minimal-player-r5-hardware-result--2026-09-22).
+r5 is now the accepted hardware baseline; the next small feature is not yet selected.
 Tracker/keyboard expansion, shuffle and persistent settings remain deferred.
 Keep relevant input bounds, focused regressions and integration checks; do not
 restart a broad compatibility campaign as a prerequisite for this next step.
@@ -345,9 +346,9 @@ album navigation and multiple named collections are subsequent work.
 
 ### Multiple-playlist requirements
 
-Status: Q1–Q6 requirements agreed on 2026-09-22 and implemented in the r5
-hardware candidate. See the [implementation evidence](../milestones/M6-album-player.md#multiple-playlist-implementation--2026-09-22).
-Hardware acceptance remains pending.
+Status: Q1–Q6 requirements agreed on 2026-09-22, implemented in r5 and accepted
+through the [Firmware 2.6 hardware report](../milestones/M6-album-player.md#minimal-player-r5-hardware-result--2026-09-22).
+See the [implementation evidence](../milestones/M6-album-player.md#multiple-playlist-implementation--2026-09-22).
 This extends the single installed collection described above. Keep PC-side M3U
 authoring and MDX/PDX preparation; Pocket consumes generated data. The current
 HPL1 limits remain r4 implementation facts, not the new feature's capacity.
@@ -376,9 +377,12 @@ Measured implementation resources: HPL2 keeps one raw index of at most
 build has 4,486,412 static bytes against its 54-MiB region, with a conservative
 15,344-byte stack bound. The loader reads only the selected MDX/PDX pair and
 browsing performs no storage reads. Host checks exercise 100 × 300 entries;
-these are not measurements of runtime peak heap, Pocket startup time or audio
-continuity at that scale. The hardware guide records startup/index time and
-browsing behavior. No smaller fallback was needed. The storage and pair limits
+these are not measurements of runtime peak heap or total Pocket startup time.
+The subsequent user hardware report passes the normal collection and reports
+the 100 × 300 entry check as OK. Index load/validation I is 20 ms normally and
+6,598 ms at scale; no input delay, dropout or noise was reported. The scale
+collection repeats six songs, not 30,000 distinct songs. No smaller fallback
+was needed. The storage and pair limits
 below still apply; 30,000 maximum-size pairs cannot fit in a 2-GiB file.
 
 The connected implementation checkpoint for Full is **multiple M3Us → generated

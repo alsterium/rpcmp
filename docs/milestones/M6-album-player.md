@@ -53,17 +53,19 @@ r3 was the preceding accepted hardware baseline. The user subsequently approved
 [loop/repeat switching with provisional Y input](../design/pocket-mdx-compatibility-plan.md#loop-and-repeat-switching-boundary).
 r4 passes Full 90/90, its affected integration gates and the subsequent
 [Firmware 2.6 hardware report](#minimal-player-r4-hardware-result--2026-09-22).
-r4 is now the accepted hardware baseline. The user subsequently selected
+r4 established the preceding hardware baseline. The user subsequently selected
 [multiple-playlist support](../design/pocket-mdx-compatibility-plan.md#multiple-playlist-requirements)
 and settled its Q1–Q6 requirements: multiple M3U inputs plus optional folder
 import, uninterrupted browsing across lists, track selection changing the active
 list, explicit name/order rules and per-list session cursor/page retention.
 The [r5 implementation](#multiple-playlist-implementation--2026-09-22) supports
 100 lists of up to 300 entries using HPL2. Host checks cover 30,000 registrations,
-and the target build uses 4,486,412 static bytes. Hardware startup time and
-playback while browsing remain unverified. The next task is the r5 hardware
-report using the [Japanese procedure](../development/pocket-minimal-player.md);
-r4 remains the accepted baseline.
+and the target build uses 4,486,412 static bytes. The subsequent
+[Firmware 2.6 / r5 hardware report](#minimal-player-r5-hardware-result--2026-09-22)
+passes the normal three-list/42-entry flow and reports the 100 × 300 entry check
+as OK. Index load/validation I is 20 ms normally and 6,598 ms at scale; total
+boot time and Q were not separately reported. r5 is now the accepted baseline.
+The next task is choosing a small feature's requirements.
 This closes the compatibility investigation, not M6 as a whole. Inherited shell
 external timing constraints and the remaining player integration stay separate.
 The original objective, adopted contracts and results
@@ -4122,3 +4124,38 @@ HYB4・FM/PCMレンダラー・FPGA・起動ROM・OS・依存ライブラリは�
 `python -B tools/check_harness.py --root .`、
 `python -B out/harness/continuous-document-links.py`（変更リンク/アンカー12件）、
 `git diff --check` はPASS。最終のパッケージ読み戻しもPASSです。
+
+## Minimal Player r5 hardware result — 2026-09-22
+
+ユーザーの **Firmware 2.6 / Minimal Player r5** 実機報告を受領しました。
+通常版は3プレイリスト・42登録です。以下はユーザーの報告であり、エージェントによる
+再測定ではありません。
+
+- 起動時・リストを開くときの無音、日本語表示、リスト順・曲順、上下・左右と各ページの戻る行はOK。
+- 別リストを閲覧しても元の音楽が続き、入力遅延・音切れ・ノイズは問題なし。
+- 別リスト閲覧中の自動送りと、閲覧中のカーソル・ページ保持はOK。
+- Aで再生元リストを切り替え、各リスト末尾で停止する動作はOK。
+- リストごとの曲・ページ位置復元はOK。
+- 別リスト閲覧中のX一時停止・再開、一時停止中のA、B停止はOK。
+- Yループ切替、フェード、無限、リスト切替後の設定保持はOK。
+- FM・PCM・左右と約1分の安定再生はOK。
+- 100×300登録の最初・中間・最後のリスト・曲の確認は「OK.問題なさそう」との報告。
+  大規模版のIは **6,598 ms**。同じ6曲を繰り返した規模確認で、3万種類の曲の互換性確認ではありません。
+- 通常再起動・電源OFF後の無音、2周設定、閲覧位置リセットはOK。
+
+停止後の観測値は **R 12,691 us / F 473 us / D 1,594 us / V 669 us / I 20 ms**。
+Qは未記載です。Iは曲集インデックスの読み込み・検査時間であり、通常版20 ms・大規模版
+6,598 msを総起動時間とは扱いません。「起動所要時間 / I」欄は20とだけ記載されており、
+総起動時間の独立した測定は未報告です。曲・条件を揃えていないため、r4比の性能変化や
+全曲の最大負荷は推定しません。エラー曲スキップも今回未報告で、既存ホスト試験の証拠を維持します。
+
+[実装時のFull 90/90・native/reference・RV32・パッケージ検証](#multiple-playlist-implementation--2026-09-22)
+と今回の実機報告を合わせ、承認済みの複数プレイリストスライスを合格とし、
+**r5を受入済みの基準**に更新します。今回は追加修正・最適化を開始せず、次は小さな機能の
+要件決めです。M6全体や、既存の外部I/O制約を含む基板全体の本番受入を完了したものではありません。
+
+今回の変更は実機結果と進捗リンクのみです。コード・仕様の動作・確認手順・配布物は変更せず、
+Full・RTL・クロスビルド・合成は入力が変わらないため再実行しません。
+`python -B tools/check_harness.py --root .`、
+`python -B out/harness/continuous-document-links.py`（変更リンク/アンカー10件）、
+`git diff --check` はPASSです。

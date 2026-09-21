@@ -2,21 +2,23 @@
 
 Active milestone: [M6 — Album Player](milestones/M6-album-player.md)
 
-The current task is **awaiting the Minimal Player r5 multiple-playlist hardware report**.
-The user's [Q1–Q6 requirements](design/pocket-mdx-compatibility-plan.md#multiple-playlist-requirements)
-are implemented: multiple M3U inputs and optional folder import, independent
-browsing/playback lists, specified ordering and per-list session cursor/page
-retention. HPL2 supports 100 lists of up to 300 entries; old HPL1 collections
-require reimport. See the [implementation evidence](milestones/M6-album-player.md#multiple-playlist-implementation--2026-09-22)
-for host/target checks and the measured 4,486,412 static bytes. Pocket startup
-time and audio continuity while browsing the large index still need hardware
-confirmation. Use `out/build/minimal-player-r5.zip` and the
-[Japanese procedure](development/pocket-minimal-player.md); the optional
-`minimal-player-r5-scale-data.zip` contains 100 × 300 registrations of the same
-six accepted songs, not 30,000 distinct songs. For existing M3Us, use the r5
-update ZIP with a [newly imported HPL2 collection](development/m3u-library.md).
-Keep the accepted r4 package and its HPL1 collection available for recovery.
-Minimal Player r4 is the accepted hardware baseline. It passes the
+The current task is **choosing the next small feature's requirements** after
+accepting the [Firmware 2.6 / Minimal Player r5 hardware report](milestones/M6-album-player.md#minimal-player-r5-hardware-result--2026-09-22).
+r5 is the accepted hardware baseline. The normal three-list/42-entry collection
+passes browsing during playback, original-list automatic advance, track selection
+changing the playback list, list-end stop, per-list position restoration,
+transport/repeat controls, FM/PCM stereo playback and restart defaults. No input
+delay, dropout or noise was reported. The 100 × 300 entry check is also reported
+as OK, with index load/validation I 6,598 ms; normal I is 20 ms. These are not
+total boot times. Reported timings are R 12,691 / F 473 / D 1,594 / V 669 us;
+Q and failed-track skipping were not reported. The scale data repeats the same
+six songs, rather than testing 30,000 distinct songs.
+This completes the [multiple-playlist slice](design/pocket-mdx-compatibility-plan.md#multiple-playlist-requirements),
+not M6 or production-substrate acceptance. The [implementation evidence](milestones/M6-album-player.md#multiple-playlist-implementation--2026-09-22)
+records Full 90/90, native/reference, RV32 resource and package checks. No next
+feature is selected yet. Keep the r5 package as the baseline; existing M3Us
+need a [newly imported HPL2 collection](development/m3u-library.md).
+Minimal Player r4 was the preceding accepted hardware baseline. It passes the
 [loop/repeat boundary](design/pocket-mdx-compatibility-plan.md#loop-and-repeat-switching-boundary):
 Y cycles 2, 3, 5 loops and repeat one, including changes during playback, pause
 and fading. Natural endings, M3U-end behavior, session-setting retention,
