@@ -1,13 +1,13 @@
 // HYB1 audio owner. FIFO heads are show-ahead values in this clock domain.
 module rpcmp_hybrid_audio (
-    input logic clk_audio, reset_n, clear, start,
+    input logic clk_audio, reset_n, clear, start, pause_request,
     input logic pcm_empty,
     input logic [63:0] pcm_data,
     output logic pcm_pop,
     input logic fm_empty,
     input logic [48:0] fm_data, // {sample[31:0], end, address[7:0], value[7:0]}
     output logic fm_pop,
-    output logic running, ended,
+    output logic running, ended, paused,
     output logic [3:0] faults,
     output logic [31:0] source_count, write_count, max_late_samples,
     output logic audio_mclk, audio_lrck, audio_dac
@@ -16,6 +16,14 @@ module rpcmp_hybrid_audio (
     logic [2:0] bus_state;
     logic rendering, draining;
     logic [7:0] serial_phase;
+    wire frame_boundary = serial_phase == 8'hff;
+    // Hold/resume on exactly a whole stereo frame, retaining native clock phase.
+    wire hold_audio = !clear && (frame_boundary ? pause_request : paused);
+    always_ff @(posedge clk_audio or negedge reset_n) begin
+        if (!reset_n) paused<=0;
+        else if (clear) paused<=0;
+        else if (frame_boundary) paused<=pause_request;
+    end
     logic [1:0] startup_frames;
     logic signed [15:0] frame_left, frame_right;
     logic [23:0] cen_accum;
@@ -24,10 +32,10 @@ module rpcmp_hybrid_audio (
     logic jt_sample, jt_wr_n, jt_a0;
     logic [7:0] jt_din, jt_dout, command_value;
     wire signed [18:0] fm_left, fm_right;
-    wire begin_stream = start && !running && !ended && faults == 0 && !clear &&
+    wire begin_stream = start && !running && !ended && faults == 0 && !clear && !hold_audio &&
                         !pcm_empty && serial_phase == 8'hff;
-    wire source_valid = rendering && !clear && faults == 0 && jt_sample && !pcm_empty;
-    wire event_due = rendering && !clear && faults == 0 && !fm_empty &&
+    wire source_valid = rendering && !hold_audio && !clear && faults == 0 && jt_sample && !pcm_empty;
+    wire event_due = rendering && !hold_audio && !clear && faults == 0 && !fm_empty &&
                      fm_data[48:17] <= source_count;
     wire finish_source = event_due && fm_data[16:0] == 17'h10000 && bus_state == IDLE;
     wire begin_fade = event_due && fm_data[16:0] == 17'h10001 && bus_state == IDLE;
@@ -50,7 +58,7 @@ module rpcmp_hybrid_audio (
     always_ff @(posedge clk_audio or negedge reset_n) begin
         if (!reset_n) begin cen_accum<=0; cen<=0; cen_p1<=0; cen_phase<=0; end
         else if (begin_stream) begin cen_accum<=0; cen<=0; cen_p1<=0; cen_phase<=0; end
-        else begin
+        else if (!hold_audio) begin
             cen<=0; cen_p1<=0;
             if (cen_sum >= 25'd12288000) begin
                 cen_accum <= cen_sum[23:0] - 24'd12288000;
@@ -59,7 +67,8 @@ module rpcmp_hybrid_audio (
         end
     end
 
-    jt51 sound (
+    rpcmp_hold_jt51 sound (
+        .rpcmp_hold(hold_audio),
         .rst(!reset_n || clear || !rendering), .clk(clk_audio), .cen(cen), .cen_p1(cen_p1),
         .cs_n(1'b0), .wr_n(jt_wr_n), .a0(jt_a0), .din(jt_din), .dout(jt_dout),
         .ct1(), .ct2(), .irq_n(), .sample(jt_sample), .left(), .right(), .xleft(), .xright(),
@@ -73,7 +82,7 @@ module rpcmp_hybrid_audio (
         end else if (clear || !running) begin
             bus_state<=IDLE; jt_wr_n<=1; jt_a0<=0; jt_din<=0; command_value<=0;
             if (clear) begin write_count<=0; max_late_samples<=0; end
-        end else begin
+        end else if (!hold_audio) begin
             case (bus_state)
                 IDLE: if (event_due && !fm_data[16]) begin
                     jt_din<=fm_data[15:8]; command_value<=fm_data[7:0];
@@ -104,7 +113,7 @@ module rpcmp_hybrid_audio (
     wire signed [15:0] mix_left, mix_right;
     assign fraction_sum = {1'b0,fraction} + 8'd29;
     rpcmp_hybrid_mixer mixer (
-        .clk(clk_audio), .reset_n(reset_n && !clear && faults == 0), .sample_valid(pcm_pop),
+        .clk(clk_audio), .reset_n(reset_n && !clear && faults == 0), .hold(hold_audio), .sample_valid(pcm_pop),
         .fm_left(fm_left), .fm_right(fm_right),
         .pcm_left(pcm_data[63:32]), .pcm_right(pcm_data[31:0]),
         .fade_remaining(fade_remaining),
@@ -113,9 +122,8 @@ module rpcmp_hybrid_audio (
     logic [31:0] output_queue [0:3];
     logic [1:0] output_rd, output_wr;
     logic [2:0] output_count;
-    wire push_output = mix_valid && selected_pipe[3] && running && !clear && faults == 0;
-    wire frame_boundary = serial_phase == 8'hff;
-    wire pop_output = frame_boundary && running && startup_frames <= 1 && output_count != 0;
+    wire push_output = mix_valid && selected_pipe[3] && running && !hold_audio && !clear && faults == 0;
+    wire pop_output = frame_boundary && !hold_audio && running && startup_frames <= 1 && output_count != 0;
 
     always_ff @(posedge clk_audio or negedge reset_n) begin
         if (!reset_n) begin
@@ -130,7 +138,7 @@ module rpcmp_hybrid_audio (
             rendering<=0; draining<=0; selected_pipe<=0; output_count<=0;
         end else if (begin_stream) begin
             rendering<=1; startup_frames<=2;
-        end else begin
+        end else if (!hold_audio) begin
             selected_pipe <= {selected_pipe[2:0],pcm_pop && source_count == next_source};
             if (pcm_pop) begin
                 source_count<=source_count+1'b1;

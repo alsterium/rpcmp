@@ -39,7 +39,9 @@ passes the continuous-playback slice and makes r2 the accepted hardware baseline
 No errors occurred, so failed-track skipping was not exercised on hardware;
 its authored host checks remain the evidence for that path. The user selected
 the [pause/resume boundary](#pause-and-resume-boundary) on 2026-09-22 as the next
-small slice, with provisional X input. Its implementation is pending.
+small slice, with provisional X input. Minimal Player r3 implements it; see the
+[implementation evidence](../milestones/M6-album-player.md#pause-and-resume-implementation--2026-09-22).
+Its hardware acceptance remains pending.
 Tracker/keyboard expansion, shuffle and persistent settings remain deferred.
 Keep relevant input bounds, focused regressions and integration checks; do not
 restart a broad compatibility campaign as a prerequisite for this next step.
@@ -173,7 +175,8 @@ HYB2, so a mismatched old FPGA fails explicitly. HPL1 is unchanged.
 
 Approved on 2026-09-22 after r2 hardware acceptance. The user chose pause/resume
 and X as its provisional button because the final UI is not yet developed.
-Keep the slice small; r2 remains the implemented baseline until this is verified.
+Keep the slice small; r2 remains the accepted hardware baseline until r3 is
+verified on Pocket.
 
 - X toggles pause/resume for the current song, regardless of browsing selection.
   Pause silences both FM and PCM and holds their musical position, loop progress
@@ -201,6 +204,20 @@ progress. Rendering and snapshot cadence never determine pause/audio timing.
 Describe the concrete port/hardware changes before implementation and version any
 breaking snapshot/hardware boundary; no compatibility wrapper is required.
 M3U/HPL1 and deferred UI/policy/settings features stay outside this slice.
+
+Implementation boundary (2026-09-22): snapshot version 3 adds Paused and a
+TogglePause command. The playback port accepts a logical paused value. HYB3
+(`0x48594233`) adds control values 4 (pause) and 8 (resume) and status bit 8
+(acknowledged paused). Clear has priority and releases pause. Apply transitions
+only at a stereo frame boundary; keep I2S clocks running and emit whole silent
+frames while holding the native FM clock/state, register bus, PCM/event FIFO
+consumption, resampler, mixer pipeline and output queue. Reuse the pinned JT51
+hold transformation with the existing wide mixer taps. On the CPU, retain
+pending rendered blocks and exclude paused time from the feed/EOF deadline.
+An X before the first device start holds preparation locally; X with an already
+ended device can hold the completed song until resume observes EOF. Pause/control
+failures use the existing reset/error path. FPGA, boot ROM and application must
+all use HYB3; the package supplies the matching set. No new dependency is added.
 
 The Full checkpoint is **play -> pause to silence -> browse -> resume at the
 held FM/PCM position -> normal fade/end and next-track advance**, including A/B

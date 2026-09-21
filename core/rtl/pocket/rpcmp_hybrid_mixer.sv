@@ -1,6 +1,6 @@
 // HYB1: reference FM limiter/gain, then wide PCM addition and final saturation.
 module rpcmp_hybrid_mixer (
-    input logic clk, reset_n, sample_valid,
+    input logic clk, reset_n, sample_valid, hold,
     input logic signed [18:0] fm_left, fm_right,
     input logic signed [31:0] pcm_left, pcm_right,
     input logic [18:0] fade_remaining,
@@ -41,7 +41,7 @@ module rpcmp_hybrid_mixer (
             scaled_left <= 0; scaled_right <= 0;
             delayed_pcm_left <= 0; delayed_pcm_right <= 0;
             sum_left <= 0; sum_right <= 0; mixed_left <= 0; mixed_right <= 0;
-        end else begin
+        end else if (!hold) begin
             gain_valid <= sample_valid;
             fade_delay1 <= fade_remaining;
             fade_delay2 <= fade_delay1;

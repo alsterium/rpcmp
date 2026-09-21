@@ -75,11 +75,11 @@ module hybrid_axi_tb;
         repeat(10) @(negedge clk_cpu); reset_n=1;
         repeat(20) @(negedge clk_cpu);
         // In particular this precedes any write: AXI has no read WSTRB.
-        rd(BASE,value); if(value!='h48594232) $fatal(1,"wrong HYB2 binding");
+        rd(BASE,value); if(value!='h48594233) $fatal(1,"wrong HYB3 binding");
         ready(); wr(BASE+8,2,2); wr(BASE+'h14,1,2);
         for(integer n=0;n<15;n=n+1) begin
             wr(BASE+'h10,99,2,4'(n)); wr(BASE+'h14,1,2);
-            rd(BASE,value); if(value!='h48594232) $fatal(1,"read inherited bad WSTRB");
+            rd(BASE,value); if(value!='h48594233) $fatal(1,"read inherited bad WSTRB");
         end
         for(integer n=1;n<4;n=n+1) begin wr(BASE+'h10+n,99,2); rd(BASE+n,value,2); end
         wr(BASE+'h110,99,2); rd(BASE+'h100,value,2);
@@ -117,6 +117,16 @@ module hybrid_axi_tb;
         end
         rd(BASE+'h18,value); if(value!=3971) $fatal(1,"repeated/lost AXI commits");
         check_pcm=1; wr(BASE+8,2);
+        wr(BASE+8,4);
+        do rd(BASE+4,value); while(!value[8]);
+        begin
+            integer held_count;
+            held_count=consumed;
+            repeat(1024) @(negedge clk_core_12288);
+            if(consumed!=held_count) $fatal(1,"AXI pause consumed PCM");
+        end
+        wr(BASE+8,8);
+        do rd(BASE+4,value); while(value[8]);
         do begin rd(BASE+4,value); end while(!value[3] && value[7:4]==0);
         if(value[7:4]!=0 || consumed!=125) $fatal(1,"AXI playback failed %h count %0d",value,consumed);
         check_pcm=0; wr(BASE+8,1); ready();

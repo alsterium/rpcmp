@@ -17,6 +17,17 @@ bool Player::initialize() {
 void Player::submit(const api::PlayerCommand command) {
   if (!initialized_ || snapshot_.error == api::Error::Reset)
     return;
+  if (command.kind == api::CommandKind::TogglePause) {
+    if (snapshot_.state != api::State::Playing && snapshot_.state != api::State::Paused)
+      return;
+    const bool paused = snapshot_.state == api::State::Playing;
+    const auto error = playback_.set_paused(paused);
+    if (error != api::Error::None)
+      finish(error);
+    else
+      publish(paused ? api::State::Paused : api::State::Playing);
+    return;
+  }
   if (command.kind != api::CommandKind::PlayTrack && command.kind != api::CommandKind::Stop)
     return;
   if (command.kind == api::CommandKind::PlayTrack &&

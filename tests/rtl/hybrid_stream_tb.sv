@@ -13,6 +13,9 @@ module hybrid_stream_tb;
     logic voice_mode=0, limits_mode=0, fade_mode=0;
     integer voice_left[0:999], voice_right[0:999], wide_peak=0;
     logic [15:0] serial_left=0, serial_right=0;
+    logic capture_pause=0, replay_pause=0;
+    integer pause_frames=0;
+    logic [31:0] uninterrupted[0:767];
     rpcmp_hybrid_mmio dut(.*);
     // Literal signed boundary values, including the +/-16384 bit-shift failure.
     function automatic integer limit_input(input integer index);
@@ -75,7 +78,9 @@ module hybrid_stream_tb;
     end
     // APF I2S: skip the first SCLK after LRCK, then latch 16 bits.
     // This receiver uses only external pins, not the DUT's serial phase.
-    always @(negedge clk_audio) if (reset_n) begin
+    always @(negedge clk_audio) if (!reset_n) begin
+        channel=0; synchronized=0; bit_cycle=0; serial_left=0; serial_right=0;
+    end else begin
         if (audio_lrck !== channel) begin
             if (synchronized && bit_cycle != 128) $fatal(1,"noncontinuous LRCK");
             channel=audio_lrck; bit_cycle=0;
@@ -89,6 +94,15 @@ module hybrid_stream_tb;
             if (bit_cycle >= 68 && audio_dac !== 0) $fatal(1,"nonzero padding");
             if (channel && bit_cycle == 127) begin
                 observed=observed+1;
+                if (capture_pause && {serial_left,serial_right} != 0) begin
+                    if (pause_frames >= 768) $fatal(1,"extra pause test frame");
+                    if (replay_pause) begin
+                        if ({serial_left,serial_right} !== uninterrupted[pause_frames])
+                            $fatal(1,"pause changed audio frame %0d: %h expected %h",pause_frames,
+                                   {serial_left,serial_right},uninterrupted[pause_frames]);
+                    end else uninterrupted[pause_frames]={serial_left,serial_right};
+                    pause_frames=pause_frames+1;
+                end
                 if (compare_audio && (checked != 0 || serial_left !== 0 || serial_right !== 0)) begin
                     if (checked < expected_frames) begin
                         if ($signed(serial_left) !== fade_value(voice_mode ? voice_left[checked*125/96] :
@@ -145,12 +159,90 @@ module hybrid_stream_tb;
         if (event_count>0 && dut.audio.max_late_samples == 0) $fatal(1,"dense delay unobserved");
         compare_audio=0; compare_fm=0;
     endtask
+    task automatic hold_and_resume(input integer cycles);
+        logic [31:0] status, held_source, held_writes;
+        integer before_frames;
+        wr(8,4);
+        do rd(4,status); while (!status[8] && status[7:4]==0);
+        if (status[7:4]!=0) $fatal(1,"pause fault %h",status);
+        held_source=dut.audio.source_count; held_writes=dut.audio.write_count;
+        before_frames=pause_frames;
+        repeat(cycles) @(negedge clk_audio);
+        if (serial_left !== 0 || serial_right !== 0 || pause_frames != before_frames ||
+            dut.audio.source_count != held_source || dut.audio.write_count != held_writes)
+            $fatal(1,"pause not silent/stable");
+        wr(8,4); // Repeated level request is harmless.
+        wr(8,8);
+        do rd(4,status); while (status[8] && status[7:4]==0);
+        if (status[7:4]!=0) $fatal(1,"resume fault %h",status);
+    endtask
+    task automatic paused_stream(input bit replay);
+        logic [31:0] status;
+        capture_pause=1; replay_pause=replay; pause_frames=0;
+        for (int ch=0;ch<8;ch=ch+1) begin
+            fm(0,((32+ch)<<8) | 'hc7); fm(0,((40+ch)<<8) | (48+ch));
+            for (int op=0;op<4;op=op+1) begin
+                fm(0,((64+op*8+ch)<<8) | (1+op)); fm(0,((96+op*8+ch)<<8) | 32);
+                fm(0,((128+op*8+ch)<<8) | 31); fm(0,(160+op*8+ch)<<8);
+                fm(0,(192+op*8+ch)<<8); fm(0,((224+op*8+ch)<<8) | 15);
+            end
+        end
+        for (int ch=0;ch<8;ch=ch+1) fm(0,'h0878 | ch);
+        fm(200,'h10001);
+        fm(1000,'h10000);
+        for (int i=0;i<1000;i=i+1) pcm(1000+i);
+        wr(8,2);
+        if (replay) begin
+            hold_and_resume(1024); // Includes the startup boundary.
+            wait(dut.audio.bus_state==4);
+            hold_and_resume(1031); // Native register write in progress.
+            for (int n=0;n<8;n=n+1) begin
+                wait(dut.audio.source_count >= 210+n*90);
+                hold_and_resume(1024+n*17); // Active FM/PCM, resampling and fade.
+            end
+        end
+        do begin repeat(128) @(negedge clk_cpu); rd(4,status); end while (!status[3] && status[7:4]==0);
+        repeat(768) @(negedge clk_audio);
+        if (status[7:4]!=0 || pause_frames!=768 || dut.audio.write_count!=216 ||
+            dut.audio.source_count!=1000 || !dut.audio.fading)
+            $fatal(1,"paused stream incomplete %h frames=%0d",status,pause_frames);
+        capture_pause=0;
+    endtask
+    task automatic cancel_active_pause(input bit power_reset);
+        logic [31:0] status;
+        wr(8,1); ready();
+        fm(125,'h10000);
+        for (int i=0;i<125;i=i+1) pcm(1000+i);
+        wr(8,2);
+        wait(dut.audio.source_count >= 20);
+        wr(8,4); do rd(4,status); while (!status[8]);
+        if (!status[2] || status[3] || status[7:4]!=0) $fatal(1,"cancel requires live paused audio");
+        if (power_reset) begin
+            reset_n=0; repeat(12) @(negedge clk_cpu); reset_n=1;
+        end else wr(8,1);
+        ready();
+    endtask
     initial begin
         logic [31:0] value;
         logic [15:0] stop_left, stop_right;
         integer stopped_frame;
         repeat(10) @(negedge clk_cpu); reset_n=1;
-        ready(); rd(0,value); if (value != 'h48594232) $fatal(1,"wrong ID");
+        ready(); rd(0,value); if (value != 'h48594233) $fatal(1,"wrong ID");
+        if ($test$plusargs("PAUSE")) begin
+            wr(8,4,1); wr(8,8,1); // No stream exists yet.
+            paused_stream(0);
+            wr(8,1); ready();
+            paused_stream(1);
+            // Completed-stream race and Clear must also release acknowledged hold.
+            wr(8,4); do rd(4,value); while (!value[8]);
+            wr(8,1); ready();
+            cancel_active_pause(0);
+            normal(125,0);
+            cancel_active_pause(1);
+            normal(126,0);
+            $display("hybrid_stream_tb: PAUSE PASS phase=%0d frames=768 holds=10 active_cancels=2",phase);
+            $finish;
+        end
         if ($test$plusargs("VOICE")) begin
             // Real eight-channel native synthesis plus PCM outside int16.
             voice_mode=1; compare_audio=1; expected_frames=768;

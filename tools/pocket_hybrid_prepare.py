@@ -7,7 +7,7 @@ import shutil
 import subprocess
 import sys
 
-from mdx_hybrid_probe import checked_replace, prepare_jt51_wide
+from mdx_hybrid_probe import checked_replace, prepare_jt51_paused
 
 
 def prepare_fit(pocket):
@@ -75,7 +75,7 @@ def prepare(args):
     .audio_mclk(audio_mclk), .audio_lrck(audio_lrck), .audio_dac(audio_dac)
 );"""
     top.write_text(checked_replace(text, old, replacement), encoding="utf-8", newline="\n")
-    native = prepare_jt51_wide(args.jt51, args.output / "rpcmp-jt51-wide")
+    native = prepare_jt51_paused(args.jt51, args.output / "rpcmp-jt51-wide")
     qsf = pocket / "ap_core.qsf"
     lines = [line for line in qsf.read_text(encoding="utf-8").splitlines() if not any(
         marker in line for marker in ("core/rtl/pocket/", "rpcmp-jt51-hold/", "jt51.qip", "player-sound.sdc"))]

@@ -1,6 +1,6 @@
 `timescale 1ns/1ps
 module hybrid_mixer_tb;
-    logic clk=0, reset_n=0, sample_valid=0;
+    logic clk=0, reset_n=0, sample_valid=0, hold=0;
     logic signed [18:0] fm_left=0, fm_right=0;
     logic signed [31:0] pcm_left=0, pcm_right=0;
     logic [18:0] fade_remaining=312500;

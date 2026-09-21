@@ -4,10 +4,10 @@
 #include "rpcmp/contracts/catalog.hpp"
 
 namespace rpcmp::contracts::minimal {
-inline constexpr std::uint16_t kVersion = 2;
-enum class State : std::uint8_t { Stopped, Playing, Advancing, Ended, Error };
+inline constexpr std::uint16_t kVersion = 3;
+enum class State : std::uint8_t { Stopped, Playing, Paused, Advancing, Ended, Error };
 enum class Error : std::uint8_t { None, Load, Renderer, Audio, Timeout, Reset };
-enum class CommandKind : std::uint8_t { PlayTrack, Stop };
+enum class CommandKind : std::uint8_t { PlayTrack, Stop, TogglePause };
 struct PlayerCommand {
   CommandKind kind{CommandKind::Stop};
   TrackId track{};

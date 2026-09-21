@@ -15,13 +15,13 @@ proc rpcmp_hybrid_cdc {prefix cpu_name audio_name} {
     if {[get_collection_size $cpu] != 1 || [get_collection_size $audio] != 1} {
         error "HYB1 requires exactly one CPU clock and one audio clock"
     }
-    foreach name {clear_sync start_sync} {
+    foreach name {clear_sync start_sync pause_sync} {
         set first [rpcmp_hybrid_required [format {%s%s[0]} $prefix $name] 1 1]
         set_false_path -from $cpu -to $first
     }
     set first [rpcmp_hybrid_required [format {%sack_sync[0]} $prefix] 1 1]
     set_false_path -from $audio -to $first
-    set status [rpcmp_hybrid_required [format {%sstatus_meta[*]} $prefix] 5 6]
+    set status [rpcmp_hybrid_required [format {%sstatus_meta[*]} $prefix] 6 7]
     set_false_path -from $audio -to $status
     # The source is an asynchronous assertion to the vendor's two write-reset
     # flops. Their synchronously released output and every consumer remain timed.

@@ -50,13 +50,14 @@ bool MinimalDisplay::pump(std::uint8_t* surface, const std::size_t bytes) {
     if (row_ >= 16 && row_ < 32)
       text_row(out, "RPCMP  MDX / PCM", row_ - 16, 3);
     if (row_ >= 48 && row_ < 64)
-      text_row(out, "上下: 選曲   左右: ページ   A: 再生   B: 停止", row_ - 48, 1);
+      text_row(out, "上下:選曲 左右:ページ A:再生 B:停止 X:一時停止/再開", row_ - 48, 1);
     if (row_ >= 80 && row_ < 80 + ui::minimal::kRows * 24) {
       const auto line = (row_ - 80) / 24;
       const auto within = (row_ - 80) % 24;
       const auto index = view_.first + line;
       if (index < view_.count) {
-        const bool playing = view_.playback.state == contracts::minimal::State::Playing &&
+        const bool playing = (view_.playback.state == contracts::minimal::State::Playing ||
+                              view_.playback.state == contracts::minimal::State::Paused) &&
                              index + 1 == view_.playback.track.value;
         if (index == view_.selected)
           std::fill_n(out + 8, 624, std::uint8_t{2});
@@ -70,6 +71,7 @@ bool MinimalDisplay::pump(std::uint8_t* surface, const std::size_t bytes) {
       using contracts::minimal::State;
       const auto state = view_.playback.state;
       const char* status = state == State::Playing     ? "再生中"
+                           : state == State::Paused    ? "一時停止中"
                            : state == State::Advancing ? "次曲へ"
                            : state == State::Ended     ? "再生終了"
                            : view_.playback.error == contracts::minimal::Error::Reset

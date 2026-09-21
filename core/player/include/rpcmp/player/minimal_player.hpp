@@ -10,6 +10,7 @@ public:
   virtual ~PlaybackPort() = default;
   virtual api::Error open(contracts::TrackId id) = 0;
   virtual bool stop() = 0;
+  virtual api::Error set_paused(bool paused) = 0;
   virtual api::Error service(bool& ended) = 0;
 };
 class Player final : public api::CommandSink {

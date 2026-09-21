@@ -24,12 +24,38 @@ bool ready() {
 } // namespace
 bool HybridPlayback::stop() {
   pending_ = nullptr;
-  started_ = eof_ = false;
+  started_ = eof_ = paused_ = false;
   const bool ok = ready();
   if (ok)
     write(2, 1);
   rpcmp_hybrid_close();
   return ok && ready() && read(1) == 1;
+}
+contracts::minimal::Error HybridPlayback::set_paused(const bool paused) {
+  using contracts::minimal::Error;
+  if (paused == paused_)
+    return Error::None;
+  const auto begin = rpcmp_pocket_time_us();
+  if (started_) {
+    if (!ready() || (read(1) & 0xf0U) != 0)
+      return Error::Audio;
+    write(2, paused ? 4 : 8);
+    for (;;) {
+      const auto status = read(1);
+      if ((status & 0xf0U) != 0)
+        return Error::Audio;
+      if (((status & 0x100U) != 0) == paused)
+        break;
+      if (rpcmp_pocket_time_us() - begin > 5000)
+        return Error::Timeout;
+    }
+  }
+  if (paused)
+    pause_started_ = begin;
+  else
+    wait_started_ += rpcmp_pocket_time_us() - pause_started_;
+  paused_ = paused;
+  return Error::None;
 }
 contracts::minimal::Error HybridPlayback::open(const contracts::TrackId id) {
   using contracts::minimal::Error;
@@ -50,6 +76,8 @@ contracts::minimal::Error HybridPlayback::open(const contracts::TrackId id) {
 contracts::minimal::Error HybridPlayback::service(bool& ended) {
   using contracts::minimal::Error;
   ended = false;
+  if (paused_)
+    return Error::None;
   const auto status = read(1);
   if ((status & 0xf0U) != 0)
     return Error::Audio;

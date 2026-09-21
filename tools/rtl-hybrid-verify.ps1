@@ -24,8 +24,8 @@ foreach ($phase in $PhasePs) {
 $prepare = @'
 import sys
 sys.path.insert(0, sys.argv[1])
-from mdx_hybrid_probe import prepare_jt51_wide
-for path in prepare_jt51_wide(sys.argv[2], sys.argv[3]):
+from mdx_hybrid_probe import prepare_jt51_paused
+for path in prepare_jt51_paused(sys.argv[2], sys.argv[3]):
     print(path)
 '@
 $sources = @(& python -B -c $prepare $PSScriptRoot $native (Join-Path $output 'jt51-wide'))
@@ -69,6 +69,7 @@ try {
         }
         if (!$VoiceOnly) {
             $runs += @{ Name='hybrid_stream_tb'; Arguments=@("+PHASE_PS=$phase"); Marker="hybrid_stream_tb: PASS phase=$phase " }
+            $runs += @{ Name='hybrid_stream_tb'; Arguments=@("+PHASE_PS=$phase",'+PAUSE'); Marker="hybrid_stream_tb: PAUSE PASS phase=$phase " }
         }
         $runs += @{ Name='hybrid_stream_tb'; Arguments=@("+PHASE_PS=$phase",'+VOICE'); Marker="hybrid_stream_tb: VOICE PASS phase=$phase " }
     }

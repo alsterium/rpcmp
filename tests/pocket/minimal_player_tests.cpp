@@ -71,7 +71,7 @@ public:
   }
 };
 std::uint32_t tick{}, status{1}, fm_free{1024}, pcm_free{4096}, opened{}, rendered{};
-bool reject_open{}, reject_render{}, end_block{}, empty_end{}, reset_stuck{};
+bool reject_open{}, reject_render{}, end_block{}, empty_end{}, reset_stuck{}, pause_stuck{};
 std::vector<std::pair<unsigned, std::uint32_t>> writes;
 RpcmpHybridBlock block;
 void reset_model() {
@@ -79,7 +79,7 @@ void reset_model() {
   status = 1;
   fm_free = 1024;
   pcm_free = 4096;
-  reject_open = reject_render = end_block = empty_end = reset_stuck = false;
+  reject_open = reject_render = end_block = empty_end = reset_stuck = pause_stuck = false;
   writes.clear();
   block = {};
 }
@@ -257,6 +257,7 @@ public:
     return fail_all || id.value == bad_open ? api::Error::Load : api::Error::None;
   }
   bool stop() override { return reset_ok; }
+  api::Error set_paused(bool) override { return api::Error::None; }
   api::Error service(bool& ended) override {
     ended = end;
     return track == bad_service ? api::Error::Audio : api::Error::None;
@@ -370,6 +371,111 @@ void backpressure(rpcmp::test::Suite& suite) {
   RPCMP_CHECK(suite, writes == before_empty); // An empty finite song never starts the device.
   RPCMP_CHECK(suite, backend.stop());
 }
+void pause_cases(rpcmp::test::Suite& suite) {
+  reset_model();
+  Source source;
+  lib::PreparedPlaylist catalog;
+  RPCMP_CHECK(suite, catalog.open(source));
+  pocket::HybridPlayback backend{catalog};
+  rpcmp::player::minimal::Player player{catalog, backend};
+  RPCMP_CHECK(suite, player.initialize());
+  ui::Controller controller{catalog, player};
+  controller.input(0x40, true, 0); // Held at boot must do nothing.
+  controller.input(0, true, 1);
+  controller.input(0x10, true, 2);
+  player.service();
+  const auto before = rendered;
+  controller.input(0x40, true, 3); // X pauses without closing/reopening the song.
+  RPCMP_CHECK(suite, player.snapshot().state == api::State::Paused && status == 0x107);
+  const auto held_writes = writes;
+  for (unsigned i = 0; i < 100; ++i)
+    player.service();
+  tick += 10'000'000;
+  controller.input(0x40, true, 10'000'003); // No key repeat for X.
+  RPCMP_CHECK(suite, rendered == before && writes == held_writes);
+  controller.input(2, true, 10'000'004); // Browse another song while paused.
+  controller.update(player.snapshot());
+  RPCMP_CHECK(suite,
+              controller.view().selected == 1 && controller.view().playback.track.value == 1);
+  controller.input(0x40, true, 10'000'005);
+  RPCMP_CHECK(suite, player.snapshot().state == api::State::Playing && opened == 11);
+  player.service();
+  RPCMP_CHECK(suite, rendered == before + 1 && status == 7);
+  player.submit({api::CommandKind::TogglePause, {}});
+  controller.input(0x50, true, 10'000'006); // A wins over X and selects the browsed song.
+  RPCMP_CHECK(suite, player.snapshot().state == api::State::Playing && opened == 22);
+  player.submit({api::CommandKind::TogglePause, {}}); // Before the first render/start.
+  player.service();
+  RPCMP_CHECK(suite, player.snapshot().state == api::State::Paused && rendered == 0 && status == 1);
+  player.submit({api::CommandKind::TogglePause, {}});
+  player.service();
+  RPCMP_CHECK(suite, rendered == 1 && status == 7);
+  player.submit({api::CommandKind::TogglePause, {}});
+  controller.input(0, true, 10'000'007);
+  controller.input(0x70, true, 10'000'008); // B wins over A and X, including paused playback.
+  RPCMP_CHECK(suite, player.snapshot().state == api::State::Stopped && status == 1);
+  player.submit({api::CommandKind::TogglePause, {}});
+  player.service();
+  RPCMP_CHECK(suite, player.snapshot().state == api::State::Stopped);
+
+  // Change only the UI binding; commands and backend behavior stay the same.
+  ui::Bindings bindings;
+  bindings.pause = 0x80;
+  ui::Controller remapped{catalog, player, bindings};
+  remapped.input(0, true, 0);
+  remapped.input(0x10, true, 1);
+  remapped.input(0x40, true, 2);
+  RPCMP_CHECK(suite, player.snapshot().state == api::State::Playing);
+  remapped.input(0x80, true, 3);
+  RPCMP_CHECK(suite, player.snapshot().state == api::State::Paused);
+  remapped.input(0, false, 4);
+  remapped.input(0x80, true, 5); // Reconnect while held does not resume.
+  RPCMP_CHECK(suite, player.snapshot().state == api::State::Paused);
+  player.submit({api::CommandKind::Stop, {}});
+
+  // Retain a rendered block under FIFO backpressure across a long pause.
+  player.submit({api::CommandKind::PlayTrack, {1}});
+  player.service();
+  fm_free = 0;
+  player.service();
+  const auto pending_count = rendered;
+  player.submit({api::CommandKind::TogglePause, {}});
+  tick += 10'000'000;
+  player.service();
+  player.submit({api::CommandKind::TogglePause, {}});
+  fm_free = 1024;
+  player.service();
+  RPCMP_CHECK(suite, rendered == pending_count && player.snapshot().state == api::State::Playing);
+  end_block = true;
+  player.service();
+  player.submit({api::CommandKind::TogglePause, {}});
+  tick += 10'000'000;
+  status |= 8; // A completion observed after the pause must wait for resume.
+  player.service();
+  RPCMP_CHECK(suite,
+              player.snapshot().state == api::State::Paused && player.snapshot().track.value == 1);
+  status &= ~8U;
+  player.submit({api::CommandKind::TogglePause, {}});
+  player.service(); // The old EOF deadline excludes paused wall time.
+  RPCMP_CHECK(suite, player.snapshot().state == api::State::Playing);
+  status = 9;
+  player.service();
+  player.service();
+  RPCMP_CHECK(suite,
+              player.snapshot().state == api::State::Playing && player.snapshot().track.value == 2);
+
+  player.service();
+  pause_stuck = true;
+  player.submit({api::CommandKind::TogglePause, {}});
+  RPCMP_CHECK(suite, player.snapshot().state == api::State::Error &&
+                         player.snapshot().error == api::Error::Timeout && status == 1);
+  pause_stuck = false;
+  player.submit({api::CommandKind::PlayTrack, {2}});
+  player.service();
+  status = 0x17;
+  player.submit({api::CommandKind::TogglePause, {}});
+  RPCMP_CHECK(suite, player.snapshot().error == api::Error::Audio && status == 1);
+}
 int check_packed_file(const char* path) {
   Source source;
   std::ifstream input(path, std::ios::binary | std::ios::ate);
@@ -418,6 +524,16 @@ void preview(rpcmp::test::Suite& suite, const char* path) {
     for (unsigned x = 0; x < 8; ++x)
       RPCMP_CHECK(suite,
                   pixels[(16 + y) * 640 + 16 + x] == ((glyph.rows[y] & (128U >> x)) ? 3 : 0));
+  controller.update({api::kVersion, 2, api::State::Paused, {2}, api::Error::None});
+  display.begin(controller.view());
+  while (!display.complete())
+    RPCMP_CHECK(suite, display.pump(pixels.data(), pixels.size()));
+  RPCMP_CHECK(suite, pixels[(80 + 24 + 8) * 640 + 2] == 3);
+  const auto paused_glyph = pocket::bitmap_glyph(0x4e00); // 一時停止中
+  for (unsigned y = 0; y < 16; ++y)
+    for (unsigned x = 0; x < 16; ++x)
+      RPCMP_CHECK(suite, pixels[(400 + y) * 640 + 16 + x] ==
+                             ((paused_glyph.rows[y * 2 + x / 8] & (128U >> (x % 8))) ? 3 : 0));
   if (path) {
     std::ofstream file(path, std::ios::binary);
     file << "P6\n640 480\n255\n";
@@ -451,6 +567,10 @@ extern "C" void rpcmp_player_mmio_write(std::uintptr_t address, std::uint32_t va
     status = 1;
   if (word_index == 2 && value == 2)
     status = 7;
+  if (word_index == 2 && value == 4 && !pause_stuck)
+    status |= 0x100;
+  if (word_index == 2 && value == 8 && !pause_stuck)
+    status &= ~0x100U;
 }
 extern "C" int rpcmp_hybrid_open(const void* mdx, std::uint32_t, const void*, std::uint32_t) {
   opened = static_cast<const std::uint8_t*>(mdx)[10];
@@ -484,6 +604,7 @@ int main(int argc, char** argv) {
   sequence_cases(suite);
   navigation(suite);
   backpressure(suite);
+  pause_cases(suite);
   preview(suite, argc == 2 ? argv[1] : nullptr);
   const auto headless = playback_case(suite, false), delayed = playback_case(suite, true);
   RPCMP_CHECK(suite, headless == delayed);

@@ -62,5 +62,7 @@ void Controller::input(const std::uint32_t buttons, const bool connected,
     commands_.submit({api::CommandKind::Stop, {}});
   else if ((pressed & bindings_.play) != 0 && view_.count != 0)
     commands_.submit({api::CommandKind::PlayTrack, {view_.selected + 1}});
+  else if ((pressed & bindings_.pause) != 0)
+    commands_.submit({api::CommandKind::TogglePause, {}});
 }
 } // namespace rpcmp::ui::minimal

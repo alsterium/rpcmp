@@ -10,6 +10,7 @@ import shutil
 import struct
 import subprocess
 import sys
+import tempfile
 import wave
 
 
@@ -152,6 +153,36 @@ def prepare_jt51_wide(source, wide):
     wide.mkdir(parents=True, exist_ok=True)
     for name in ("jt51.v", "jt51_acc.v"):
         shutil.copyfile(source / "hdl" / name, wide / name)
+    widen_jt51(wide)
+    return [wide / name if name in ("jt51.v", "jt51_acc.v") else source / "hdl" / name
+            for name in (source / "hdl/jt51.f").read_text().split()]
+
+
+def prepare_jt51_paused(source, output):
+    """Compose the reviewed hold recipe and wide taps for the HYB3 sound owner."""
+    from jt51_hold_prepare import prepare
+    source, output = Path(source).resolve(), Path(output).resolve()
+    if not output.is_relative_to(ROOT / "out") or output == ROOT / "out":
+        raise ValueError("generated JT51 must stay under an out subdirectory")
+    output.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory(dir=output) as temp:
+        staged = Path(temp) / "hdl"
+        manifest = prepare(source, staged)
+        widen_jt51(staged)
+        manifest["purpose"] = "HYB3 hold and wide mixed-audio output"
+        manifest["wide_recipe_sha256"] = hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
+        for record in manifest["files"]:
+            path = staged / record["file"]
+            record["generated_sha256"] = hashlib.sha256(path.read_bytes()).hexdigest()
+            shutil.copyfile(path, output / path.name)
+        shutil.copyfile(staged / "LICENSE", output / "LICENSE")
+        (output / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
+    prepared = {record["file"] for record in manifest["files"]}
+    return [output / name if name in prepared else source / "hdl" / name
+            for name in (source / "hdl/jt51.f").read_text().split()]
+
+
+def widen_jt51(wide):
     path = wide / "jt51.v"
     text = checked_replace(path.read_text(), "    output  signed  [15:0] xright\n",
                            "    output  signed  [15:0] xright,\n"
@@ -172,8 +203,6 @@ def prepare_jt51_wide(source, wide):
                            "            wide_left <= pre_left; wide_right <= pre_right;\n"
                            "            xleft  <= lim16(pre_left);")
     path.write_text(text)
-    return [wide / name if name in ("jt51.v", "jt51_acc.v") else source / "hdl" / name
-            for name in (source / "hdl/jt51.f").read_text().split()]
 
 
 def load_library(out, split=False):

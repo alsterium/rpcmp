@@ -47,7 +47,8 @@ now passes its [Firmware 2.6 hardware report](#minimal-player-r2-hardware-result
 r2 is the accepted hardware baseline; failed-track skipping was not exercised
 on hardware because no errors occurred. The next approved slice is
 [pause/resume with provisional X input](../design/pocket-mdx-compatibility-plan.md#pause-and-resume-boundary);
-requirements are recorded, with implementation and hardware acceptance pending.
+the [r3 implementation](#pause-and-resume-implementation--2026-09-22) is now in
+hardware verification, with r2 retained as the accepted hardware baseline.
 This closes the compatibility investigation, not M6 as a whole. Inherited shell
 external timing constraints and the remaining player integration stay separate.
 The original objective, adopted contracts and results
@@ -3798,3 +3799,79 @@ Fullの区切りとし、影響するRTL・クロスビルド・合成/CDC・パ
 同コマンドの `--root tests/architecture/fixtures/runtime_depends_ui --expect-violation`
 です。実行コード・試験の期待値・生成入力は変更しておらず、Fullは新動作の実装時に
 実行します。RTL・クロスビルド・合成は今回入力が変わらないため実行していません。
+
+## Pause and resume implementation — 2026-09-22
+
+Minimal Player r3 は、Xによる一時停止・同じ位置からの再開を実装した実機確認候補です。
+FM・PCM、ループ/フェード位置、処理待ちの音声を保持し、一時停止中は無音にします。
+一覧操作は継続でき、Aで選択曲の先頭から新しく再生、Bで停止します。
+CoreのTogglePauseと物理入力は分離し、既存の小さなBindingsにX割り当てを追加しました。
+表示は「一時停止中」とし、保持中の曲の印・曲名と一覧の選択位置を分けています。
+
+[実装前に記録した境界](../design/pocket-mdx-compatibility-plan.md#pause-and-resume-boundary) に従い、
+スナップショットをversion 3、音声インターフェースをHYB3 (`0x48594233`) にしました。
+ステレオフレーム境界で音声側の状態を保持し、I2Sクロックは動かしたまま無音を出します。
+既存の固定版JT51のhold変換とwide出力を組み合わせ、CPUの未転送ブロックと
+タイムアウト計測も一時停止をまたいで保持します。新しい依存や設定フレームワークはありません。
+HPL1、PCのM3U取り込み、APF framework最低2.2は維持しています。
+
+実行した検証:
+
+- 最初に追加したX操作の試験は、状態が再生中のまま・生成が進む、の2箇所で失敗しました。
+  実装後は、起動時の押しっぱなし、長押し、一覧移動、再開、A/Bの優先、割り当て変更、
+  起動前/転送待ち/EOF待ちの一時停止、長い待機、応答タイムアウト・音声エラーを確認しました。
+- LLVM 22.1.8で `pwsh -File tools/host-verify.ps1 -CheckSetupOnly` はPASS。
+  `-Mode Fast` は89/89、24.81秒。`-Mode Full` は **90/90 PASS**、815.53秒
+  （tidy 790.51秒）でした。format、静的解析、Core→UI依存拒否fixtureを含む検査もPASSです。
+  ログは `out/harness/pause-fast.log`、`pause-full.log` です。
+- `docker run --rm --network none --mount type=bind,source=F:/source/rpcmp,target=/repo
+  -w /repo rpcmp-cpu-budget-sim:20260921 python3 -B out/harness/minimal-player-native.py`
+  は最終の表示試験を含めASAN/UBSANでPASSし、曲集パッケージ6試験もPASS（0.104秒）。
+  同じDocker条件で `python3 -B tests/pocket/hybrid_tool_tests.py` は5/5 PASS（11.336秒）です。
+  新しい生成物の再現性・固定版/範囲の検査、従来の比較用FM生成、HYB3 ROMの対応を確認しました。
+- ホストの実描画から生成した `out/harness/pause-preview.png` で、Xの操作案内、
+  「一時停止中」、保持曲2の印・番号と選択曲1の独立した表示を確認しました。
+- `pwsh -File tools/rtl-hybrid-verify.ps1` は3位相（0/5555/81379 ps）でPASS。
+  従来の符号境界・フェード・FIFO満杯/枯渇・実8音FMとPCMの検査に加え、
+  通常再生の768ステレオフレームと10回の一時停止を挟んだ出力が、無音区間を除いて一致しました。
+  生きている音声を一時停止したままClear/電源リセットする試験を追加し、
+  `pwsh -File out/harness/pause-final-rtl.ps1` で最終fixtureを再コンパイルして3位相PASS。
+  リセット時に受信器も再同期するよう直し、通常動作中のLRCK連続性の検査は維持しました。
+- 同じ逐次ランナーから `tools/rtl-hybrid-verify.ps1 -PreparedTree out/build/pause-candidate-r3`
+  を実行し、実AXIの一時停止・再開と125フレームの保持が3位相PASS。
+  続けて `tools/rtl-verify.ps1`、`tools/rtl-jt51-verify.ps1`、
+  `tools/rtl-jt51-hold-verify.ps1` がPASS。最後の固定版FM比較は256位相・855回の停止を含みます。
+  RTLスイートは共有作業領域のため順番に実行しました。
+- Dockerで `python3 -B tools/hybrid_renderer_build.py --output out/build/minimal-player-cpu-r3`
+  がPASS。text 458320 / data 79012 / BSS 169344、合計706676 bytes、
+  保守的スタック13472 bytes、最大フレーム4912 bytes、動的スタックなし。
+  ELF SHA-256: `e0d1e05a6789567ec6f61492a6a23223efa9eb1a88490252f34781006f9b41e7`。
+- `tools/pocket_hybrid_firmware_prepare.py` で `pause-firmware-r3` を準備し、Docker内の
+  `out/harness/pause-firmware-build.py` からSDK make、objcopy、
+  `tools/pocket_hybrid_images.py` を実行しました。15524-byte ROM/MIF/OSの対応はPASS、
+  OSはr2と同一です。`tools/pocket_hybrid_prepare.py` で対応する `pause-candidate-r3` を準備しました。
+- `pause-candidate-r3/hybrid-fit` で `quartus_sh --flow compile ap_core` は9分26秒、
+  0 errors / 968 warnings。10960/18480 ALMs、12/66 DSP、最小setup 0.766 ns / hold 0.058 ns。
+  `quartus_sta -t F:/source/rpcmp/tools/hybrid_cdc_audit.tcl` は追加したpause/status同期段と
+  全48 Grayポインタビットを4コーナーで検査してPASS。既存の外部I/O制約の未検証部分は残るため、
+  基板全体の本番タイミング保証とは区別します。fit/CDCログは同じ候補のディレクトリにあります。
+- [日本語手順](../development/pocket-minimal-player.md#開発者向けパッケージ生成) の
+  `tools/pocket_hybrid_package.py` コマンドで全体ZIPと更新ZIPを生成しました。
+  `python -B out/harness/pause-package-readback.py` はPASS。全体29・更新21ファイル、
+  最終ELF/OS・RBFビット反転・Xの入力定義・framework 2.2・同梱手順を独立して読み戻しました。
+  6曲のHPL1はr2と同一でnative readerもPASS。更新ZIPには曲集/WAV/曲目一覧を含めません。
+  ユーザーのSD上の27曲を直接読み戻したという意味ではありません。
+
+推奨更新物は `out/build/minimal-player-r3-update.zip`（1,184,730 bytes）、SHA-256:
+`cc3997ee4a4366ad45140b51f753d70fc8e9d90dddcb2aeab3f13ed73eeedc29`。
+6曲入り全体ZIPは `out/build/minimal-player-r3.zip`、SHA-256:
+`ffb344b3ff7c5ad5956cca089498fbcb094e68f9a423328b548903c41d601658`。
+詳細ログは `out/harness/pause-*.log`、パッケージ証跡は
+`out/build/minimal-player-r3.evidence.json` に保存しています。
+
+**r3の実機確認は未実施です。** 次は更新ZIPと日本語手順で、FM/PCMの一時停止・再開、
+フェード途中の操作、停止・曲切替、再起動を確認します。r2を受入済みの基準に残します。
+今回、参照レンダラーやMDX/PDX取り込みは変更しておらず、互換性調査全体は再開していません。
+私有楽曲・曲名・波形はコミットしていません。Full後の本番コード変更はなく、追加したRTLの
+取消試験は上記の最終ランナーで確認済みです。進捗・リンク更新後にharness navigation、
+変更したローカルリンク/アンカー、`git diff --check` を確認しました。

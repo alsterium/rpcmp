@@ -26,7 +26,7 @@ int main() {
   Slot slot;
   pocket::HybridPlayback playback{tracks};
   rpcmp::player::minimal::Player player{tracks, playback};
-  if (rpcmp_player_mmio_read(0x40000400) != 0x48594232 || !player.initialize())
+  if (rpcmp_player_mmio_read(0x40000400) != 0x48594233 || !player.initialize())
     return 1;
   rpcmp_pocket_terminal_init();
   std::printf("RPCMP: Loading playlist...\n");

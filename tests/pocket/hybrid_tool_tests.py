@@ -1,5 +1,6 @@
 """Optional hybrid tool/ROM checks; run with a native C compiler available."""
 import json
+import hashlib
 from pathlib import Path
 import shutil
 import subprocess
@@ -15,9 +16,32 @@ import hybrid_renderer_prepare as renderer
 import pocket_hybrid_firmware_prepare as firmware
 import pocket_hybrid_images as images
 from pocket_firmware_pair import mif_bytes
+from mdx_hybrid_probe import prepare_jt51_paused, prepare_jt51_wide
 
 
 class HybridTools(unittest.TestCase):
+    def test_hold_and_wide_generation_preserves_reference_profile(self):
+        source = ROOT / "out/research/jt51-985a573"
+        with tempfile.TemporaryDirectory(dir=ROOT / "out") as temp:
+            output = Path(temp) / "paused"
+            files = prepare_jt51_paused(source, output)
+            self.assertTrue(all(path.is_file() for path in files))
+            manifest = json.loads((output / "manifest.json").read_text())
+            self.assertEqual(manifest["license"], "GPL-3.0-or-later")
+            self.assertEqual(manifest["top"], "rpcmp_hold_jt51")
+            for record in manifest["files"]:
+                self.assertEqual(hashlib.sha256((output / record["file"]).read_bytes()).hexdigest(),
+                                 record["generated_sha256"])
+            first = [(path.name, path.read_bytes()) for path in files]
+            self.assertEqual(first, [(p.name, p.read_bytes()) for p in prepare_jt51_paused(source, output)])
+            baseline = Path(temp) / "baseline"
+            prepare_jt51_wide(source, baseline)
+            self.assertIn("module jt51(", (baseline / "jt51.v").read_text())
+            self.assertNotIn("rpcmp_hold", (baseline / "jt51.v").read_text())
+            self.assertIn("wide_left", (output / "jt51.v").read_text())
+        with self.assertRaises(ValueError):
+            prepare_jt51_paused(source, ROOT / "core/generated")
+
     def test_reference_scope_and_pin(self):
         with patch.object(renderer, "run") as run:
             with self.assertRaises(ValueError):
@@ -46,7 +70,7 @@ class HybridTools(unittest.TestCase):
             with patch.object(firmware.player, "prepare", side_effect=baseline):
                 firmware.prepare(root, root, root, output)
             data = json.loads((output / "rpcmp-firmware-inputs.json").read_text())
-            self.assertEqual(data["profile"], "hybrid-hyb2")
+            self.assertEqual(data["profile"], "hybrid-hyb3")
             self.assertEqual(data["source_revision"], "verified")
             self.assertEqual(data["prepared_caps_sha256"], "caps")
             self.assertNotIn("m6_sound_source", data)
@@ -82,7 +106,7 @@ class HybridTools(unittest.TestCase):
             source.write_text(r'''
 #include <stdint.h>
 #include <assert.h>
-static uint32_t id=0x48594232, polls, writes, before=3, after=5, bad;
+static uint32_t id=0x48594233, polls, writes, before=3, after=5, bad;
 static uint32_t rpcmp_boot_read32(uint32_t address) {
     if(address==0x40000400) return id;
     assert(address==0x40000404); ++polls;
