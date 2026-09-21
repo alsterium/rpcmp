@@ -1,4 +1,4 @@
-"""Package a local HYB4 candidate and a runtime-only update preserving the user's collection."""
+"""Package the HPL2 player on the accepted HYB4 audio core and a runtime-only update."""
 import argparse
 import hashlib
 import io
@@ -31,9 +31,10 @@ def track_files(manifest):
     files = {common / "playlist.hpl": playlist,
              P("Assets") / PLATFORM / CORE / "Playlist.json": shared.json_bytes(
                  dict(instance=dict(magic=shared.MAGIC, data_slots=slots)))}
-    catalog = ["# 曲目一覧", "", "Pocketで Playlist.json を選ぶと、全曲を一覧から選べます。",
-               "上下で選曲、左右でページ移動、Aで先頭から再生、Bで停止、Xで一時停止・再開、Yでループ設定を切り替えます。", "",
-               "| 番号 | 曲名 | 音源 | PC比較音声 |", "| --- | --- | --- | --- |"]
+    catalog = ["# 曲目一覧", "", "Pocketで Playlist.json を開き、プレイリストをAで選びます。",
+               "上下で選曲、左右でページ移動、Aで先頭から再生、Bで停止、Xで一時停止・再開、Yでループ設定を切り替えます。",
+               "各ページの先頭にある『プレイリスト一覧へ』をAで選ぶと、再生を続けたまま戻れます。", "",
+               "| 番号 | プレイリスト | 曲名 | 音源 | PC比較音声 |", "| --- | --- | --- | --- | --- |"]
     for number, track in enumerate(tracks, 1):
         reference = "なし"
         if track.get("reference"):
@@ -50,7 +51,8 @@ def track_files(manifest):
             files[P("試聴用") / name] = audio
             reference = f"[試聴](試聴用/{name})"
         title = track["title"].replace("|", "／").replace("<", "＜").replace(">", "＞")
-        catalog.append(f"| {number} | {title} | {'FM＋PCM' if track.get('pdx') else 'FMのみ'} | {reference} |")
+        list_name = track["playlist"].replace("|", "／").replace("<", "＜").replace(">", "＞")
+        catalog.append(f"| {number} | {list_name} | {title} | {'FM＋PCM' if track.get('pdx') else 'FMのみ'} | {reference} |")
     files[P("曲目一覧.md")] = ("\n".join(catalog) + "\n").encode("utf-8")
     return files
 
@@ -92,7 +94,7 @@ def package(args):
         raise ValueError("application budget does not match this ELF")
     values = player_definitions()
     values["core.json"]["core"]["metadata"].update(platform_ids=[PLATFORM], shortname="MinimalPlayer",
-        description="RPCMP MDX player with repeat", version="0.16.0-player-r4", date_release="2026-09-22")
+        description="RPCMP MDX playlists", version="0.17.0-player-r5", date_release="2026-09-22")
     slots = values["data.json"]["data"]["data_slots"]
     slots[0]["name"] = "MDX Player"
     slots[4:] = [dict(id=4, name="Playlist", required=True, parameters=8, extensions=["hpl"],
@@ -148,7 +150,7 @@ def package(args):
         for path, data in files.items():
             if zipped.read(path.as_posix()) != data or (output / path).read_bytes() != data:
                 raise ValueError("package readback differs")
-    # Existing M3U collections stay installed when applying this runtime-only update.
+    # Keep installed data; r5 requires a collection rebuilt as HPL2.
     update_files = runtime_update(files)
     with zipfile.ZipFile(update_archive, "x", zipfile.ZIP_DEFLATED) as zipped:
         for path, data in sorted(update_files.items()):

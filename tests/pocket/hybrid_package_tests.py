@@ -37,7 +37,7 @@ class HybridPackageTests(unittest.TestCase):
 
     def files(self):
         manifest = self.root / "tracks.json"
-        manifest.write_text(json.dumps(self.tracks), encoding="utf-8")
+        manifest.write_text(json.dumps([dict(name="試験曲集", tracks=self.tracks)]), encoding="utf-8")
         return package.track_files(manifest)
 
     def test_single_playlist_index_payloads_and_japanese_catalog(self):
@@ -48,13 +48,13 @@ class HybridPackageTests(unittest.TestCase):
         self.assertEqual([s["id"] for s in slots], [1, 2, 3, 4])
         self.assertEqual(slots[3]["filename"], "playlist.hpl")
         packed = files[common / "playlist.hpl"]
-        header = struct.unpack_from("<4s7I", packed)
-        self.assertEqual(header[:5], (b"HPL1", 1, 128, 2, len(packed)))
-        self.assertEqual(header[5], zlib.crc32(packed[32:288]))
-        self.assertEqual(header[6], zlib.crc32(packed[:24]))
-        self.assertEqual(header[7], 0)
+        header = struct.unpack_from("<4s11I", packed)
+        self.assertEqual(header[:7], (b"HPL2", 2, 112, 128, 1, 2, len(packed)))
+        self.assertEqual(header[7], zlib.crc32(packed[48:416]))
+        self.assertEqual(header[8], zlib.crc32(packed[:32]))
+        self.assertEqual(header[9:], (0, 0, 0))
         for i, track in enumerate(self.tracks):
-            offset, length, crc, poff, plen, pcrc, titlelen = struct.unpack_from("<7I", packed, 32 + i * 128)
+            offset, length, crc, poff, plen, pcrc, titlelen = struct.unpack_from("<7I", packed, 160 + i * 128)
             self.assertEqual(packed[offset:offset+length], (self.root / track["mdx"]).read_bytes())
             self.assertEqual(crc, zlib.crc32(packed[offset:offset+length]))
             if track["pdx"]:
@@ -63,7 +63,7 @@ class HybridPackageTests(unittest.TestCase):
                 self.assertEqual(pcrc, zlib.crc32(packed[poff:poff+plen]))
             else:
                 self.assertEqual((poff, plen, pcrc), (0, 0, 0))
-            title = packed[60 + i*128:60 + i*128 + titlelen].decode("utf-8")
+            title = packed[188 + i*128:188 + i*128 + titlelen].decode("utf-8")
             self.assertEqual(title, track["title"])
         catalog = files[P("曲目一覧.md")].decode("utf-8")
         self.assertIn("試験曲 PCM", catalog)
@@ -77,6 +77,12 @@ class HybridPackageTests(unittest.TestCase):
         self.tracks[0]["pdx"] = "pdx.bin"
         with self.assertRaisesRegex(ValueError, "PDX"):
             self.files()
+
+    def test_oversize_manifest_is_rejected_before_parsing(self):
+        manifest = self.root / "oversize.json"
+        manifest.write_bytes(b"[" + b" " * (16 * 1024 * 1024))
+        with self.assertRaisesRegex(ValueError, "manifest too large"):
+            package.track_files(manifest)
 
     def test_runtime_update_preserves_installed_collection(self):
         files = self.files()
@@ -116,7 +122,7 @@ class HybridPackageTests(unittest.TestCase):
                 self.files()
         self.tracks = [dict(original[0], reference=None)] * 300
         packed = self.files()[P("Assets/rpcmp_minimal/common/playlist.hpl")]
-        self.assertEqual(struct.unpack_from("<I", packed, 12)[0], 300)
+        self.assertEqual(struct.unpack_from("<I", packed, 20)[0], 300)
         if CHECKER:
             path = self.root / "all.hpl"
             path.write_bytes(packed)
@@ -127,9 +133,9 @@ class HybridPackageTests(unittest.TestCase):
                 self.files()
         self.tracks = [dict(original[0], title="日本語" * 40)]
         packed = self.files()[P("Assets/rpcmp_minimal/common/playlist.hpl")]
-        length = struct.unpack_from("<I", packed, 56)[0]
+        length = struct.unpack_from("<I", packed, 184)[0]
         self.assertLessEqual(length, 96)
-        self.assertTrue(packed[60:60+length].decode("utf-8").endswith("…"))
+        self.assertTrue(packed[188:188+length].decode("utf-8").endswith("…"))
         self.tracks = [dict(original[0], mdx="../outside.bin")]
         with self.assertRaises(ValueError):
             self.files()

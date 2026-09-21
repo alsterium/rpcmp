@@ -16,6 +16,11 @@ struct View {
   api::PlayerSnapshot playback{};
   std::uint32_t selected{}, first{}, count{};
   std::array<contracts::CatalogText, kRows> titles{};
+  std::array<bool, kRows> playing{};
+  std::uint32_t rows{}, selected_row{}, playing_number{}, playing_count{};
+  api::PlaylistId playlist{};
+  bool back_selected{};
+  contracts::CatalogText list_title{}, playing_list{};
   contracts::CatalogText playing_title{};
 };
 class Controller {
@@ -27,10 +32,13 @@ public:
 
 private:
   void titles();
+  void activate();
   const api::TrackList& tracks_;
   api::CommandSink& commands_;
   Bindings bindings_;
   View view_{};
+  std::array<std::uint32_t, api::kMaxPlaylists> positions_{};
+  std::uint32_t list_position_{};
   std::uint32_t previous_{}, navigation_{}, repeated_at_{};
   bool connected_{}, repeating_{};
 };

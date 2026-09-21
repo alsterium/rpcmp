@@ -26,6 +26,7 @@ private:
   void publish(api::State state, api::Error error = api::Error::None);
   void start(contracts::TrackId track);
   void finish(api::Error error);
+  [[nodiscard]] std::uint64_t list_end() const noexcept;
   const api::TrackList& list_;
   PlaybackPort& playback_;
   api::PlayerSnapshot snapshot_{};

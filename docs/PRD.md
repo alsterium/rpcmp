@@ -62,9 +62,12 @@ in this check; its host evidence remains separate. The user subsequently selecte
 and settled its Q1–Q6 requirements. Import multiple M3Us on the PC, with optional
 folder import, and browse named lists on Pocket while playback continues from
 its original list until a track is selected. Retain each list's cursor/page during
-the session. Target 100 lists of up to 300 entries, with resource measurements
-required before claiming support. This records requirements, not implementation
-or hardware acceptance.
+the session. Minimal Player r5 implements 100 lists of up to 300 entries using
+HPL2; existing HPL1 collections require reimport. The target build uses
+4,486,412 bytes of static memory, including the resident index. Host checks cover
+30,000 registrations; startup time and playback while browsing at that scale
+remain hardware checks. See the [implementation evidence](milestones/M6-album-player.md#multiple-playlist-implementation--2026-09-22).
+r4 remains the accepted hardware baseline until the r5 report is received.
 
 ## 1. Product vision
 

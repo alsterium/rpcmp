@@ -1,7 +1,9 @@
-"""M3UのMDXと依存PDXから、Minimal Player r1用の曲集を生成します。"""
+"""複数M3UのMDXと依存PDXから、Minimal Player r5用の曲集を生成します。"""
 import argparse
+import hashlib
 import json
 import os
+import shutil
 from pathlib import Path
 import re
 import struct
@@ -192,87 +194,140 @@ def prepare(mdx, root, search):
     return title, bytes.fromhex(header) + body, pdx
 
 
-def import_playlist(playlist, output, root=None, pdx_dirs=(), encoding="utf-8-sig"):
-    playlist, output = Path(playlist).resolve(), Path(output).resolve()
+def playlist_inputs(paths, directory=None):
+    result = [Path(p).resolve() for p in paths]
+    if len(result) > prepared_playlist.LIST_LIMIT:
+        raise ValueError("プレイリストは最大100件です")
+    if directory is not None:
+        folder = Path(directory).resolve()
+        if not folder.is_dir():
+            raise ValueError("M3Uフォルダーがありません")
+        found = []
+        for path in folder.iterdir():
+            if path.suffix.lower() in (".m3u", ".m3u8") and path.is_file():
+                found.append(path.resolve())
+                if len(result) + len(found) > prepared_playlist.LIST_LIMIT:
+                    raise ValueError("プレイリストは最大100件です")
+        def order(path):
+            parts = tuple((0, int(p)) if p.isdigit() else (1, p.casefold())
+                          for p in re.split(r"([0-9]+)", path.name))
+            return parts, path.as_posix()
+        result.extend(sorted(found, key=order))
+    if not result:
+        raise ValueError("M3Uを指定してください")
+    return result
+
+
+def import_playlists(playlists, output, root=None, pdx_dirs=(), encoding="utf-8-sig",
+                     directory=None):
+    playlists = playlist_inputs(playlists, directory)
+    output = Path(output).resolve()
     archive = output.with_name(output.name + ".zip")
     if output.exists() or archive.exists():
         raise ValueError("出力先またはZIPが既にあります。未使用の名前を指定してください")
-    if playlist.suffix.lower() not in (".m3u", ".m3u8"):
-        raise ValueError(".m3uまたは.m3u8を指定してください")
-    root = Path(root).resolve() if root else playlist.parent
-    if not root.is_dir():
-        raise ValueError("音楽ルートがありません")
-    search = [local_path(str(p), playlist.parent, root) for p in pdx_dirs]
-    if any(not p.is_dir() for p in search):
-        raise ValueError("--pdx-dirにはフォルダーを指定してください")
-    text = read_bounded(playlist, LIST_LIMIT).decode(encoding)
-    entries = [(n, line.strip()) for n, line in enumerate(text.splitlines(), 1)
-               if line.strip() and not line.lstrip().startswith("#")]
-    if not 1 <= len(entries) <= 300:
-        raise ValueError("M3Uの曲数は1〜300曲にしてください")
-    tracks, results = [], []
-    total = 32
+    inputs = []
+    for playlist in playlists:
+        if playlist.suffix.lower() not in (".m3u", ".m3u8"):
+            raise ValueError(".m3uまたは.m3u8を指定してください")
+        music_root = Path(root).resolve() if root else playlist.parent
+        if not music_root.is_dir():
+            raise ValueError("音楽ルートがありません")
+        search = tuple(local_path(str(p), playlist.parent, music_root) for p in pdx_dirs)
+        if any(not p.is_dir() for p in search):
+            raise ValueError("--pdx-dirにはフォルダーを指定してください")
+        prepared_playlist.title_bytes(playlist.stem)
+        text = read_bounded(playlist, LIST_LIMIT).decode(encoding)
+        entries = [(n, line.strip()) for n, line in enumerate(text.splitlines(), 1)
+                   if line.strip() and not line.lstrip().startswith("#")]
+        if not 1 <= len(entries) <= prepared_playlist.TRACK_LIMIT:
+            raise ValueError(f"{playlist.name}: M3Uの曲数は1〜300曲にしてください")
+        inputs.append((playlist, music_root, search, entries))
+
     output.parent.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix="rpcmp-import-", dir=output.parent) as temporary:
         staging = Path(temporary)
-        for line, name in entries:
-            result = dict(line=line, source=name)
-            try:
-                path = local_path(name, playlist.parent, root)
-                if path.suffix.lower() != ".mdx":
-                    raise ValueError("M3UにはMDXを指定してください（PDXは自動解決）")
-                title, mdx, pdx = prepare(path, root, search)
-                if total + 128 + len(mdx) + len(pdx) > prepared_playlist.FILE_LIMIT:
-                    raise ValueError("曲集全体が512MiBを超えます")
-            except (ValueError, OSError) as error:
-                result.update(status="excluded", reason=str(error))
-            else:
-                # Input errors may exclude a song; output I/O failures abort.
-                number = len(tracks) + 1
-                a, b = f"{number:03d}.mdx.bin", f"{number:03d}.pdx.bin"
-                (staging / a).write_bytes(mdx)
-                if pdx:
-                    (staging / b).write_bytes(pdx)
-                tracks.append(dict(title=title, mdx=a, pdx=b if pdx else None))
-                total += 128 + len(mdx) + len(pdx)
-                result.update(status="imported", track=number, title=title, pcm=bool(pdx))
-            results.append(result)
-        packed = None
-        if tracks:
-            manifest = staging / "tracks.json"
-            manifest.write_text(json.dumps(tracks, ensure_ascii=False), encoding="utf-8")
-            packed, _ = prepared_playlist.pack(manifest)
-    output.mkdir()
-    report = dict(imported=len(tracks), excluded=len(entries) - len(tracks), entries=results)
-    (output / "取り込み結果.json").write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n",
-                                            encoding="utf-8")
-    lines = [f"取り込み: {len(tracks)} 曲 / 除外: {report['excluded']} 曲", ""]
-    for item in results:
-        detail = f"{item['track']:03d} {item['title']}" if item['status'] == "imported" else "除外: " + item['reason']
-        lines.append(f"{item['line']}行目 {item['source']} -> {detail}")
-    (output / "取り込み結果.txt").write_text("\n".join(lines) + "\n", encoding="utf-8")
-    if packed is not None:
-        (output / ASSET).parent.mkdir(parents=True)
-        (output / ASSET).write_bytes(packed)
-        guide = Path(__file__).resolve().parents[1] / "docs/development/m3u-library.md"
-        (output / "導入手順.md").write_bytes(guide.read_bytes())
-        with zipfile.ZipFile(archive, "x", zipfile.ZIP_DEFLATED) as zipped:
-            for path in sorted(output.rglob("*")):
-                if path.is_file():
-                    zipped.write(path, path.relative_to(output).as_posix())
+        collections, results, lists, prepared = [], [], [], {}
+        imported = 0
+
+        def save(data):
+            if not data:
+                return None
+            name = hashlib.sha256(data).hexdigest() + ".bin"
+            path = staging / name
+            if not path.exists():
+                path.write_bytes(data)
+            return name
+
+        for number, (playlist, music_root, search, entries) in enumerate(inputs, 1):
+            tracks = []
+            for line, name in entries:
+                result = dict(playlist=number, line=line, source=name)
+                try:
+                    path = local_path(name, playlist.parent, music_root)
+                    if path.suffix.lower() != ".mdx":
+                        raise ValueError("M3UにはMDXを指定してください（PDXは自動解決）")
+                    key = path, music_root, search
+                    cached = prepared.get(key)
+                    if cached is None:
+                        title, mdx, pdx = prepare(path, music_root, search)
+                except (ValueError, OSError) as error:
+                    result.update(status="excluded", reason=str(error))
+                else:
+                    # Output failures abort; they must never look like excluded music.
+                    if cached is None:
+                        cached = dict(title=title, mdx=save(mdx), pdx=save(pdx))
+                        prepared[key] = cached
+                    tracks.append(cached)
+                    imported += 1
+                    result.update(status="imported", track=imported, title=cached["title"],
+                                  pcm=bool(cached["pdx"]))
+                results.append(result)
+            lists.append(dict(source=str(playlist), name=playlist.stem, imported=len(tracks),
+                              excluded=len(entries) - len(tracks),
+                              status="imported" if tracks else "excluded"))
+            if tracks:
+                collections.append(dict(name=playlist.stem, tracks=tracks))
+
+        packed = staging / "playlist.hpl"
+        if collections:
+            prepared_playlist.write_collection(staging / "manifest.json", collections, packed)
+        report = dict(imported=imported, excluded=len(results) - imported,
+                      playlists=lists, entries=results)
+        output.mkdir()
+        (output / "取り込み結果.json").write_text(
+            json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        lines = [f"プレイリスト: {len(collections)} / 取り込み: {imported} 曲 / 除外: {report['excluded']} 曲", ""]
+        for number, item in enumerate(lists, 1):
+            lines.append(f"[{number}] {item['name']}: {item['imported']} 曲 / 除外 {item['excluded']} 曲")
+        lines.append("")
+        for item in results:
+            detail = f"{item['track']:03d} {item['title']}" if item['status'] == "imported" else "除外: " + item['reason']
+            lines.append(f"[{item['playlist']}] {item['line']}行目 {item['source']} -> {detail}")
+        (output / "取り込み結果.txt").write_text("\n".join(lines) + "\n", encoding="utf-8")
+        if collections:
+            (output / ASSET).parent.mkdir(parents=True)
+            shutil.copyfile(packed, output / ASSET)
+            guide = Path(__file__).resolve().parents[1] / "docs/development/m3u-library.md"
+            (output / "導入手順.md").write_bytes(guide.read_bytes())
+            with zipfile.ZipFile(archive, "x", zipfile.ZIP_DEFLATED) as zipped:
+                for path in sorted(output.rglob("*")):
+                    if path.is_file():
+                        zipped.write(path, path.relative_to(output).as_posix())
     return report
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("playlist", type=Path, help="MDXを並べたM3U/M3U8")
+    parser.add_argument("playlists", nargs="*", type=Path, help="MDXを並べたM3U/M3U8。指定順に取り込み")
+    parser.add_argument("--playlist-dir", type=Path, help="直下のM3Uをファイル名の番号順で追加")
     parser.add_argument("--output", required=True, type=Path, help="新しい出力フォルダー")
-    parser.add_argument("--root", type=Path, help="音楽ファイルを読み取れるルート（既定: M3Uの場所）")
+    parser.add_argument("--root", type=Path, help="音楽ファイルを読み取れるルート（既定: 各M3Uの場所）")
     parser.add_argument("--pdx-dir", action="append", default=[], help="共有PDXフォルダー。複数指定可")
     parser.add_argument("--encoding", choices=("utf-8-sig", "cp932"), default="utf-8-sig")
     args = parser.parse_args()
     try:
-        report = import_playlist(args.playlist, args.output, args.root, args.pdx_dir, args.encoding)
+        report = import_playlists(args.playlists, args.output, args.root, args.pdx_dir, args.encoding,
+                                  args.playlist_dir)
     except (ValueError, OSError) as error:
         print(f"取り込み失敗: {error}", file=sys.stderr)
         return 1

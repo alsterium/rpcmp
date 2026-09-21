@@ -58,16 +58,21 @@ bool MinimalDisplay::pump(std::uint8_t* surface, const std::size_t bytes) {
       text_row(out, mode, row_ - 32, 3);
     }
     if (row_ >= 48 && row_ < 64)
-      text_row(out, "上下:選曲 左右:ページ A:再生 B:停止 X:一時停止/再開", row_ - 48, 1);
+      text_row(out, "上下:選択 左右:ページ A:決定 B:停止 X:一時停止/再開", row_ - 48, 1);
+    if (row_ >= 64 && row_ < 80) {
+      std::array<char, 128> buffer{};
+      std::snprintf(buffer.data(), buffer.size(), "[%lu/%lu] %.*s",
+                    static_cast<unsigned long>(view_.count ? view_.selected + 1 : 0),
+                    static_cast<unsigned long>(view_.count),
+                    static_cast<int>(view_.list_title.length), view_.list_title.bytes.data());
+      text_row(out, buffer.data(), row_ - 64, 3);
+    }
     if (row_ >= 80 && row_ < 80 + ui::minimal::kRows * 24) {
       const auto line = (row_ - 80) / 24;
       const auto within = (row_ - 80) % 24;
-      const auto index = view_.first + line;
-      if (index < view_.count) {
-        const bool playing = (view_.playback.state == contracts::minimal::State::Playing ||
-                              view_.playback.state == contracts::minimal::State::Paused) &&
-                             index + 1 == view_.playback.track.value;
-        if (index == view_.selected)
+      if (line < view_.rows) {
+        const bool playing = view_.playing[line];
+        if (line == view_.selected_row)
           std::fill_n(out + 8, 624, std::uint8_t{2});
         if (playing && within >= 8 && within < 16)
           std::fill_n(out + 2, 4, std::uint8_t{3});
@@ -88,11 +93,8 @@ bool MinimalDisplay::pump(std::uint8_t* surface, const std::size_t bytes) {
                                                    : "停止中";
       std::array<char, 96> buffer{};
       std::snprintf(buffer.data(), buffer.size(), "%s   %lu / %lu", status,
-                    static_cast<unsigned long>(view_.playback.track.value != 0
-                                                   ? view_.playback.track.value
-                                               : view_.count ? view_.selected + 1
-                                                             : 0),
-                    static_cast<unsigned long>(view_.count));
+                    static_cast<unsigned long>(view_.playing_number),
+                    static_cast<unsigned long>(view_.playing_count));
       if (state == State::Error) {
         std::snprintf(buffer.data(), buffer.size(), "%s  E%u", status,
                       static_cast<unsigned>(view_.playback.error));
@@ -104,15 +106,18 @@ bool MinimalDisplay::pump(std::uint8_t* surface, const std::size_t bytes) {
       }
       text_row(out, buffer.data(), row_ - 400, state == State::Error ? 4 : 3);
     }
+    if (row_ >= 416 && row_ < 432)
+      text_row(out, title(view_.playing_list), row_ - 416, 3);
     if (row_ >= 432 && row_ < 448)
       text_row(out, title(view_.playing_title), row_ - 432, 1);
     if (row_ >= 456 && row_ < 472) {
       std::array<char, 96> buffer{};
       std::snprintf(
-          buffer.data(), buffer.size(), "R%lu F%lu D%lu V%lu us  Q%lu",
+          buffer.data(), buffer.size(), "R%lu F%lu D%lu V%lu us Q%lu I%lu ms",
           static_cast<unsigned long>(timings_.render), static_cast<unsigned long>(timings_.feed),
           static_cast<unsigned long>(timings_.draw), static_cast<unsigned long>(timings_.flip),
-          static_cast<unsigned long>(timings_.queue));
+          static_cast<unsigned long>(timings_.queue),
+          static_cast<unsigned long>(timings_.catalog_load / 1000));
       text_row(out, buffer.data(), row_ - 456, 1);
     }
   }

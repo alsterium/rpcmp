@@ -1,4 +1,4 @@
-"""M3U -> actual HPL1 reader, using authored music and explicit byte expectations."""
+"""M3U -> actual HPL2 reader, using authored music and explicit byte expectations."""
 import hashlib
 import json
 import os
@@ -95,20 +95,21 @@ class ImportTests(unittest.TestCase):
 
     def run_import(self, text, **kwargs):
         self.playlist.write_text(text, encoding="utf-8-sig")
-        return ingest.import_playlist(self.playlist, self.output, **kwargs)
+        return ingest.import_playlists([self.playlist], self.output, **kwargs)
 
     def unpack_result(self):
         data = (self.output / ingest.ASSET).read_bytes()
-        magic, version, width, count, length, crc, header_crc, reserved = struct.unpack_from("<4s7I", data)
-        self.assertEqual((magic, version, width, length, reserved), (b"HPL1", 1, 128, len(data), 0))
-        self.assertEqual(header_crc, zlib.crc32(data[:24]))
-        self.assertEqual(crc, zlib.crc32(data[32:32 + count * 128]))
+        magic, version, list_width, width, lists, count, length, crc, header_crc, r1, r2, r3 = struct.unpack_from("<4s11I", data)
+        base = 48 + lists * 112
+        self.assertEqual((magic, version, list_width, width, length, r1, r2, r3), (b"HPL2", 2, 112, 128, len(data), 0, 0, 0))
+        self.assertEqual(header_crc, zlib.crc32(data[:32]))
+        self.assertEqual(crc, zlib.crc32(data[48:base + count * 128]))
         result = []
         for i in range(count):
-            a, n, ac, b, m, bc, t = struct.unpack_from("<7I", data, 32 + i * 128)
+            a, n, ac, b, m, bc, t = struct.unpack_from("<7I", data, base + i * 128)
             self.assertEqual(zlib.crc32(data[a:a+n]), ac)
             self.assertEqual(zlib.crc32(data[b:b+m]), bc)
-            result.append((data[60+i*128:60+i*128+t].decode("utf-8"), data[a:a+n], data[b:b+m]))
+            result.append((data[base+28+i*128:base+28+i*128+t].decode("utf-8"), data[a:a+n], data[b:b+m]))
         if CHECKER:
             subprocess.run([CHECKER, "--playlist", str(self.output / ingest.ASSET)], check=True)
         return result
@@ -131,7 +132,7 @@ class ImportTests(unittest.TestCase):
             self.assertIn(ingest.ASSET.as_posix(), archive.namelist())
             self.assertFalse(any(name.startswith('Cores/') for name in archive.namelist()))
         with self.assertRaisesRegex(ValueError, "既に"):
-            ingest.import_playlist(self.playlist, self.output)
+            ingest.import_playlists([self.playlist], self.output)
 
     def test_exclusions_are_visible_and_other_songs_survive(self):
         (self.music / "broken.mdx").write_bytes(b"invalid")
@@ -180,9 +181,9 @@ class ImportTests(unittest.TestCase):
         (self.music / "FM.MDX").write_bytes(b"\x81\r\n\x1a\0" + body())
         self.playlist.write_bytes("音楽/FM.MDX\n".encode('cp932'))
         with self.assertRaises(UnicodeDecodeError):
-            ingest.import_playlist(self.playlist, self.output)
+            ingest.import_playlists([self.playlist], self.output)
         self.assertFalse(self.output.exists())
-        result = ingest.import_playlist(self.playlist, self.output, encoding='cp932')
+        result = ingest.import_playlists([self.playlist], self.output, encoding='cp932')
         self.assertEqual(result['imported'], 1)
         self.assertEqual(self.unpack_result()[0][0], 'FM.MDX')
 
@@ -221,8 +222,64 @@ class ImportTests(unittest.TestCase):
         self.assertEqual(result['excluded'], 1)
         self.output = self.root / 'small-collection'
         with patch.object(ingest.prepared_playlist, 'FILE_LIMIT', 200):
-            result = self.run_import('音楽/FM.MDX')
-        self.assertEqual(result['excluded'], 1)
+            with self.assertRaisesRegex(ValueError, '容量上限'):
+                self.run_import('音楽/FM.MDX')
+        self.assertFalse(self.output.exists())
+
+    def test_multiple_lists_keep_order_names_duplicates_and_shared_blobs(self):
+        second = self.root / "02_日本語.m3u"
+        second.write_text("音楽/FM.MDX\n音楽/PCM.MDX\n", encoding="utf-8")
+        self.playlist.write_text("音楽/PCM.MDX\n", encoding="utf-8")
+        report = ingest.import_playlists([second, self.playlist], self.output)
+        self.assertEqual([p["name"] for p in report["playlists"]], ["02_日本語", "曲集"])
+        rows = self.unpack_result()
+        self.assertEqual([r[0] for r in rows], ["試験曲", "PCM試験", "PCM試験"])
+        data = (self.output / ingest.ASSET).read_bytes()
+        self.assertEqual(struct.unpack_from("<II", data, 48), (1, 2))
+        self.assertEqual(struct.unpack_from("<II", data, 160), (3, 1))
+        base = 48 + 224
+        self.assertEqual(data[base+128:base+128+24], data[base+256:base+256+24])
+        self.assertEqual(len(data), base + 384 + sum(len(p) for p in rows[0][1:]) + sum(len(p) for p in rows[1][1:]))
+
+    def test_folder_natural_order_and_explicit_prefix(self):
+        for name in ("10_Last.m3u", "2_Second.m3u8", "1_First.m3u"):
+            (self.root / name).write_text("音楽/FM.MDX", encoding="utf-8")
+        nested = self.root / "nested"
+        nested.mkdir()
+        (nested / "ignored.m3u").write_text("missing.mdx")
+        explicit = self.music / "explicit.m3u"
+        explicit.write_text("FM.MDX", encoding="utf-8")
+        result = ingest.import_playlists([explicit], self.output, directory=self.root)
+        self.assertEqual([p["name"] for p in result["playlists"]],
+                         ["explicit", "1_First", "2_Second", "10_Last"])
+        self.assertEqual(len(self.unpack_result()), 4)
+
+    def test_100_lists_300_tracks_and_101_rejection(self):
+        files = []
+        for i in range(100):
+            path = self.root / f"{i:03d}.m3u8"
+            path.write_text("音楽/FM.MDX\n" * 300, encoding="utf-8")
+            files.append(path)
+        with patch.object(ingest, "prepare", wraps=ingest.prepare) as prepare:
+            result = ingest.import_playlists(files, self.output)
+        self.assertEqual(prepare.call_count, 1)
+        self.assertEqual((result["imported"], result["excluded"]), (30000, 0))
+        self.assertEqual(len(self.unpack_result()), 30000)
+        data = (self.output / ingest.ASSET).read_bytes()
+        self.assertEqual(len(data), 48 + 100 * 112 + 30000 * 128 + 10 + len(body()))
+        with self.assertRaisesRegex(ValueError, "100"):
+            ingest.import_playlists(files + files[:1], self.root / "too-many")
+        with self.assertRaisesRegex(ValueError, "100"):
+            ingest.import_playlists(files[:1], self.root / "too-many-folder", directory=self.root)
+
+    def test_empty_list_is_reported_without_reordering_survivors(self):
+        self.playlist.write_text("missing.mdx")
+        valid = self.root / "Valid.m3u"
+        valid.write_text("音楽/FM.MDX", encoding="utf-8")
+        result = ingest.import_playlists([self.playlist, valid], self.output)
+        self.assertEqual([p["status"] for p in result["playlists"]], ["excluded", "imported"])
+        self.assertEqual((result["imported"], result["excluded"]), (1, 1))
+        self.assertEqual(len(self.unpack_result()), 1)
 
     def test_structure_and_pair_bounds(self):
         for invalid in (b'', b'\0' * 25, body()[:21]):
@@ -245,7 +302,7 @@ class ImportTests(unittest.TestCase):
         self.playlist.write_text('音楽/FM.MDX', encoding='utf-8')
         with patch.object(Path, 'write_bytes', side_effect=OSError('disk failure')):
             with self.assertRaisesRegex(OSError, 'disk failure'):
-                ingest.import_playlist(self.playlist, other)
+                ingest.import_playlists([self.playlist], other)
 
     @unittest.skipIf(os.name == 'nt', 'Case collisions and symlinks are exercised on Linux')
     def test_case_collision_and_symlink_escape(self):

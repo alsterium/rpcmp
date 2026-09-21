@@ -29,13 +29,15 @@ int main() {
   if (rpcmp_player_mmio_read(0x40000400) != 0x48594234 || !player.initialize())
     return 1;
   rpcmp_pocket_terminal_init();
-  std::printf("RPCMP: Loading playlist...\n");
+  std::printf("RPCMP: Loading HPL2 playlists...\n");
+  const auto catalog_begin = rpcmp_pocket_time_us();
   if (rpcmp_player_cpu_hz() != 90000000 || rpcmp_pocket_target_read_prepare(65536) != 0 ||
       !tracks.open(slot)) {
-    std::printf("Playlist load failed. Check the file and restart.\n");
+    std::printf("Playlist load failed. Re-import M3U with r5 (HPL2) and restart.\n");
     rpcmp_pocket_hold_result();
     return 2;
   }
+  const auto catalog_load = rpcmp_pocket_time_us() - catalog_begin;
   if (rpcmp_player_video_init(pocket::kMinimalPalette.data(),
                               static_cast<std::uint32_t>(pocket::kMinimalPalette.size())) != 0)
     return 3;
@@ -54,8 +56,8 @@ int main() {
     const auto view = ui.view();
     if (!drawing && shown != view.revision) {
       const auto timings = playback.metrics();
-      display.begin(
-          view, {timings.render_us, timings.feed_us, max_draw, max_flip, timings.minimum_queued});
+      display.begin(view, {timings.render_us, timings.feed_us, max_draw, max_flip,
+                           timings.minimum_queued, catalog_load});
       shown = view.revision;
       surface = rpcmp_player_video_surface();
       drawing = true;

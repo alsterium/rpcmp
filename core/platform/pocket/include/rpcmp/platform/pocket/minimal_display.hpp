@@ -8,6 +8,7 @@ inline constexpr std::array<std::uint32_t, 5> kMinimalPalette{0x101820, 0xEBF2F5
                                                               0x72DACB, 0xFF9292};
 struct MinimalTimings {
   std::uint32_t render{}, feed{}, draw{}, flip{}, queue{};
+  std::uint32_t catalog_load{};
 };
 // One immutable view per frame, rendered four scanlines per audio-service turn.
 class MinimalDisplay {

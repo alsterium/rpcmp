@@ -58,8 +58,12 @@ r4 is now the accepted hardware baseline. The user subsequently selected
 and settled its Q1–Q6 requirements: multiple M3U inputs plus optional folder
 import, uninterrupted browsing across lists, track selection changing the active
 list, explicit name/order rules and per-list session cursor/page retention.
-The target is 100 lists of up to 300 entries; the resource estimate in the design
-is not a target measurement. This next slice is specified but not implemented.
+The [r5 implementation](#multiple-playlist-implementation--2026-09-22) supports
+100 lists of up to 300 entries using HPL2. Host checks cover 30,000 registrations,
+and the target build uses 4,486,412 static bytes. Hardware startup time and
+playback while browsing remain unverified. The next task is the r5 hardware
+report using the [Japanese procedure](../development/pocket-minimal-player.md);
+r4 remains the accepted baseline.
 This closes the compatibility investigation, not M6 as a whole. Inherited shell
 external timing constraints and the remaining player integration stay separate.
 The original objective, adopted contracts and results
@@ -4038,3 +4042,83 @@ r3からの性能改善や全曲の最大負荷を示す値とは扱いません
 `python -B tools/check_harness.py --root .`、
 `python -B out/harness/continuous-document-links.py`（変更リンク/アンカー8件）、
 `git diff --check` はPASSです。
+
+## Multiple-playlist implementation — 2026-09-22
+
+[Q1–Q6の複数プレイリスト要件](../design/pocket-mdx-compatibility-plan.md#multiple-playlist-requirements)
+をMinimal Player r5に実装しました。複数M3Uの指定順取り込みとフォルダーの番号順取り込み、
+日本語リスト名、リスト一覧→曲一覧、各ページの戻る行、リストごとの閲覧位置保持に対応します。
+別リストの閲覧は再生を変更せず、曲をAで決定したときだけ再生元を切り替えます。
+自動送り・失敗曲スキップは再生元リスト内に限定し、末尾で停止します。
+B停止・X一時停止・Yリピート設定と、起動時の無音・2周設定を維持しています。
+
+変更境界は事前に記録したHPL2です。最大100リスト×300登録のインデックスを1個だけ保持し、
+閲覧中はストレージを読みません。曲のMDX/PDXだけを選択時に読みます。PCは同じ準備済み
+データを共有し、ペイロードを逐次書き出します。1曲16 MiB、全体2 GiB未満の上限を維持し、
+不正な個別曲は理由付きで除外、曲集全体の上限超過は失敗にします。
+**HPL1とは非互換**で、既存M3Uはr5の取り込みツールで作り直します。Minimal snapshotは
+version 5（再生元PlaylistId追加）、準備済みマニフェストはname/tracksを持つリストの配列です。
+HYB4・FM/PCMレンダラー・FPGA・起動ROM・OS・依存ライブラリは変更していません。
+
+実行した検証（ログ・私有入力・生成物はignoredの`out/`）:
+
+- LLVM 22.1.8のPATHで `pwsh -File tools/host-verify.ps1 -CheckSetupOnly` はPASS。
+  `-Mode Fast` は89/89 PASS。最初のFullは89/90で、配列オフセットとテストの画像サイズの
+  乗算前に型を拡張するよう静的解析が指摘しました。警告抑止を追加せずsize_tで演算する形に
+  修正し、対象2ファイルのclang-tidyはPASS。修正後の
+  `pwsh -File tools/host-verify.ps1 -Mode Full` は **90/90 PASS**、690.17秒
+  （tidy 644.70秒）。書式・静的解析・Core/UI依存境界の検査も含みます。
+  最終ログは`out/harness/playlists-full-final.log`です。
+- Docker `rpcmp-cpu-budget-sim:20260921`（network none、リポジトリを`/repo`へマウント）で
+  `python3 -B out/harness/minimal-player-native.py` はASAN/UBSAN込みでPASS。
+  100×300のID境界、再生・一時停止中の別リスト閲覧、元リスト内の自動送り、末尾停止、
+  カーソル復元、再起動、既存の停止/一時停止/リピート回帰を確認しました。
+  実際のHybridPlaybackを通る音声制御列は、描画なしと別リストの遅延描画で一致し、
+  閲覧による曲データの追加読み込みはありません。パッケージ7件もPASS（0.145秒）。
+  `tests/utility/m3u_import_tests.py` は実C++ readerを接続して21件PASS（8.221秒、skipなし）。
+  個別/一括取り込み、順序・重複・共有、100×300、範囲外/壊れた入力、リンク脱出・
+  大文字小文字衝突、出力失敗を確認しました。ログは`playlists-native-final.log`、
+  `playlists-import-native-final.log`です。
+- 最終ビルドの `tests/pocket/hybrid_renderer_tests.py --library out/build/minimal-player-cpu-r5/renderer.so`
+  は3件PASS。`tools/hybrid_renderer_verify.py` は自作3ケースと既存実曲6曲でPASS。
+  実曲は冒頭20.48秒のPCMとFM命令時刻・順序が既存参照と一致しました。参照データは
+  再生成していません。最初の参照実行は私有入力のDockerマウント不足で停止したため、
+  入力を読み取り専用で接続して再実行しました。ログは`playlists-renderer-final.log`、
+  `playlists-reference-final.log`です。広範な互換性調査を再開したものではありません。
+- `tools/hybrid_renderer_build.py --output out/build/minimal-player-cpu-r5` はPASS。
+  RV32はtext 462,200 / data 79,268 / BSS 3,944,944、static計 **4,486,412 bytes**。
+  54-MiB領域内で、保守的stack上限15,344 / 最大frame 6,144 bytes、動的stack・未解決symbolなし。
+  生インデックスの固定領域は3,851,200 bytesです。これはリンク時の資源検査であり、実機での
+  heapピークや起動・描画時間の測定ではありません。ログは`playlists-cross-final.log`。
+  ELF SHA-256: `ff7d7d57f10bccd006903c015ee6a80313414f33a70a17ddd83686f4c7517fa0`。
+- [日本語手順](../development/pocket-minimal-player.md#開発者向けパッケージ生成)のコマンドで候補を生成。
+  `python -B out/harness/playlists-readback.py` はZIPと展開物、最終ELF・手順、framework 2.2、
+  deferred slot 4、曲集CRC・範囲・共有データを読み戻してPASS。FPGA/ROM/OSは受入済みr4と
+  バイト一致、更新ZIPには曲集を含みません。実C++ readerのASAN/UBSAN検査でも、候補の
+  42登録と規模確認用30,000登録の全ペイロード・選曲制御がPASSです。
+  元の6曲の準備済みMDX/PDXは変更していません。実描画コードでリスト一覧・2ページ目・
+  戻る行をPNGに出し、日本語・選択/再生印・再生情報に欠けや重なりがないことを確認しました。
+
+配布物（core `0.17.0-player-r5`）:
+
+| ローカル候補 | bytes | SHA-256 |
+| --- | ---: | --- |
+| `out/build/minimal-player-r5.zip` | 16,834,223 | `0a9bbca163f47f5a2c49882209635d04585e7923dadfcf1727e0de09c6d9bf38` |
+| `out/build/minimal-player-r5-update.zip` | 1,187,278 | `3c7d98b8e3e587f80ac596a564fec59eb5919a90691c99acf343c0776666cf54` |
+| `out/build/minimal-player-r5-scale-data.zip` | 531,004 | `7f82449d6c2efbdf56a3faaaf741af0cbbe20b3c342e17fb39cca6b3467a7bb0` |
+
+全体ZIPは同じ受入済み6曲を3リスト・42登録に配置し、ページ移動とリスト切替を試せます。
+規模確認用は同じ6曲を100リスト×300登録にしたもので、3万種類の楽曲の互換性検証ではありません。
+そのHPL2は4,523,320 bytesです。私有楽曲・曲名・波形はコミットしていません。
+
+**r5の実機確認は未実施**です。次は日本語手順に沿い、別リスト閲覧中の音声継続・操作反応、
+自動送り先、位置復元、100×300での起動時間・先頭/中間/末尾の選曲を確認します。
+画面のIは起動時のインデックス読み込み・検査時間（ms）です。r4を受入済み基準として残します。
+今回はRTL・合成入力・ハードウェア音声動作が変わらないため、専用RTLシミュレーション、
+合成・fit/CDCは再実行せず、r4の証拠とパッケージ一致を使用します。ホスト検証の合格は
+この実機スライスやM6全体の合格を意味せず、既存の外部I/O制約の未検証事項も残ります。
+
+最終Full後は結果と現在位置だけを文書へ反映し、本番コード・確認手順・配布物は変更していません。
+`python -B tools/check_harness.py --root .`、
+`python -B out/harness/continuous-document-links.py`（変更リンク/アンカー12件）、
+`git diff --check` はPASS。最終のパッケージ読み戻しもPASSです。

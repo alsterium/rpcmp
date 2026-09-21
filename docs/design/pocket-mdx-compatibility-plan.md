@@ -51,8 +51,10 @@ passes its local verification gates and the subsequent
 This accepts loop/repeat switching and establishes r4 as the hardware baseline.
 Failed-track skipping was not reported in that hardware check. The user selected
 [multiple-playlist support](#multiple-playlist-requirements) as the next slice
-and settled its Q1–Q6 requirements. Implementation has not been requested in
-this requirements discussion; r4 remains the accepted implementation baseline.
+and settled its Q1–Q6 requirements. The subsequent instruction to continue until
+hardware verification is needed authorizes implementation and its handoff.
+The [r5 implementation](../milestones/M6-album-player.md#multiple-playlist-implementation--2026-09-22)
+now awaits that hardware report; r4 remains the accepted hardware baseline.
 Tracker/keyboard expansion, shuffle and persistent settings remain deferred.
 Keep relevant input bounds, focused regressions and integration checks; do not
 restart a broad compatibility campaign as a prerequisite for this next step.
@@ -343,7 +345,9 @@ album navigation and multiple named collections are subsequent work.
 
 ### Multiple-playlist requirements
 
-Status: Q1–Q6 requirements agreed on 2026-09-22; implementation pending.
+Status: Q1–Q6 requirements agreed on 2026-09-22 and implemented in the r5
+hardware candidate. See the [implementation evidence](../milestones/M6-album-player.md#multiple-playlist-implementation--2026-09-22).
+Hardware acceptance remains pending.
 This extends the single installed collection described above. Keep PC-side M3U
 authoring and MDX/PDX preparation; Pocket consumes generated data. The current
 HPL1 limits remain r4 implementation facts, not the new feature's capacity.
@@ -367,17 +371,15 @@ continues the same song. Existing recoverable failed-track skipping remains
 within the active list. Opening another list does not reset the repeat setting.
 The back item is navigation, never a track or an automatic-playback entry.
 
-Resource feasibility is an estimate, not acceptance: the current serialized
-index uses 128 bytes per entry, so 30,000 entries alone would be 3,840,000 bytes
-(about 3.7 MiB). This excludes decoded copies, list records, renderer buffers,
-program, heap and stacks. The current loader reads only the selected MDX/PDX
-pair, not every song. These facts support investigating the requested scale;
-they do not prove runtime headroom, startup time, storage capacity or uninterrupted
-browsing at that scale. Do not reduce the target merely to preserve HPL1's
-300-entry/512-MiB bounds. Record concrete bounded storage/index changes here
-before coding and version incompatible formats; old RPCMP format compatibility
-is not required. Only a measured feasibility problem justifies the allowed
-smaller fallback, with its reason reported to the user.
+Measured implementation resources: HPL2 keeps one raw index of at most
+3,851,200 bytes (100 × 112 + 30,000 × 128), without a decoded copy. The RV32
+build has 4,486,412 static bytes against its 54-MiB region, with a conservative
+15,344-byte stack bound. The loader reads only the selected MDX/PDX pair and
+browsing performs no storage reads. Host checks exercise 100 × 300 entries;
+these are not measurements of runtime peak heap, Pocket startup time or audio
+continuity at that scale. The hardware guide records startup/index time and
+browsing behavior. No smaller fallback was needed. The storage and pair limits
+below still apply; 30,000 maximum-size pairs cannot fit in a 2-GiB file.
 
 The connected implementation checkpoint for Full is **multiple M3Us → generated
 collection → browse another list while audio continues → select a track and
@@ -392,6 +394,60 @@ RTL/synthesis only when their inputs change, then provide Japanese hardware
 steps for playback continuity while browsing and switching lists. Persistent
 settings, shuffle, rich visualization and broad MDX compatibility revalidation
 are outside this slice.
+
+#### HPL2 implementation boundary
+
+Use one deferred APF slot and one generated HPL2 file. Keep all validated index
+records in RAM once, then read music only when starting a selected song after
+silencing the preceding song. Browsing performs no storage I/O. Keep at most
+100 lists and 300 entries per list (30,000 total). A list owns a contiguous range
+of global one-based TrackIds; duplicate song occurrences retain separate IDs.
+Use session-local one-based PlaylistIds. Core owns the active playback list;
+UI owns a separate browsing list and a bounded selection record per list.
+Minimal snapshot version 5 adds the active PlaylistId. Keep all physical inputs
+in the replaceable UI bindings and preserve HYB4/audio behavior.
+
+HPL2 is little-endian. Its 48-byte header contains magic `HPL2`, version 2,
+playlist record width 112, track record width 128, playlist count, track count,
+file byte count, index CRC32, CRC32 of header bytes 0–31, then 12 zero bytes.
+The index is all playlist records followed by all track records. A playlist
+record contains first TrackId, count, name byte length, 96 UTF-8 name bytes and
+a zero word. Playlist ranges partition all entries in order with no gaps and
+contain 1–300 entries each. Track records retain the HPL1 field layout but their
+blobs may be shared; each present range must lie wholly after the index and
+within the declared file. Preserve UTF-8/padding/reserved-field checks, the
+16-MiB combined prepared pair bound, selected-blob CRCs and driver wrappers.
+Reject HPL1 explicitly; rebuild existing music collections with the new importer.
+Do not change or duplicate the audio protocol to version this library format.
+
+Bound the file to 2,147,483,647 bytes: the current RV32 SDK size adapter uses
+signed 32-bit `ftell`. This is a storage limit, not an in-RAM allocation or a
+claim that all 30,000 maximum-size pairs fit. The APF
+[data.json definition](https://www.analogue.co/developer/docs/core-definition-files/data-json)
+allows an unsigned 32-bit `size_maximum`; use the smaller adapter limit.
+The PC writer streams payloads to disk and shares identical prepared MDX/PDX
+blobs using SHA-256 identities, preserving all occurrence/order metadata.
+Oversize collections fail clearly instead of truncating the requested lists.
+No new dependency is required. The read-only source tree is never rewritten.
+
+The importer accepts positional M3Us in the supplied order and an optional
+folder of M3Us (immediate files only), appended in natural filename-number
+order with deterministic path tie breaks. Relative music/PDX references remain
+relative to each source M3U and subject to the existing explicit root boundary.
+Invalid whole M3Us fail the import; invalid individual songs are reported and
+excluded as before. Omit an all-excluded list with a report; if nothing remains,
+produce the report without an installable collection. Duplicate list names do
+not merge lists. Preserve each list's identity/order even when songs repeat.
+
+Start at the playlist list with no playback. A opens a list; it starts music
+only on an actual track row. Track pages have one fixed first row for
+「プレイリスト一覧へ」 and 12 track rows. Up from a page's first track focuses that
+back row while retaining the track/page position; A returns to the playlist
+list. Down from the back row restores track focus, and left/right change track
+pages. Opening that list again restores its track/page, not the back row.
+The playlist list keeps its own selection/page. Show the current browsing list,
+and the playing list/title separately; mark the playing list/track without
+moving the cursor. Copy all of these display values into the UI view.
 
 ## Recommendation
 

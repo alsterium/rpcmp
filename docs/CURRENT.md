@@ -2,16 +2,20 @@
 
 Active milestone: [M6 — Album Player](milestones/M6-album-player.md)
 
-The current task is **defining multiple-playlist support** after accepting
-the [Firmware 2.6 / Minimal Player r4 hardware report](milestones/M6-album-player.md#minimal-player-r4-hardware-result--2026-09-22).
-The user's Q1–Q6 decisions are now recorded in the
-[multiple-playlist requirements](design/pocket-mdx-compatibility-plan.md#multiple-playlist-requirements).
-They cover multiple M3U inputs, optional folder import, browsing without changing
-playback, list/track ordering and per-list cursor/page retention during a session.
-The target is 100 lists with up to 300 entries each, subject to measured resource
-feasibility; this is not support already provided by r4. Requirements are settled
-for the next implementation step; implementation has not started or been requested
-in this requirements discussion.
+The current task is **awaiting the Minimal Player r5 multiple-playlist hardware report**.
+The user's [Q1–Q6 requirements](design/pocket-mdx-compatibility-plan.md#multiple-playlist-requirements)
+are implemented: multiple M3U inputs and optional folder import, independent
+browsing/playback lists, specified ordering and per-list session cursor/page
+retention. HPL2 supports 100 lists of up to 300 entries; old HPL1 collections
+require reimport. See the [implementation evidence](milestones/M6-album-player.md#multiple-playlist-implementation--2026-09-22)
+for host/target checks and the measured 4,486,412 static bytes. Pocket startup
+time and audio continuity while browsing the large index still need hardware
+confirmation. Use `out/build/minimal-player-r5.zip` and the
+[Japanese procedure](development/pocket-minimal-player.md); the optional
+`minimal-player-r5-scale-data.zip` contains 100 × 300 registrations of the same
+six accepted songs, not 30,000 distinct songs. For existing M3Us, use the r5
+update ZIP with a [newly imported HPL2 collection](development/m3u-library.md).
+Keep the accepted r4 package and its HPL1 collection available for recovery.
 Minimal Player r4 is the accepted hardware baseline. It passes the
 [loop/repeat boundary](design/pocket-mdx-compatibility-plan.md#loop-and-repeat-switching-boundary):
 Y cycles 2, 3, 5 loops and repeat one, including changes during playback, pause
@@ -26,10 +30,10 @@ This completes the loop/repeat slice, not M6 or production-substrate acceptance.
 The [pause/resume boundary](design/pocket-mdx-compatibility-plan.md#pause-and-resume-boundary)
 uses X to pause/resume, A to start the selected track from its beginning and B
 to stop. The implementation keeps X in the replaceable input bindings and holds
-FM/PCM, fade progress and buffered audio at a stereo frame boundary. For r4, follow the
-[Japanese procedure](development/pocket-minimal-player.md) with
-`out/build/minimal-player-r4-update.zip`; it preserves the installed M3U/HPL1
-collection and updates the matching HYB4 FPGA/boot ROM/application together.
+FM/PCM, fade progress and buffered audio at a stereo frame boundary. The historical
+`out/build/minimal-player-r4-update.zip` preserves the installed M3U/HPL1
+collection and updates the matching HYB4 FPGA/boot ROM/application together;
+the current Japanese procedure covers r5/HPL2 instead.
 See the [implementation evidence](milestones/M6-album-player.md#pause-and-resume-implementation--2026-09-22).
 Minimal Player r3 was the preceding accepted hardware baseline: the 27-track list,
 FM/PCM pause and resume, browsing while paused, A/B controls, held/repeated X,

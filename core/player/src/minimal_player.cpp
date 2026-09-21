@@ -45,7 +45,8 @@ void Player::submit(const api::PlayerCommand command) {
   if (command.kind != api::CommandKind::PlayTrack && command.kind != api::CommandKind::Stop)
     return;
   if (command.kind == api::CommandKind::PlayTrack &&
-      (command.track.value == 0 || command.track.value > list_.count()))
+      (command.track.value == 0 || command.track.value > list_.count() ||
+       list_.playlist_for(command.track).value == 0))
     return;
   if (!playback_.stop()) {
     publish(api::State::Error, api::Error::Reset);
@@ -58,7 +59,12 @@ void Player::submit(const api::PlayerCommand command) {
   snapshot_.skipped_track = {};
   snapshot_.skipped_error = api::Error::None;
   snapshot_.skipped_count = 0;
+  snapshot_.playlist = list_.playlist_for(command.track);
   start(command.track);
+}
+std::uint64_t Player::list_end() const noexcept {
+  const auto list = list_.playlist(snapshot_.playlist);
+  return list.first.value + list.count;
 }
 void Player::start(const contracts::TrackId track) {
   snapshot_.track = track;
@@ -82,7 +88,7 @@ void Player::finish(api::Error error) {
     snapshot_.skipped_error = error;
     ++snapshot_.skipped_count;
   }
-  publish(snapshot_.track.value < list_.count() ||
+  publish(snapshot_.track.value + 1 < list_end() ||
                   (error == api::Error::None && snapshot_.repeat == api::RepeatMode::One)
               ? api::State::Advancing
           : error == api::Error::None ? api::State::Ended
@@ -95,7 +101,7 @@ void Player::service() {
     const auto next =
         snapshot_.track.value +
         (snapshot_.error == api::Error::None && snapshot_.repeat == api::RepeatMode::One ? 0U : 1U);
-    if (next > list_.count())
+    if (next >= list_end())
       publish(api::State::Ended);
     else
       start({next});
