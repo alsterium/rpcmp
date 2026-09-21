@@ -1,6 +1,6 @@
 # Retro PC Music Player — Product Requirements Document
 
-- **Version:** 0.7
+- **Version:** 0.8
 - **Target:** Analogue Pocket / openFPGA
 - **Architecture:** Utility + Library Container + Player Core + Replaceable UI Layer
 - **MVP target:** MDXPlayer-compatible MDX / YM2151 + PDX/ADPCM/PCM8
@@ -27,6 +27,14 @@ diagnose/fix engine defects when encountered. This is user acceptance of the
 current verification scope, not a claim that every file was compared; see the
 [acceptance record](research/mdxplayer-compatibility.md#compatibility-verification-accepted).
 
+After accepting Minimal Player r1 and the 27-track M3U import/playback report,
+the user selected [continuous M3U-order playback](design/pocket-mdx-compatibility-plan.md#continuous-playback-boundary)
+as the next M6 slice. Play from the chosen entry through the end of the list;
+looping songs use one intro plus two loop bodies and a five-second fade.
+Naturally ending songs play once. Skip recoverable per-track failures, retain
+the browsing cursor and mark the playing entry separately. These requirements
+are approved; implementation and hardware acceptance remain pending.
+
 ## 1. Product vision
 
 RPCMP is a portable music player that preserves the character of retro-computer music by sequencing original music data against reconstructed sound hardware. It presents a browsable music library and rich visualization without allowing presentation concerns to alter playback correctness.
@@ -49,9 +57,9 @@ RPCMP is a portable music player that preserves the character of retro-computer 
 - Running original X68000 driver binaries or an OS image.
 - Editing, authoring, or converting music.
 - Network services, streaming, accounts, or DRM.
-- Tracker/keyboard visualization, shuffle, counted-loop fades and persistent
-  settings as MVP completion requirements; existing implementations may remain
-  available without delaying playback compatibility.
+- Tracker/keyboard visualization, shuffle, configurable loop counts and
+  persistent settings as current completion requirements. The fixed two-loop,
+  five-second fade is part of the approved continuous-playback slice.
 - A final visual design during playback bring-up.
 
 ## 4. Product components

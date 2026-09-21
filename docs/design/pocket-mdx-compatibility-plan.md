@@ -30,13 +30,18 @@ Pocket-specific collection, as defined below. Pocket continues reading HPL1.
 The subsequent [27-track hardware report](../milestones/M6-album-player.md#m3u-27-track-hardware-result--2026-09-21)
 accepts this connected workflow: 27 imported, zero excluded, correct order and
 Japanese titles, FM/PCM stereo playback and selection/stop controls, with no
-reported playback or browsing problems. The next small requirement remains
-to be selected with the user.
+reported playback or browsing problems. The user has now selected and approved
+the [continuous-playback boundary](#continuous-playback-boundary) below as the
+next slice; its implementation and hardware verification remain pending.
 Tracker/keyboard expansion, shuffle and persistent settings remain deferred.
 Keep relevant input bounds, focused regressions and integration checks; do not
 restart a broad compatibility campaign as a prerequisite for this next step.
 
 ### Minimal player implementation boundary
+
+This section records the accepted r1 baseline. The continuous-playback boundary
+below supersedes its automatic-next, loop/end and per-track error behavior for
+the next implementation; the input format and safety bounds remain applicable.
 
 Implement the existing prepared-track workflow first: package 1–300 prepared
 MDX/PDX pairs into one deferred APF slot, retain only its catalog in memory,
@@ -72,7 +77,8 @@ Use the existing licensed Japanese bitmap font with a simple list and status.
 Draw only when selection/transport changes, in bounded scanline pieces between
 audio service calls, and never wait for vsync. Keep rendering independent of
 the audio timeline; collect render/feed/draw/flip maxima and queue minimum for
-hardware verification. No tracker, keyboard, save or playback-policy expansion.
+hardware verification. The r1 slice includes no tracker, keyboard, save or
+playback-policy expansion.
 
 Full is due when list selection connects through loading to HYB1 playback,
 stop and reselection. Verify malformed catalogs, missing/corrupt payloads,
@@ -80,6 +86,65 @@ silence/error recovery, navigation, headless/delayed-draw equivalence, target
 link/memory/stack, and package readback. Reuse the unchanged r3 FPGA/ROM/OS;
 rerun affected transport integration checks, without resynthesizing identical
 RTL. Provide a Japanese procedure and the same six private songs locally.
+
+### Continuous playback boundary
+
+Approved on 2026-09-21 through the user's continuous-playback Q1–Q4 answers
+and the previously agreed loop/fade semantics. This is the next implementation
+on the accepted r1/HPL1 baseline, not evidence that r1 already implements it.
+
+- Launch remains silent until A starts the selected entry from its beginning.
+  Continue through subsequent HPL1 entry IDs in imported M3U order; duplicate
+  entries remain separate positions. Stop after the last entry, without wrapping.
+- A during playback starts the browsing selection from its beginning and
+  continues from that entry in M3U order. B stops and cancels automatic advance,
+  including pending error skips. The next A starts a new run from the selection.
+  Keep the existing B-over-A priority for simultaneous input.
+- A looping song plays its intro once and its loop body twice, then fades both
+  FM and PCM to silence over five seconds before advancing. For an intro of
+  10 seconds and a loop body of 30 seconds, fade starts at 70 seconds and ends
+  at 75 seconds. A naturally ending song plays once and advances on completion;
+  it is not restarted to reach a loop count or padded with a five-second wait.
+- A recoverable per-track loading or playback failure silences/resets the old
+  playback and advances to the next entry. Do not retry that entry or wrap in
+  the same run. Consecutive failures, including all remaining entries failing,
+  terminate at the list end. Preserve failure diagnostics instead of reporting
+  failed tracks as successfully played. An invalid whole catalog or a terminal
+  reset failure retains the existing stop/error behavior: playback cannot
+  safely continue in those cases.
+- Automatic advance and error skipping preserve the browsing cursor and scroll
+  position. Show the playing entry with a separate marker derived from the Core
+  snapshot. Merely browsing never changes the playback sequence; A does.
+
+Core owns advancement and bounded recovery through the existing playback port.
+UI submits PlayerCommand and reads copied/versioned snapshots; it owns only
+browsing and presentation. Loop/fade/end timing follows audio progress, independent
+of rendering or snapshot cadence. Finish silencing the old track before loading
+the next pair; seamless/gapless loading is not an acceptance requirement. Keep
+the PC import workflow and HPL1 input boundary. Configurable loop counts,
+repeat-one, shuffle, pause, extra views and saved settings remain deferred.
+
+The Full checkpoint is the connected behavior **select -> play -> natural end
+or two-loop fade -> next entry -> list-end stop**, including recoverable-error
+skipping and B cancellation. Run focused host checks then Fast during iteration;
+run Full when this behavior works, with affected target link/memory, audio
+integration and package checks before hardware submission. RTL/synthesis checks
+apply when their inputs or behavior change. Host checks do not establish Pocket
+acceptance. User-facing verification instructions and report templates are Japanese.
+
+実装後の確認項目（現時点では未実行）:
+
+1. 起動直後は無音。途中の曲をAで選ぶと、その曲からM3U順に進み、末尾で停止する。
+2. ループ曲はイントロ1回＋ループ部分2周の後、FM・PCMとも5秒でフェードする。
+   自然に終わる曲は1回で次曲へ進む。ループ数と時間は表示更新回数で決めない。
+3. 再生中にAで曲を切り替えると、その曲から順に進む。B停止後は次曲へ進まない。
+   曲末尾・フェード終了・エラー送りと操作が重なった場合も確認する。
+4. 読み込み失敗・再生失敗の曲を飛ばす。連続失敗・残り全曲失敗・末尾曲の失敗で
+   先頭へ戻らず停止し、エラー送り中もBで止められる。異常な曲集やリセット失敗は停止する。
+5. 自動送り時も一覧のカーソルとスクロール位置を保ち、再生中の印だけが変わる。
+   描画を遅延・無効化しても曲順、ループ終了、フェード時間が変わらない。
+6. 実機でFM・PCM・左右の音、一覧操作中の音切れ・ノイズ・入力遅延、停止・再選曲、
+   通常再起動・電源OFF後を確認する。使用曲と観測結果はホスト試験の結果と分けて記録する。
 
 ### M3U import boundary
 
@@ -196,7 +261,8 @@ underrun and CDC before implementing a production adapter. While playing,
 audio time must continue independently of rendering and CPU submission.
 An underrun is an explicit failed playback state with safe output, not an
 unreported stretched note. Exact pause and the previous rich fade/progress
-machinery are outside this MVP's required implementation.
+machinery remain deferred; the next continuous-playback slice requires only
+the fixed two-loop, five-second fade described above.
 
 The largest observed FM burst needs 242 writes. A 20 us/write model drains it
 within 4.84 ms, and the separate bus experiment measures shorter back-to-back

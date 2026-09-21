@@ -2,9 +2,15 @@
 
 Active milestone: [M6 — Album Player](milestones/M6-album-player.md)
 
-The current task is to choose the next small player/library requirement with
-the user, building on the accepted minimal player and
-[PC-side M3U import workflow](development/m3u-library.md).
+The current task is to implement the approved
+[continuous-playback slice](design/pocket-mdx-compatibility-plan.md#continuous-playback-boundary)
+on the accepted minimal player and [PC-side M3U import workflow](development/m3u-library.md).
+Requirements are settled: play from the selected entry in M3U order, two loop
+bodies followed by a five-second fade for looping songs, natural endings once,
+recoverable per-track error skipping and stop at the list end. A starts a new
+run from the browsing selection; B cancels the run. Automatic transitions keep
+the cursor/scroll position and mark the playing entry separately. Implementation
+and its Full/hardware acceptance are pending; r1 remains the working baseline.
 The user's [27-track hardware report](milestones/M6-album-player.md#m3u-27-track-hardware-result--2026-09-21)
 passes on Firmware 2.6 / Minimal Player r1: 27 imported, zero excluded, correct
 M3U order and Japanese titles, FM/PCM stereo playback, browsing during playback,
@@ -12,8 +18,8 @@ song switching and stop/restart, with no reported errors, noise or dropouts.
 This completes the M3U -> MDX/PDX preparation -> HPL1 -> Pocket playback slice.
 The implementation previously passed Full **90/90**; see the
 [implementation evidence](milestones/M6-album-player.md#m3u-library-import--2026-09-21).
-Pocket's player, firmware and RTL are unchanged. Further library/UI expansion
-has not yet been selected.
+The M3U importer did not change Pocket's player, firmware or RTL. Other
+library/UI expansion remains deferred.
 The [Minimal Player r1 hardware check](milestones/M6-album-player.md#minimal-player-r1-hardware-result--2026-09-21)
 passes on Firmware 2.6: startup silence, six-song Japanese navigation, FM/PCM
 stereo playback, browsing without reported delay/noise/dropout, song switching,

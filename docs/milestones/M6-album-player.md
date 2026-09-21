@@ -40,7 +40,9 @@ over that working baseline: M3U defines MDX order and the PC creates the
 Pocket-specific collection with required PDX dependencies.
 The user's [27-track M3U hardware report](#m3u-27-track-hardware-result--2026-09-21)
 now passes that connected import/playback workflow with zero exclusions and
-no reported problems. The next small product requirement remains to be selected.
+no reported problems. The user has now approved
+[continuous M3U-order playback](../design/pocket-mdx-compatibility-plan.md#continuous-playback-boundary)
+as the next slice. Its implementation and acceptance are pending.
 This closes the compatibility investigation, not M6 as a whole. Inherited shell
 external timing constraints and the remaining player integration stay separate.
 The original objective, adopted contracts and results
@@ -3621,3 +3623,31 @@ This update changes progress records and current navigation only. Validation:
 anchors, and `git diff --check`. No code, contract, package input or verification
 procedure changed. Full, cross-build, RTL simulation and synthesis/STA are not
 repeated for this report; their inputs are unchanged.
+
+## Continuous playback requirements — 2026-09-21
+
+After the accepted 27-track M3U report, the user chose continuous playback as
+the next feature and confirmed its manual-selection, error and browsing rules.
+The [active boundary and acceptance checks](../design/pocket-mdx-compatibility-plan.md#continuous-playback-boundary)
+are the implementation target: selected entry onward in M3U order, two loop
+bodies plus five-second fade for looping songs, natural endings once, A to
+restart the run from another selection, B to stop, recoverable failed-track
+skipping, list-end stop and independent browsing cursor/playing marker.
+
+This records approved requirements, not a new player build or hardware result.
+The PRD and current navigation now point to this slice. It supersedes r1's
+stop-on-natural-end policy while retaining HPL1 input and terminal failure
+handling. Full is due when the connected transition behavior in the active
+boundary works; implementation and hardware acceptance remain pending.
+
+Requirement review checked the Q1–Q4 decisions against the existing r1 boundary,
+including terminal failures and Core/UI ownership. Validation passed:
+`python -B tools/check_harness.py --root .`, six changed local links/anchors,
+`git diff --check`, and `python -B tests/architecture/check_dependencies.py`
+with `--root .` and with `--root tests/architecture/fixtures/runtime_depends_ui
+--expect-violation`. The latter detects the intentional Core-to-UI violation.
+This adds prospective product requirements and acceptance checks; it does not
+change executable code, test oracles, build settings or generated assets. Full
+and hardware checks are not run at requirements completion and do not establish
+the new behavior until implementation. RTL/cross-build/synthesis inputs are
+unchanged in this update.
