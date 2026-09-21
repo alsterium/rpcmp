@@ -1,8 +1,10 @@
 # MDXPlayer compatibility baseline
 
-Status: user-selected product target on 2026-09-21; implementation and full
-corpus comparison pending. This records the target and research evidence,
-not a replacement engine/device contract or new runtime dependency.
+Status: current compatibility verification accepted and closed by the user on
+2026-09-21 after six-song hardware playback, continued playback, song endings
+and loops. See the [acceptance record](#compatibility-verification-accepted).
+This records the support target and evidence; exhaustive corpus comparison was
+not performed and is no longer a prerequisite for the next MVP work.
 
 ## Accepted target
 
@@ -87,23 +89,12 @@ Noise cause and exact visual/audio offset are not established by these values.
 
 ## Next bounded work
 
-The headless reference, CPU comparison and initial PCM/split experiments below
-are complete within their stated limits. Follow the
-[consolidated design proposal](../design/pocket-mdx-compatibility-plan.md):
-
-1. The offline shared-timeline mix below now works. Connect the split renderer
-   to a minimal target PCM/FM transport and test start/stop/reset/underrun.
-   The user approved this direction and waived previous RPCMP compatibility;
-   document the concrete changed boundary without adding compatibility layers.
-2. Measure the composed CPU/transport/memory deadline and compare actual FM/PCM
-   timing and sound with the pinned reference, including dense writes, stops,
-   loops and faults. Keep per-file time/memory limits around the legacy decoder.
-3. Extend the private reference manifest beyond prefixes to complete songs or
-   loop boundaries and the whole collection. Resolve dependency failures
-   separately; do not turn successful loading or a prefix into a playback pass.
-
-No production RPCMP implementation change, all-file reference playback,
-composed PCM Pocket benchmark or new hardware pass is claimed here.
+The offline mix, target transport, CPU/AXI integration and hardware follow-up
+are recorded below. The user has now closed the compatibility investigation;
+the previously planned whole-collection comparison is no longer next.
+Continue the [minimal selection/play/stop MVP](../design/pocket-mdx-compatibility-plan.md#current-acceptance-and-next-mvp-step).
+If a playback defect appears, reproduce it, distinguish missing dependencies
+or reference failures, and fix the affected engine path with focused checks.
 
 ## Host reference feasibility check
 
@@ -921,12 +912,36 @@ Aでの先頭からの再生が問題なしだった。PCMありの1曲で通常
 報告されたピーク時ノイズの修正は実機確認済みとする。新しい回路変更や追加候補は作らない。
 FMのみの01／02のr3再確認は今回未報告であり、r2の確認結果をr3の結果として扱わない。
 全曲全区間の互換性、外部端子のタイミング制約、UIやストレージとの同時動作、
-M6全体の受け入れは未完了。次は既存の計画どおり、私有コーパスの参照比較を広げる。
+M6全体の受け入れはこの時点では未完了。予定していた私有コーパスの参照比較拡大は、
+後述のユーザー受け入れにより次作業から外れた。
 
 この更新はユーザー実機結果と進行リンクの追記のみ。
 `python -B tools/check_harness.py` と `git diff --check` で文書を検査する。
 製品コード・RTL・検証手順・生成入力は変更せず、Full、RTL、クロスビルド、合成、
 パッケージ生成は再実行しない。前節の実行済み結果と今回のユーザー報告を区別する。
+
+## Compatibility verification accepted
+
+2026-09-21、ユーザーは「6曲正常再生できている」「しばらく曲を再生していても
+今のところは再生できている」と報告し、曲末尾とループも問題なく動作しているため
+合格と判断した。「MDX互換性検証はひとまず完了とする」という明示的な指示により、
+今回の互換性調査を完了とする。再生時間の追加数値や曲別の再試験表は示されていない。
+
+今後は不具合が発生した時点で再現・原因解析を行い、該当するエンジンを修正する。
+全コレクション・曲末尾・ループ境界の網羅的な参照比較を、次工程の前提としては
+要求しない。MDXPlayerで再生できるMDX／PDXへの対応目標は維持する。
+今回の合格はユーザー実機確認による受け入れであり、未実施の全ファイル自動比較を
+実施済みにするものではない。
+
+次は同じCPU MXDRV／PCM8＋FPGA FM経路を使い、日本語の曲一覧から選曲・再生・停止
+できる最小プレイヤーへ進む。M6全体の統合、追加する画面・ストレージ処理中の音声、
+既存の外部タイミング制約は別の作業として扱う。
+
+この変更は受け入れ範囲・進行先の更新であり、製品動作・API・実行可能な合否条件・
+検証ツール・生成入力を変更しない。影響確認には `python -B tools/check_harness.py`、
+変更文書のリンク・見出し確認、`git diff --check` を用いる。Full、RTL、クロスビルド、
+合成、パッケージ生成は入力が変わらないため再実行しない。既存のr3検証結果を
+書き換えず、今回追加されたユーザーの合格判断を記録する。
 
 ## Dependency conditions
 

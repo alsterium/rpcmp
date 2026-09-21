@@ -27,10 +27,15 @@ CDC, package readback and final Full host verification (88/88); see the
 The [r3 hardware follow-up](../research/mdxplayer-compatibility.md#hyb1-r3-hardware-follow-up)
 reports both affected songs free of the previous noise, with stereo/PCM, stable
 one-minute playback, stop/restart and reboot/power-cycle playback OK. This closes
-the reported two-song noise defect; it does not establish full-corpus or M6 acceptance.
-Next extend the private reference/split comparison to the remaining collection
-and song-end/defined loop boundaries, as already planned. The r3 FM-only recheck
-and inherited shell external timing constraints remain unverified.
+the reported two-song noise defect. The user subsequently accepted all six songs,
+continued playback, song endings and loops and explicitly closed the current
+MDX compatibility investigation; see the
+[acceptance record](../research/mdxplayer-compatibility.md#compatibility-verification-accepted).
+The planned exhaustive comparison is no longer a prerequisite; handle newly
+encountered playback defects with focused diagnosis and engine fixes.
+Next continue the [minimal selection/play/stop MVP](../design/pocket-mdx-compatibility-plan.md#current-acceptance-and-next-mvp-step).
+This closes the compatibility investigation, not M6 as a whole. Inherited shell
+external timing constraints and the remaining player integration stay separate.
 The original objective, adopted contracts and results
 below remain historical evidence; they do not override this new scope or turn
 the existing FM subset into full MDX compatibility.

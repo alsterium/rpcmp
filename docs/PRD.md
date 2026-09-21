@@ -1,6 +1,6 @@
 # Retro PC Music Player — Product Requirements Document
 
-- **Version:** 0.6
+- **Version:** 0.7
 - **Target:** Analogue Pocket / openFPGA
 - **Architecture:** Utility + Library Container + Player Core + Replaceable UI Layer
 - **MVP target:** MDXPlayer-compatible MDX / YM2151 + PDX/ADPCM/PCM8
@@ -19,6 +19,13 @@ working slice, document changed boundaries, and retain only useful separation;
 music compatibility, input safety and audio independence remain required.
 The existing container/UI descriptions below describe the implemented baseline;
 they do not require preserving it in the replacement player.
+Later on 2026-09-21, the user accepted the six-song hardware playback results,
+continued playback, song endings and loops, and closed the current MDX
+compatibility investigation. Broad corpus comparison is no longer a prerequisite
+for the next MVP work. Keep MDXPlayer compatibility as the support target and
+diagnose/fix engine defects when encountered. This is user acceptance of the
+current verification scope, not a claim that every file was compared; see the
+[acceptance record](research/mdxplayer-compatibility.md#compatibility-verification-accepted).
 
 ## 1. Product vision
 
@@ -124,6 +131,10 @@ The owner of input mapping, navigation, layout, rendering, widgets, and visualiz
   MDXPlayer reference, with its required PCM dependencies and musical behavior.
   A successful parse or FM-only result is insufficient. Record unresolved files
   explicitly rather than excluding them to improve the pass rate.
+  The current compatibility investigation is accepted by the user on the basis
+  recorded above; exhaustive collection testing is not a gate before continuing
+  selection/play/stop work. Future reported incompatibilities remain defects
+  against this support target.
 - Replacing or adding a UI view requires no playback-engine changes.
 
 ## 9. Open decisions

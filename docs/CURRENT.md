@@ -2,9 +2,15 @@
 
 Active milestone: [M6 — Album Player](milestones/M6-album-player.md)
 
-The current task is the M6 headless hybrid verification approved on 2026-09-21,
-following the [project charter](../AGENTS.md#project-charter-2026-09-21): use the
-shortest practical implementation; previous RPCMP compatibility is not required.
+The current task is the M6 minimal selection/play/stop player using the verified
+hybrid audio path. On 2026-09-21 the user accepted six-song playback, continued
+playback, song endings and loops and closed the current MDX compatibility
+investigation. Follow the [next MVP step](design/pocket-mdx-compatibility-plan.md#current-acceptance-and-next-mvp-step)
+and [project charter](../AGENTS.md#project-charter-2026-09-21): use the shortest
+practical implementation; previous RPCMP compatibility is not required.
+Do not resume exhaustive corpus verification as a prerequisite. Diagnose and
+fix playback-engine defects when encountered. The evidence below records what
+was measured, separately from the user's acceptance.
 The first connected check now produces 48 kHz mixed audio from reference-driver
 PCM and native JT51 simulation: eight authored cases and six private 10.24-second
 prefixes pass stream/reconstruction checks. See the
@@ -35,25 +41,22 @@ The user's r3 follow-up confirms the noise disappeared in both affected songs,
 with stereo/PCM, approximately one minute of stable playback, stop/restart and
 reboot/power-cycle playback all reported OK. See the
 [hardware result](research/mdxplayer-compatibility.md#hyb1-r3-hardware-follow-up).
-The reported two-song noise defect is resolved; the r3 FM-only recheck was not
-reported. These observations support continuing the CPU PCM8/FPGA FM prototype.
-The next task is the already planned
-[private-corpus compatibility expansion](design/pocket-mdx-compatibility-plan.md#next-prototype-and-decision-gates),
-extending reference/split comparisons beyond short prefixes to song-end or
-defined loop boundaries and recording dependency/reference failures separately.
-Whole-corpus acceptance is still pending; do not resume rich UI work from this result.
-Inherited shell external constraints and full hardware acceptance remain open.
+The reported two-song noise defect is resolved. The subsequent
+[user acceptance](research/mdxplayer-compatibility.md#compatibility-verification-accepted)
+confirms six-song playback, continued playback, song endings and loops are
+satisfactory and closes the compatibility investigation. No per-song r3 retest
+matrix or exhaustive corpus comparison was supplied; neither is required to
+close this investigation under the user's decision. Inherited shell external
+constraints and full M6 integration acceptance remain separate open work.
 The user selected [asaday/MDXPlayer](https://github.com/asaday/MDXPlayer) as the
 reference: support every locally supplied file that played there, including
 PCM. The MVP is track selection, play and stop. Follow the
 [approved prototype direction](design/pocket-mdx-compatibility-plan.md) and its
 [pinned source evidence](research/mdxplayer-compatibility.md).
-Further Tracker/keyboard/policy expansion is deferred. Existing v1 behavior,
-the r4 package and historical evidence remain intact; no replacement engine,
-PCM implementation or production substrate has been approved by a test result.
-Keep openfpgaOS as the comparison substrate while evaluating the reference
-engine and target execution budget. This is a bounded investigation direction,
-not a new production-substrate decision.
+Further Tracker/keyboard/policy expansion is deferred. Continue with CPU MXDRV/
+PCM8 and FPGA FM, retaining the existing openfpgaOS facilities for the next
+minimal player step. The r4 package and historical evidence remain intact.
+The compatibility acceptance does not itself settle production-substrate gates.
 
 The reference-synthesis RV32 instruction experiment now excludes an unchanged
 reference renderer on the unchanged single-issue 90 MHz CPU for the tested
@@ -77,8 +80,8 @@ PCM output when FM synthesis is removed. A separate 4 MHz native JT51 bus
 experiment passes 3,072 writes and operator-bank checks. These support the
 split; they do not establish a complete hybrid player, whole-corpus playback,
 Pocket timing or production acceptance. The offline mix, target transport and
-CPU application are now connected; the two-song hardware follow-up is recorded
-above and broader corpus comparison is next.
+CPU application are now connected; the hardware follow-up and subsequent user
+acceptance are recorded above. Broader corpus comparison is no longer next.
 
 The following records the implemented slice-5 baseline from the
 [CPU sound connection](design/pocket-cpu-sound-connection.md), not the next work.
@@ -267,8 +270,8 @@ focused Linux sanitizer tests and the catalog RISC-V link probe passed; see the
 milestone for exact evidence. These are not M6 playback/UI/hardware acceptance.
 The [earlier Q1–Q24 requirements](design/pocket-library-player-spec-draft.md)
 describe the fuller album player. The user's 2026-09-21 compatibility target
-and smaller MVP take precedence for current work. Do not resume UI expansion
-from these historical requirements before the playback comparison.
+and smaller MVP take precedence for current work. The compatibility investigation
+is now closed; these historical requirements do not expand the minimal MVP.
 
 [M5 evidence](milestones/M5-real-mdx-library-playback.md) remains preserved.
 The user closed its investigation on 2026-09-12; M5 is deferred, not passed.

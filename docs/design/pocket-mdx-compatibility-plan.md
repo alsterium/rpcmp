@@ -3,8 +3,30 @@
 Status: prototype direction approved by the user, 2026-09-21. The user also
 waived backward compatibility with earlier RPCMP implementations and requested
 the simplest practical implementation under the [project charter](../../AGENTS.md#project-charter-2026-09-21).
-This does not change the r4 package or claim all-file/hardware acceptance. Evidence and
+The user subsequently accepted the six-song hardware verification and closed
+the current compatibility investigation on the same date. Evidence and
 reproduction details are in the [compatibility baseline](../research/mdxplayer-compatibility.md).
+The [current acceptance and next MVP step](#current-acceptance-and-next-mvp-step)
+supersede the earlier requirement to extend verification across the collection
+before proceeding.
+
+## Current acceptance and next MVP step
+
+The user reports that all six songs play normally, continued playback remains
+stable so far, and song endings and loops work satisfactorily. The current MDX
+compatibility verification is accepted and complete. Continue with CPU MXDRV/
+PCM8 plus FPGA FM; diagnose and fix engine defects as they are encountered.
+Keep MDXPlayer-compatible FM/PCM playback as the product target. This decision
+does not claim that every collection file or waveform has been compared.
+
+The next M6 slice is the smallest practical player with a Japanese-capable
+track list, selection, play and stop using the accepted audio path. Define the
+concrete loading/catalog boundary before coding; M3U8 remains the proposed
+library direction below, not an already implemented storage contract. Preserve
+startup silence and audio independence while adding the minimal interface.
+Tracker/keyboard expansion, shuffle and persistent settings remain deferred.
+Keep relevant input bounds, focused regressions and integration checks; do not
+restart a broad compatibility campaign as a prerequisite for this next step.
 
 ## Recommendation
 
@@ -18,7 +40,7 @@ not because the current player already contains it.
 | --- | --- |
 | Unchanged software FM+PCM on current CPU | Reject as the default: the authored eight-FM/eight-ADPCM workload needs about 172 million cycles/audio second against a 90 MHz single-issue CPU, with optimistic memory and no UI/OS. |
 | Same renderer on the investigated dual-issue CPU | Still about 131 million cycles/audio second before integration. A different renderer/CPU may improve this, but this candidate does not justify full software adoption. |
-| Reference interpreter + software PCM8 + FPGA FM | Recommended. Tested PCM-only paths need roughly 52–58 million cycles/audio second on the current CPU; the 80-track split preserves reference event timing and PCM output. Composed real-time performance remains to be measured. |
+| Reference interpreter + software PCM8 + FPGA FM | Continue. Tested PCM-only paths need roughly 52–58 million cycles/audio second on the current CPU; the 80-track split preserves reference event timing and PCM output. Six-song hardware playback is now accepted; measure added UI/storage interference during player integration. |
 | Hardware PCM8 from the start | Defer. Software retains the reference sample formats, filters and channel semantics; accelerate a measured bottleneck only if the composed budget fails. |
 | Recreate an X68000 CPU/OS or continue expanding the custom MDX subset | Adds a second compatibility implementation while the selected reference already interprets the required features. Keep a reference-based route first. |
 | Pre-render music on the PC | Simplifies playback but changes the raw MDX/PDX workflow and the PRD's non-conversion goal; not the default solution to the current request. |
@@ -292,11 +314,13 @@ comparison set; keep a native full-software oracle. The first slice must:
    fit/timing and final Firmware 2.6 hardware checks. No host result substitutes
    for these hardware integration observations.
 
-Extend the private manifest to every user-reference-playable MDX, including
-PCM and compressed data, with whole-song or defined loop-boundary comparisons.
-Classify missing dependencies and source-reference failures separately from
-RPCMP failures; none becomes an exclusion merely because it is inconvenient.
-The installed iOS build and settings are still unverified. Review the mixed
+The earlier plan to extend the private manifest across every reference-playable
+MDX and compare whole songs/loop boundaries is superseded by the user's
+[acceptance](#current-acceptance-and-next-mvp-step). Do not run that expansion as
+the next task. When an actual playback defect appears, retain a focused
+reproduction and distinguish dependency/reference failures from RPCMP failures;
+do not silently exclude the file. The installed iOS build and settings remain
+unverified. Review the mixed
 driver/sound-library licensing before distributing a port, and harden input
 copy/decompression boundaries before exposing the legacy decoder to files.
 
