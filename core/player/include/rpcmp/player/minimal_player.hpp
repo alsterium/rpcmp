@@ -22,6 +22,8 @@ public:
 
 private:
   void publish(api::State state, api::Error error = api::Error::None);
+  void start(contracts::TrackId track);
+  void finish(api::Error error);
   const api::TrackList& list_;
   PlaybackPort& playback_;
   api::PlayerSnapshot snapshot_{};

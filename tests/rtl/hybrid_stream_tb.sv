@@ -10,7 +10,7 @@ module hybrid_stream_tb;
     integer phase=0, checked=0, expected_frames=0, observed=0, native_writes=0;
     integer bit_cycle=0;
     logic channel=0, synchronized=0, compare_audio=0, compare_fm=0;
-    logic voice_mode=0, limits_mode=0;
+    logic voice_mode=0, limits_mode=0, fade_mode=0;
     integer voice_left[0:999], voice_right[0:999], wide_peak=0;
     logic [15:0] serial_left=0, serial_right=0;
     rpcmp_hybrid_mmio dut(.*);
@@ -45,6 +45,14 @@ module hybrid_stream_tb;
             if (value>32767) value=32767;
             if (value< -32768) value=-32768;
             reference_mix=value;
+        end
+    endfunction
+    function automatic integer fade_value(input integer value, index);
+        longint product;
+        begin
+            product=value;
+            if (fade_mode && index>=5) product=product*(312500-(index-5))/312500;
+            fade_value=32'(product);
         end
     endfunction
     always @(posedge clk_audio) if (voice_mode && dut.audio.pcm_pop) begin
@@ -83,10 +91,10 @@ module hybrid_stream_tb;
                 observed=observed+1;
                 if (compare_audio && (checked != 0 || serial_left !== 0 || serial_right !== 0)) begin
                     if (checked < expected_frames) begin
-                        if ($signed(serial_left) !== (voice_mode ? voice_left[checked*125/96] :
-                                limits_mode ? limit_output(checked*125/96) : 1000 + checked*125/96) ||
-                            $signed(serial_right) !== (voice_mode ? voice_right[checked*125/96] :
-                                limits_mode ? limit_output(checked*125/96+7) : -1000 - checked*125/96))
+                        if ($signed(serial_left) !== fade_value(voice_mode ? voice_left[checked*125/96] :
+                                limits_mode ? limit_output(checked*125/96) : 1000 + checked*125/96,checked*125/96) ||
+                            $signed(serial_right) !== fade_value(voice_mode ? voice_right[checked*125/96] :
+                                limits_mode ? limit_output(checked*125/96+7) : -1000 - checked*125/96,checked*125/96))
                             $fatal(1,"frame %0d got %0d,%0d expected source %0d",checked,
                                    $signed(serial_left),$signed(serial_right),checked*125/96);
                         checked=checked+1;
@@ -142,7 +150,7 @@ module hybrid_stream_tb;
         logic [15:0] stop_left, stop_right;
         integer stopped_frame;
         repeat(10) @(negedge clk_cpu); reset_n=1;
-        ready(); rd(0,value); if (value != 'h48594231) $fatal(1,"wrong ID");
+        ready(); rd(0,value); if (value != 'h48594232) $fatal(1,"wrong ID");
         if ($test$plusargs("VOICE")) begin
             // Real eight-channel native synthesis plus PCM outside int16.
             voice_mode=1; compare_audio=1; expected_frames=768;
@@ -167,7 +175,7 @@ module hybrid_stream_tb;
         end
         wr(8,2,1); wr('h14,7,1); wr('h24,7,1);
         wr('h10,123,1,3); wr('h11,123,1); wr('h30,1,1); wr('h110,123,1);
-        wr('h20,10); wr('h24,'h10001,1); wr('h24,'h20000,1); wr('h24,0);
+        wr('h20,10); wr('h24,'h10002,1); wr('h24,'h20000,1); wr('h24,0);
         wr('h20,9); wr('h24,0,1); // nonmonotonic, staged value retained
         wr(8,1); ready(); wr('h14,7,1); wr('h24,7,1);
         limits_mode=1; checked=0; expected_frames=768; compare_audio=1;
@@ -181,6 +189,20 @@ module hybrid_stream_tb;
         if (value[7:4] != 0 || checked != 768) $fatal(1,"I2S signed boundaries failed");
         $display("hybrid_stream_tb: I2S BOUNDARIES PASS frames=768");
         limits_mode=0; compare_audio=0; wr(8,1); ready();
+        wr('h20,32'hfffb3b4c); wr('h24,'h10001,1); // start+312500 must fit u32
+        fm(5,'h10001);
+        wr('h20,5); wr('h24,'h10001,1); // one fade per stream, rejected stage retained
+        fm(1000,'h10000);
+        checked=0; expected_frames=768; compare_audio=1; fade_mode=1;
+        for (int i=0;i<1000;i=i+1) pcm(1000+i);
+        wr(8,2);
+        do begin repeat(128) @(negedge clk_cpu); rd(4,value); end while (!value[3] && value[7:4]==0);
+        repeat(768) @(negedge clk_audio);
+        if (value[7:4]!=0 || checked!=768 || !dut.audio.fading)
+            $fatal(1,"timed fade or early natural EOF failed");
+        $display("hybrid_stream_tb: FADE PASS frames=768 start=5");
+        fade_mode=0; compare_audio=0; wr(8,1); ready();
+        if (dut.audio.fading) $fatal(1,"clear retained fade");
         normal(1000,200);
         wr(8,2,1); wr(8,1); ready();
 

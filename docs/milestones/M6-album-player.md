@@ -42,7 +42,9 @@ The user's [27-track M3U hardware report](#m3u-27-track-hardware-result--2026-09
 now passes that connected import/playback workflow with zero exclusions and
 no reported problems. The user has now approved
 [continuous M3U-order playback](../design/pocket-mdx-compatibility-plan.md#continuous-playback-boundary)
-as the next slice. Its implementation and acceptance are pending.
+as the next slice. The [r2 implementation](#continuous-playback-implementation--2026-09-21)
+is ready for its [Japanese hardware check](../development/pocket-minimal-player.md);
+hardware acceptance remains pending.
 This closes the compatibility investigation, not M6 as a whole. Inherited shell
 external timing constraints and the remaining player integration stay separate.
 The original objective, adopted contracts and results
@@ -3651,3 +3653,90 @@ change executable code, test oracles, build settings or generated assets. Full
 and hardware checks are not run at requirements completion and do not establish
 the new behavior until implementation. RTL/cross-build/synthesis inputs are
 unchanged in this update.
+
+## Continuous playback implementation — 2026-09-21
+
+Minimal Player r2 は、承認済みの連続再生を実装した実機確認候補です。
+選択曲からM3U順に進み、ループ曲はイントロ1回＋2周後にFM・PCMを5秒で
+フェードします。自然終了は1回、末尾は停止、曲単位の失敗は記録して飛ばします。
+Aで新しい再生を開始し、Bで自動送りも解除します。一覧の位置と再生中の印・曲名・
+曲番号は独立しています。読み込み中には曲間の無音があり、ギャップレス再生ではありません。
+
+変更境界は [active design](../design/pocket-mdx-compatibility-plan.md#continuous-playback-boundary)
+に先に記録しました。Coreの小さな状態機械で1回のserviceにつき最大1曲を開始し、
+連続失敗中も入力を処理します。状態スナップショットはversion 2です。
+音声の新しい制御マーカーに合わせ、MMIO IDをHYB2 (`0x48594232`) に更新しました。
+5秒は62.5 kHzで312,500フレームです。HPL1、M3U取り込み、APF framework最低2.2は
+変更していません。後方互換用の分岐や追加依存は導入していません。
+
+今回実行した検証と、その限界:
+
+- 変更前の自動送り試験は4個のassertionで失敗し、実装後に通りました。
+  最終版のnative試験は300曲の順送り・全曲失敗・停止による取消・リセット失敗・
+  空の自然終了・カーソル/ページ保持を確認しました。最終表示画像でも、選択曲1と
+  再生曲2の印・曲名・番号が分離していることを確認しました。
+- LLVM 22.1.8をこのプロセスのPATHに指定した
+  `pwsh -File tools/host-verify.ps1 -CheckSetupOnly` はPASSです。
+  途中の `pwsh -File tools/host-verify.ps1 -Mode Fast` は89/89、26.74秒でした。
+  最終版の `pwsh -File tools/host-verify.ps1 -Mode Full` は**90/90 PASS**、
+  681.37秒（tidy 654.60秒）でした。format、静的解析、Core→UI依存の拒否fixtureを
+  含むアーキテクチャ検査も通っています。ログは `continuous-full-final.log` です。
+- 最終ソースに対するLinuxのASAN/UBSAN試験はPASSです。
+  `docker run --rm --network none --mount type=bind,source=F:/source/rpcmp,target=/repo
+  -w /repo rpcmp-cpu-budget-sim:20260921 python3 -B out/harness/minimal-player-native.py`
+  でcatalog/control/audio/displayと2/300曲のPC生成→native読込を確認し、
+  パッケージ試験6件もPASS（0.105秒）でした。参照レンダラーの個別clang-tidyもPASSです。
+- Linux上の `python3 -B tests/pocket/hybrid_renderer_tests.py --library
+  out/build/minimal-player-cpu-r2/renderer.so` は自作MDXの3試験にPASSしました。
+  曲中の独立したマーカーでイントロ1回・ループ本体2回を数え、終了位置が
+  フェード開始＋312,500であること、自然終了と再開時の状態初期化を確認しました。
+  この試験は準備済みの参照エンジンを使う任意実行試験で、標準CTestとは別です。
+- 同じ6曲の既存参照データに対する `tools/hybrid_renderer_verify.py` はPASSです。
+  `--library out/build/minimal-player-cpu-r2/renderer.so --oracle
+  out/build/hybrid-real-inputs-r2 --manifest out/build/hybrid-real-inputs-r2/private-inputs.json`
+  を指定し、Dockerで元データのルートを `/corpus` に読み取り専用でマウントしました。
+  自作3ケース、および実曲6曲それぞれの冒頭20.48秒でPCM・FMイベント位置/順序が一致しました。
+  期待値は再生成していません。別のローカル試験で6曲とも終了に到達し、4曲は
+  フェード開始＋312,500フレーム、2曲はフェードなしの自然終了を確認しました。
+  これはホスト上の結果であり、Pocketの音やタイミングの観測ではありません。
+- `pwsh -File tools/rtl-hybrid-verify.ps1` はPASSです。既存ミキサー8ケースと
+  フェード全312,501点、3位相のI2S境界・フレーム5開始のフェード・リセット解除・
+  不正/重複制御・FIFO容量/待ち・供給枯渇・実8音FMの試験が通りました。
+  `-PreparedTree out/build/continuous-candidate-r2` を指定する実AXI試験も3位相PASSです。
+  `pwsh -File tools/rtl-verify.ps1` と `pwsh -File tools/rtl-jt51-verify.ps1` もPASSです。
+  共有作業領域を使うRTLスイートは順番に実行しました。
+- Linux上の `python3 -B tools/hybrid_renderer_build.py --output
+  out/build/minimal-player-cpu-r2` は最終版でPASSです。text 457,616、data 79,012、
+  BSS 169,344、合計705,972 bytes、保守的スタック13,424 bytes、最大フレーム4,880 bytes。
+  動的スタックと未解決シンボルはありません。ELF SHA-256は
+  `19312dffe64f9cb7eb042b27d60926d27cd068336215e43812bd4c70cbe7e137` です。
+- 対応するROM/OSを `tools/pocket_hybrid_firmware_prepare.py` で準備し、SDKの
+  `make -j2 CROSS=riscv-none-elf- bld/pocket/firmware.elf bld/pocket/os.bin` と
+  `tools/pocket_hybrid_images.py` で生成・照合しました。OSのバイト列はr1と同じです。
+  `tools/pocket_hybrid_prepare.py` で用意した `continuous-candidate-r2/hybrid-fit` の
+  Quartus全体コンパイルは9分20秒、0 errors / 968 warningsでした。
+  10,913/18,480 ALMs、12/66 DSP、最小setup 0.749 ns / hold 0.127 nsです。
+  同じfitで `quartus_sta -t F:/source/rpcmp/tools/hybrid_cdc_audit.tcl` がPASSし、
+  4コーナーの48 Grayポインタビットと同期段を確認しました。既存の外部I/O制約の
+  未検証部分は残っており、これを基板全体のタイミング保証とはしていません。
+- [日本語手順](../development/pocket-minimal-player.md#開発者向けパッケージ生成) の
+  コマンドで全体ZIPと更新ZIPを生成しました。独立した読み戻しでも、全体29ファイルと
+  更新21ファイルの内容、RBFのビット反転、最終ELF/OS、JSONのslot ID、6曲のHPL1、
+  同梱手順の一致を確認しました。更新ZIPに曲集/WAV/曲目一覧は入りません。
+  更新を既存曲集へ重ねる自動試験もPASSです。27曲の実機曲集自体を再読込した結果ではなく、
+  更新物が `playlist.hpl` を置き換えないことの検証です。
+
+ログはローカルの `out/harness/continuous-*.log`、fit/CDCは
+`out/build/continuous-candidate-r2/hybrid-fit`、パッケージ証跡は
+`out/build/minimal-player-r2.evidence.json` にあります。私有楽曲・曲名・波形はコミットしていません。
+結果記録後は進捗・リンクのみを更新し、harness navigation、変更したローカルリンク/
+アンカー12件、`git diff --check` を確認しました。Full以降のコード変更はありません。
+
+- 推奨更新ZIP: `out/build/minimal-player-r2-update.zip`、SHA-256
+  `2407ea920be5bd5b71e269b15f0fe866654ac820f1388bebf310cac974f66cda`。
+- 6曲入り全体ZIP: `out/build/minimal-player-r2.zip`、SHA-256
+  `2b0e4f3728b096491fb64ac78e2ae75ac1ad1b3207078dd68c01d835722791dd`。
+
+**Firmware 2.6でのr2実機確認は未実施です。** 次は更新ZIPを使用し、日本語手順に沿って
+自動送り、2周＋5秒フェード、FM/PCM、一覧位置保持、手動切替/停止、再起動を確認します。
+互換性調査全体は再開せず、新しい不具合が出た場合に該当経路を解析します。

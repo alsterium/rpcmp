@@ -26,7 +26,7 @@ int main() {
   Slot slot;
   pocket::HybridPlayback playback{tracks};
   rpcmp::player::minimal::Player player{tracks, playback};
-  if (rpcmp_player_mmio_read(0x40000400) != 0x48594231 || !player.initialize())
+  if (rpcmp_player_mmio_read(0x40000400) != 0x48594232 || !player.initialize())
     return 1;
   rpcmp_pocket_terminal_init();
   std::printf("RPCMP: Loading playlist...\n");
@@ -46,7 +46,6 @@ int main() {
   std::uint32_t max_draw{}, max_flip{};
   bool drawing = false;
   for (;;) {
-    player.service();
     const auto key = rpcmp_player_mmio_read(0x40000050);
     const auto type = key >> 28U;
     ui.input(key & 0xffffU, type >= 1 && type <= 3, rpcmp_pocket_time_us());

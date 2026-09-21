@@ -32,8 +32,10 @@ the user selected [continuous M3U-order playback](design/pocket-mdx-compatibilit
 as the next M6 slice. Play from the chosen entry through the end of the list;
 looping songs use one intro plus two loop bodies and a five-second fade.
 Naturally ending songs play once. Skip recoverable per-track failures, retain
-the browsing cursor and mark the playing entry separately. These requirements
-are approved; implementation and hardware acceptance remain pending.
+the browsing cursor and mark the playing entry separately. Minimal Player r2
+implements these requirements; its hardware acceptance remains pending. See
+the [implementation evidence](milestones/M6-album-player.md#continuous-playback-implementation--2026-09-21)
+and [Japanese hardware procedure](development/pocket-minimal-player.md).
 
 ## 1. Product vision
 

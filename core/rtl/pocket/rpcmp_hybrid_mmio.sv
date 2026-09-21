@@ -56,7 +56,7 @@ module rpcmp_hybrid_mmio (
     end
 
     logic [31:0] staged_left, staged_at, last_at;
-    logic left_valid, at_valid, end_queued;
+    logic left_valid, at_valid, end_queued, fade_queued;
     wire pcm_full, fm_full, pcm_empty, fm_empty, pcm_pop, fm_pop;
     wire [11:0] pcm_used;
     wire [9:0] fm_used;
@@ -102,7 +102,7 @@ module rpcmp_hybrid_mmio (
         else if (read || write) begin
             if (address[9:8] != 0 || address[1:0] != 0 || byte_enable != 4'hf || !cpu_reset_n) error=1;
             else if (read) case (address)
-                8'h00: read_data=32'h48594231;
+                8'h00: read_data=32'h48594232;
                 8'h04: read_data={24'd0,status_sync[5:2],status_sync[1],status_sync[0],started,
                                   control_state == READY};
                 8'h18: read_data=pcm_full ? 0 : 32'd4096-{20'd0,pcm_used};
@@ -121,7 +121,9 @@ module rpcmp_hybrid_mmio (
                 8'h20: error=!available || end_queued;
                 8'h24: error=!available || end_queued || !at_valid || fm_full ||
                              staged_at < last_at || write_data[31:17] != 0 ||
-                             (write_data[16] && write_data[15:0] != 0);
+                             (write_data[16] && write_data[15:0] > 1) ||
+                             (write_data == 32'h10001 &&
+                              (fade_queued || staged_at > 32'hfffb3b4b));
                 default: error=1;
             endcase
         end
@@ -129,7 +131,7 @@ module rpcmp_hybrid_mmio (
     always_ff @(posedge clk_cpu or negedge cpu_reset_n) begin
         if (!cpu_reset_n) begin
             control_state<=CLEAR_WAIT; clear_request<=1; start_request<=0; started<=0;
-            staged_left<=0; staged_at<=0; last_at<=0; left_valid<=0; at_valid<=0; end_queued<=0;
+            staged_left<=0; staged_at<=0; last_at<=0; left_valid<=0; at_valid<=0; end_queued<=0; fade_queued<=0;
         end else begin
             if (control_state == CLEAR_WAIT && ack_sync[1]) begin
                 clear_request<=0; control_state<=RELEASE_WAIT;
@@ -138,12 +140,16 @@ module rpcmp_hybrid_mmio (
             if (write && !error) case (address)
                 8'h08: if (write_data == 1) begin
                     clear_request<=1; start_request<=0; started<=0; control_state<=CLEAR_WAIT;
-                    left_valid<=0; at_valid<=0; last_at<=0; end_queued<=0;
+                    left_valid<=0; at_valid<=0; last_at<=0; end_queued<=0; fade_queued<=0;
                 end else begin start_request<=1; started<=1; end
                 8'h10: begin staged_left<=write_data; left_valid<=1; end
                 8'h14: left_valid<=0;
                 8'h20: begin staged_at<=write_data; at_valid<=1; end
-                8'h24: begin last_at<=staged_at; at_valid<=0; end_queued<=write_data[16]; end
+                8'h24: begin
+                    last_at<=staged_at; at_valid<=0;
+                    if (write_data == 32'h10000) end_queued<=1;
+                    if (write_data == 32'h10001) fade_queued<=1;
+                end
                 default: ;
             endcase
         end

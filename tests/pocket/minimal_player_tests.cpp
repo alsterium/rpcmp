@@ -71,7 +71,7 @@ public:
   }
 };
 std::uint32_t tick{}, status{1}, fm_free{1024}, pcm_free{4096}, opened{}, rendered{};
-bool reject_open{}, reject_render{}, end_block{}, reset_stuck{};
+bool reject_open{}, reject_render{}, end_block{}, empty_end{}, reset_stuck{};
 std::vector<std::pair<unsigned, std::uint32_t>> writes;
 RpcmpHybridBlock block;
 void reset_model() {
@@ -79,7 +79,7 @@ void reset_model() {
   status = 1;
   fm_free = 1024;
   pcm_free = 4096;
-  reject_open = reject_render = end_block = reset_stuck = false;
+  reject_open = reject_render = end_block = empty_end = reset_stuck = false;
   writes.clear();
   block = {};
 }
@@ -202,10 +202,18 @@ std::vector<std::pair<unsigned, std::uint32_t>> playback_case(rpcmp::test::Suite
   player.submit({api::CommandKind::PlayTrack, {1}});
   status = 9;
   player.service();
+  RPCMP_CHECK(suite, status == 1);
+  player.service();
+  RPCMP_CHECK(suite, player.snapshot().state == api::State::Playing &&
+                         player.snapshot().track.value == 2 && opened == 22);
+  controller.update(player.snapshot());
+  RPCMP_CHECK(suite, controller.view().selected == 0 && controller.view().first == 0);
+  status = 9;
+  player.service();
   RPCMP_CHECK(suite, player.snapshot().state == api::State::Ended && status == 1);
   const auto calls = rendered;
   player.service();
-  RPCMP_CHECK(suite, rendered == calls); // No automatic next track.
+  RPCMP_CHECK(suite, rendered == calls); // List end must not wrap.
   player.submit({api::CommandKind::PlayTrack, {1}});
   fm_free = 0;
   player.service();
@@ -238,6 +246,76 @@ public:
   unsigned calls{};
   void submit(api::PlayerCommand) override { ++calls; }
 };
+class SequencePort final : public rpcmp::player::minimal::PlaybackPort {
+public:
+  std::vector<std::uint64_t> attempts;
+  std::uint64_t track{}, bad_open{}, bad_service{};
+  bool end{}, fail_all{}, reset_ok{true};
+  api::Error open(rpcmp::contracts::TrackId id) override {
+    attempts.push_back(id.value);
+    track = id.value;
+    return fail_all || id.value == bad_open ? api::Error::Load : api::Error::None;
+  }
+  bool stop() override { return reset_ok; }
+  api::Error service(bool& ended) override {
+    ended = end;
+    return track == bad_service ? api::Error::Audio : api::Error::None;
+  }
+};
+void sequence_cases(rpcmp::test::Suite& suite) {
+  Many list;
+  SequencePort port;
+  rpcmp::player::minimal::Player player{list, port};
+  RPCMP_CHECK(suite, player.initialize());
+  port.end = true;
+  player.submit({api::CommandKind::PlayTrack, {1}});
+  for (unsigned i = 0; i < 600; ++i)
+    player.service();
+  RPCMP_CHECK(suite, player.snapshot().state == api::State::Ended && port.attempts.size() == 300);
+  for (unsigned i = 0; i < 300; ++i)
+    RPCMP_CHECK(suite, port.attempts[i] == i + 1);
+
+  port.attempts.clear();
+  port.bad_open = 298;
+  port.bad_service = 299;
+  player.submit({api::CommandKind::PlayTrack, {297}});
+  for (unsigned i = 0; i < 10; ++i)
+    player.service();
+  RPCMP_CHECK(suite, port.attempts == std::vector<std::uint64_t>({297, 298, 299, 300}));
+  RPCMP_CHECK(suite, player.snapshot().state == api::State::Ended &&
+                         player.snapshot().skipped_count == 2 &&
+                         player.snapshot().skipped_track.value == 299 &&
+                         player.snapshot().skipped_error == api::Error::Audio);
+
+  player.submit({api::CommandKind::PlayTrack, {298}});
+  RPCMP_CHECK(suite, player.snapshot().state == api::State::Advancing);
+  player.submit({api::CommandKind::Stop, {}});
+  const auto attempts = port.attempts;
+  for (unsigned i = 0; i < 10; ++i)
+    player.service();
+  RPCMP_CHECK(suite, player.snapshot().state == api::State::Stopped && port.attempts == attempts);
+  player.submit({api::CommandKind::PlayTrack, {300}});
+  RPCMP_CHECK(suite, player.snapshot().skipped_count == 0);
+  player.submit({api::CommandKind::Stop, {}}); // Stop wins before the pending end is polled.
+  player.service();
+  RPCMP_CHECK(suite, player.snapshot().state == api::State::Stopped);
+
+  port.fail_all = true;
+  port.attempts.clear();
+  player.submit({api::CommandKind::PlayTrack, {1}});
+  for (unsigned i = 1; i < 300; ++i) {
+    RPCMP_CHECK(suite, port.attempts.size() == i);
+    player.service();
+  }
+  RPCMP_CHECK(suite, port.attempts.size() == 300 && player.snapshot().skipped_count == 300 &&
+                         player.snapshot().state == api::State::Error);
+  player.service();
+  RPCMP_CHECK(suite, port.attempts.size() == 300);
+  port.reset_ok = false;
+  player.submit({api::CommandKind::PlayTrack, {1}});
+  player.service();
+  RPCMP_CHECK(suite, player.snapshot().error == api::Error::Reset && port.attempts.size() == 300);
+}
 void navigation(rpcmp::test::Suite& suite) {
   Many list;
   Sink sink;
@@ -252,6 +330,9 @@ void navigation(rpcmp::test::Suite& suite) {
   for (unsigned i = 1; i < 30; ++i)
     controller.input(8, true, 350001 + i * 80000);
   RPCMP_CHECK(suite, controller.view().selected == 299 && sink.calls == 0);
+  controller.update({api::kVersion, 1, api::State::Playing, {1}, api::Error::None});
+  controller.update({api::kVersion, 2, api::State::Playing, {2}, api::Error::None});
+  RPCMP_CHECK(suite, controller.view().selected == 299 && controller.view().first == 299 / 13 * 13);
   controller.input(0x10, false, 4000000);
   controller.input(0x10, true, 4000001);
   RPCMP_CHECK(suite, sink.calls == 0);
@@ -281,6 +362,12 @@ void backpressure(rpcmp::test::Suite& suite) {
   RPCMP_CHECK(suite, backend.service(ended) == api::Error::None && rendered == total);
   status = 9;
   RPCMP_CHECK(suite, backend.service(ended) == api::Error::None && ended);
+  RPCMP_CHECK(suite, backend.stop());
+  RPCMP_CHECK(suite, backend.open({1}) == api::Error::None);
+  empty_end = true;
+  const auto before_empty = writes;
+  RPCMP_CHECK(suite, backend.service(ended) == api::Error::None && ended);
+  RPCMP_CHECK(suite, writes == before_empty); // An empty finite song never starts the device.
   RPCMP_CHECK(suite, backend.stop());
 }
 int check_packed_file(const char* path) {
@@ -312,13 +399,20 @@ void preview(rpcmp::test::Suite& suite, const char* path) {
   RPCMP_CHECK(suite, catalog.open(source));
   Sink sink;
   ui::Controller controller{catalog, sink};
-  controller.update({1, 1, api::State::Playing, {2}, api::Error::None});
+  controller.update({api::kVersion, 1, api::State::Playing, {2}, api::Error::None});
   pocket::MinimalDisplay display;
   display.begin(controller.view());
   Bytes pixels(std::size_t{640} * 480);
   for (unsigned i = 0; i < 120; ++i)
     RPCMP_CHECK(suite, display.pump(pixels.data(), pixels.size()));
   RPCMP_CHECK(suite, display.complete());
+  RPCMP_CHECK(suite, pixels[(80 + 24 + 8) * 640 + 2] == 3 && pixels[(80 + 8) * 640 + 2] == 0);
+  // Playback is track 2 while the browsing cursor remains on track 1.
+  const auto number = pocket::bitmap_glyph('2');
+  for (unsigned y = 0; y < 16; ++y)
+    for (unsigned x = 0; x < 8; ++x)
+      RPCMP_CHECK(suite,
+                  pixels[(400 + y) * 640 + 88 + x] == ((number.rows[y] & (128U >> x)) ? 3 : 0));
   const auto glyph = pocket::bitmap_glyph('R');
   for (unsigned y = 0; y < 16; ++y)
     for (unsigned x = 0; x < 8; ++x)
@@ -375,6 +469,10 @@ extern "C" const RpcmpHybridBlock* rpcmp_hybrid_render() {
   block.pcm[0] = 20000;
   block.pcm[1] = -20000;
   block.ended = end_block ? 1 : 0;
+  if (empty_end) {
+    block.frame_count = block.event_count = 0;
+    block.ended = 1;
+  }
   ++rendered;
   return &block;
 }
@@ -383,6 +481,7 @@ int main(int argc, char** argv) {
     return check_packed_file(argv[2]);
   rpcmp::test::Suite suite;
   catalog_cases(suite);
+  sequence_cases(suite);
   navigation(suite);
   backpressure(suite);
   preview(suite, argc == 2 ? argv[1] : nullptr);

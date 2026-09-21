@@ -75,11 +75,11 @@ module hybrid_axi_tb;
         repeat(10) @(negedge clk_cpu); reset_n=1;
         repeat(20) @(negedge clk_cpu);
         // In particular this precedes any write: AXI has no read WSTRB.
-        rd(BASE,value); if(value!='h48594231) $fatal(1,"wrong HYB1 binding");
+        rd(BASE,value); if(value!='h48594232) $fatal(1,"wrong HYB2 binding");
         ready(); wr(BASE+8,2,2); wr(BASE+'h14,1,2);
         for(integer n=0;n<15;n=n+1) begin
             wr(BASE+'h10,99,2,4'(n)); wr(BASE+'h14,1,2);
-            rd(BASE,value); if(value!='h48594231) $fatal(1,"read inherited bad WSTRB");
+            rd(BASE,value); if(value!='h48594232) $fatal(1,"read inherited bad WSTRB");
         end
         for(integer n=1;n<4;n=n+1) begin wr(BASE+'h10+n,99,2); rd(BASE+n,value,2); end
         wr(BASE+'h110,99,2); rd(BASE+'h100,value,2);

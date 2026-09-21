@@ -4,6 +4,7 @@
 #include <cstring>
 
 static void hybrid_capture_event(std::uint32_t address, std::uint32_t value);
+static void hybrid_progress();
 extern "C" void rpcmp_hybrid_pcm(std::int32_t value);
 #define MXDRVG_EXPORT
 #define MXDRVG_CALLBACK
@@ -15,6 +16,8 @@ namespace {
 RpcmpHybridBlock block;
 std::uint32_t scalars;
 bool failed, initialized, first_block, file_loaded;
+bool fading, complete;
+std::uint32_t stop_frame;
 std::int16_t discarded[2048];
 unsigned char authored_pcm[65536];
 
@@ -25,6 +28,8 @@ int initialize(std::uint32_t mdx_size, std::uint32_t pdx_size) {
   failed = false;
   first_block = true;
   file_loaded = false;
+  fading = complete = false;
+  stop_frame = UINT32_MAX;
   if (MXDRVG_Start(48000, 0, static_cast<int>(mdx_size), static_cast<int>(pdx_size)) != 0) {
     MXDRVG_End();
     return -1;
@@ -40,12 +45,36 @@ void authored_register(unsigned address, unsigned value) {
 }
 } // namespace
 
-static void hybrid_capture_event(std::uint32_t address, std::uint32_t value) {
-  if (block.event_count == RPCMP_HYBRID_EVENTS || address > 255 || value > 255) {
+static void hybrid_event(std::uint32_t operation) {
+  if (block.event_count == RPCMP_HYBRID_EVENTS) {
     failed = true;
     return;
   }
-  block.events[block.event_count++] = {block.first_frame + scalars / 2, (address << 8) | value};
+  block.events[block.event_count++] = {block.first_frame + scalars / 2, operation};
+}
+static void hybrid_capture_event(std::uint32_t address, std::uint32_t value) {
+  if (address > 255 || value > 255) {
+    failed = true;
+    return;
+  }
+  hybrid_event((address << 8) | value);
+}
+static void hybrid_progress() {
+  if (!file_loaded)
+    return;
+  const auto frame = block.first_frame + scalars / 2;
+  if (MXDRVG_GetTerminated()) {
+    if (frame < stop_frame)
+      stop_frame = frame;
+  } else if (!fading && G.L002246 >= 2) {
+    if (frame > UINT32_MAX - 312500U) {
+      failed = true;
+      return;
+    }
+    fading = true;
+    stop_frame = frame + 312500U;
+    hybrid_event(0x10001);
+  }
 }
 
 extern "C" void rpcmp_hybrid_pcm(std::int32_t value) {
@@ -79,7 +108,7 @@ extern "C" int rpcmp_hybrid_open(const void* mdx, std::uint32_t mdx_size, const 
     return -1;
   }
   file_loaded = true;
-  MXDRVG_PlayAt(0, 2, 1);
+  MXDRVG_PlayAt(0, 65534, 0); // HYB2 owns the fixed two-loop/five-second envelope.
   if (failed || G.FATALERROR) {
     rpcmp_hybrid_close();
     return -1;
@@ -125,7 +154,8 @@ extern "C" int rpcmp_hybrid_authored(unsigned pcm_kind) {
 }
 
 extern "C" const RpcmpHybridBlock* rpcmp_hybrid_render() {
-  if (!initialized || failed || block.first_frame > UINT32_MAX - RPCMP_HYBRID_FRAMES * 2) {
+  if (!initialized || failed || complete ||
+      block.first_frame > UINT32_MAX - RPCMP_HYBRID_FRAMES * 2) {
     return nullptr;
   }
   if (!first_block) {
@@ -138,6 +168,16 @@ extern "C" const RpcmpHybridBlock* rpcmp_hybrid_render() {
     return nullptr;
   }
   block.frame_count = scalars / 2;
-  block.ended = file_loaded && MXDRVG_GetTerminated();
+  hybrid_progress();
+  if (failed)
+    return nullptr;
+  block.ended = stop_frame <= block.first_frame + block.frame_count;
+  if (block.ended) {
+    block.frame_count = stop_frame - block.first_frame;
+    // The driver may have rendered ahead inside its final bounded chunk.
+    while (block.event_count && block.events[block.event_count - 1].sample >= stop_frame)
+      --block.event_count;
+    complete = true;
+  }
   return &block;
 }

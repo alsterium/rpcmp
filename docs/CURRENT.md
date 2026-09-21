@@ -2,15 +2,19 @@
 
 Active milestone: [M6 — Album Player](milestones/M6-album-player.md)
 
-The current task is to implement the approved
-[continuous-playback slice](design/pocket-mdx-compatibility-plan.md#continuous-playback-boundary)
-on the accepted minimal player and [PC-side M3U import workflow](development/m3u-library.md).
-Requirements are settled: play from the selected entry in M3U order, two loop
-bodies followed by a five-second fade for looping songs, natural endings once,
-recoverable per-track error skipping and stop at the list end. A starts a new
-run from the browsing selection; B cancels the run. Automatic transitions keep
-the cursor/scroll position and mark the playing entry separately. Implementation
-and its Full/hardware acceptance are pending; r1 remains the working baseline.
+The current task is the **Firmware 2.6 / Minimal Player r2 hardware check** of
+the implemented [continuous-playback slice](design/pocket-mdx-compatibility-plan.md#continuous-playback-boundary).
+Follow the [Japanese procedure](development/pocket-minimal-player.md) using
+`out/build/minimal-player-r2-update.zip`; it preserves the installed M3U/HPL1
+collection. The full `minimal-player-r2.zip` instead includes the six local
+verification songs. r2 plays from the selected entry in M3U order, uses two loop
+bodies plus a five-second FM/PCM fade, skips recoverable per-track errors and
+stops at the list end. A starts a new run; B cancels it. Automatic transitions
+preserve browsing position and show a separate playing marker. See the
+[implementation evidence](milestones/M6-album-player.md#continuous-playback-implementation--2026-09-21).
+The candidate uses HYB2 and requires its matching FPGA/boot ROM/application;
+HPL1 and the [M3U import workflow](development/m3u-library.md) are unchanged.
+Hardware acceptance is pending; r1 remains the accepted hardware baseline.
 The user's [27-track hardware report](milestones/M6-album-player.md#m3u-27-track-hardware-result--2026-09-21)
 passes on Firmware 2.6 / Minimal Player r1: 27 imported, zero excluded, correct
 M3U order and Japanese titles, FM/PCM stereo playback, browsing during playback,

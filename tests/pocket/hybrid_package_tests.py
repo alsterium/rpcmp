@@ -78,6 +78,23 @@ class HybridPackageTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "PDX"):
             self.files()
 
+    def test_runtime_update_preserves_installed_collection(self):
+        files = self.files()
+        runtime = P("Assets/rpcmp_minimal/common/hybrid.elf")
+        core = P("Cores/RPCMP.MinimalPlayer/rpcmp.rbf_r")
+        guide = P("確認手順.md")
+        files.update({runtime: b"new application", core: b"new FPGA", guide: "日本語手順".encode()})
+        playlist = P("Assets/rpcmp_minimal/common/playlist.hpl")
+        installed = {playlist: b"user's existing collection"}
+        update = package.runtime_update(files)
+        installed.update(update)
+        self.assertEqual(installed[playlist], b"user's existing collection")
+        self.assertEqual(installed[runtime], b"new application")
+        self.assertEqual(installed[core], b"new FPGA")
+        self.assertEqual(installed[guide], "日本語手順".encode())
+        self.assertNotIn(P("曲目一覧.md"), update)
+        self.assertFalse(any(path.parts[0] == "試聴用" for path in update))
+
     def test_invalid_wrappers_audio_and_missing_files(self):
         for name, invalid in (("fm.bin", b"bad"), ("pdx.bin", bytes(10)),
                               ("reference.wav", b"not audio")):

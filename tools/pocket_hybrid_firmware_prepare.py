@@ -1,4 +1,4 @@
-"""Prepare matching HYB1 boot/OS firmware on the existing pinned substrate."""
+"""Prepare matching HYB2 boot/OS firmware on the existing pinned substrate."""
 import argparse
 import json
 from pathlib import Path
@@ -14,7 +14,7 @@ def prepare(repo, upstream, musl, output):
     target.write_bytes(source.read_bytes().replace(b"\r\n", b"\n"))
     manifest = output / "rpcmp-firmware-inputs.json"
     data = json.loads(manifest.read_text(encoding="utf-8"))
-    data["profile"] = "hybrid-hyb1"
+    data["profile"] = "hybrid-hyb2"
     del data["m6_sound_source"]
     data["hybrid_sound_source"] = source.relative_to(repo.resolve()).as_posix()
     data["boot_overlay"]["boot_sound_reset.inc"] = sha256(source)

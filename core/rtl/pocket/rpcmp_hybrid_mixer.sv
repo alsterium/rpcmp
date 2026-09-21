@@ -3,10 +3,13 @@ module rpcmp_hybrid_mixer (
     input logic clk, reset_n, sample_valid,
     input logic signed [18:0] fm_left, fm_right,
     input logic signed [31:0] pcm_left, pcm_right,
+    input logic [18:0] fade_remaining,
     output logic mixed_valid,
     output logic signed [15:0] mixed_left, mixed_right
 );
-    logic gain_valid, sum_valid;
+    logic gain_valid, sum_valid, fade_valid;
+    logic [18:0] fade_delay1, fade_delay2;
+    logic signed [35:0] faded_left, faded_right;
     logic signed [15:0] scaled_left, scaled_right;
     logic signed [31:0] delayed_pcm_left, delayed_pcm_right;
     logic signed [32:0] sum_left, sum_right;
@@ -33,12 +36,15 @@ module rpcmp_hybrid_mixer (
 
     always_ff @(posedge clk or negedge reset_n) begin
         if (!reset_n) begin
-            gain_valid <= 0; sum_valid <= 0; mixed_valid <= 0;
+            gain_valid <= 0; sum_valid <= 0; fade_valid <= 0; mixed_valid <= 0;
+            fade_delay1 <= 0; fade_delay2 <= 0; faded_left <= 0; faded_right <= 0;
             scaled_left <= 0; scaled_right <= 0;
             delayed_pcm_left <= 0; delayed_pcm_right <= 0;
             sum_left <= 0; sum_right <= 0; mixed_left <= 0; mixed_right <= 0;
         end else begin
             gain_valid <= sample_valid;
+            fade_delay1 <= fade_remaining;
+            fade_delay2 <= fade_delay1;
             scaled_left <= scale_fm(fm_left);
             scaled_right <= scale_fm(fm_right);
             delayed_pcm_left <= pcm_left;
@@ -48,9 +54,12 @@ module rpcmp_hybrid_mixer (
                         {delayed_pcm_left[31], delayed_pcm_left};
             sum_right <= {{17{scaled_right[15]}}, scaled_right} +
                          {delayed_pcm_right[31], delayed_pcm_right};
-            mixed_valid <= sum_valid;
-            mixed_left <= saturate(sum_left);
-            mixed_right <= saturate(sum_right);
+            fade_valid <= sum_valid;
+            faded_left <= saturate(sum_left) * $signed({1'b0,fade_delay2});
+            faded_right <= saturate(sum_right) * $signed({1'b0,fade_delay2});
+            mixed_valid <= fade_valid;
+            mixed_left <= 16'(faded_left / 36'sd312500);
+            mixed_right <= 16'(faded_right / 36'sd312500);
         end
     end
 endmodule

@@ -1,4 +1,4 @@
-"""Package a local HYB1 candidate with selectable, previously verified real songs."""
+"""Package a local HYB2 candidate and a runtime-only update preserving the user's collection."""
 import argparse
 import hashlib
 import io
@@ -15,6 +15,12 @@ from pocket_player_package import definitions as player_definitions
 
 ROOT = Path(__file__).resolve().parents[1]
 CORE, PLATFORM = "RPCMP.MinimalPlayer", "rpcmp_minimal"
+
+
+def runtime_update(files):
+    return {path: data for path, data in files.items()
+            if (path.parts[0] in ("Cores", "Assets", "Platforms") and path.suffix != ".hpl")
+            or path == P("確認手順.md")}
 
 
 def track_files(manifest):
@@ -51,7 +57,8 @@ def track_files(manifest):
 def package(args):
     output = args.output.resolve()
     archive = output.with_suffix(".zip")
-    if output.parent != ROOT / "out/build" or output.exists() or archive.exists():
+    update_archive = output.with_name(output.name + "-update").with_suffix(".zip")
+    if output.parent != ROOT / "out/build" or output.exists() or archive.exists() or update_archive.exists():
         raise ValueError("choose a fresh package directly under out/build")
     shell, cpu, firmware = (p.resolve() for p in (args.shell, args.cpu, args.firmware))
     fit = shell / "hybrid-fit"
@@ -85,7 +92,7 @@ def package(args):
         raise ValueError("application budget does not match this ELF")
     values = player_definitions()
     values["core.json"]["core"]["metadata"].update(platform_ids=[PLATFORM], shortname="MinimalPlayer",
-        description="RPCMP MDX minimal player", version="0.13.0-player-r1", date_release="2026-09-21")
+        description="RPCMP MDX continuous player", version="0.14.0-player-r2", date_release="2026-09-21")
     slots = values["data.json"]["data"]["data_slots"]
     slots[0]["name"] = "MDX Player"
     slots[4:] = [dict(id=4, name="Playlist", required=True, parameters=8, extensions=["hpl"],
@@ -139,11 +146,23 @@ def package(args):
         for path, data in files.items():
             if zipped.read(path.as_posix()) != data or (output / path).read_bytes() != data:
                 raise ValueError("package readback differs")
+    # Existing M3U collections stay installed when applying this runtime-only update.
+    update_files = runtime_update(files)
+    with zipfile.ZipFile(update_archive, "x", zipfile.ZIP_DEFLATED) as zipped:
+        for path, data in sorted(update_files.items()):
+            zipped.writestr(path.as_posix(), data)
+    with zipfile.ZipFile(update_archive) as zipped:
+        if set(zipped.namelist()) != {p.as_posix() for p in update_files}:
+            raise ValueError("update archive members differ")
+        for path, data in update_files.items():
+            if zipped.read(path.as_posix()) != data:
+                raise ValueError("update package readback differs")
     evidence = dict(status="local hardware check pending", firmware_pair=pairing, app_budget=budget,
                     reports=reports, native_rbf_sha256=shared.sha256(rbf), artifacts=entries,
-                    zip_sha256=shared.sha256(archive))
+                    zip_sha256=shared.sha256(archive), update_zip_sha256=shared.sha256(update_archive))
     archive.with_suffix(".evidence.json").write_bytes(shared.json_bytes(evidence))
     print(archive)
+    print(update_archive)
 
 
 if __name__ == "__main__":

@@ -80,9 +80,14 @@ contracts::minimal::Error HybridPlayback::service(bool& ended) {
   if (!pending_)
     return Error::None;
   const auto needed = pending_->event_count + (pending_->ended ? 1U : 0U);
-  if (pending_->event_count > RPCMP_HYBRID_EVENTS || needed > 1024 || pending_->frame_count == 0 ||
+  if (pending_->event_count > RPCMP_HYBRID_EVENTS || needed > 1024 ||
+      (pending_->frame_count == 0 && !pending_->ended) ||
       pending_->frame_count > RPCMP_HYBRID_FRAMES)
     return Error::Renderer;
+  if (!started_ && pending_->ended && pending_->frame_count == 0) {
+    ended = true;
+    return Error::None;
+  }
   if (rpcmp_pocket_time_us() - wait_started_ > 1'000'000)
     return Error::Timeout;
   if (read(6) < pending_->frame_count || read(10) < needed)

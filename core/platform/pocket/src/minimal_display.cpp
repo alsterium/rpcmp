@@ -56,29 +56,41 @@ bool MinimalDisplay::pump(std::uint8_t* surface, const std::size_t bytes) {
       const auto within = (row_ - 80) % 24;
       const auto index = view_.first + line;
       if (index < view_.count) {
+        const bool playing = view_.playback.state == contracts::minimal::State::Playing &&
+                             index + 1 == view_.playback.track.value;
         if (index == view_.selected)
           std::fill_n(out + 8, 624, std::uint8_t{2});
+        if (playing && within >= 8 && within < 16)
+          std::fill_n(out + 2, 4, std::uint8_t{3});
         if (within >= 4 && within < 20)
-          text_row(out, title(view_.titles[line]), within - 4,
-                   index + 1 == view_.playback.track.value ? 3 : 1);
+          text_row(out, title(view_.titles[line]), within - 4, playing ? 3 : 1);
       }
     }
     if (row_ >= 400 && row_ < 416) {
       using contracts::minimal::State;
       const auto state = view_.playback.state;
-      const char* status = state == State::Playing ? "再生中"
-                           : state == State::Ended ? "再生終了"
+      const char* status = state == State::Playing     ? "再生中"
+                           : state == State::Advancing ? "次曲へ"
+                           : state == State::Ended     ? "再生終了"
                            : view_.playback.error == contracts::minimal::Error::Reset
                                ? "音声リセット失敗: コアを再起動"
                            : state == State::Error ? "エラー: Aで再試行"
                                                    : "停止中";
       std::array<char, 96> buffer{};
       std::snprintf(buffer.data(), buffer.size(), "%s   %lu / %lu", status,
-                    static_cast<unsigned long>(view_.count ? view_.selected + 1 : 0),
+                    static_cast<unsigned long>(view_.playback.track.value != 0
+                                                   ? view_.playback.track.value
+                                               : view_.count ? view_.selected + 1
+                                                             : 0),
                     static_cast<unsigned long>(view_.count));
       if (state == State::Error) {
         std::snprintf(buffer.data(), buffer.size(), "%s  E%u", status,
                       static_cast<unsigned>(view_.playback.error));
+      } else if (view_.playback.skipped_count != 0) {
+        std::snprintf(buffer.data(), buffer.size(), "%s  SKIP %lu  #%lu E%u", status,
+                      static_cast<unsigned long>(view_.playback.skipped_count),
+                      static_cast<unsigned long>(view_.playback.skipped_track.value),
+                      static_cast<unsigned>(view_.playback.skipped_error));
       }
       text_row(out, buffer.data(), row_ - 400, state == State::Error ? 4 : 3);
     }

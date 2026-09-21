@@ -32,7 +32,9 @@ accepts this connected workflow: 27 imported, zero excluded, correct order and
 Japanese titles, FM/PCM stereo playback and selection/stop controls, with no
 reported playback or browsing problems. The user has now selected and approved
 the [continuous-playback boundary](#continuous-playback-boundary) below as the
-next slice; its implementation and hardware verification remain pending.
+next slice. Minimal Player r2 now implements it; see the
+[implementation evidence](../milestones/M6-album-player.md#continuous-playback-implementation--2026-09-21).
+Its [hardware verification](../development/pocket-minimal-player.md) remains pending.
 Tracker/keyboard expansion, shuffle and persistent settings remain deferred.
 Keep relevant input bounds, focused regressions and integration checks; do not
 restart a broad compatibility campaign as a prerequisite for this next step.
@@ -41,7 +43,7 @@ restart a broad compatibility campaign as a prerequisite for this next step.
 
 This section records the accepted r1 baseline. The continuous-playback boundary
 below supersedes its automatic-next, loop/end and per-track error behavior for
-the next implementation; the input format and safety bounds remain applicable.
+the r2 implementation; the input format and safety bounds remain applicable.
 
 Implement the existing prepared-track workflow first: package 1–300 prepared
 MDX/PDX pairs into one deferred APF slot, retain only its catalog in memory,
@@ -90,8 +92,8 @@ RTL. Provide a Japanese procedure and the same six private songs locally.
 ### Continuous playback boundary
 
 Approved on 2026-09-21 through the user's continuous-playback Q1–Q4 answers
-and the previously agreed loop/fade semantics. This is the next implementation
-on the accepted r1/HPL1 baseline, not evidence that r1 already implements it.
+and the previously agreed loop/fade semantics. This is the r2 implementation
+boundary on the accepted r1/HPL1 baseline; r1 itself does not implement it.
 
 - Launch remains silent until A starts the selected entry from its beginning.
   Continue through subsequent HPL1 entry IDs in imported M3U order; duplicate
@@ -132,7 +134,21 @@ integration and package checks before hardware submission. RTL/synthesis checks
 apply when their inputs or behavior change. Host checks do not establish Pocket
 acceptance. User-facing verification instructions and report templates are Japanese.
 
-実装後の確認項目（現時点では未実行）:
+Implementation contract: snapshot version 2 adds Advancing and the last skipped
+entry/error/count. Core attempts at most one new entry per service call, so Stop
+can cancel a failure chain. A new PlayTrack clears the previous run's diagnostics.
+The renderer observes reference loop/end state at native PCM chunk boundaries,
+emits one timed fade marker after loop body 2 and trims output at its end. HYB2
+(MMIO ID `0x48594232`) adds operation `0x10001` for that marker to the existing
+17-bit event payload; `0x10000` still denotes EOF. Other control values, repeated
+fade markers and overflowing fade start times are rejected. HYB2 applies the
+same linear gain to the saturated stereo mix for 312500 native frames (five
+seconds at 62500 Hz), then reaches zero. Gain at native offset n is
+`max(312500 - n, 0) / 312500`, with signed division toward zero. An earlier
+natural EOF ends normally. Clear resets the fade. CPU and boot ROM require
+HYB2, so a mismatched old FPGA fails explicitly. HPL1 is unchanged.
+
+実装後の確認項目（ホスト試験の結果は実装証跡を参照。r2実機確認は未実施）:
 
 1. 起動直後は無音。途中の曲をAで選ぶと、その曲からM3U順に進み、末尾で停止する。
 2. ループ曲はイントロ1回＋ループ部分2周の後、FM・PCMとも5秒でフェードする。

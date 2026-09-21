@@ -22,6 +22,8 @@ def prepare(source, output):
     line = "\tOPM.SetReg( (UBYTE)D1, (UBYTE)D2 );"
     text = checked_replace(text, line, "\thybrid_capture_event((UBYTE)D1, (UBYTE)D2);\n" + line)
     text = checked_replace(text, "\t\t\tOPM.Mix(innerbuf, create_len2);", "\t\t\t// HYB1 synthesizes FM in hardware.")
+    line = "\t\t\tPCM8.Mix(innerbuf, create_len2);"
+    text = checked_replace(text, line, "\t\t\thybrid_progress();\n" + line)
     text = checked_replace(text, "DisposeStack_L00122e = NULL;", "DisposeStack_L00122e = 0;")
     header.write_text(text, encoding="utf-8")
     header = jni / "pcm8/x68pcm8.h"

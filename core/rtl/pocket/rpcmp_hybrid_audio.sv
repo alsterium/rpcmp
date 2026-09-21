@@ -29,7 +29,18 @@ module rpcmp_hybrid_audio (
     wire source_valid = rendering && !clear && faults == 0 && jt_sample && !pcm_empty;
     wire event_due = rendering && !clear && faults == 0 && !fm_empty &&
                      fm_data[48:17] <= source_count;
-    wire finish_source = event_due && fm_data[16] && bus_state == IDLE;
+    wire finish_source = event_due && fm_data[16:0] == 17'h10000 && bus_state == IDLE;
+    wire begin_fade = event_due && fm_data[16:0] == 17'h10001 && bus_state == IDLE;
+    logic fading;
+    logic [31:0] fade_at;
+    wire [31:0] fade_offset = source_count - (begin_fade ? fm_data[48:17] : fade_at);
+    wire [18:0] fade_remaining = !(fading || begin_fade) ? 19'd312500 :
+                                fade_offset >= 312500 ? 19'd0 : 19'd312500 - fade_offset[18:0];
+    always_ff @(posedge clk_audio or negedge reset_n) begin
+        if (!reset_n) begin fading<=0; fade_at<=0; end
+        else if (clear) begin fading<=0; fade_at<=0; end
+        else if (begin_fade) begin fading<=1; fade_at<=fm_data[48:17]; end
+    end
     assign pcm_pop = source_valid && !finish_source;
     assign fm_pop = event_due && bus_state == IDLE;
     assign running = rendering || draining;
@@ -88,7 +99,7 @@ module rpcmp_hybrid_audio (
     logic [31:0] next_source;
     logic [6:0] fraction;
     logic [7:0] fraction_sum;
-    logic [2:0] selected_pipe;
+    logic [3:0] selected_pipe;
     wire mix_valid;
     wire signed [15:0] mix_left, mix_right;
     assign fraction_sum = {1'b0,fraction} + 8'd29;
@@ -96,12 +107,13 @@ module rpcmp_hybrid_audio (
         .clk(clk_audio), .reset_n(reset_n && !clear && faults == 0), .sample_valid(pcm_pop),
         .fm_left(fm_left), .fm_right(fm_right),
         .pcm_left(pcm_data[63:32]), .pcm_right(pcm_data[31:0]),
+        .fade_remaining(fade_remaining),
         .mixed_valid(mix_valid), .mixed_left(mix_left), .mixed_right(mix_right)
     );
     logic [31:0] output_queue [0:3];
     logic [1:0] output_rd, output_wr;
     logic [2:0] output_count;
-    wire push_output = mix_valid && selected_pipe[2] && running && !clear && faults == 0;
+    wire push_output = mix_valid && selected_pipe[3] && running && !clear && faults == 0;
     wire frame_boundary = serial_phase == 8'hff;
     wire pop_output = frame_boundary && running && startup_frames <= 1 && output_count != 0;
 
@@ -119,7 +131,7 @@ module rpcmp_hybrid_audio (
         end else if (begin_stream) begin
             rendering<=1; startup_frames<=2;
         end else begin
-            selected_pipe <= {selected_pipe[1:0],pcm_pop && source_count == next_source};
+            selected_pipe <= {selected_pipe[2:0],pcm_pop && source_count == next_source};
             if (pcm_pop) begin
                 source_count<=source_count+1'b1;
                 if (&source_count || next_source >= 32'hfffffffd) faults[3]<=1;
