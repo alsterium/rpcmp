@@ -45,8 +45,9 @@ no reported problems. The user has now approved
 as the next slice. The [r2 implementation](#continuous-playback-implementation--2026-09-21)
 now passes its [Firmware 2.6 hardware report](#minimal-player-r2-hardware-result--2026-09-22).
 r2 is the accepted hardware baseline; failed-track skipping was not exercised
-on hardware because no errors occurred. Choose the next small requirement with
-the user; no additional feature is selected yet.
+on hardware because no errors occurred. The next approved slice is
+[pause/resume with provisional X input](../design/pocket-mdx-compatibility-plan.md#pause-and-resume-boundary);
+requirements are recorded, with implementation and hardware acceptance pending.
 This closes the compatibility investigation, not M6 as a whole. Inherited shell
 external timing constraints and the remaining player integration stay separate.
 The original objective, adopted contracts and results
@@ -3777,3 +3778,23 @@ M6全体や残る外部I/Oタイミング・本番基盤のゲートを完了し
 確認手順は変更していません。実装時のFull 90/90、Core→UI依存拒否、RTL、
 クロスビルド、合成/CDCの結果は上記の実装証跡を参照してください。
 これらは入力が変わっていないため今回再実行していません。
+
+## Pause and resume requirements — 2026-09-22
+
+ユーザーは次の機能に一時停止・再開を選び、当面はXに割り当てると決定しました。
+UI整備後にはボタン割り当てを変更する見込みです。
+[今回の要件境界](../design/pocket-mdx-compatibility-plan.md#pause-and-resume-boundary) に、
+FM/PCM・ループ/フェードの位置保持、一覧操作、Aで選択曲の先頭から再生、Bで停止、
+入力と再生処理の分離を記録しました。既存の小さな入力割り当てを拡張する方針で、
+ユーザー向けキー設定画面や汎用設定フレームワークは追加しません。
+
+これは要件の決定であり、実装・実機合格ではありません。r2が受入済みの基準です。
+新しい再生コマンドからFM/PCMの一時停止・再開・曲末尾への接続が動いた時点を
+Fullの区切りとし、影響するRTL・クロスビルド・合成/CDC・パッケージも検証します。
+
+今回の影響確認は要件と既存の入力/コマンド境界の照合、
+`python -B tools/check_harness.py --root .`、変更したローカルリンク/アンカーの検査、
+`git diff --check`、`python -B tests/architecture/check_dependencies.py --root .`、
+同コマンドの `--root tests/architecture/fixtures/runtime_depends_ui --expect-violation`
+です。実行コード・試験の期待値・生成入力は変更しておらず、Fullは新動作の実装時に
+実行します。RTL・クロスビルド・合成は今回入力が変わらないため実行していません。

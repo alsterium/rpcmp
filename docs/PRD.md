@@ -40,6 +40,13 @@ exercised in that hardware report. See the
 [implementation evidence](milestones/M6-album-player.md#continuous-playback-implementation--2026-09-21)
 and [Japanese hardware procedure](development/pocket-minimal-player.md).
 
+On 2026-09-22 the user selected [pause/resume](design/pocket-mdx-compatibility-plan.md#pause-and-resume-boundary)
+as the next small slice. X pauses/resumes the current track; A starts the browsing
+selection from its beginning and B stops. X is a provisional input binding,
+expected to change when the UI is developed. Keep it separate from playback
+commands. Pausing holds song/fade progress and automatic advancement while
+list browsing remains available. Implementation and hardware acceptance are pending.
+
 ## 1. Product vision
 
 RPCMP is a portable music player that preserves the character of retro-computer music by sequencing original music data against reconstructed sound hardware. It presents a browsable music library and rich visualization without allowing presentation concerns to alter playback correctness.

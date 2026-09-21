@@ -2,7 +2,12 @@
 
 Active milestone: [M6 — Album Player](milestones/M6-album-player.md)
 
-The current task is to **choose the next small player requirement with the user**.
+The current task is the approved **pause/resume slice** on Minimal Player r2.
+The [pause/resume boundary](design/pocket-mdx-compatibility-plan.md#pause-and-resume-boundary)
+uses X to pause/resume, A to start the selected track from its beginning and B
+to stop. X is provisional: keep physical bindings in the input adapter so a
+later UI can change them without changing playback behavior. Requirements are
+recorded; implementation and hardware acceptance of pause/resume are pending.
 The [Firmware 2.6 / Minimal Player r2 hardware report](milestones/M6-album-player.md#minimal-player-r2-hardware-result--2026-09-22)
 passes the [continuous-playback slice](design/pocket-mdx-compatibility-plan.md#continuous-playback-boundary):
 M3U-order automatic advance, one intro plus two loop bodies and a five-second
@@ -16,8 +21,7 @@ D 1554 us, V 664 us and Q 947 frames. The update package remains
 `out/build/minimal-player-r2-update.zip`, core `0.14.0-player-r2`, with matching
 HYB2 FPGA/boot ROM/application. HPL1 and the
 [M3U import workflow](development/m3u-library.md) are unchanged.
-No next feature is selected yet; the remaining M6/production-substrate gates
-are not completed by this report.
+The remaining M6/production-substrate gates are not completed by that report.
 The user's [27-track hardware report](milestones/M6-album-player.md#m3u-27-track-hardware-result--2026-09-21)
 passes on Firmware 2.6 / Minimal Player r1: 27 imported, zero excluded, correct
 M3U order and Japanese titles, FM/PCM stereo playback, browsing during playback,

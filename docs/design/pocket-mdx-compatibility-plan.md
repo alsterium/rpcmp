@@ -37,8 +37,9 @@ next slice. Minimal Player r2 now implements it; see the
 The [Firmware 2.6 hardware report](../milestones/M6-album-player.md#minimal-player-r2-hardware-result--2026-09-22)
 passes the continuous-playback slice and makes r2 the accepted hardware baseline.
 No errors occurred, so failed-track skipping was not exercised on hardware;
-its authored host checks remain the evidence for that path. Choose the next
-small requirement with the user; no additional feature is selected yet.
+its authored host checks remain the evidence for that path. The user selected
+the [pause/resume boundary](#pause-and-resume-boundary) on 2026-09-22 as the next
+small slice, with provisional X input. Its implementation is pending.
 Tracker/keyboard expansion, shuffle and persistent settings remain deferred.
 Keep relevant input bounds, focused regressions and integration checks; do not
 restart a broad compatibility campaign as a prerequisite for this next step.
@@ -128,7 +129,8 @@ browsing and presentation. Loop/fade/end timing follows audio progress, independ
 of rendering or snapshot cadence. Finish silencing the old track before loading
 the next pair; seamless/gapless loading is not an acceptance requirement. Keep
 the PC import workflow and HPL1 input boundary. Configurable loop counts,
-repeat-one, shuffle, pause, extra views and saved settings remain deferred.
+repeat-one, shuffle, pause, extra views and saved settings were outside r2;
+the next pause/resume slice is defined below.
 
 The Full checkpoint is the connected behavior **select -> play -> natural end
 or two-loop fade -> next entry -> list-end stop**, including recoverable-error
@@ -166,6 +168,57 @@ HYB2, so a mismatched old FPGA fails explicitly. HPL1 is unchanged.
    描画を遅延・無効化しても曲順、ループ終了、フェード時間が変わらない。
 6. 実機でFM・PCM・左右の音、一覧操作中の音切れ・ノイズ・入力遅延、停止・再選曲、
    通常再起動・電源OFF後を確認する。使用曲と観測結果はホスト試験の結果と分けて記録する。
+
+### Pause and resume boundary
+
+Approved on 2026-09-22 after r2 hardware acceptance. The user chose pause/resume
+and X as its provisional button because the final UI is not yet developed.
+Keep the slice small; r2 remains the implemented baseline until this is verified.
+
+- X toggles pause/resume for the current song, regardless of browsing selection.
+  Pause silences both FM and PCM and holds their musical position, loop progress
+  and any in-progress fade. Resume continues that same song and fade from the
+  held position. Muting while the song continues to advance does not satisfy pause.
+- Paused playback does not reach EOF, advance to another entry or count paused
+  wall-clock time toward the loop/fade. Once resumed, r2's M3U ordering and
+  natural-end/two-loop/five-second-fade behavior continue normally.
+- Browsing remains available while paused and does not change the held song.
+  A always starts the selected entry from its beginning, including the same
+  entry, and starts a new continuous run. B stops and cancels automatic advance;
+  X after Stop does not resume the abandoned song or start playback.
+- Treat X as a press, not a repeating action on hold. Preserve startup/reconnect
+  held-button suppression. For simultaneous transport presses, use B, then A,
+  then X. X without a playing/paused song does not start one.
+- Show the paused state and retain the playing entry/title and browsing position.
+  A core restart or power cycle still starts silently; paused position is not saved.
+
+Extend the existing small UI input bindings rather than adding a remapping
+framework or settings screen. Translate the physical X binding to a playback
+command at that boundary; Core/engine/device code must not interpret Pocket
+buttons. Core owns pause state and UI reads a copied/versioned snapshot. Preserve
+audio state and buffered work as needed to resume without lost/duplicated musical
+progress. Rendering and snapshot cadence never determine pause/audio timing.
+Describe the concrete port/hardware changes before implementation and version any
+breaking snapshot/hardware boundary; no compatibility wrapper is required.
+M3U/HPL1 and deferred UI/policy/settings features stay outside this slice.
+
+The Full checkpoint is **play -> pause to silence -> browse -> resume at the
+held FM/PCM position -> normal fade/end and next-track advance**, including A/B
+interruption. Run focused checks and Fast during iteration, then Full plus
+affected RTL, target build, synthesis/CDC and package checks before hardware
+submission. Requirements approval alone does not establish this behavior.
+
+実装後の確認項目:
+
+1. FM・PCMの曲をXで一時停止すると無音になり、再度Xで同じ位置から再開する。
+2. 一時停止したまま待っても曲・ループ回数・フェードは進まず、次曲へ送られない。
+   フェード途中でも残りのフェードを再開できる。
+3. 一時停止中に一覧を移動しても保持曲は変わらず、Xでその曲を再開できる。
+   Aなら選択曲の先頭から再生し、Bなら停止する。停止後のXでは再生しない。
+4. X長押し・連打・A/Bとの同時押し、曲末尾付近の操作でも状態が矛盾しない。
+   ホストでは描画遅延/無効化と入力割り当て変更を確認し、Coreの動作が変わらないことを確かめる。
+5. 実機でFM・PCM・左右、再開時の音切れ・ノイズ・テンポ、入力反映、通常再起動・
+   電源OFF後を確認する。ホスト/RTLの結果と実機報告は区別して記録する。
 
 ### M3U import boundary
 
