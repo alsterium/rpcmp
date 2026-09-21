@@ -453,6 +453,42 @@ The playlist list keeps its own selection/page. Show the current browsing list,
 and the playing list/title separately; mark the playing list/track without
 moving the cursor. Copy all of these display values into the UI view.
 
+### UI interaction requirements
+
+On 2026-09-22, after accepting r5, the user selected UI interaction organization
+as the next requirements task. Settle the remaining choices through numbered
+questions. Keep the accepted playback behavior as the baseline and keep physical
+bindings in UI/platform rather than in the playback engine.
+
+**Q1 — decided:** B depends on the focused panel. In the track list, it returns
+to the playlist list without stopping or changing the playing track. In the
+control panel, it stops playback using the existing stop semantics, including
+cancelling automatic advancement. B never moves focus between panels.
+This replaces r5's global B-to-stop binding in the next UI; r5 itself still has
+the documented global stop behavior. B at the playlist root and removal or
+retention of the existing back row remain to be settled.
+
+**Q2 — decided:** L/R switches focus between the list and control panels. The
+D-pad operates within the focused panel. In lists, up/down selects entries and
+left/right retains page navigation. Moving focus does not start, stop or switch
+music. This supersedes the earlier D-pad-between-panels preference for this UI.
+The specific icon arrangement/navigation and focus restoration remain to be
+defined; L/R is not a previous/next-track shortcut in this UI.
+
+The working layout proposal reuses the earlier preference for a large main
+area, track information below it and control icons to the right of that
+information. First organize the list, information and playback controls;
+Tracker/keyboard reintroduction is not approved by Q1–Q2.
+A/icon actions and the provisional X/Y bindings
+also need a consistent operation table before implementation. Do not infer new
+playback features from this requirements discussion.
+
+These are prospective product requirements, not a hardware candidate or a
+claim of implemented behavior. No runtime, package, test/generator input or
+hardware contract changes in this requirements record. Check document navigation
+and consistency now; run the affected UI/command/audio-independence checks and
+the harness integration gates when the settled interaction is implemented.
+
 ## Recommendation
 
 Use the MDXPlayer-derived MXDRV interpreter and PCM8 behavior on a CPU, a

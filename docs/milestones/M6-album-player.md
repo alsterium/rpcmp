@@ -65,7 +65,12 @@ and the target build uses 4,486,412 static bytes. The subsequent
 passes the normal three-list/42-entry flow and reports the 100 × 300 entry check
 as OK. Index load/validation I is 20 ms normally and 6,598 ms at scale; total
 boot time and Q were not separately reported. r5 is now the accepted baseline.
-The next task is choosing a small feature's requirements.
+The user selected [UI interaction requirements](../design/pocket-mdx-compatibility-plan.md#ui-interaction-requirements)
+as the next task. Q1 assigns B by focus: return from tracks to playlists without
+stopping playback, or stop when the controls have focus. B does not move between
+panels. Q2 uses L/R for panel switching and the D-pad within a panel, retaining
+up/down entry selection and left/right pages in lists. Other bindings remain
+under discussion; r5 is unchanged.
 This closes the compatibility investigation, not M6 as a whole. Inherited shell
 external timing constraints and the remaining player integration stay separate.
 The original objective, adopted contracts and results

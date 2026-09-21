@@ -2,8 +2,14 @@
 
 Active milestone: [M6 — Album Player](milestones/M6-album-player.md)
 
-The current task is **choosing the next small feature's requirements** after
+The current task is **organizing the UI interaction requirements** after
 accepting the [Firmware 2.6 / Minimal Player r5 hardware report](milestones/M6-album-player.md#minimal-player-r5-hardware-result--2026-09-22).
+The user selected this scope and settled [UI Q1–Q2](design/pocket-mdx-compatibility-plan.md#ui-interaction-requirements):
+B returns from tracks to playlists without stopping playback when the list has
+focus, and stops playback when the controls have focus. B never changes panels.
+L/R switches panels; the D-pad stays within the focused panel. In lists,
+up/down selects entries and left/right retains page navigation. The remaining
+bindings are still being decided; this is not behavior already implemented in r5.
 r5 is the accepted hardware baseline. The normal three-list/42-entry collection
 passes browsing during playback, original-list automatic advance, track selection
 changing the playback list, list-end stop, per-list position restoration,
@@ -15,8 +21,8 @@ Q and failed-track skipping were not reported. The scale data repeats the same
 six songs, rather than testing 30,000 distinct songs.
 This completes the [multiple-playlist slice](design/pocket-mdx-compatibility-plan.md#multiple-playlist-requirements),
 not M6 or production-substrate acceptance. The [implementation evidence](milestones/M6-album-player.md#multiple-playlist-implementation--2026-09-22)
-records Full 90/90, native/reference, RV32 resource and package checks. No next
-feature is selected yet. Keep the r5 package as the baseline; existing M3Us
+records Full 90/90, native/reference, RV32 resource and package checks.
+Keep the r5 package as the baseline during UI requirements work; existing M3Us
 need a [newly imported HPL2 collection](development/m3u-library.md).
 Minimal Player r4 was the preceding accepted hardware baseline. It passes the
 [loop/repeat boundary](design/pocket-mdx-compatibility-plan.md#loop-and-repeat-switching-boundary):

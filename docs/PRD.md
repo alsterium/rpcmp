@@ -70,7 +70,14 @@ passes the normal three-list/42-entry flow and reports the 100 × 300 entry chec
 as OK. Index load/validation takes 20 ms normally and 6,598 ms for the scale
 collection; total boot time and Q were not separately reported. See the
 [implementation evidence](milestones/M6-album-player.md#multiple-playlist-implementation--2026-09-22).
-r5 is now the accepted hardware baseline for the next small feature decision.
+r5 is now the accepted hardware baseline for
+[UI interaction requirements](design/pocket-mdx-compatibility-plan.md#ui-interaction-requirements).
+The user selected this scope and settled Q1: B returns from tracks to playlists
+without stopping playback when the list has focus, and stops when the controls
+have focus. B does not change panels. Q2 uses L/R for panel switching; the D-pad
+operates within a panel, with up/down entry selection and left/right pages in
+lists. Other bindings remain under discussion; these requirements have not yet
+been implemented in r5.
 
 ## 1. Product vision
 
