@@ -19,12 +19,18 @@ simulation, whole-shell fit/scoped CDC audit and Full host checks (87/87).
 The Firmware 2.6/r2 report confirms real stereo/PCM playback and stop/restart
 for six songs, with peak-specific noise on two. The omitted I2S one-bit delay
 was reproduced after correcting the test receiver from the official protocol.
-The next boundary is the [HYB1 r3 hardware check](../development/pocket-hybrid-hardware.md)
-for that output fix, keeping the CPU renderer and prepared songs unchanged.
+The [HYB1 r3 hardware candidate](../development/pocket-hybrid-hardware.md)
+fixes that output while keeping the CPU renderer and prepared songs unchanged.
 The r3 candidate passes three-phase HYB1/AXI and baseline RTL, fitted timing/scoped
 CDC, package readback and final Full host verification (88/88); see the
 [output-fix evidence](../research/mdxplayer-compatibility.md#hyb1-r3の出力配置パッケージ検証).
-Whole-corpus playback, symptom resolution and full M6 acceptance remain open.
+The [r3 hardware follow-up](../research/mdxplayer-compatibility.md#hyb1-r3-hardware-follow-up)
+reports both affected songs free of the previous noise, with stereo/PCM, stable
+one-minute playback, stop/restart and reboot/power-cycle playback OK. This closes
+the reported two-song noise defect; it does not establish full-corpus or M6 acceptance.
+Next extend the private reference/split comparison to the remaining collection
+and song-end/defined loop boundaries, as already planned. The r3 FM-only recheck
+and inherited shell external timing constraints remain unverified.
 The original objective, adopted contracts and results
 below remain historical evidence; they do not override this new scope or turn
 the existing FM subset into full MDX compatibility.

@@ -24,15 +24,24 @@ have no reported noise; two have clicks/buzz only on Pocket. Observed maxima
 are 14.539 ms rendering and 0.460 ms feeding, with sampled queue minimum 808.
 The HYB1 serializer omitted the official one-SCLK I2S delay, and its test receiver
 made the same mistake. An independent protocol correction reproduces doubled
-values; large peaks cross the sign boundary. The next task is the
-[HYB1 r3 output-fix hardware check](development/pocket-hybrid-hardware.md),
-prioritizing those two songs. The r3 package keeps the CPU renderer, OS and six
+values; large peaks cross the sign boundary. The
+[HYB1 r3 output-fix candidate](development/pocket-hybrid-hardware.md)
+keeps the CPU renderer, OS and six
 prepared inputs unchanged. Correct signed output, three-phase HYB1/AXI tests,
 baseline RTL, full-shell fit/scoped CDC and package readback pass; final Full
 host verification passes 88/88. See the
 [r3 evidence](research/mdxplayer-compatibility.md#hyb1-r3の出力配置パッケージ検証).
-This is a concrete output defect, not evidence against the CPU PCM8/FPGA FM
-split. Symptom resolution and whole-corpus acceptance are pending.
+The user's r3 follow-up confirms the noise disappeared in both affected songs,
+with stereo/PCM, approximately one minute of stable playback, stop/restart and
+reboot/power-cycle playback all reported OK. See the
+[hardware result](research/mdxplayer-compatibility.md#hyb1-r3-hardware-follow-up).
+The reported two-song noise defect is resolved; the r3 FM-only recheck was not
+reported. These observations support continuing the CPU PCM8/FPGA FM prototype.
+The next task is the already planned
+[private-corpus compatibility expansion](design/pocket-mdx-compatibility-plan.md#next-prototype-and-decision-gates),
+extending reference/split comparisons beyond short prefixes to song-end or
+defined loop boundaries and recording dependency/reference failures separately.
+Whole-corpus acceptance is still pending; do not resume rich UI work from this result.
 Inherited shell external constraints and full hardware acceptance remain open.
 The user selected [asaday/MDXPlayer](https://github.com/asaday/MDXPlayer) as the
 reference: support every locally supplied file that played there, including
@@ -68,7 +77,8 @@ PCM output when FM synthesis is removed. A separate 4 MHz native JT51 bus
 experiment passes 3,072 writes and operator-bank checks. These support the
 split; they do not establish a complete hybrid player, whole-corpus playback,
 Pocket timing or production acceptance. The offline mix, target transport and
-CPU application are now connected; the hardware check linked above is next.
+CPU application are now connected; the two-song hardware follow-up is recorded
+above and broader corpus comparison is next.
 
 The following records the implemented slice-5 baseline from the
 [CPU sound connection](design/pocket-cpu-sound-connection.md), not the next work.
