@@ -19,11 +19,14 @@ PCM8 plus FPGA FM; diagnose and fix engine defects as they are encountered.
 Keep MDXPlayer-compatible FM/PCM playback as the product target. This decision
 does not claim that every collection file or waveform has been compared.
 
-The next M6 slice is the smallest practical player with a Japanese-capable
-track list, selection, play and stop using the accepted audio path. Define the
-concrete loading/catalog boundary before coding; M3U8 remains the proposed
-library direction below, not an already implemented storage contract. Preserve
-startup silence and audio independence while adding the minimal interface.
+The minimal M6 slice now has a Japanese-capable track list, selection, play and
+stop using the accepted audio path. The user's Firmware 2.6 / Minimal Player r1
+[hardware report](../milestones/M6-album-player.md#minimal-player-r1-hardware-result--2026-09-21)
+confirms these controls, startup silence, six-song FM/PCM stereo playback,
+responsive browsing during playback and restart/power-cycle recovery.
+The prepared-input player below is the working baseline. Next define the
+practical library workflow from M3U8/raw MDX/PDX; M3U8 remains the proposed
+library direction below, not an already implemented storage contract.
 Tracker/keyboard expansion, shuffle and persistent settings remain deferred.
 Keep relevant input bounds, focused regressions and integration checks; do not
 restart a broad compatibility campaign as a prerequisite for this next step.

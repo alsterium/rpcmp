@@ -34,7 +34,9 @@ MDX compatibility investigation; see the
 The planned exhaustive comparison is no longer a prerequisite; handle newly
 encountered playback defects with focused diagnosis and engine fixes.
 The [minimal selection/play/stop player](#minimal-player-implementation--2026-09-21)
-is now implemented; next is its [Japanese hardware check](../development/pocket-minimal-player.md).
+now passes its [Firmware 2.6 / r1 hardware check](#minimal-player-r1-hardware-result--2026-09-21).
+Next define the proposed [M3U8/raw-file library workflow](../design/pocket-mdx-compatibility-plan.md#platform-and-library)
+over that working baseline.
 This closes the compatibility investigation, not M6 as a whole. Inherited shell
 external timing constraints and the remaining player integration stay separate.
 The original objective, adopted contracts and results
@@ -3474,3 +3476,48 @@ The next check is the supplied Firmware 2.6 procedure: list input latency and un
 while drawing, plus switching/stopping/restarting songs. This implementation
 does not claim that those new UI/audio integration observations have already
 passed on Pocket or complete M6/production-substrate acceptance.
+
+## Minimal Player r1 hardware result — 2026-09-21
+
+The user reports the following results on **Firmware 2.6 / Minimal Player r1**,
+following the [Japanese procedure](../development/pocket-minimal-player.md).
+This is user-observed hardware evidence for the existing `0.13.0-player-r1`
+package; no replacement build or new hardware run was performed by the agent.
+
+| Check | User report |
+| --- | --- |
+| Startup, silence before A, no autoplay | No problem |
+| Six-song list, Japanese titles, up/down and left/right | All OK |
+| Each song's music, stereo and PCM | Plays normally |
+| Browsing during playback, dropout/noise and input delay | No problem; normal playback |
+| A switches to another song during playback, B stops, A restarts from the beginning | OK |
+| Normal reboot and power-off startup | OK |
+| Errors or other concerns | None reported |
+
+After stopping the third song, the reported observations were **R 7818 us,
+F 449 us, V 658 us, Q 1013 frames**. R is the maximum renderer duration, F the
+maximum FIFO feed duration, V the maximum presentation-call duration, and Q
+the sampled minimum queued native frames. **D (draw-piece duration) was not
+reported**; V must not be relabeled as D. These observations cover that reported
+run, not six per-song maxima or a proven worst-case service bound.
+
+Together with the unchanged candidate's preceding Full **89/89**, sanitizer,
+target-build, RTL and package evidence, this passes the minimal player's
+selection/play/stop hardware slice. The missing D value does not contradict
+the reported functional pass and does not require a repeat hardware run just
+to fill the field. Continue diagnosing concrete playback defects when reported;
+do not restart the accepted compatibility campaign. This result does not close
+all historical M6/production-substrate timing or external-constraint gates.
+
+The next recommended work is to define the practical M3U8/raw MDX/PDX library
+workflow described in the [existing direction](../design/pocket-mdx-compatibility-plan.md#platform-and-library).
+HPL1 prepared pairs remain the tested r1 input. Direct M3U loading, path/encoding
+rules and dependency resolution have not been implemented or adopted by this
+report. Keep advanced visualization and playback-policy expansion deferred.
+
+This update changes progress records and current navigation only. Validation:
+`python -B tools/check_harness.py --root .`, changed-document local links and
+anchors, and `git diff --check`. No C++/RTL, contract, build, package input or
+verification procedure changed; Full, cross-build, synthesis/STA and RTL
+simulation are not repeated for this report. The existing Japanese procedure
+and the six-song ZIP remain unchanged.

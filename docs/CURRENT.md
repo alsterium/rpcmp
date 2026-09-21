@@ -2,16 +2,18 @@
 
 Active milestone: [M6 — Album Player](milestones/M6-album-player.md)
 
-The current task is the [minimal player's Firmware 2.6 hardware check](development/pocket-minimal-player.md).
-The M6 implementation now connects a Japanese list, selection, play, stop and
-reselection without exiting the core, using the accepted hybrid audio path.
-One HPL1 playlist holds 1–300 prepared pairs; only the selected pair is loaded.
-Host control/catalog tests, deferred drawing, target link/budget and package
-readback are recorded in the [implementation evidence](milestones/M6-album-player.md#minimal-player-implementation--2026-09-21).
-The local six-song candidate is `out/build/minimal-player-r1.zip`, core
-`0.13.0-player-r1`; firmware/FPGA/renderer behavior is unchanged from HYB1 r3.
-Pocket input latency and audio during list drawing require the new hardware
-report. M3U/raw-file loading is subsequent work, not advertised by this candidate.
+The next task is to define the practical [M3U8/raw MDX/PDX library workflow](design/pocket-mdx-compatibility-plan.md#platform-and-library)
+over the working minimal player. That storage/input contract remains proposed;
+the hardware report does not adopt direct M3U loading or new playback features.
+The [Minimal Player r1 hardware check](milestones/M6-album-player.md#minimal-player-r1-hardware-result--2026-09-21)
+passes on Firmware 2.6: startup silence, six-song Japanese navigation, FM/PCM
+stereo playback, browsing without reported delay/noise/dropout, song switching,
+stop/restart and reboot/power-cycle playback. Third-track observations are
+R 7818 us, F 449 us, V 658 us and Q 1013 frames; D was not reported.
+This completes the minimal selection/play/stop hardware slice, not every M6
+or production-substrate gate. The local package remains
+`out/build/minimal-player-r1.zip`, core `0.13.0-player-r1`, using HPL1 prepared
+pairs. Host and package checks are in the [implementation evidence](milestones/M6-album-player.md#minimal-player-implementation--2026-09-21).
 On 2026-09-21 the user accepted six-song playback, continued
 playback, song endings and loops and closed the current MDX compatibility
 investigation. Follow the [next MVP step](design/pocket-mdx-compatibility-plan.md#current-acceptance-and-next-mvp-step)
