@@ -1,4 +1,4 @@
-"""Build the pinned split renderer and minimal Pocket timing fixture in Docker."""
+"""Build the pinned split renderer and minimal Pocket playlist player in Docker."""
 import argparse
 from pathlib import Path
 import subprocess
@@ -20,6 +20,17 @@ def build(output):
          "-c", units[0], "-o", output / "renderer-native.o"])
     run(["g++", *common, "-fPIC", "-shared", output / "renderer-native.o", *units[1:],
          "-o", output / "renderer.so"])
+    generated = output / "generated"
+    run(["make", "-f", ROOT / "spikes/pocket/openfpgaos/player.mk",
+         "PLAYER_OUT=" + str(output), generated / "bitmap_font.inc"])
+    player_units = [source / "hybrid_main.cpp", source / "hybrid_playback.cpp"] + [ROOT / p for p in (
+        "core/library/src/prepared_playlist.cpp", "core/library/src/container.cpp",
+        "core/contracts/src/catalog_validation.cpp", "core/player/src/minimal_player.cpp",
+        "core/ui/src/minimal_player.cpp", "core/platform/pocket/src/minimal_display.cpp",
+        "core/platform/pocket/src/bitmap_font.cpp")]
+    player_includes = ["-I" + str(ROOT / "core" / layer / "include") for layer in
+                       ("contracts", "library", "player", "ui", "platform/pocket")]
+    player_includes += ["-I" + str(generated)]
     arch = ["-march=rv32imafc_zicsr", "-mabi=ilp32f"]
     sdk = ROOT / "out/research/openfpgaSDK-a408ddc/src/sdk"
     compiler = "riscv-none-elf-g++"
@@ -33,10 +44,10 @@ def build(output):
             includes += ["-isystem", line.strip()]
     includes += ["-isystem", str(sdk / "musl/include"), "-isystem", library("include")]
     objects = []
-    for i, unit in enumerate([*units, source / "hybrid_main.cpp"]):
+    for i, unit in enumerate([*units, *player_units]):
         obj = output / f"sdk-{i}.o"
-        warnings = ["-Wall", "-Wextra", "-Wpedantic", "-Werror"] if unit.parent == source else []
-        run([compiler, *arch, *common, *includes, *warnings, "-c", unit, "-o", obj])
+        warnings = ["-Wall", "-Wextra", "-Wpedantic", "-Werror"] if not unit.is_relative_to(jni) else []
+        run([compiler, *arch, *common, *includes, *player_includes, *warnings, "-c", unit, "-o", obj])
         objects.append(obj)
     for name, unit in (("compat", source / "newlib_musl_compat.c"),
                        ("pocket", source / "pocket_sdk_adapter.c"),

@@ -28,6 +28,51 @@ Tracker/keyboard expansion, shuffle and persistent settings remain deferred.
 Keep relevant input bounds, focused regressions and integration checks; do not
 restart a broad compatibility campaign as a prerequisite for this next step.
 
+### Minimal player implementation boundary
+
+Implement the existing prepared-track workflow first: package 1–300 prepared
+MDX/PDX pairs into one deferred APF slot, retain only its catalog in memory,
+and read only the chosen pair while audio is stopped. This removes the need
+to exit the core between songs. Raw M3U8/MDX loading is a subsequent storage
+adapter; it is not required to expose the already accepted engine through a
+usable list. The prepared inputs retain the tested driver wrappers and LZX
+preparation. Do not accept arbitrary raw MDX as this prepared format.
+
+The small HPL1 file is little-endian: a 32-byte header contains magic `HPL1`,
+version 1, entry size 128, count (1–300), total bytes (at most 512 MiB), index
+CRC32, CRC32 of header bytes 0–23, and a zero reserved word. Each 128-byte entry
+contains MDX offset/length/CRC32, PDX offset/length/CRC32, UTF-8 title length
+(1–96), 96 zero-padded title bytes, and a zero reserved word. IDs are the
+one-based entry ordinals. Payloads follow the index in entry order, MDX then
+optional PDX, with no gaps; absent PDX fields are zero. A selected pair is at
+most 16 MiB combined; each present blob is at least ten bytes. Validate the
+complete index, bounds, UTF-8 and checksums before exposing titles or decoding
+a selected pair. CRC32 uses the existing IEEE implementation. The loader alone
+knows offsets; playback/UI use track IDs and copied metadata. Free source
+buffers after the reference renderer copies them, and add its sixteen guard
+bytes before opening. Corrupt data produces a visible, retryable error after
+silencing; a reset failure is terminal.
+
+Use a small versioned snapshot and `PlayerCommand` (PlayTrack/Stop), an injected
+playback port and copied catalog metadata. Up/down select, left/right page,
+A starts the selected song from its beginning, B stops; B wins simultaneous
+A/B. Browsing does not stop the current song. No autoplay or automatic next
+song: natural end stops, and the accepted engine's existing loop/end behavior
+is unchanged. Keep physical mapping in the UI/platform boundary.
+
+Use the existing licensed Japanese bitmap font with a simple list and status.
+Draw only when selection/transport changes, in bounded scanline pieces between
+audio service calls, and never wait for vsync. Keep rendering independent of
+the audio timeline; collect render/feed/draw/flip maxima and queue minimum for
+hardware verification. No tracker, keyboard, save or playback-policy expansion.
+
+Full is due when list selection connects through loading to HYB1 playback,
+stop and reselection. Verify malformed catalogs, missing/corrupt payloads,
+silence/error recovery, navigation, headless/delayed-draw equivalence, target
+link/memory/stack, and package readback. Reuse the unchanged r3 FPGA/ROM/OS;
+rerun affected transport integration checks, without resynthesizing identical
+RTL. Provide a Japanese procedure and the same six private songs locally.
+
 ## Recommendation
 
 Use the MDXPlayer-derived MXDRV interpreter and PCM8 behavior on a CPU, a

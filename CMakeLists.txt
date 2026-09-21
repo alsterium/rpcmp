@@ -118,6 +118,7 @@ target_link_libraries(rpcmp_runtime PUBLIC rpcmp_contracts)
 rpcmp_production_options(rpcmp_runtime)
 
 add_library(rpcmp_library STATIC
+  core/library/src/prepared_playlist.cpp
   core/library/src/container.cpp
   core/library/src/logical_library.cpp)
 target_include_directories(rpcmp_library PUBLIC core/library/include)
@@ -228,6 +229,22 @@ add_library(rpcmp_pocket_player_compile_check OBJECT spikes/pocket/openfpgaos/pl
 target_link_libraries(rpcmp_pocket_player_compile_check PRIVATE rpcmp_pocket_player)
 rpcmp_production_options(rpcmp_pocket_player_compile_check)
 add_library(rpcmp_hybrid_app_compile_check OBJECT spikes/pocket/openfpgaos/hybrid_main.cpp)
+add_library(rpcmp_minimal_player STATIC core/player/src/minimal_player.cpp)
+target_include_directories(rpcmp_minimal_player PUBLIC core/player/include)
+target_link_libraries(rpcmp_minimal_player PUBLIC rpcmp_library)
+rpcmp_production_options(rpcmp_minimal_player)
+add_library(rpcmp_minimal_ui STATIC core/ui/src/minimal_player.cpp)
+target_include_directories(rpcmp_minimal_ui PUBLIC core/ui/include)
+target_link_libraries(rpcmp_minimal_ui PUBLIC rpcmp_contracts)
+rpcmp_production_options(rpcmp_minimal_ui)
+add_library(rpcmp_minimal_display STATIC core/platform/pocket/src/minimal_display.cpp)
+target_link_libraries(rpcmp_minimal_display PUBLIC rpcmp_minimal_ui rpcmp_pocket_canvas)
+rpcmp_production_options(rpcmp_minimal_display)
+add_library(rpcmp_hybrid_playback STATIC spikes/pocket/openfpgaos/hybrid_playback.cpp)
+target_include_directories(rpcmp_hybrid_playback PUBLIC spikes/pocket/openfpgaos)
+target_link_libraries(rpcmp_hybrid_playback PUBLIC rpcmp_minimal_player)
+rpcmp_production_options(rpcmp_hybrid_playback)
+target_link_libraries(rpcmp_hybrid_app_compile_check PRIVATE rpcmp_hybrid_playback rpcmp_minimal_display)
 rpcmp_production_options(rpcmp_hybrid_app_compile_check)
 
 add_executable(rpcmp_headless_m0 core/platform/host/headless_main.cpp)
@@ -316,6 +333,11 @@ target_link_libraries(rpcmp_player_preflight PRIVATE rpcmp_player)
 rpcmp_production_options(rpcmp_player_preflight)
 
 if(BUILD_TESTING)
+  add_executable(rpcmp_minimal_player_tests tests/pocket/minimal_player_tests.cpp)
+  target_include_directories(rpcmp_minimal_player_tests PRIVATE tests/support)
+  target_link_libraries(rpcmp_minimal_player_tests PRIVATE rpcmp_hybrid_playback rpcmp_minimal_display)
+  rpcmp_test_options(rpcmp_minimal_player_tests)
+  add_test(NAME minimal_player COMMAND rpcmp_minimal_player_tests)
   add_executable(rpcmp_album_ingest_tests tests/utility/album_ingest_tests.cpp)
   target_include_directories(rpcmp_album_ingest_tests PRIVATE tests/support)
   target_link_libraries(rpcmp_album_ingest_tests PRIVATE rpcmp_utility)
@@ -371,7 +393,8 @@ if(BUILD_TESTING)
   add_test(NAME player_package
     COMMAND ${Python3_EXECUTABLE} -B ${CMAKE_SOURCE_DIR}/tests/pocket/player_package_tests.py)
   add_test(NAME hybrid_package
-    COMMAND ${Python3_EXECUTABLE} -B ${CMAKE_SOURCE_DIR}/tests/pocket/hybrid_package_tests.py)
+    COMMAND ${Python3_EXECUTABLE} -B ${CMAKE_SOURCE_DIR}/tests/pocket/hybrid_package_tests.py
+      --checker $<TARGET_FILE:rpcmp_minimal_player_tests>)
   add_test(NAME mdx_admission_cli
     COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/pocket/mdx_admission_tests.py
       $<TARGET_FILE:rpcmp_mdx_admission>

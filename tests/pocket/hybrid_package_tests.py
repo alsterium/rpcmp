@@ -2,12 +2,21 @@
 import json
 from pathlib import Path, PurePosixPath as P
 import sys
+import struct
+import zlib
+import subprocess
 import tempfile
 import unittest
 import wave
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "tools"))
 import pocket_hybrid_package as package
+
+CHECKER = None
+if "--checker" in sys.argv:
+    index = sys.argv.index("--checker")
+    CHECKER = sys.argv[index + 1]
+    del sys.argv[index:index + 2]
 
 
 class HybridPackageTests(unittest.TestCase):
@@ -31,22 +40,34 @@ class HybridPackageTests(unittest.TestCase):
         manifest.write_text(json.dumps(self.tracks), encoding="utf-8")
         return package.track_files(manifest)
 
-    def test_independent_slot_graph_and_japanese_catalog(self):
+    def test_single_playlist_index_payloads_and_japanese_catalog(self):
         files = self.files()
-        common = P("Assets/rpcmp_hybrid/common")
-        for track in self.tracks:
-            path = P("Assets/rpcmp_hybrid/RPCMP.HybridProbe") / (track["id"] + ".json")
-            slots = json.loads(files[path])["instance"]["data_slots"]
-            self.assertEqual([s["id"] for s in slots], [1, 2, 3, 4] + ([5] if track["pdx"] else []))
-            self.assertEqual([s["filename"] for s in slots[:3]], ["os.bin", "hybrid.ini", "hybrid.elf"])
-            self.assertEqual(files[common / slots[3]["filename"]], (self.root / track["mdx"]).read_bytes())
+        common = P("Assets/rpcmp_minimal/common")
+        path = P("Assets/rpcmp_minimal/RPCMP.MinimalPlayer/Playlist.json")
+        slots = json.loads(files[path])["instance"]["data_slots"]
+        self.assertEqual([s["id"] for s in slots], [1, 2, 3, 4])
+        self.assertEqual(slots[3]["filename"], "playlist.hpl")
+        packed = files[common / "playlist.hpl"]
+        header = struct.unpack_from("<4s7I", packed)
+        self.assertEqual(header[:5], (b"HPL1", 1, 128, 2, len(packed)))
+        self.assertEqual(header[5], zlib.crc32(packed[32:288]))
+        self.assertEqual(header[6], zlib.crc32(packed[:24]))
+        self.assertEqual(header[7], 0)
+        for i, track in enumerate(self.tracks):
+            offset, length, crc, poff, plen, pcrc, titlelen = struct.unpack_from("<7I", packed, 32 + i * 128)
+            self.assertEqual(packed[offset:offset+length], (self.root / track["mdx"]).read_bytes())
+            self.assertEqual(crc, zlib.crc32(packed[offset:offset+length]))
             if track["pdx"]:
-                self.assertEqual(files[common / slots[4]["filename"]], (self.root / "pdx.bin").read_bytes())
-            self.assertIn(P("試聴用") / (track["id"] + ".wav"), files)
+                self.assertEqual(poff, offset + length)
+                self.assertEqual(packed[poff:poff+plen], (self.root / track["pdx"]).read_bytes())
+                self.assertEqual(pcrc, zlib.crc32(packed[poff:poff+plen]))
+            else:
+                self.assertEqual((poff, plen, pcrc), (0, 0, 0))
+            title = packed[60 + i*128:60 + i*128 + titlelen].decode("utf-8")
+            self.assertEqual(title, track["title"])
         catalog = files[P("曲目一覧.md")].decode("utf-8")
-        self.assertIn("試験曲 FM", catalog)
         self.assertIn("試験曲 PCM", catalog)
-        self.assertIn("02-mixed.json", catalog)
+        self.assertIn("Playlist.json", catalog)
 
     def test_required_pdx_cannot_be_silently_omitted_or_added(self):
         self.tracks[1]["pdx"] = None
@@ -70,19 +91,42 @@ class HybridPackageTests(unittest.TestCase):
         with self.assertRaises(FileNotFoundError):
             self.files()
 
-    def test_ids_counts_and_paths(self):
+    def test_counts_titles_and_paths(self):
         original = self.tracks
-        for bad_id in ("../escape", "hybrid/one", "", "a" * 21):
-            self.tracks = [dict(original[0], id=bad_id)]
-            with self.assertRaises(ValueError):
-                self.files()
-        for tracks in ([], original * 9, [original[0], dict(original[1], id="01-FM")]):
+        for tracks in ([], original * 151):
             self.tracks = tracks
             with self.assertRaises(ValueError):
                 self.files()
+        self.tracks = [dict(original[0], reference=None)] * 300
+        packed = self.files()[P("Assets/rpcmp_minimal/common/playlist.hpl")]
+        self.assertEqual(struct.unpack_from("<I", packed, 12)[0], 300)
+        if CHECKER:
+            path = self.root / "all.hpl"
+            path.write_bytes(packed)
+            subprocess.run([CHECKER, "--playlist", str(path)], check=True)
+        for title in ("", "bad\nname", "bad\0name", "x" * 256):
+            self.tracks = [dict(original[0], title=title)]
+            with self.assertRaises(ValueError):
+                self.files()
+        self.tracks = [dict(original[0], title="日本語" * 40)]
+        packed = self.files()[P("Assets/rpcmp_minimal/common/playlist.hpl")]
+        length = struct.unpack_from("<I", packed, 56)[0]
+        self.assertLessEqual(length, 96)
+        self.assertTrue(packed[60:60+length].decode("utf-8").endswith("…"))
         self.tracks = [dict(original[0], mdx="../outside.bin")]
         with self.assertRaises(ValueError):
             self.files()
+
+    def test_package_to_runtime_and_corrupt_payload(self):
+        if CHECKER is None:
+            self.skipTest("pass --checker for native runtime readback")
+        packed = self.files()[P("Assets/rpcmp_minimal/common/playlist.hpl")]
+        path = self.root / "playlist.hpl"
+        path.write_bytes(packed)
+        subprocess.run([CHECKER, "--playlist", str(path)], check=True)
+        path.write_bytes(packed[:-1] + bytes([packed[-1] ^ 1]))
+        result = subprocess.run([CHECKER, "--playlist", str(path)], check=False)
+        self.assertNotEqual(result.returncode, 0)
 
 
 if __name__ == "__main__":

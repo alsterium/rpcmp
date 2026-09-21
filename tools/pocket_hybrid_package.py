@@ -8,80 +8,45 @@ import re
 import wave
 import zipfile
 
+import prepared_playlist
 import pocket_firmware_pair as pair
 import pocket_package as shared
 from pocket_player_package import definitions as player_definitions
 
 ROOT = Path(__file__).resolve().parents[1]
-CORE, PLATFORM = "RPCMP.HybridProbe", "rpcmp_hybrid"
+CORE, PLATFORM = "RPCMP.MinimalPlayer", "rpcmp_minimal"
 
 
 def track_files(manifest):
-    if manifest.stat().st_size > 65536:
-        raise ValueError("track manifest too large")
-    tracks = json.loads(manifest.read_text(encoding="utf-8"))
-    if not isinstance(tracks, list) or not 1 <= len(tracks) <= 16:
-        raise ValueError("choose 1 to 16 prepared tracks")
+    playlist, tracks = prepared_playlist.pack(manifest)
     common = P("Assets") / PLATFORM / "common"
-    files, ids = {}, set()
-    catalog = ["# 実機確認の曲目一覧", "", "各JSONが1曲です。Pocketで選択後、Aで再生してください。",
-               "曲を変えるときはBで停止し、Pocketのメニューからコアを終了して選び直してください。",
-               "STARTは合成テストへの切り替えです。実曲の選曲には使いません。", "",
-               "| Pocketで選ぶJSON | 曲名 | 音源 | PCで聴く比較用音声 |",
-               "| --- | --- | --- | --- |"]
-
-    def read(name):
-        path = (manifest.parent / name).resolve()
-        if not path.is_relative_to(manifest.parent.resolve()):
-            raise ValueError("track file leaves prepared directory")
-        if not 10 <= path.stat().st_size <= 16 * 1024 * 1024:
-            raise ValueError("prepared input outside fixture bounds")
-        return path.read_bytes()
-
-    for track in tracks:
-        name, title = track["id"], track["title"]
-        if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_-]{0,19}", name) or name.casefold() in ids:
-            raise ValueError("invalid or duplicate track id")
-        ids.add(name.casefold())
-        if not isinstance(title, str) or not 1 <= len(title) <= 255 or any(ord(c) < 32 for c in title):
-            raise ValueError("invalid track title")
-        mdx = read(track["mdx"])
-        has_pdx = mdx[2:4] == b"\0\0"
-        expected = bytes.fromhex("00000000000a00080000" if has_pdx else "0000ffff000a00080000")
-        if mdx[:10] != expected:
-            raise ValueError("invalid prepared MDX wrapper")
-        if has_pdx != bool(track.get("pdx")):
-            raise ValueError("MDX/PDX dependency mismatch")
-        slots = [dict(id=i, filename=f) for i, f in enumerate(("os.bin", "hybrid.ini", "hybrid.elf"), 1)]
-        files[common / (name + ".mdx.bin")] = mdx
-        slots.append(dict(id=4, filename=name + ".mdx.bin"))
-        if has_pdx:
-            pdx = read(track["pdx"])
-            if pdx[:10] != bytes.fromhex("00000000000a00020000"):
-                raise ValueError("invalid prepared PDX wrapper")
-            files[common / (name + ".pdx.bin")] = pdx
-            slots.append(dict(id=5, filename=name + ".pdx.bin"))
-        files[P("Assets") / PLATFORM / CORE / (name + ".json")] = shared.json_bytes(
-            dict(instance=dict(magic=shared.MAGIC, data_slots=slots)))
-        audio = read(track["reference"])
-        try:
-            with wave.open(io.BytesIO(audio), "rb") as wav:
-                if (wav.getnchannels(), wav.getsampwidth(), wav.getframerate()) != (2, 2, 48000):
-                    raise ValueError("reference WAV must be stereo 16-bit 48 kHz")
-                if not 0 < wav.getnframes() <= 48000 * 60 or len(wav.readframes(wav.getnframes())) != wav.getnframes() * 4:
-                    raise ValueError("invalid reference WAV length")
-        except (wave.Error, EOFError) as error:
-            raise ValueError("invalid reference WAV") from error
-        files[P("試聴用") / (name + ".wav")] = audio
-        safe_title = title.replace("|", "／").replace("<", "＜").replace(">", "＞")
-        catalog.append(f"| {name}.json | {safe_title} | {'FM＋PCM' if has_pdx else 'FMのみ'} | "
-                       f"[試聴](試聴用/{name}.wav) |")
-    catalog += ["", "比較用WAVはMDXPlayer由来のPC参照エンジンによる冒頭部分です。",
-                "Pocketの録音ではありません。旋律・テンポ・打楽器などを聴き比べてください。",
-                "FM音色や音量の完全一致を保証するものではありません。"]
+    slots = [dict(id=i, filename=f) for i, f in enumerate(
+        ("os.bin", "hybrid.ini", "hybrid.elf", "playlist.hpl"), 1)]
+    files = {common / "playlist.hpl": playlist,
+             P("Assets") / PLATFORM / CORE / "Playlist.json": shared.json_bytes(
+                 dict(instance=dict(magic=shared.MAGIC, data_slots=slots)))}
+    catalog = ["# 曲目一覧", "", "Pocketで Playlist.json を選ぶと、全曲を一覧から選べます。",
+               "上下で選曲、左右でページ移動、Aで先頭から再生、Bで停止します。", "",
+               "| 番号 | 曲名 | 音源 | PC比較音声 |", "| --- | --- | --- | --- |"]
+    for number, track in enumerate(tracks, 1):
+        reference = "なし"
+        if track.get("reference"):
+            audio = prepared_playlist.read_local(manifest, track["reference"])
+            try:
+                with wave.open(io.BytesIO(audio), "rb") as wav:
+                    if (wav.getnchannels(), wav.getsampwidth(), wav.getframerate()) != (2, 2, 48000):
+                        raise ValueError("reference WAV must be stereo 16-bit 48 kHz")
+                    if not 0 < wav.getnframes() <= 48000 * 60 or len(wav.readframes(wav.getnframes())) != wav.getnframes() * 4:
+                        raise ValueError("invalid reference WAV length")
+            except (wave.Error, EOFError) as error:
+                raise ValueError("invalid reference WAV") from error
+            name = f"{number:03d}.wav"
+            files[P("試聴用") / name] = audio
+            reference = f"[試聴](試聴用/{name})"
+        title = track["title"].replace("|", "／").replace("<", "＜").replace(">", "＞")
+        catalog.append(f"| {number} | {title} | {'FM＋PCM' if track.get('pdx') else 'FMのみ'} | {reference} |")
     files[P("曲目一覧.md")] = ("\n".join(catalog) + "\n").encode("utf-8")
     return files
-
 
 def package(args):
     output = args.output.resolve()
@@ -119,15 +84,15 @@ def package(args):
             not 0 < budget["conservative_stack_bound_bytes"] <= 524288):
         raise ValueError("application budget does not match this ELF")
     values = player_definitions()
-    values["core.json"]["core"]["metadata"].update(platform_ids=[PLATFORM], shortname="HybridProbe",
-        description="RPCMP HYB1 real-song probe", version="0.12.0-hybrid-r3", date_release="2026-09-21")
+    values["core.json"]["core"]["metadata"].update(platform_ids=[PLATFORM], shortname="MinimalPlayer",
+        description="RPCMP MDX minimal player", version="0.13.0-player-r1", date_release="2026-09-21")
     slots = values["data.json"]["data"]["data_slots"]
-    slots[0]["name"] = "Hybrid Probe"
-    slots[4:] = [dict(id=i, name=name, required=False, parameters=8, extensions=["bin"],
-                      deferload=True, size_maximum=16*1024*1024) for i, name in ((4, "Prepared MDX"), (5, "Prepared PDX"))]
+    slots[0]["name"] = "MDX Player"
+    slots[4:] = [dict(id=4, name="Playlist", required=True, parameters=8, extensions=["hpl"],
+                      deferload=True, size_maximum=prepared_playlist.FILE_LIMIT)]
     values["input.json"]["input"]["controllers"] = [dict(type="default", mappings=[
         dict(id=i, name=name, **{key: True}) for i, name, key in
-        ((0, "Play", "pad_btn_a"), (1, "Stop", "pad_btn_b"), (6, "Select test", "pad_btn_start"))])]
+        ((0, "Play selected", "pad_btn_a"), (1, "Stop", "pad_btn_b"))])]
     sdk = ROOT / "out/research/openfpgaSDK-a408ddc"
     manifest = shared.parse_manifest(sdk / "runtime/MANIFEST")
     loader = shared.verify_runtime_file(sdk / "runtime", manifest, "pocket/loader.bin")
@@ -138,9 +103,11 @@ def package(args):
                   common / "os.bin": (firmware / "os.bin").read_bytes(), common / "hybrid.elf": elf.read_bytes(),
                   common / "hybrid.ini": b"[os]\nELF=hybrid.elf\nVARIANT=rpcmp\n"})
     files.update(track_files(args.tracks.resolve()))
-    files[P("確認手順.md")] = (ROOT / "docs/development/pocket-hybrid-hardware.md").read_bytes()
+    files[P("確認手順.md")] = (ROOT / "docs/development/pocket-minimal-player.md").read_bytes()
     files[P("Platforms") / (PLATFORM + ".json")] = shared.json_bytes(dict(platform=dict(
-        category="Computer", name="RPCMP Hybrid Probe", year=2026, manufacturer="RPCMP")))
+        category="Computer", name="RPCMP MDX Player", year=2026, manufacturer="RPCMP")))
+    for name in ("OFL-1.1.txt", "README.md"):
+        files[core / "NOTICES" / ("font-" + name)] = (ROOT / "third_party/unifont" / name).read_bytes()
     reference = ROOT / "out/research/mdxplayer-reference-20260921"
     files[core / "NOTICES" / "MDXPlayer-README.md"] = (reference / "README.md").read_bytes()
     files[core / "NOTICES" / "FMGEN-readme.txt"] = (reference / "gamdx/jni/fmgen/readme.txt").read_bytes()

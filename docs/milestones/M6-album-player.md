@@ -33,7 +33,8 @@ MDX compatibility investigation; see the
 [acceptance record](../research/mdxplayer-compatibility.md#compatibility-verification-accepted).
 The planned exhaustive comparison is no longer a prerequisite; handle newly
 encountered playback defects with focused diagnosis and engine fixes.
-Next continue the [minimal selection/play/stop MVP](../design/pocket-mdx-compatibility-plan.md#current-acceptance-and-next-mvp-step).
+The [minimal selection/play/stop player](#minimal-player-implementation--2026-09-21)
+is now implemented; next is its [Japanese hardware check](../development/pocket-minimal-player.md).
 This closes the compatibility investigation, not M6 as a whole. Inherited shell
 external timing constraints and the remaining player integration stay separate.
 The original objective, adopted contracts and results
@@ -3381,3 +3382,95 @@ local links and `python -B tools/check_harness.py --root .` pass; `git diff
 --check` is clean. RPCMP code, hardware, clocks and package inputs did not
 change. RTL simulation, synthesis, RV32 rebuilding and new hardware tests
 were not run for this requirements/research documentation update.
+
+## Minimal player implementation — 2026-09-21
+
+The user's next request implements selection/play/stop over the accepted HYB1
+engine. The [bounded design](../design/pocket-mdx-compatibility-plan.md#minimal-player-implementation-boundary)
+adopts HPL1 for the prepared-input list: 1–300 tracks, a checked catalog and
+per-payload IEEE CRC32, and loading only the selected MDX/PDX pair. Startup
+stays silent. Up/down browse, left/right page, A starts from the beginning,
+B stops, and A can select another song during playback. Browsing alone does
+not change playback. Natural end stops without automatic next-track selection.
+
+The small Core command/snapshot model uses an injected playback port. UI
+depends on contracts only; it copies titles and submits PlayTrack/Stop.
+The physical mapping remains replaceable. The display uses the existing
+licensed Japanese bitmap font, drawing four scanlines between audio service
+calls and presenting without a vsync wait. Rendering occurs only on selection
+or transport changes. The accepted renderer's timing, loop behavior, FPGA,
+ROM and OS are unchanged. Raw MDX/M3U ingestion, advanced visualization,
+pause, shuffle and settings persistence are outside this candidate.
+
+Changed production paths are the prepared playlist reader, minimal player
+control, list input/view, bounded bitmap display and SDK application/feed
+adapter. The build includes the same pinned Japanese font generation; the
+packager produces one `Playlist.json` instead of one APF instance per song.
+This deliberately replaces the old probe's slot-4 MDX/slot-5 PDX app profile;
+it is not a compatibility wrapper. Existing r3 output packages are preserved.
+
+Executed validation:
+
+- `pwsh -File tools/host-verify.ps1 -Mode Fast` with LLVM 22.1.8: **88/88 PASS**,
+  21.55 s. The native catalog/control/feed/display test covers startup silence,
+  held/reconnected inputs, page/repeat boundaries, stop priority, reselection,
+  loading failure/retry, renderer/audio/reset errors and timeout. The final
+  additions cover pending-block retention, EOF ordering and direct PC-writer
+  to C++-reader checks for two and 300 tracks, including payload corruption.
+- Focused `clang-tidy -p out/build/host-msvc --config-file .clang-tidy` on the
+  seven changed C++ translation units: **PASS** after making size/pointer
+  arithmetic explicit. Six widening warnings were fixed, not suppressed.
+  The earlier Full run was stopped after source changes; its interrupted
+  analysis is not acceptance. Final Full status is recorded below.
+- Network-disabled Docker image `rpcmp-cpu-budget-sim:20260921`,
+  `python3 -B out/harness/minimal-player-native.py`: **PASS**, ASan/UBSan with
+  leak detection and halt-on-error. Includes five package tests and native
+  readback of 300 entries. Audio-write sequences are identical with rendering
+  absent or deliberately deferred. This establishes scheduling/data behavior,
+  not target CPU drawing latency.
+- `python3 -B tools/hybrid_renderer_build.py --output out/build/minimal-player-cpu-r1`
+  in that same image: **PASS**. Final text **457000**, data **78988**, BSS
+  **169344**, static total **705332** bytes; conservative stack **13248**,
+  largest frame **4800**, no dynamic frames or undefined symbols. The initial
+  build exceeded the initialized-data gate because a polymorphic catalog's
+  zeroed arrays landed in `.data`; placement construction in BSS fixed it.
+  The existing 128 KiB data, 54 MiB static and 512 KiB stack limits are unchanged.
+  A prepared pair is at most 16 MiB; the loading buffers and renderer copies
+  coexist temporarily, and source buffers are released after the copy.
+- `tools/hybrid_renderer_verify.py --library out/build/minimal-player-cpu-r1/renderer.so
+  --oracle out/build/hybrid-real-inputs-r2 --manifest out/build/hybrid-real-inputs-r2/private-inputs.json`
+  after the final build: **PASS**, three authored 32-block cases and the same six
+  real inputs at 960 blocks each (20.48 s). PCM, ordered/timed FM writes and
+  chunk positions match the previously captured oracle. This is a focused
+  regression of the supplied tracks, not a renewed whole-corpus campaign.
+- Sequential `pwsh -File tools/rtl-hybrid-verify.ps1 -PreparedTree out/build/hybrid-candidate-r3`,
+  `pwsh -File tools/rtl-verify.ps1`, and `pwsh -File tools/rtl-jt51-verify.ps1`:
+  **PASS**. HYB1 actual-AXI phases 0/5555/81379 each decode 125 frames from
+  295 writes. No RTL/ROM/OS source changed, so synthesis/STA was not repeated;
+  the candidate reuses the r3 fit and scoped CDC evidence, with its inherited
+  external timing limitations intact.
+- The host bitmap preview was rendered and visually inspected for Japanese
+  labels, selection and playback status. The tests check the literal font
+  pixels, surface bounds and bounded pump completion. Pocket readability and
+  responsiveness remain hardware observations.
+- The command in the [Japanese procedure](../development/pocket-minimal-player.md#開発者向けパッケージ生成)
+  creates `out/build/minimal-player-r1.zip`. The package's own readback and
+  `python -B out/harness/minimal-player-readback.py` both **PASS**: every ZIP and
+  directory byte/hash, APF slots, minimum framework 2.2, final ELF, all six
+  original prepared pairs/reference WAVs, Japanese instructions and font notices.
+  FPGA/OS/loader bytes equal the accepted r3 package.
+
+Logs are `out/harness/minimal-player-*`; private music and generated artifacts
+remain ignored. The final ELF SHA-256 is
+`dd26563e3316a377e331ba521f873d2c87a9f10cc6f1fa7b371d11cac9f42f32`.
+ZIP SHA-256 is
+`a18ce9b1be2da3ac1c6699a7c9ade79652ef7bd9d5abbca5a7d85f4143ac78f5`.
+Core version is `0.13.0-player-r1`, installed as `RPCMP.MinimalPlayer`.
+
+Final `pwsh -File tools/host-verify.ps1 -Mode Full` with LLVM 22.1.8:
+**89/89 PASS**, 543.90 s, including formatting, complete static analysis and
+architecture/dependency guards. Log: `out/harness/minimal-player-full-final.log`.
+The next check is the supplied Firmware 2.6 procedure: list input latency and uninterrupted FM/PCM playback
+while drawing, plus switching/stopping/restarting songs. This implementation
+does not claim that those new UI/audio integration observations have already
+passed on Pocket or complete M6/production-substrate acceptance.

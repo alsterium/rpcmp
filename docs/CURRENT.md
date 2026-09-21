@@ -2,8 +2,17 @@
 
 Active milestone: [M6 — Album Player](milestones/M6-album-player.md)
 
-The current task is the M6 minimal selection/play/stop player using the verified
-hybrid audio path. On 2026-09-21 the user accepted six-song playback, continued
+The current task is the [minimal player's Firmware 2.6 hardware check](development/pocket-minimal-player.md).
+The M6 implementation now connects a Japanese list, selection, play, stop and
+reselection without exiting the core, using the accepted hybrid audio path.
+One HPL1 playlist holds 1–300 prepared pairs; only the selected pair is loaded.
+Host control/catalog tests, deferred drawing, target link/budget and package
+readback are recorded in the [implementation evidence](milestones/M6-album-player.md#minimal-player-implementation--2026-09-21).
+The local six-song candidate is `out/build/minimal-player-r1.zip`, core
+`0.13.0-player-r1`; firmware/FPGA/renderer behavior is unchanged from HYB1 r3.
+Pocket input latency and audio during list drawing require the new hardware
+report. M3U/raw-file loading is subsequent work, not advertised by this candidate.
+On 2026-09-21 the user accepted six-song playback, continued
 playback, song endings and loops and closed the current MDX compatibility
 investigation. Follow the [next MVP step](design/pocket-mdx-compatibility-plan.md#current-acceptance-and-next-mvp-step)
 and [project charter](../AGENTS.md#project-charter-2026-09-21): use the shortest
