@@ -2,7 +2,9 @@
 
 Active milestone: [M6 — Album Player](milestones/M6-album-player.md)
 
-The current task is the **Firmware 2.6 / Minimal Player r3 hardware check**.
+The current task is **choosing the next small M6 requirement** after accepting
+the [Firmware 2.6 / Minimal Player r3 hardware report](milestones/M6-album-player.md#minimal-player-r3-hardware-result--2026-09-22).
+No next feature has been selected or authorized for implementation yet.
 The [pause/resume boundary](design/pocket-mdx-compatibility-plan.md#pause-and-resume-boundary)
 uses X to pause/resume, A to start the selected track from its beginning and B
 to stop. The implementation keeps X in the replaceable input bindings and holds
@@ -11,7 +13,13 @@ FM/PCM, fade progress and buffered audio at a stereo frame boundary. Follow the
 `out/build/minimal-player-r3-update.zip`; it preserves the installed M3U/HPL1
 collection and updates the matching HYB3 FPGA/boot ROM/application together.
 See the [implementation evidence](milestones/M6-album-player.md#pause-and-resume-implementation--2026-09-22).
-Hardware acceptance is pending; r2 remains the accepted hardware baseline.
+Minimal Player r3 is now the accepted hardware baseline: the 27-track list,
+FM/PCM pause and resume, browsing while paused, A/B controls, held/repeated X,
+fade continuation, automatic advance and restart/power-cycle recovery all pass
+the user's report. No noise, position jump, tempo problem or input delay was
+reported. Observations: R 5421 us, F 494 us, D 1423 us, V 666 us and Q 960 frames.
+Failed-track skipping was not reported in this check; its host evidence remains
+separate. The pause/resume slice is complete, not M6 or production-substrate acceptance.
 The [Firmware 2.6 / Minimal Player r2 hardware report](milestones/M6-album-player.md#minimal-player-r2-hardware-result--2026-09-22)
 passes the [continuous-playback slice](design/pocket-mdx-compatibility-plan.md#continuous-playback-boundary):
 M3U-order automatic advance, one intro plus two loop bodies and a five-second
@@ -20,7 +28,7 @@ and playing marker, manual switching/stop/restart and reboot/power-cycle recover
 No noise, dropouts, input delay or errors were reported. Failed-track skipping
 was not exercised on hardware because no errors occurred; its authored host
 coverage remains in the [implementation evidence](milestones/M6-album-player.md#continuous-playback-implementation--2026-09-21).
-r2 is now the accepted hardware baseline. Observations: R 12755 us, F 478 us,
+r2 was the preceding accepted hardware baseline. Observations: R 12755 us, F 478 us,
 D 1554 us, V 664 us and Q 947 frames. The update package remains
 `out/build/minimal-player-r2-update.zip`, core `0.14.0-player-r2`, with matching
 HYB2 FPGA/boot ROM/application. HPL1 and the

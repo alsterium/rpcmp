@@ -44,11 +44,13 @@ no reported problems. The user has now approved
 [continuous M3U-order playback](../design/pocket-mdx-compatibility-plan.md#continuous-playback-boundary)
 as the next slice. The [r2 implementation](#continuous-playback-implementation--2026-09-21)
 now passes its [Firmware 2.6 hardware report](#minimal-player-r2-hardware-result--2026-09-22).
-r2 is the accepted hardware baseline; failed-track skipping was not exercised
-on hardware because no errors occurred. The next approved slice is
+r2 established the continuous-playback baseline; failed-track skipping was not
+exercised on hardware because no errors occurred. The subsequent approved slice is
 [pause/resume with provisional X input](../design/pocket-mdx-compatibility-plan.md#pause-and-resume-boundary);
-the [r3 implementation](#pause-and-resume-implementation--2026-09-22) is now in
-hardware verification, with r2 retained as the accepted hardware baseline.
+the [r3 implementation](#pause-and-resume-implementation--2026-09-22) now passes
+its [Firmware 2.6 hardware report](#minimal-player-r3-hardware-result--2026-09-22).
+r3 is the accepted hardware baseline. The next small requirement remains to be
+selected; no further feature implementation is authorized by this acceptance alone.
 This closes the compatibility investigation, not M6 as a whole. Inherited shell
 external timing constraints and the remaining player integration stay separate.
 The original objective, adopted contracts and results
@@ -3875,3 +3877,36 @@ HPL1、PCのM3U取り込み、APF framework最低2.2は維持しています。
 私有楽曲・曲名・波形はコミットしていません。Full後の本番コード変更はなく、追加したRTLの
 取消試験は上記の最終ランナーで確認済みです。進捗・リンク更新後にharness navigation、
 変更したローカルリンク/アンカー、`git diff --check` を確認しました。
+
+## Minimal Player r3 hardware result — 2026-09-22
+
+ユーザーから Firmware 2.6 / Minimal Player r3 の実機結果を受領しました。
+27曲の一覧・起動時の無音・日本語表示に問題はなく、以下すべてOKとの報告です。
+
+- FM曲のX一時停止、無音、状態表示、同じ位置からの再開。
+- PCM曲の一時停止、約1分待ってからの再開、左右の音。
+- 一時停止中の一覧移動と、Xで保持中の曲を再開する操作。
+- 一時停止中のAによる選択曲再生、B停止、停止後のXで無音を維持、Aで先頭から再生。
+- フェード途中の一時停止、残りのフェードの再開、その後の次曲への移行。
+- X長押し・繰り返し操作、曲末尾付近の操作。
+- 再開時の音切れ・ノイズ・位置の飛び・テンポ、入力遅延に問題なし。
+- M3U順の自動送り、2周＋5秒フェード、自然終了、末尾で停止。
+- 自動送り時のカーソル・ページ保持、再生中/一時停止中の印と曲名の表示。
+- 一時停止からの通常再起動、電源OFF後の起動時の無音と再生。
+
+停止後の観測値は **R 5421 us / F 494 us / D 1423 us / V 666 us / Q 960 frames**。
+R/F/Qは直近の再生、D/Vは起動後の計測です。対象曲・条件の揃った比較ではないため、
+r2からの性能改善率や全27曲の最大負荷を示す値とは扱いません。
+エラー曲スキップの項目は今回未報告です。実機での異常曲試験の合格は追加せず、
+既存のホスト試験をその経路の証拠として維持します。
+
+この報告により、承認済みの一時停止・再開スライスを合格とし、**r3を受入済みの基準**に
+更新します。[実装時のFull・RTL・ビルド・パッケージ検証](#pause-and-resume-implementation--2026-09-22)
+と実機報告を合わせた判断です。M6全体、既存の外部I/Oタイミング制約や基板全体の
+本番受入を完了したという意味ではありません。次は小さな追加機能の要件決めです。
+
+今回の変更は結果と進捗リンクのみです。コード・仕様の動作・確認手順・配布物は変更せず、
+`python -B tools/check_harness.py --root .`、
+`python -B out/harness/continuous-document-links.py`（変更したリンク/アンカー5件）、
+`git diff --check` はPASSです。Full・RTL・クロスビルド・合成は入力が変わらないため
+再実行しません。実機結果はユーザーの報告であり、エージェントによる再測定ではありません。

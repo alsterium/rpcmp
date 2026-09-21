@@ -35,13 +35,16 @@ the [continuous-playback boundary](#continuous-playback-boundary) below as the
 next slice. Minimal Player r2 now implements it; see the
 [implementation evidence](../milestones/M6-album-player.md#continuous-playback-implementation--2026-09-21).
 The [Firmware 2.6 hardware report](../milestones/M6-album-player.md#minimal-player-r2-hardware-result--2026-09-22)
-passes the continuous-playback slice and makes r2 the accepted hardware baseline.
+passed the continuous-playback slice and established r2 as the hardware baseline.
 No errors occurred, so failed-track skipping was not exercised on hardware;
 its authored host checks remain the evidence for that path. The user selected
 the [pause/resume boundary](#pause-and-resume-boundary) on 2026-09-22 as the next
 small slice, with provisional X input. Minimal Player r3 implements it; see the
 [implementation evidence](../milestones/M6-album-player.md#pause-and-resume-implementation--2026-09-22).
-Its hardware acceptance remains pending.
+The subsequent [Firmware 2.6 / r3 report](../milestones/M6-album-player.md#minimal-player-r3-hardware-result--2026-09-22)
+passes pause/resume, browsing and transport controls, fade/automatic advance,
+audio continuity and restart/power-cycle recovery. r3 is now the accepted
+hardware baseline. The next small requirement remains to be selected.
 Tracker/keyboard expansion, shuffle and persistent settings remain deferred.
 Keep relevant input bounds, focused regressions and integration checks; do not
 restart a broad compatibility campaign as a prerequisite for this next step.
@@ -175,8 +178,8 @@ HYB2, so a mismatched old FPGA fails explicitly. HPL1 is unchanged.
 
 Approved on 2026-09-22 after r2 hardware acceptance. The user chose pause/resume
 and X as its provisional button because the final UI is not yet developed.
-Keep the slice small; r2 remains the accepted hardware baseline until r3 is
-verified on Pocket.
+Keep the slice small. The [r3 hardware report](../milestones/M6-album-player.md#minimal-player-r3-hardware-result--2026-09-22)
+now accepts this slice on Pocket; the requirements below remain its contract.
 
 - X toggles pause/resume for the current song, regardless of browsing selection.
   Pause silences both FM and PCM and holds their musical position, loop progress

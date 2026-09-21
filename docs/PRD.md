@@ -45,8 +45,9 @@ as the next small slice. X pauses/resumes the current track; A starts the browsi
 selection from its beginning and B stops. X is a provisional input binding,
 expected to change when the UI is developed. Keep it separate from playback
 commands. Pausing holds song/fade progress and automatic advancement while
-list browsing remains available. Minimal Player r3 implements this boundary;
-hardware acceptance is pending. See the
+list browsing remains available. Minimal Player r3 implements this boundary and
+passes the user's [Firmware 2.6 hardware report](milestones/M6-album-player.md#minimal-player-r3-hardware-result--2026-09-22).
+It is now the accepted hardware baseline for the next small slice. See the
 [implementation evidence](milestones/M6-album-player.md#pause-and-resume-implementation--2026-09-22).
 
 ## 1. Product vision
