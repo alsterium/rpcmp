@@ -32,8 +32,9 @@ def track_files(manifest):
              P("Assets") / PLATFORM / CORE / "Playlist.json": shared.json_bytes(
                  dict(instance=dict(magic=shared.MAGIC, data_slots=slots)))}
     catalog = ["# 曲目一覧", "", "Pocketで Playlist.json を開き、プレイリストをAで選びます。",
-               "上下で選曲、左右でページ移動、Aで先頭から再生、Bで停止、Xで一時停止・再開、Yでループ設定を切り替えます。",
-               "各ページの先頭にある『プレイリスト一覧へ』をAで選ぶと、再生を続けたまま戻れます。", "",
+               "一覧では上下で選曲、左右でページ移動、Aで先頭から再生、Bでプレイリスト一覧へ戻ります。",
+               "L/Rのどちらでも一覧と操作パネルを切り替えます。操作パネルでは十字キーでアイコンを選び、Aで操作、Bで停止します。",
+               "操作アイコンは前の曲・再生／一時停止・次の曲・停止・ループ回数です。X/Yには操作を割り当てていません。", "",
                "| 番号 | プレイリスト | 曲名 | 音源 | PC比較音声 |", "| --- | --- | --- | --- | --- |"]
     for number, track in enumerate(tracks, 1):
         reference = "なし"
@@ -94,15 +95,15 @@ def package(args):
         raise ValueError("application budget does not match this ELF")
     values = player_definitions()
     values["core.json"]["core"]["metadata"].update(platform_ids=[PLATFORM], shortname="MinimalPlayer",
-        description="RPCMP MDX playlists", version="0.17.0-player-r5", date_release="2026-09-22")
+        description="RPCMP MDX playlists", version="0.18.0-player-r6", date_release="2026-09-22")
     slots = values["data.json"]["data"]["data_slots"]
     slots[0]["name"] = "MDX Player"
     slots[4:] = [dict(id=4, name="Playlist", required=True, parameters=8, extensions=["hpl"],
                       deferload=True, size_maximum=prepared_playlist.FILE_LIMIT)]
     values["input.json"]["input"]["controllers"] = [dict(type="default", mappings=[
-        dict(id=i, name=name, **{key: True}) for i, name, key in
-        ((0, "Play selected", "pad_btn_a"), (1, "Stop", "pad_btn_b"),
-         (2, "Pause / Resume", "pad_btn_x"), (3, "Loop / Repeat", "pad_btn_y"))])]
+        dict(id=i, name=name, key=key) for i, name, key in
+        ((0, "Confirm / Play", "pad_btn_a"), (1, "Back / Stop", "pad_btn_b"),
+         (4, "Switch panel", "pad_trig_l"), (5, "Switch panel", "pad_trig_r"))])]
     sdk = ROOT / "out/research/openfpgaSDK-a408ddc"
     manifest = shared.parse_manifest(sdk / "runtime/MANIFEST")
     loader = shared.verify_runtime_file(sdk / "runtime", manifest, "pocket/loader.bin")
@@ -150,7 +151,7 @@ def package(args):
         for path, data in files.items():
             if zipped.read(path.as_posix()) != data or (output / path).read_bytes() != data:
                 raise ValueError("package readback differs")
-    # Keep installed data; r5 requires a collection rebuilt as HPL2.
+    # Keep the installed HPL2 collection while updating the runtime.
     update_files = runtime_update(files)
     with zipfile.ZipFile(update_archive, "x", zipfile.ZIP_DEFLATED) as zipped:
         for path, data in sorted(update_files.items()):

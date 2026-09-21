@@ -22,10 +22,17 @@ bool ready() {
   return true;
 }
 } // namespace
+void HybridPlayback::observe_frames(const std::uint32_t free_frames) {
+  const auto queued = 4096U - free_frames;
+  // A conservative observation while the write-domain occupancy catches up.
+  if (submitted_frames_ >= queued)
+    consumed_frames_ = std::max(consumed_frames_, submitted_frames_ - queued);
+}
 bool HybridPlayback::stop() {
   pending_ = nullptr;
   started_ = eof_ = paused_ = false;
   repeat_ = contracts::minimal::RepeatMode::Two;
+  submitted_frames_ = consumed_frames_ = 0;
   const bool ok = ready();
   if (ok)
     write(2, 1);
@@ -50,6 +57,12 @@ contracts::minimal::Error HybridPlayback::set_paused(const bool paused) {
       if (rpcmp_pocket_time_us() - begin > 5000)
         return Error::Timeout;
     }
+  }
+  if (started_ && paused) {
+    const auto free_frames = read(6);
+    if (free_frames > 4096)
+      return Error::Audio;
+    observe_frames(free_frames);
   }
   if (paused)
     pause_started_ = begin;
@@ -105,15 +118,17 @@ contracts::minimal::Error HybridPlayback::service(bool& ended) {
   const auto status = read(1);
   if ((status & 0xf0U) != 0)
     return Error::Audio;
+  const auto free_frames = read(6);
+  if (free_frames > 4096)
+    return Error::Audio;
+  if (started_)
+    observe_frames(free_frames);
   if ((status & 8U) != 0) {
     ended = true;
     return Error::None;
   }
   if (eof_)
     return rpcmp_pocket_time_us() - wait_started_ > 1'000'000 ? Error::Timeout : Error::None;
-  const auto free_frames = read(6);
-  if (free_frames > 4096)
-    return Error::Audio;
   if (started_)
     metrics_.minimum_queued = std::min(metrics_.minimum_queued, 4096 - free_frames);
   if (!pending_ && free_frames >= RPCMP_HYBRID_FRAMES) {
@@ -158,6 +173,7 @@ contracts::minimal::Error HybridPlayback::service(bool& ended) {
     write(4, static_cast<std::uint32_t>(pending_->pcm[2 * i]));
     write(5, static_cast<std::uint32_t>(pending_->pcm[2 * i + 1]));
   }
+  submitted_frames_ += pending_->frame_count;
   metrics_.feed_us = std::max(metrics_.feed_us, rpcmp_pocket_time_us() - begin);
   pending_ = nullptr;
   if (!started_) {

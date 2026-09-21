@@ -91,9 +91,13 @@ playlist name, entry number / count, elapsed time and transport state in the
 lower information area, with the repeat setting on its control icon. Q13 places
 previous/play-pause/next above stop/repeat in two rows at the lower right.
 Q14 makes either L or R toggle between panels while retaining their focus.
-The main behavioral choices are recorded; the next step is a layout mock for
-the visual/focus details and error presentation. These requirements have not
-yet been implemented in r5.
+The user authorized implementation as Minimal Player r6. The
+[implementation boundary](design/pocket-mdx-compatibility-plan.md#ui-implementation-boundary)
+adds version 6 commands/snapshots, audio-consumption elapsed seconds and the
+actual bounded renderer, retaining HPL2/HYB4. The
+[r6 implementation](milestones/M6-album-player.md#minimal-player-r6-ui-implementation--2026-09-22)
+passes its local gates. r6 hardware acceptance is pending; r5 remains the
+accepted hardware baseline.
 
 ## 1. Product vision
 

@@ -55,7 +55,8 @@ and settled its Q1–Q6 requirements. The subsequent instruction to continue unt
 hardware verification is needed authorizes implementation and its handoff.
 The [r5 implementation](../milestones/M6-album-player.md#multiple-playlist-implementation--2026-09-22)
 passes the subsequent [Firmware 2.6 / r5 hardware report](../milestones/M6-album-player.md#minimal-player-r5-hardware-result--2026-09-22).
-r5 is now the accepted hardware baseline; the next small feature is not yet selected.
+r5 is now the accepted hardware baseline. The user settled UI Q1–Q14 and
+authorized the [r6 UI implementation](#ui-implementation-boundary).
 Tracker/keyboard expansion, shuffle and persistent settings remain deferred.
 Keep relevant input bounds, focused regressions and integration checks; do not
 restart a broad compatibility campaign as a prerequisite for this next step.
@@ -472,8 +473,8 @@ B does nothing and does not stop playback. Q9 removes the existing back row.
 D-pad operates within the focused panel. In lists, up/down selects entries and
 left/right retains page navigation. Moving focus does not start, stop or switch
 music. This supersedes the earlier D-pad-between-panels preference for this UI.
-The specific icon arrangement/navigation remains to be defined; Q8 settles
-control focus restoration. L/R is not a previous/next-track shortcut in this UI.
+Q13 and the implementation boundary define icon arrangement/navigation; Q8
+settles control focus restoration. L/R is not a previous/next-track shortcut.
 
 **Q3 — decided:** Do not assign X/Y shortcuts. Select playback/repeat control
 icons with the D-pad and activate them with A. Q1's contextual B stop/return
@@ -493,7 +494,7 @@ session's repeat setting.
 previous track and next track. Previous/next operates within the playback
 playlist, independently of the list currently being browsed. Adding these icons
 does not authorize cross-playlist navigation. Q6–Q7 settle their playback-state
-and list-boundary behavior; the exact layout remains to be defined.
+and list-boundary behavior; Q13 and the implementation boundary define layout.
 
 **Q6 — decided:** A previous/next action with an available target switches to
 that track and starts playback from its beginning, including when the original
@@ -528,15 +529,15 @@ track's information; browsing another list does not change the playback target.
 
 **Q10 — decided:** Display elapsed playback time only, for example `01:23`.
 The value freezes while paused. Do not add total-duration analysis, remaining
-time or a duration/progress bar as part of this choice. The current minimal
-snapshot has no elapsed-time field; implementation must publish playback-owned
-time through the snapshot, rather than infer it from UI frames or text updates.
+time or a duration/progress bar as part of this choice. The r6 minimal snapshot
+publishes playback-owned elapsed seconds, rather than inferring time from UI
+frames or text updates.
 
 **Q11 — decided:** If a track or playlist name does not fit, horizontally
 scroll only the selected name after a brief dwell so the full name can be read.
 Other rows use a trailing ellipsis and remain stationary. This is UI-local
 presentation timing and must not drive audio, change selection or start music.
-The exact dwell, speed and fitting text width belong to the layout pass.
+The implementation boundary below fixes the dwell, speed and fitting text width.
 
 **Q12 — decided:** Continuously show the playback track's title, playback
 playlist name, entry number / entry count, elapsed time and transport state in
@@ -573,7 +574,7 @@ Each fresh press toggles once; holding the button does not repeatedly switch
 panels. Q8 restores the destination's previous icon or list position. Switching
 focus does not start, stop or otherwise change playback.
 
-Working visual defaults for the layout mock, not additional user decisions:
+Visual defaults implemented in r6, within the approved layout direction:
 
 - Distinguish the active panel with a clear outline; emphasize its selected
   row/icon. Retain a subdued selection indicator in the inactive panel.
@@ -584,14 +585,13 @@ Working visual defaults for the layout mock, not additional user decisions:
   status area without opening a modal over the list. Preserve the existing
   recoverable-skip versus fatal-error distinction and playback behavior.
 
-Colors, spacing and exact D-pad adjacency between the two icon rows are layout
-details to make concrete in the mock, not additional playback features. The
-main behavioral choices are now recorded; check these visual defaults together
-with Japanese text, long names and the retained focus state.
+Colors, spacing and exact D-pad adjacency are implemented as specified below.
+The actual-renderer preview and tests check Japanese text, long names and the
+retained focus state; Pocket legibility and response remain hardware checks.
 
 #### Consolidated operation table
 
-The table describes the next UI, not the installed r5 controls. Top-level B
+The table describes r6. Top-level B
 being a no-op follows from having no parent and Q1's panel-specific stop action.
 Physical bindings remain replaceable in UI/platform; playback commands and
 audio timing remain independent of focus and rendering.
@@ -619,21 +619,55 @@ alter playback, and automatic advance does not move the browsing cursor.
 Remember control-icon focus and list positions for the session only. Launch
 still starts silently at the playlist list with two loops; no setting or focus
 persistence is added. Q13 fixes the two-row icon order and Q14 fixes either
-L/R button as a panel toggle. Exact D-pad adjacency remains a layout detail.
+L/R button as a panel toggle. Exact D-pad adjacency is recorded below.
 
 The working layout proposal reuses the earlier preference for a large main
 area, track information below it and control icons to the right of that
 information. First organize the list, information and playback controls;
 Tracker/keyboard reintroduction is not approved by Q1–Q14. The operation table,
 information grouping, two-row controls and panel switching are consolidated.
-Next make a layout mock to inspect visual presentation and D-pad adjacency
-before implementing the Pocket UI.
+The user subsequently requested implementation. Implement this as Minimal
+Player r6; generate previews from the actual renderer while developing it.
 
-These are prospective product requirements, not a hardware candidate or a
-claim of implemented behavior. No runtime, package, test/generator input or
-hardware contract changes in this requirements record. Check document navigation
-and consistency now; run the affected UI/command/audio-independence checks and
-the harness integration gates when the settled interaction is implemented.
+#### UI implementation boundary
+
+- Minimal snapshot/commands advance to version 6. Add elapsed seconds and the
+  last successfully started track; add semantic play/pause-or-restart and
+  previous/next commands. Core resolves these against the playback playlist,
+  never the browsing cursor. Existing HPL2 collections and HYB4 remain unchanged.
+- Playback caches consumed source frames from submitted PCM minus observed FIFO
+  occupancy (62,500 frames/second). Publish whole seconds outside rendering;
+  capture/freeze on pause, zero on explicit stop/new start and retain final time
+  on natural end. This is a FIFO-consumption position, with the existing short
+  audio pipeline/CDC delay, not a new sample-exact output timestamp protocol.
+- Keep one UI controller and one bounded scanline renderer. No new dependencies
+  or widget framework. Two-row icons use columns 0/1/2 above 0/1: Down from Next
+  goes to Repeat, Up from Stop/Repeat goes to Previous/PlayPause. Row/column edges
+  stay put; disabled icons may retain focus but do not execute.
+- Preserve 13 rows per page, now all tracks without the back row. A/B/L/R are
+  edge-triggered; B wins over A, then panel toggle, then direction. A panel
+  toggle masks held directions until release to avoid moving the new selection.
+  X/Y do nothing. Reconnect masks held controls until release.
+- Use the existing 640x480 indexed surface and Japanese bitmap font. Keep the
+  lower information left and controls right, a clear active-panel border,
+  subdued inactive selection, separate playing marker and non-modal Japanese
+  errors. Keep the current development timing footer for hardware reporting.
+  The selected list name dwells for 1 second, moves at 32 pixels/second with a
+  1-second end dwell, then restarts; animation updates at most 20 Hz and cannot
+  alter playback. Long non-selected text uses ellipsis.
+- Full checkpoint: list selection, all five icons, both panel toggles, pause/
+  stop/previous/next, elapsed time and long-name animation work together with
+  unchanged audio writes under delayed rendering. Run focused tests, Fast,
+  Full, native sanitizers, RV32 resource checks and package readback. Reuse the
+  accepted FPGA/OS only if byte-identical; RTL/fit reruns are required only if
+  their inputs or behavior change. Hardware acceptance remains separate.
+
+The user authorized implementation of this boundary. The historical r5 controls
+above remain evidence of its accepted behavior; this section defines r6.
+Verify UI/command/audio independence, rendering and the host integration gates
+before handing off the hardware candidate. The [r6 implementation evidence](../milestones/M6-album-player.md#minimal-player-r6-ui-implementation--2026-09-22)
+records passing local gates. These do not establish Pocket audio continuity or
+input response; those remain in the Japanese r6 procedure.
 
 ## Recommendation
 

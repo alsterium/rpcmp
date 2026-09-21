@@ -84,8 +84,12 @@ Q12 fixes the lower information as playback title, playback playlist name,
 entry number / count, elapsed time and transport state, with the repeat setting
 on its control icon. Q13 places previous/play-pause/next above stop/repeat in two
 rows at the lower right. Q14 makes either L or R toggle panels while retaining
-their focus. The main behavioral choices are recorded; a layout mock for the
-visual/focus details and error presentation is next. r5 is unchanged.
+their focus. The user authorized implementation as Minimal Player r6 using the
+[UI boundary](../design/pocket-mdx-compatibility-plan.md#ui-implementation-boundary).
+The [r6 implementation](#minimal-player-r6-ui-implementation--2026-09-22) passes
+Full 90/90, actual-renderer checks, native sanitizers, RV32 resource checks and
+package readback. Its Japanese hardware verification is next; r5 remains the
+accepted hardware baseline.
 This closes the compatibility investigation, not M6 as a whole. Inherited shell
 external timing constraints and the remaining player integration stay separate.
 The original objective, adopted contracts and results
@@ -4179,3 +4183,81 @@ Full・RTL・クロスビルド・合成は入力が変わらないため再実�
 `python -B tools/check_harness.py --root .`、
 `python -B out/harness/continuous-document-links.py`（変更リンク/アンカー10件）、
 `git diff --check` はPASSです。
+
+## Minimal Player r6 UI implementation — 2026-09-22
+
+ユーザーのQ1〜Q14と「実装して」に従い、最小プレイヤーの操作・表示を実装しました。
+L/Rのどちらでも一覧と操作パネルを切り替え、十字キーとAで操作します。Bは一覧で戻る、
+操作パネルで停止、X/Yは未割り当てです。戻る行を除き13曲／ページにし、一覧位置と
+操作アイコンの記憶を分離しました。上段は前曲・再生／一時停止・次曲、下段は停止・ループです。
+
+再生アイコンは停止後に最後に正常開始した曲を再生し、前後曲はその曲のリスト内で開始します。
+閲覧先とは独立し、端では無効です。Coreのminimal command/snapshotを**version 6**へ更新し、
+意味上のPlayPause／Previous／Next、最後の再生対象、経過秒を追加しました。
+HPL2・HYB4、音源エンジン、FPGA、OSの仕様は変更していません。
+
+経過時間は送信済みPCMからFIFO残量を引いた消費位置を62,500 frames/sで秒に変換し、
+Coreからsnapshotに公開します。描画時計には依存せず、一時停止で保持、停止・選曲で0、
+自然終了で最終値を保持します。既存CDC・音声パイプラインの短い遅延を含むFIFO消費位置であり、
+新しい厳密な音声出力タイムスタンプではありません。
+
+実描画は既存640×480・日本語ビットマップ・4走査線ずつの処理を使います。下部左に曲名・
+リスト名・曲番号／曲数・時間・状態、右に操作アイコンを置きました。明るい操作枠、控えめな
+非操作パネルの選択、独立した再生印、無効色、日本語の非モーダルエラーを表示します。
+選択中の長い名前は1秒待って32px/sでスクロールし、他は省略します。依存追加はありません。
+APFのControls表示もA/B/L/Rへ更新し、mappingをSDKの定義どおり`key`で記述しました。
+
+変更した境界と実装前のFullチェックポイントは
+[設計](../design/pocket-mdx-compatibility-plan.md#ui-implementation-boundary)に記録しています。
+主な実装はminimalのcontracts/player/ui/display、`hybrid_playback`、`hybrid_main`です。
+旧UI試験の期待値は、13実曲行・文脈依存B・アイコン操作へ変更し、再生／エラー／ループの
+既存の保証は維持しました。境界の省略表示で幅ぴったりの名前が欠けるケースも修正しました。
+
+実施済みの検証:
+
+- `pwsh -File tools/host-verify.ps1`: 最終コードで**Full 90/90 PASS**。
+  format・tidy、Core/UI依存の正・負検査、ヘッドレス／mock、影響するツール試験を含みます。
+  CTest計585.83秒、うちtidy 551.79秒。ログは`out/harness/ui-r6-full-accepted.log`です。
+- `pwsh -File tools/host-verify.ps1 -Mode Fast`: 89/89 PASS。最終の省略表示境界修正前の
+  チェックポイントであり、最終受入は別のFull結果を使います。
+- 初回の全体静的解析で描画と試験の型変換・未使用初期化4件を検出して修正しました。
+  `clang-tidy -p out/build/host-msvc --config-file .clang-tidy core/platform/pocket/src/minimal_display.cpp tests/pocket/minimal_player_tests.cpp`
+  は修正後PASS。指定LLVM 22.1.8を使い、警告抑制・検査除外は追加していません。
+- `docker run --rm --network none -v F:/source/rpcmp:/repo -w /repo rpcmp-cpu-budget-sim:20260921 python3 -B out/harness/minimal-player-native.py`:
+  最終コードのASan/UBSan付き操作・音声・描画試験とパッケージ試験7件PASS。
+  リマップ、長押し・同時押し、100×300の閲覧、端の無効操作、別リスト閲覧中の操作、
+  停止後の再生対象、読込失敗後の対象保持、一時停止中の時間保持を検証しました。
+- 経過時間は63,000送信済み−501待機＝62,499では0秒、−500＝62,500で1秒という
+  独立に定めた境界で確認。描画遅延・別リスト閲覧の有無で音声MMIO書込列が一致しました。
+  描画ガード領域、実フォントの番号表示、幅ぴったりの文字列、スクロールの待機・クリップもPASS。
+- `out/build/host-msvc/rpcmp_minimal_player_tests.exe out/harness/ui-r6-preview.ppm`: PASS。
+  PNGへ変換した実描画を目視確認しました。これは公開mock曲名のホスト画像で、Pocket写真ではありません。
+- 同Dockerで `tools/hybrid_renderer_build.py --output out/build/minimal-player-cpu-r6`: PASS。
+  static 4,490,636 bytes、data 79,292 bytes、最大stack frame 6,352 bytes、保守的stack上限
+  15,856 bytes、動的stack frameなし。アプリの資源検査であり実機の描画時間測定ではありません。
+  静的解析修正後も再ビルドし、ELFが配布物とbyte単位で同一であることを再確認しました。
+- `tests/pocket/hybrid_renderer_tests.py --library out/build/minimal-player-cpu-r6/renderer.so`:
+  ループ／自然終了／再オープン3件PASS。
+- 同Dockerに私有曲フォルダーを`/corpus:ro`でマウントして
+  `tools/hybrid_renderer_verify.py --library out/build/minimal-player-cpu-r6/renderer.so --oracle out/build/hybrid-real-inputs-r2 --manifest out/build/hybrid-real-inputs-r2/private-inputs.json`:
+  合成3種と既存6曲の保存済み参照FM書込・wide PCMに完全一致。
+  私有曲は各960 blocks／1,280,000 source framesの比較で、全曲全区間の互換性調査ではありません。
+- [日本語手順の生成コマンド](../development/pocket-minimal-player.md#開発者向けパッケージ生成)と
+  `python -B out/harness/ui-r6-readback.py`: PASS。ZIP全件、アプリELF、操作定義、framework 2.2、
+  slot上限、r5と同一のHPL2曲集、参照prepared payload、更新ZIPに曲集がないことを確認しました。
+  ASan/UBSanランタイムの`--playlist`でも同梱42登録を全件読み戻し、PASSでした。
+
+配布物（core `0.18.0-player-r6`、ローカル確認用）:
+
+| ファイル | bytes | SHA-256 |
+| --- | ---: | --- |
+| `out/build/minimal-player-r6.zip` | 16,839,241 | `390e8b06e1f2405263417518836de983bb109024b17ba9878378a3d048500169` |
+| `out/build/minimal-player-r6-update.zip` | 1,192,218 | `0f917214432c3c2dc0c5b51265a6ef85652d66874672923736484a94c3584b92` |
+
+RTLシミュレーションと合成は未実施です。RTL・制約・音源プロトコルに変更がなく、ZIP内の
+FPGA・loader・OS・audio/video定義は合格済み組み合わせとbyte単位で同一と確認しました。
+継承した外部I/O制約の未解決項目を今回のホスト検証で完了扱いにはしません。
+実機では新UIの入力応答、連続描画・スクロール中のFM/PCM音声、一時停止・時間表示を
+[日本語確認手順](../development/pocket-minimal-player.md)で確認します。**r6実機受入は未実施**です。
+最終ゲート後の変更は進捗・リンク・検証記録のみです。文書参照と`git diff --check`を確認し、
+入力が変わらないC++・RTL・クロスビルドは繰り返しません。

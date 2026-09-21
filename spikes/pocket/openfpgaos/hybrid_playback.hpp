@@ -17,6 +17,9 @@ public:
   contracts::minimal::Error set_paused(bool paused) override;
   contracts::minimal::Error set_repeat(contracts::minimal::RepeatMode mode) override;
   contracts::minimal::Error service(bool& ended) override;
+  [[nodiscard]] std::uint64_t elapsed_seconds() const noexcept override {
+    return consumed_frames_ / 62500;
+  }
   [[nodiscard]] HybridMetrics metrics() const noexcept { return metrics_; }
 
 private:
@@ -25,6 +28,8 @@ private:
   HybridMetrics metrics_{};
   std::uint32_t wait_started_{}, pause_started_{};
   bool started_{}, eof_{}, paused_{};
+  std::uint64_t submitted_frames_{}, consumed_frames_{};
+  void observe_frames(std::uint32_t free_frames);
   contracts::minimal::RepeatMode repeat_{};
 };
 } // namespace rpcmp::platform::pocket

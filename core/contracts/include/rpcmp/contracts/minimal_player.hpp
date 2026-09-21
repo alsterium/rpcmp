@@ -4,7 +4,7 @@
 #include "rpcmp/contracts/catalog.hpp"
 
 namespace rpcmp::contracts::minimal {
-inline constexpr std::uint16_t kVersion = 5;
+inline constexpr std::uint16_t kVersion = 6;
 inline constexpr std::uint32_t kMaxPlaylists = 100;
 inline constexpr std::uint32_t kMaxPlaylistTracks = 300;
 inline constexpr std::uint32_t kMaxTracks = kMaxPlaylists * kMaxPlaylistTracks;
@@ -20,7 +20,7 @@ struct Playlist {
 enum class State : std::uint8_t { Stopped, Playing, Paused, Advancing, Ended, Error };
 enum class Error : std::uint8_t { None, Load, Renderer, Audio, Timeout, Reset };
 enum class RepeatMode : std::uint8_t { Two, Three, Five, One };
-enum class CommandKind : std::uint8_t { PlayTrack, Stop, TogglePause, CycleRepeat };
+enum class CommandKind : std::uint8_t { PlayTrack, Stop, PlayPause, CycleRepeat, Previous, Next };
 struct PlayerCommand {
   CommandKind kind{CommandKind::Stop};
   TrackId track{};
@@ -36,6 +36,8 @@ struct PlayerSnapshot {
   std::uint32_t skipped_count{};
   RepeatMode repeat{RepeatMode::Two};
   PlaylistId playlist{};
+  TrackId last_played{};
+  std::uint64_t elapsed_seconds{};
 };
 class TrackList {
 public:

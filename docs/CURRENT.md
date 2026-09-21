@@ -2,7 +2,7 @@
 
 Active milestone: [M6 — Album Player](milestones/M6-album-player.md)
 
-The current task is **organizing UI layout from the decided controls and information** after
+The current task is **Firmware 2.6 hardware verification of Minimal Player r6 UI** after
 accepting the [Firmware 2.6 / Minimal Player r5 hardware report](milestones/M6-album-player.md#minimal-player-r5-hardware-result--2026-09-22).
 The user selected this scope and settled [UI Q1–Q14](design/pocket-mdx-compatibility-plan.md#ui-interaction-requirements):
 B returns from tracks to playlists without stopping playback when the list has
@@ -29,9 +29,15 @@ The repeat setting belongs with its control icon. Q13 uses
 [two control rows](design/pocket-mdx-compatibility-plan.md#layout-and-focus-requirements):
 previous/play-pause/next above stop/repeat, at the lower right of the information.
 Q14 makes either L or R toggle panels, retaining each panel's focus. The main
-behavioral choices are recorded. Next make a layout mock for Japanese text,
-focus/playing/disabled indicators and non-modal error status, with explicit
-D-pad adjacency. The visual defaults remain a mock proposal; r5 is unchanged.
+behavioral choices are recorded and the user authorized implementation. The
+[r6 boundary](design/pocket-mdx-compatibility-plan.md#ui-implementation-boundary)
+uses version 6 commands/snapshots, 13 track rows, audio-consumption elapsed time,
+selected-name scrolling and the two-row controls. The
+[r6 implementation and evidence](milestones/M6-album-player.md#minimal-player-r6-ui-implementation--2026-09-22)
+pass Full 90/90, native sanitizers, RV32 resource checks, renderer/reference
+comparison and package readback. Use the runtime-only update with the existing
+HPL2 collection and follow the [Japanese hardware check](development/pocket-minimal-player.md).
+r6 hardware acceptance remains pending.
 r5 is the accepted hardware baseline. The normal three-list/42-entry collection
 passes browsing during playback, original-list automatic advance, track selection
 changing the playback list, list-end stop, per-list position restoration,

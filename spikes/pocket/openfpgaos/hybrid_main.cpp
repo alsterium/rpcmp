@@ -33,7 +33,7 @@ int main() {
   const auto catalog_begin = rpcmp_pocket_time_us();
   if (rpcmp_player_cpu_hz() != 90000000 || rpcmp_pocket_target_read_prepare(65536) != 0 ||
       !tracks.open(slot)) {
-    std::printf("Playlist load failed. Re-import M3U with r5 (HPL2) and restart.\n");
+    std::printf("Playlist load failed. Re-import M3U as HPL2 and restart.\n");
     rpcmp_pocket_hold_result();
     return 2;
   }
@@ -45,6 +45,7 @@ int main() {
   static pocket::MinimalDisplay display;
   std::uint8_t* surface = nullptr;
   std::uint64_t shown{};
+  std::uint32_t shown_scroll{};
   std::uint32_t max_draw{}, max_flip{};
   bool drawing = false;
   for (;;) {
@@ -54,7 +55,12 @@ int main() {
     player.service();
     ui.update(player.snapshot());
     const auto view = ui.view();
-    if (!drawing && shown != view.revision) {
+    bool animate = false;
+    if (!drawing && shown_scroll != view.scroll_tick) {
+      shown_scroll = view.scroll_tick;
+      animate = pocket::MinimalDisplay::marquee_needed(view);
+    }
+    if (!drawing && (shown != view.revision || animate)) {
       const auto timings = playback.metrics();
       display.begin(view, {timings.render_us, timings.feed_us, max_draw, max_flip,
                            timings.minimum_queued, catalog_load});

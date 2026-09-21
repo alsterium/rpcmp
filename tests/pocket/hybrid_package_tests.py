@@ -68,6 +68,9 @@ class HybridPackageTests(unittest.TestCase):
         catalog = files[P("曲目一覧.md")].decode("utf-8")
         self.assertIn("試験曲 PCM", catalog)
         self.assertIn("Playlist.json", catalog)
+        self.assertIn("L/Rのどちらでも一覧と操作パネルを切り替えます", catalog)
+        self.assertIn("Bでプレイリスト一覧へ戻ります", catalog)
+        self.assertNotIn("Xで一時停止", catalog)
 
     def test_required_pdx_cannot_be_silently_omitted_or_added(self):
         self.tracks[1]["pdx"] = None

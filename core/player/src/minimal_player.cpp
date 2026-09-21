@@ -14,7 +14,14 @@ bool Player::initialize() {
   publish(ok ? api::State::Stopped : api::State::Error, ok ? api::Error::None : api::Error::Reset);
   return ok;
 }
-void Player::submit(const api::PlayerCommand command) {
+void Player::update_time() {
+  const auto seconds = playback_.elapsed_seconds();
+  if (snapshot_.elapsed_seconds != seconds) {
+    snapshot_.elapsed_seconds = seconds;
+    ++snapshot_.sequence;
+  }
+}
+void Player::submit(api::PlayerCommand command) {
   if (!initialized_ || snapshot_.error == api::Error::Reset)
     return;
   if (command.kind == api::CommandKind::CycleRepeat) {
@@ -31,16 +38,34 @@ void Player::submit(const api::PlayerCommand command) {
     ++snapshot_.sequence;
     return;
   }
-  if (command.kind == api::CommandKind::TogglePause) {
-    if (snapshot_.state != api::State::Playing && snapshot_.state != api::State::Paused)
+  if (command.kind == api::CommandKind::PlayPause) {
+    if (snapshot_.state == api::State::Playing || snapshot_.state == api::State::Paused) {
+      const bool paused = snapshot_.state == api::State::Playing;
+      const auto error = playback_.set_paused(paused);
+      update_time();
+      if (error != api::Error::None)
+        finish(error);
+      else
+        publish(paused ? api::State::Paused : api::State::Playing);
       return;
-    const bool paused = snapshot_.state == api::State::Playing;
-    const auto error = playback_.set_paused(paused);
-    if (error != api::Error::None)
-      finish(error);
-    else
-      publish(paused ? api::State::Paused : api::State::Playing);
-    return;
+    }
+    command = {api::CommandKind::PlayTrack, snapshot_.last_played};
+  }
+  if (command.kind == api::CommandKind::Previous || command.kind == api::CommandKind::Next) {
+    const auto track = snapshot_.last_played;
+    const auto list = list_.playlist(list_.playlist_for(track));
+    if (list.count == 0 || track.value < list.first.value ||
+        track.value >= list.first.value + list.count)
+      return;
+    if (command.kind == api::CommandKind::Previous) {
+      if (track.value == list.first.value)
+        return;
+      command = {api::CommandKind::PlayTrack, {track.value - 1}};
+    } else {
+      if (track.value + 1 == list.first.value + list.count)
+        return;
+      command = {api::CommandKind::PlayTrack, {track.value + 1}};
+    }
   }
   if (command.kind != api::CommandKind::PlayTrack && command.kind != api::CommandKind::Stop)
     return;
@@ -53,6 +78,7 @@ void Player::submit(const api::PlayerCommand command) {
     return;
   }
   if (command.kind == api::CommandKind::Stop) {
+    snapshot_.elapsed_seconds = 0;
     publish(api::State::Stopped);
     return;
   }
@@ -68,13 +94,16 @@ std::uint64_t Player::list_end() const noexcept {
 }
 void Player::start(const contracts::TrackId track) {
   snapshot_.track = track;
+  snapshot_.elapsed_seconds = 0;
   auto error = playback_.open(track);
   if (error == api::Error::None)
     error = playback_.set_repeat(snapshot_.repeat);
   if (error != api::Error::None)
     finish(error);
-  else
+  else {
+    snapshot_.last_played = track;
     publish(api::State::Playing);
+  }
 }
 void Player::finish(api::Error error) {
   if (!playback_.stop())
@@ -111,6 +140,7 @@ void Player::service() {
     return;
   bool ended{};
   auto error = playback_.service(ended);
+  update_time();
   if (error == api::Error::None && !ended)
     return;
   finish(error);
