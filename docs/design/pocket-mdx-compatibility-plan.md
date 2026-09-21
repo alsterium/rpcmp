@@ -27,6 +27,11 @@ responsive browsing during playback and restart/power-cycle recovery.
 The prepared-input player below is the working baseline. The user approved
 M3U as the PC-side authoring input: resolve MDX/PDX on the PC and generate the
 Pocket-specific collection, as defined below. Pocket continues reading HPL1.
+The subsequent [27-track hardware report](../milestones/M6-album-player.md#m3u-27-track-hardware-result--2026-09-21)
+accepts this connected workflow: 27 imported, zero excluded, correct order and
+Japanese titles, FM/PCM stereo playback and selection/stop controls, with no
+reported playback or browsing problems. The next small requirement remains
+to be selected with the user.
 Tracker/keyboard expansion, shuffle and persistent settings remain deferred.
 Keep relevant input bounds, focused regressions and integration checks; do not
 restart a broad compatibility campaign as a prerequisite for this next step.

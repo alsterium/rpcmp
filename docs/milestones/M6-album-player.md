@@ -38,6 +38,9 @@ now passes its [Firmware 2.6 / r1 hardware check](#minimal-player-r1-hardware-re
 The user subsequently approved the [PC-side M3U import workflow](#m3u-library-import--2026-09-21)
 over that working baseline: M3U defines MDX order and the PC creates the
 Pocket-specific collection with required PDX dependencies.
+The user's [27-track M3U hardware report](#m3u-27-track-hardware-result--2026-09-21)
+now passes that connected import/playback workflow with zero exclusions and
+no reported problems. The next small product requirement remains to be selected.
 This closes the compatibility investigation, not M6 as a whole. Inherited shell
 external timing constraints and the remaining player integration stay separate.
 The original objective, adopted contracts and results
@@ -3589,3 +3592,32 @@ asset does not need another compatibility campaign; the next useful check is
 the user's own playlist and its reported exclusions. This does not certify
 all sequence commands or all files in the collection. M6's remaining substrate
 gates and optional album/visualization features remain separate.
+
+## M3U 27-track hardware result — 2026-09-21
+
+The user reports the following results for **Firmware 2.6 / Minimal Player r1 /
+M3U import**, using their chosen playlist:
+
+| Check | User-reported result |
+| --- | --- |
+| Imported / excluded tracks | 27 / 0 |
+| M3U order / Japanese track names | OK |
+| FM / PCM / stereo channels | OK |
+| List navigation during playback / dropouts / noise | No problems |
+| A switches tracks / B stops / A restarts from the beginning | OK |
+| Errors or other observations | None reported |
+
+This accepts the connected **PC M3U -> prepared MDX/PDX collection -> Pocket
+selection/play/stop** slice on the existing r1 player. The report does not
+provide per-track timings, playback durations or an asset hash, and does not
+repeat the earlier reboot/power-cycle checks. It establishes the reported
+playlist behavior, not exhaustive compatibility with every source file.
+Keep the accepted player/importer as the baseline and choose the next small
+requirement with the user; remaining M6 substrate gates and deferred features
+are not completed by this report.
+
+This update changes progress records and current navigation only. Validation:
+`python -B tools/check_harness.py --root .`, changed-document local links and
+anchors, and `git diff --check`. No code, contract, package input or verification
+procedure changed. Full, cross-build, RTL simulation and synthesis/STA are not
+repeated for this report; their inputs are unchanged.

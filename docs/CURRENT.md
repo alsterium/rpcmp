@@ -2,14 +2,18 @@
 
 Active milestone: [M6 — Album Player](milestones/M6-album-player.md)
 
-The current task is to use the [PC-side M3U import workflow](development/m3u-library.md)
-with the user's chosen playlist. The implementation passes Full **90/90**;
-the user approved M3U -> MDX/PDX preparation -> Pocket-specific HPL1 generation.
-The importer now preserves order, resolves PDX, supports bounded LZX expansion
-and reports excluded songs. The same six accepted songs produce a byte-identical
-r1 collection. See the [implementation evidence](milestones/M6-album-player.md#m3u-library-import--2026-09-21).
-The generated Assets directory replaces the installed r1 collection; Pocket's
-player, firmware and RTL are unchanged. Further library/UI expansion is separate.
+The current task is to choose the next small player/library requirement with
+the user, building on the accepted minimal player and
+[PC-side M3U import workflow](development/m3u-library.md).
+The user's [27-track hardware report](milestones/M6-album-player.md#m3u-27-track-hardware-result--2026-09-21)
+passes on Firmware 2.6 / Minimal Player r1: 27 imported, zero excluded, correct
+M3U order and Japanese titles, FM/PCM stereo playback, browsing during playback,
+song switching and stop/restart, with no reported errors, noise or dropouts.
+This completes the M3U -> MDX/PDX preparation -> HPL1 -> Pocket playback slice.
+The implementation previously passed Full **90/90**; see the
+[implementation evidence](milestones/M6-album-player.md#m3u-library-import--2026-09-21).
+Pocket's player, firmware and RTL are unchanged. Further library/UI expansion
+has not yet been selected.
 The [Minimal Player r1 hardware check](milestones/M6-album-player.md#minimal-player-r1-hardware-result--2026-09-21)
 passes on Firmware 2.6: startup silence, six-song Japanese navigation, FM/PCM
 stereo playback, browsing without reported delay/noise/dropout, song switching,
