@@ -49,8 +49,10 @@ with provisional Y input. The [r4 candidate](../development/pocket-minimal-playe
 passes its local verification gates and the subsequent
 [Firmware 2.6 / r4 hardware report](../milestones/M6-album-player.md#minimal-player-r4-hardware-result--2026-09-22).
 This accepts loop/repeat switching and establishes r4 as the hardware baseline.
-Failed-track skipping was not reported in that hardware check. The next small
-requirement remains to be selected; no further implementation is authorized yet.
+Failed-track skipping was not reported in that hardware check. The user selected
+[multiple-playlist support](#multiple-playlist-requirements) as the next slice
+and settled its Q1–Q6 requirements. Implementation has not been requested in
+this requirements discussion; r4 remains the accepted implementation baseline.
 Tracker/keyboard expansion, shuffle and persistent settings remain deferred.
 Keep relevant input bounds, focused regressions and integration checks; do not
 restart a broad compatibility campaign as a prerequisite for this next step.
@@ -338,6 +340,58 @@ generated Assets directory over the installed r1 collection while the core is
 closed, then opens the existing Playlist.json. The original six-song package
 remains available for recovery. This slice manages one installed collection;
 album navigation and multiple named collections are subsequent work.
+
+### Multiple-playlist requirements
+
+Status: Q1–Q6 requirements agreed on 2026-09-22; implementation pending.
+This extends the single installed collection described above. Keep PC-side M3U
+authoring and MDX/PDX preparation; Pocket consumes generated data. The current
+HPL1 limits remain r4 implementation facts, not the new feature's capacity.
+
+| 決定 | 確定した動作 |
+| --- | --- |
+| 基本構成 | M3Uごとに1プレイリストを作り、Pocketでプレイリスト一覧 → 曲一覧を選ぶ |
+| Q1 閲覧と再生 | 別リストを開くだけでは再生を止めず、元のリストで連続再生を続ける。曲をAで決定したとき、その曲の先頭から再生し、以後は選んだリストの順に進む |
+| Q2 戻る操作 | 曲一覧の先頭に「プレイリスト一覧へ」を置き、Aで戻る。戻る操作は再生を止めない。SELECTへの新規割り当ては不要 |
+| Q3 PC取り込み | M3Uファイルの複数指定を基本とし、指定フォルダー内のM3Uを一括取り込みするオプションも用意する |
+| Q4 規模 | 100プレイリスト程度、1リスト最大300曲、最大30,000登録を第一目標とする。メモリ容量上で非現実的だと判明した場合は、ユーザーは全体100〜300曲への縮小も許容している |
+| Q5 名前と順序 | 表示名はM3Uファイル名から拡張子を除き、日本語に対応。複数指定時は指定順、一括時はファイル名の番号順。曲順は各M3Uの記載順 |
+| Q6 閲覧位置 | カーソルとページをリストごとに保持し、戻ったとき復元する。起動中だけ記憶し、再起動・電源OFF後はリセットする |
+
+Keep the accepted r4 transport semantics: B stops, X pauses/resumes, Y changes
+the session-wide loop/repeat setting, and startup is silent with two loops.
+Opening a list does not start or resume a song. Automatic advancement follows
+the active playback list, without moving the browsing cursor/page even when
+another list is being viewed. Counted modes stop at that list's end; repeat one
+continues the same song. Existing recoverable failed-track skipping remains
+within the active list. Opening another list does not reset the repeat setting.
+The back item is navigation, never a track or an automatic-playback entry.
+
+Resource feasibility is an estimate, not acceptance: the current serialized
+index uses 128 bytes per entry, so 30,000 entries alone would be 3,840,000 bytes
+(about 3.7 MiB). This excludes decoded copies, list records, renderer buffers,
+program, heap and stacks. The current loader reads only the selected MDX/PDX
+pair, not every song. These facts support investigating the requested scale;
+they do not prove runtime headroom, startup time, storage capacity or uninterrupted
+browsing at that scale. Do not reduce the target merely to preserve HPL1's
+300-entry/512-MiB bounds. Record concrete bounded storage/index changes here
+before coding and version incompatible formats; old RPCMP format compatibility
+is not required. Only a measured feasibility problem justifies the allowed
+smaller fallback, with its reason reported to the user.
+
+The connected implementation checkpoint for Full is **multiple M3Us → generated
+collection → browse another list while audio continues → select a track and
+advance within its list**. Cover both import modes, deterministic names/order,
+duplicate track entries, Japanese text, malformed counts/offsets and input
+containment; test navigation versus playback ownership, pause/stop/repeat,
+per-list cursor/page restoration and restart defaults. Check 100 × 300 authored
+entries without copyrighted fixtures, target link/memory/stack and measured
+loading/browsing costs. Keep headless and delayed-display audio independence
+checks. Run affected tooling tests and Full before a hardware candidate, with
+RTL/synthesis only when their inputs change, then provide Japanese hardware
+steps for playback continuity while browsing and switching lists. Persistent
+settings, shuffle, rich visualization and broad MDX compatibility revalidation
+are outside this slice.
 
 ## Recommendation
 

@@ -2,9 +2,16 @@
 
 Active milestone: [M6 — Album Player](milestones/M6-album-player.md)
 
-The current task is **choosing the next small M6 requirement** after accepting
+The current task is **defining multiple-playlist support** after accepting
 the [Firmware 2.6 / Minimal Player r4 hardware report](milestones/M6-album-player.md#minimal-player-r4-hardware-result--2026-09-22).
-No next feature has been selected or authorized for implementation yet.
+The user's Q1–Q6 decisions are now recorded in the
+[multiple-playlist requirements](design/pocket-mdx-compatibility-plan.md#multiple-playlist-requirements).
+They cover multiple M3U inputs, optional folder import, browsing without changing
+playback, list/track ordering and per-list cursor/page retention during a session.
+The target is 100 lists with up to 300 entries each, subject to measured resource
+feasibility; this is not support already provided by r4. Requirements are settled
+for the next implementation step; implementation has not started or been requested
+in this requirements discussion.
 Minimal Player r4 is the accepted hardware baseline. It passes the
 [loop/repeat boundary](design/pocket-mdx-compatibility-plan.md#loop-and-repeat-switching-boundary):
 Y cycles 2, 3, 5 loops and repeat one, including changes during playback, pause

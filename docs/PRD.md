@@ -57,8 +57,14 @@ Counted modes retain five-second fades and M3U advancement; repeat one repeats
 the same song. This supersedes the configurable-loop deferral below for this slice.
 Minimal Player r4 passes the user's [Firmware 2.6 hardware report](milestones/M6-album-player.md#minimal-player-r4-hardware-result--2026-09-22)
 and is now the accepted hardware baseline. Failed-track skipping was not reported
-in this check; its host evidence remains separate. The next small requirement
-has not yet been selected.
+in this check; its host evidence remains separate. The user subsequently selected
+[multiple-playlist support](design/pocket-mdx-compatibility-plan.md#multiple-playlist-requirements)
+and settled its Q1–Q6 requirements. Import multiple M3Us on the PC, with optional
+folder import, and browse named lists on Pocket while playback continues from
+its original list until a track is selected. Retain each list's cursor/page during
+the session. Target 100 lists of up to 300 entries, with resource measurements
+required before claiming support. This records requirements, not implementation
+or hardware acceptance.
 
 ## 1. Product vision
 

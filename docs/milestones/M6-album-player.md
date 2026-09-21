@@ -53,8 +53,13 @@ r3 was the preceding accepted hardware baseline. The user subsequently approved
 [loop/repeat switching with provisional Y input](../design/pocket-mdx-compatibility-plan.md#loop-and-repeat-switching-boundary).
 r4 passes Full 90/90, its affected integration gates and the subsequent
 [Firmware 2.6 hardware report](#minimal-player-r4-hardware-result--2026-09-22).
-r4 is now the accepted hardware baseline. The next small requirement remains
-to be selected; no further implementation is authorized by this report alone.
+r4 is now the accepted hardware baseline. The user subsequently selected
+[multiple-playlist support](../design/pocket-mdx-compatibility-plan.md#multiple-playlist-requirements)
+and settled its Q1–Q6 requirements: multiple M3U inputs plus optional folder
+import, uninterrupted browsing across lists, track selection changing the active
+list, explicit name/order rules and per-list session cursor/page retention.
+The target is 100 lists of up to 300 entries; the resource estimate in the design
+is not a target measurement. This next slice is specified but not implemented.
 This closes the compatibility investigation, not M6 as a whole. Inherited shell
 external timing constraints and the remaining player integration stay separate.
 The original objective, adopted contracts and results
