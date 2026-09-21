@@ -34,7 +34,11 @@ reported playback or browsing problems. The user has now selected and approved
 the [continuous-playback boundary](#continuous-playback-boundary) below as the
 next slice. Minimal Player r2 now implements it; see the
 [implementation evidence](../milestones/M6-album-player.md#continuous-playback-implementation--2026-09-21).
-Its [hardware verification](../development/pocket-minimal-player.md) remains pending.
+The [Firmware 2.6 hardware report](../milestones/M6-album-player.md#minimal-player-r2-hardware-result--2026-09-22)
+passes the continuous-playback slice and makes r2 the accepted hardware baseline.
+No errors occurred, so failed-track skipping was not exercised on hardware;
+its authored host checks remain the evidence for that path. Choose the next
+small requirement with the user; no additional feature is selected yet.
 Tracker/keyboard expansion, shuffle and persistent settings remain deferred.
 Keep relevant input bounds, focused regressions and integration checks; do not
 restart a broad compatibility campaign as a prerequisite for this next step.
@@ -148,7 +152,8 @@ seconds at 62500 Hz), then reaches zero. Gain at native offset n is
 natural EOF ends normally. Clear resets the fade. CPU and boot ROM require
 HYB2, so a mismatched old FPGA fails explicitly. HPL1 is unchanged.
 
-実装後の確認項目（ホスト試験の結果は実装証跡を参照。r2実機確認は未実施）:
+実装後の確認項目（ホスト試験の結果は実装証跡、r2の実機結果は
+[2026-09-22の報告](../milestones/M6-album-player.md#minimal-player-r2-hardware-result--2026-09-22) を参照）:
 
 1. 起動直後は無音。途中の曲をAで選ぶと、その曲からM3U順に進み、末尾で停止する。
 2. ループ曲はイントロ1回＋ループ部分2周の後、FM・PCMとも5秒でフェードする。

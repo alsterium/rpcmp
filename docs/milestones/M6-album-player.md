@@ -43,8 +43,10 @@ now passes that connected import/playback workflow with zero exclusions and
 no reported problems. The user has now approved
 [continuous M3U-order playback](../design/pocket-mdx-compatibility-plan.md#continuous-playback-boundary)
 as the next slice. The [r2 implementation](#continuous-playback-implementation--2026-09-21)
-is ready for its [Japanese hardware check](../development/pocket-minimal-player.md);
-hardware acceptance remains pending.
+now passes its [Firmware 2.6 hardware report](#minimal-player-r2-hardware-result--2026-09-22).
+r2 is the accepted hardware baseline; failed-track skipping was not exercised
+on hardware because no errors occurred. Choose the next small requirement with
+the user; no additional feature is selected yet.
 This closes the compatibility investigation, not M6 as a whole. Inherited shell
 external timing constraints and the remaining player integration stay separate.
 The original objective, adopted contracts and results
@@ -3740,3 +3742,38 @@ Aで新しい再生を開始し、Bで自動送りも解除します。一覧の
 **Firmware 2.6でのr2実機確認は未実施です。** 次は更新ZIPを使用し、日本語手順に沿って
 自動送り、2周＋5秒フェード、FM/PCM、一覧位置保持、手動切替/停止、再起動を確認します。
 互換性調査全体は再開せず、新しい不具合が出た場合に該当経路を解析します。
+
+## Minimal Player r2 hardware result — 2026-09-22
+
+ユーザーから **Firmware 2.6 / Minimal Player r2** の実機報告を受領しました。
+
+| 確認項目 | ユーザー報告 |
+| --- | --- |
+| 曲数表示 / 起動時の無音 / 日本語の曲名 | OK、問題なし |
+| 選択曲からM3U順の自動送り | OK、問題なし |
+| ループ曲のイントロ1回＋2周 / 約5秒フェード / FM・PCM両方 | OK、問題なし |
+| 自然終了の曲は1回 / 最後の曲で停止 | OK、問題なし |
+| 自動送り時のカーソル・ページ保持 / 再生中の印・曲名 | OK、反映されている |
+| 再生中・フェード中のA切替 / B停止 / Aで先頭から | OK、問題なし |
+| FM / PCM / 左右 / 音切れ・ノイズ / 入力遅延 | OK、問題なし |
+| エラー曲のスキップ | エラー未発生のため実機では未確認 |
+| 通常再起動 / 電源OFF後 | OK、問題なし |
+| エラー番号・その他の気になる点 | 特になし |
+
+停止後の表示は **R 12755 us / F 478 us / D 1554 us / V 664 us /
+Q 947 frames** でした。R/F/Qは直近の再生、D/Vは起動後の最大値で、
+Qは62.5 kHzでの最小キュー残量です。今回の報告には数値としての曲数、
+測定対象曲、再生時間、使用アセットのハッシュは含まれていません。
+
+この報告で **M3U順の連続再生スライスを実機合格** とし、r2を受入済みの基準にします。
+エラー曲のスキップは異常がなかったため実機合格とはせず、
+[実装時のホスト試験](#continuous-playback-implementation--2026-09-21) と区別して記録します。
+M6全体や残る外部I/Oタイミング・本番基盤のゲートを完了したという意味ではありません。
+次はユーザーと次の小さな要件を決めます。追加機能はまだ選定していません。
+
+今回は実機結果と進捗・ナビゲーションのみの更新です。
+`python -B tools/check_harness.py --root .`、変更したローカルリンク/アンカーの検査、
+`git diff --check` を実施しました。実装・契約の動作・受入条件・パッケージ入力・
+確認手順は変更していません。実装時のFull 90/90、Core→UI依存拒否、RTL、
+クロスビルド、合成/CDCの結果は上記の実装証跡を参照してください。
+これらは入力が変わっていないため今回再実行していません。
