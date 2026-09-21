@@ -1,9 +1,11 @@
-"""Package a local HYB1 timing candidate with one previously verified input pair."""
+"""Package a local HYB1 candidate with selectable, previously verified real songs."""
 import argparse
 import hashlib
+import io
 import json
 from pathlib import Path, PurePosixPath as P
 import re
+import wave
 import zipfile
 
 import pocket_firmware_pair as pair
@@ -12,6 +14,73 @@ from pocket_player_package import definitions as player_definitions
 
 ROOT = Path(__file__).resolve().parents[1]
 CORE, PLATFORM = "RPCMP.HybridProbe", "rpcmp_hybrid"
+
+
+def track_files(manifest):
+    if manifest.stat().st_size > 65536:
+        raise ValueError("track manifest too large")
+    tracks = json.loads(manifest.read_text(encoding="utf-8"))
+    if not isinstance(tracks, list) or not 1 <= len(tracks) <= 16:
+        raise ValueError("choose 1 to 16 prepared tracks")
+    common = P("Assets") / PLATFORM / "common"
+    files, ids = {}, set()
+    catalog = ["# 実機確認の曲目一覧", "", "各JSONが1曲です。Pocketで選択後、Aで再生してください。",
+               "曲を変えるときはBで停止し、Pocketのメニューからコアを終了して選び直してください。",
+               "STARTは合成テストへの切り替えです。実曲の選曲には使いません。", "",
+               "| Pocketで選ぶJSON | 曲名 | 音源 | PCで聴く比較用音声 |",
+               "| --- | --- | --- | --- |"]
+
+    def read(name):
+        path = (manifest.parent / name).resolve()
+        if not path.is_relative_to(manifest.parent.resolve()):
+            raise ValueError("track file leaves prepared directory")
+        if not 10 <= path.stat().st_size <= 16 * 1024 * 1024:
+            raise ValueError("prepared input outside fixture bounds")
+        return path.read_bytes()
+
+    for track in tracks:
+        name, title = track["id"], track["title"]
+        if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_-]{0,19}", name) or name.casefold() in ids:
+            raise ValueError("invalid or duplicate track id")
+        ids.add(name.casefold())
+        if not isinstance(title, str) or not 1 <= len(title) <= 255 or any(ord(c) < 32 for c in title):
+            raise ValueError("invalid track title")
+        mdx = read(track["mdx"])
+        has_pdx = mdx[2:4] == b"\0\0"
+        expected = bytes.fromhex("00000000000a00080000" if has_pdx else "0000ffff000a00080000")
+        if mdx[:10] != expected:
+            raise ValueError("invalid prepared MDX wrapper")
+        if has_pdx != bool(track.get("pdx")):
+            raise ValueError("MDX/PDX dependency mismatch")
+        slots = [dict(id=i, filename=f) for i, f in enumerate(("os.bin", "hybrid.ini", "hybrid.elf"), 1)]
+        files[common / (name + ".mdx.bin")] = mdx
+        slots.append(dict(id=4, filename=name + ".mdx.bin"))
+        if has_pdx:
+            pdx = read(track["pdx"])
+            if pdx[:10] != bytes.fromhex("00000000000a00020000"):
+                raise ValueError("invalid prepared PDX wrapper")
+            files[common / (name + ".pdx.bin")] = pdx
+            slots.append(dict(id=5, filename=name + ".pdx.bin"))
+        files[P("Assets") / PLATFORM / CORE / (name + ".json")] = shared.json_bytes(
+            dict(instance=dict(magic=shared.MAGIC, data_slots=slots)))
+        audio = read(track["reference"])
+        try:
+            with wave.open(io.BytesIO(audio), "rb") as wav:
+                if (wav.getnchannels(), wav.getsampwidth(), wav.getframerate()) != (2, 2, 48000):
+                    raise ValueError("reference WAV must be stereo 16-bit 48 kHz")
+                if not 0 < wav.getnframes() <= 48000 * 60 or len(wav.readframes(wav.getnframes())) != wav.getnframes() * 4:
+                    raise ValueError("invalid reference WAV length")
+        except (wave.Error, EOFError) as error:
+            raise ValueError("invalid reference WAV") from error
+        files[P("試聴用") / (name + ".wav")] = audio
+        safe_title = title.replace("|", "／").replace("<", "＜").replace(">", "＞")
+        catalog.append(f"| {name}.json | {safe_title} | {'FM＋PCM' if has_pdx else 'FMのみ'} | "
+                       f"[試聴](試聴用/{name}.wav) |")
+    catalog += ["", "比較用WAVはMDXPlayer由来のPC参照エンジンによる冒頭部分です。",
+                "Pocketの録音ではありません。旋律・テンポ・打楽器などを聴き比べてください。",
+                "FM音色や音量の完全一致を保証するものではありません。"]
+    files[P("曲目一覧.md")] = ("\n".join(catalog) + "\n").encode("utf-8")
+    return files
 
 
 def package(args):
@@ -51,7 +120,7 @@ def package(args):
         raise ValueError("application budget does not match this ELF")
     values = player_definitions()
     values["core.json"]["core"]["metadata"].update(platform_ids=[PLATFORM], shortname="HybridProbe",
-        description="RPCMP HYB1 local timing probe", version="0.12.0-hybrid-r1", date_release="2026-09-21")
+        description="RPCMP HYB1 real-song probe", version="0.12.0-hybrid-r2", date_release="2026-09-21")
     slots = values["data.json"]["data"]["data_slots"]
     slots[0]["name"] = "Hybrid Probe"
     slots[4:] = [dict(id=i, name=name, required=False, parameters=8, extensions=["bin"],
@@ -68,14 +137,8 @@ def package(args):
     files.update({core / "loader.bin": loader.read_bytes(), core / "rpcmp.rbf_r": shared.reverse_rbf_bits(rbf.read_bytes()),
                   common / "os.bin": (firmware / "os.bin").read_bytes(), common / "hybrid.elf": elf.read_bytes(),
                   common / "hybrid.ini": b"[os]\nELF=hybrid.elf\nVARIANT=rpcmp\n"})
-    for name in ("mdx.bin", "pdx.bin"):
-        path = cpu / name
-        if not 10 <= path.stat().st_size <= 16*1024*1024:
-            raise ValueError("prepared input outside fixture bounds")
-        files[common / name] = path.read_bytes()
-    files[P("Assets") / PLATFORM / CORE / "hybrid.json"] = shared.json_bytes(dict(instance=dict(
-        magic=shared.MAGIC, data_slots=[dict(id=i, filename=name) for i, name in enumerate(
-            ("os.bin", "hybrid.ini", "hybrid.elf", "mdx.bin", "pdx.bin"), 1)])))
+    files.update(track_files(args.tracks.resolve()))
+    files[P("確認手順.md")] = (ROOT / "docs/development/pocket-hybrid-hardware.md").read_bytes()
     files[P("Platforms") / (PLATFORM + ".json")] = shared.json_bytes(dict(platform=dict(
         category="Computer", name="RPCMP Hybrid Probe", year=2026, manufacturer="RPCMP")))
     reference = ROOT / "out/research/mdxplayer-reference-20260921"
@@ -118,6 +181,6 @@ def package(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
-    for name in ("shell", "cpu", "firmware", "output"):
+    for name in ("shell", "cpu", "firmware", "tracks", "output"):
         parser.add_argument("--" + name, type=Path, required=True)
     package(parser.parse_args())

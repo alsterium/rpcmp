@@ -763,6 +763,48 @@ with zero simulator errors/warnings. Their logs are
 No source RTL changed after the earlier streaming transport acceptance; the
 actual-shell/ROM binding and application were the new connected inputs here.
 
+## 実曲6曲の確認パッケージ（HYB1 r2）
+
+ユーザーの指定フォルダーから、FMのみ2曲とPDXを伴う4曲を選び、曲ごとに
+APFのinstance JSONを生成した。4曲のうち2曲は圧縮PDXをPCで展開している。
+PDX参照名と同梱するファイルを照合し、元のMDX/PDXが変更されていないことを
+SHA-256で確認した。個別の名前・ハッシュ・音声はGitに登録していない。
+
+`out/build/hybrid-real-inputs-r2/prepare.py` を既存Dockerイメージ内で実行し、
+指定フォルダーを読み取り専用でマウントした。各曲の冒頭960ブロック（20.48秒）で
+参照側とFM合成を除いた側の時刻付きFM書き込み、PCM、ブロック区切りが一致した。
+同じ入力で `tools/hybrid_renderer_verify.py` も通り、既存の合成3条件と実曲6条件で
+最大484書き込み/ブロックだった。FMのみ2曲のPCM出力はゼロ、残る4曲では非ゼロで、
+参照出力の6つのWAVはいずれも無音ではなかった。これはPC出力の検証で、実機の試聴結果ではない。
+実行記録は `out/harness/hybrid-real-inputs-r2.log` にある。
+
+`tools/pocket_hybrid_package.py --shell out/build/hybrid-candidate-20260921
+--cpu out/build/hybrid-cpu-20260921
+--firmware out/build/hybrid-firmware-20260921/src/firmware/os/bld/pocket
+--tracks out/build/hybrid-real-inputs-r2/prepared/tracks.json
+--output out/build/hybrid-real-mdx-r2` で実機用ZIPを生成し、各メンバーを読み戻した。
+日本語の手順・曲目一覧と比較用WAVを同梱し、FMのみのinstanceからPDXスロットを省いた。
+`python -B tests/pocket/hybrid_package_tests.py` は4件合格し、曲別スロット、PDX不一致、
+重複ID、入力範囲外パス、不正な準備済みデータ・WAVを確認した。
+`python -B out/harness/hybrid-real-r2-readback.py` でも、実際のZIPに6つのinstanceと
+対応する全入力があること、6つのWAVが参照出力と一致すること、日本語手順の同梱、
+r1との実行バイナリ一致、全メンバーの長さ・ハッシュを確認した。既存候補の保護、
+不一致OSと古いELF容量記録を拒否する確認も通った。実行記録は
+`out/harness/hybrid-real-r2-readback.log` にある。
+
+初回のFast起動はPATH上のLLVM 23.1.1を検出して検証前に停止した。
+インストール済みの固定版22.1.8をプロセス内のPATH先頭へ置き、
+`pwsh -File tools/host-verify.ps1 -CheckSetupOnly` と
+`pwsh -File tools/host-verify.ps1 -Mode Fast` が合格した（Fastは87/87、19.17秒）。
+システム設定やツールの固定条件は変更していない。
+続く `pwsh -File tools/host-verify.ps1 -Mode Full` も88/88で合格した
+（558.51秒、静的解析540.38秒）。アーキテクチャの依存違反検出も含む。
+実行記録は `out/harness/hybrid-real-r2-full.log` にある。
+
+アプリELF・ROM/OS・音源RTL・FPGAビットストリームはr1と同一であり、クロスビルド、
+RTLシミュレーション、合成は再実行していない。既存バイナリの組み合わせと検証記録を
+パッケージ生成時に再確認した。実機の音・処理時間・全曲全区間の互換性は未確認で、M6は継続中。
+
 ## Dependency conditions
 
 The [MDXPlayer README](https://github.com/asaday/MDXPlayer/blob/4076b91c7ced57bf6047f69b87c12a34bd99a438/README.md)

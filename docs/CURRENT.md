@@ -18,9 +18,14 @@ now passes reference stream comparisons, three-phase actual-AXI tests, the SDK
 link/budget, whole-shell fit and scoped HYB1 timing/CDC audit, and Full host
 verification (87/87). CPU RTL plus a modeled FIFO shows no starvation in three
 authored PCM formats and one short real-input run; it is not real SDRAM/OS timing.
-The next task is the [HYB1 r1 hardware check](development/pocket-hybrid-hardware.md)
-on Firmware 2.6. A matched local ZIP is ready; check actual sound, stop/restart,
-noise and measured render/feed time before expanding UI or M3U support.
+The next task is the [HYB1 r2 real-song hardware check](development/pocket-hybrid-hardware.md)
+on Firmware 2.6. The local ZIP now selects six real songs via separate instance
+JSONs (two FM-only, four with PCM), with Japanese instructions and 20.48-second
+PC reference WAVs. Their timed FM/PCM prefixes match the reference. Check actual
+sound, stop/restart, noise and measured render/feed time before expanding UI or
+M3U support. The renderer, app, ROM/OS and FPGA remain the checked r1 binaries.
+The packaging slice passes Full host verification (88/88), including the new
+multi-song package checks; hardware listening is still pending.
 Inherited shell external constraints and full hardware acceptance remain open.
 The user selected [asaday/MDXPlayer](https://github.com/asaday/MDXPlayer) as the
 reference: support every locally supplied file that played there, including

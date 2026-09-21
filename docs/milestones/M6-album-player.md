@@ -18,8 +18,10 @@ passes nine reference-stream comparisons, the SDK link/budget, three-phase AXI
 simulation, whole-shell fit/scoped CDC audit and Full host checks (87/87).
 Short CPU RTL/modelled-FIFO experiments have no underflows; real SDRAM/OS
 contention and listening remain unverified. The next boundary is the
-[HYB1 r1 hardware check](../development/pocket-hybrid-hardware.md), with a matched
-local candidate and no autoplay. This does not complete M6.
+[HYB1 r2 real-song hardware check](../development/pocket-hybrid-hardware.md), with
+six real songs, Japanese instructions and short PC reference WAVs. Selection uses
+separate instance JSONs with the unchanged r1 application and no autoplay. This
+does not complete M6.
 The original objective, adopted contracts and results
 below remain historical evidence; they do not override this new scope or turn
 the existing FM subset into full MDX compatibility.

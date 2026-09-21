@@ -83,4 +83,5 @@ Before declaring work complete:
 - Verify architecture/dependency checks still prevent Core-to-UI coupling.
 - Update docs only when behavior or an approved contract changed.
 - Report files changed, decisions made, tests run, tests not run, known risks, and the next recommended task.
+- Write all user-facing verification procedures and hardware report templates in Japanese.
 - Harness/build/verification-script changes require affected tooling tests and Full. Progress entries and link fixes alone require document/navigation checks, without full C++ analysis. Product specs, public contracts, acceptance criteria, build/verification procedures, agent authority/stop rules, and documents used as test/generation inputs require impact-based checks, including Full when affected; Markdown is not itself grounds for lighter checks. RTL and hardware checks are not applicable unless their inputs or behavior changed. Explicitly report that distinction. Passing host checks does not complete a hardware milestone.

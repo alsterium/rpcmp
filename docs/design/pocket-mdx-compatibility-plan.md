@@ -255,6 +255,17 @@ relaxation of the old player's gate. Reference-backed static analysis runs via
 not require the optional downloaded reference. The minimal app remains in the
 ordinary host compile/format/tidy checks.
 
+For the user's multi-song hardware check, package several locally prepared real
+MDX/PDX pairs as separate APF instance JSON files. Select a song in Pocket's file
+browser before launching the unchanged app; START continues to select synthetic
+stress modes, not songs. Each instance names its own blobs, and FM-only instances
+omit PDX. Include a Japanese procedure, a local song table and short PC reference
+WAVs so the listener can identify melody, tempo and PCM parts. Keep private names,
+blobs and audio under ignored output. This packaging slice does not change the
+renderer, ROM, OS or FPGA; verify slot resolution/readback and reference streams,
+then run Full when the multi-song package is complete. All user-facing hardware
+verification procedures must be written in Japanese.
+
 Implement one headless hybrid vertical slice before rebuilding the full
 player. Start with authored eight-FM/eight-PCM loads and the existing private
 comparison set; keep a native full-software oracle. The first slice must:

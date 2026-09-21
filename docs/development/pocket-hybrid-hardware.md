@@ -1,79 +1,100 @@
-# HYB1 local hardware check
+# HYB1 r2：実際のMDXで確認する手順
 
-This is the first prepared-input CPU PCM8 + FPGA FM timing fixture, not M6 or
-whole-corpus acceptance. The project charter and smaller select/play/stop MVP
-remain current. Rich UI, M3U browsing and arbitrary-file admission are deferred.
+Firmware 2.6のPocketで実際の曲を確認します。FMのみ2曲、FM＋PCMの4曲、合計6曲です。
+再生エンジン・OS・FPGAはr1と同じで、選曲用JSONと曲データを追加しています。
+全曲対応やM6の完了を確認済みという意味ではありません。
 
-## Candidate
+## 1. SDカードへコピーする
 
-- Local ZIP: `out/build/hybrid-hardware-r1.zip`
-- SHA-256: `6a897604979f14b2a0ebc51cf8baf76ffc4fc3681dd7d1d2e3d647c2b8573bd7`
-- Core: `RPCMP.HybridProbe`; platform: `rpcmp_hybrid`; version: `0.12.0-hybrid-r1`.
-- Framework minimum: `2.2`, preserving the user's Firmware 2.6 loading result.
-- The matching ROM/OS/FPGA/app and one locally prepared MDX/PDX pair are included.
-  This private local ZIP contains user music; it is not a public distribution.
-- Complete member lengths/hashes, ROM/OS pairing, app budget and Quartus report
-  identities are in `out/build/hybrid-hardware-r1.evidence.json`.
+使用するZIPは `out/build/hybrid-real-mdx-r2.zip` です。展開してください。
 
-Extract the ZIP and copy its `Cores`, `Assets` and `Platforms` folders to the
-SD card root. Start **HybridProbe** and select **hybrid.json**. The terminal
-starts silent. **START** cycles between Loaded MDX/PDX, 8 FM + 8 ADPCM,
-8 FM + 8 PCM16 and 8 FM + 8 PCM8 while stopped. **A** starts the selected test;
-**B** clears/stops it. This fixture has no pause or live selection while playing.
+- `Cores`、`Assets`、`Platforms`：この3フォルダーをSDカードのルートへコピーします。
+- `曲目一覧.md`：Pocketで選ぶJSON名と実際の曲名の対応表です。
+- `試聴用`：各曲の冒頭20.48秒を聴けるWAVです。PCで再生してください。
+- `確認手順.md`：この手順です。PCで読めばよく、SDへのコピーは不要です。
 
-The screen intentionally stops updating during playback. B or natural end
-shows maximum render time, maximum feed time and the lowest observed PCM queue
-occupancy (including observations after rendering). These are sampled diagnostics,
-not an exhaustive hardware watermark. The authored PCM buffers are short; FM
-continues after their PCM portion finishes. Repeat stop/start to repeat the PCM
-stress, rather than interpreting the later FM-only sustain as a dropped channel.
+同名ファイルは今回の内容で上書きします。以前の `hybrid.json` が残っていても、
+今回は曲目一覧にある番号付きJSONを選んでください。ユーザーの曲を含む個人用パッケージです。
 
-## Report on Firmware 2.6
+## 2. 最初の曲を再生する
+
+1. PCで `曲目一覧.md` を開き、最初の曲のJSON名を確認します。
+2. 同じ番号のWAVをPCで聴き、冒頭の旋律とテンポを確認します。
+3. SDカードをPocketに入れ、openFPGAから **HybridProbe** を起動します。
+4. ファイル選択画面で、曲目一覧の番号付きJSONを選びます。
+5. `Selected: Loaded MDX/PDX` と `Ready (silent)` が出るのを待ちます。
+   この時点では音が出ないのが正常です。
+6. **A** を押します。PCで聴いた曲と旋律・テンポが対応しているか確認します。
+7. 自然に終了する場合を除き、約1分聴きます。左右の音、音切れ、プチプチ音、
+   テンポの乱れを確認してください。PCMありの曲は打楽器やサンプル音にも注目します。
+8. **B** を押して停止します。無音になったことと、停止後の3つの数値を記録します。
+9. もう一度 **A** を押し、曲の最初から再生できるか確認します。**B** で停止します。
+
+再生中は画面の更新を止めています。表示が動かなくても、それだけでは異常ではありません。
+曲名も再生画面には出ません。選んだJSON名で識別してください。
+短い曲は1分より前に終了することがあります。終了した曲の位置を記録してください。
+
+## 3. 次の曲へ切り替える
+
+**Bで停止 → Pocket本体のメニューからコアを終了 → HybridProbeを起動 → 次のJSONを選択**
+の順で、6曲とも確認してください。
+
+**STARTは実曲の選曲ボタンではありません。** 合成テストへ切り替わります。
+実曲の確認では押さずに、`Loaded MDX/PDX` のままAを押してください。
+誤って押した場合は、停止中にSTARTを繰り返し押して `Loaded MDX/PDX` に戻します。
+一時停止機能はこの確認版にはありません。
+
+最後にPCMありの曲を1曲選び、通常の再起動と電源OFF後でも再生・停止を確認します。
+
+## 4. 数値とエラーの読み方
+
+| 画面の表示 | 意味・記録する内容 |
+| --- | --- |
+| `Render max` | 音声の1ブロックを作る処理にかかった最大時間。単位はusです。 |
+| `Feed max` | データをFPGAへ渡す処理にかかった最大時間。単位はusです。 |
+| `Queue minimum` | 観測できた音声キュー残量の最小値。単位はframesです。 |
+| `File load failed` / `Open failed` | 曲を読み込めていません。JSON名と表示全文を記録してください。 |
+| `Renderer failed` / `Audio fault` / `Queue capacity/timeout` | 再生処理のエラーです。表示全文と `Status` があればその値を記録してください。 |
+| `Ended` | 再生エンジンが終了を通知しました。曲のどのあたりだったか記録してください。 |
+
+1ブロックは約21.33ms分ですが、時間や残量の1つの数値だけでは合否を決めません。
+聞こえた症状とセットで判断します。キュー残量は定期観測値で、全瞬間の最小値ではありません。
+起動途中で止まる場合も、最後に見えた表示と待った時間を教えてください。
+
+## 5. 返信用テンプレート
+
+曲ごとに次の欄をコピーしてください。「同じ曲に聞こえる」かどうかが最初の確認点です。
 
 ```text
-HYB1 r1
-Boot / silent before A:
-Loaded MDX: music / left+right / 1 minute / clicks:
-Loaded MDX after B: Render max / Feed max / Queue minimum:
-8 FM + 8 ADPCM: sound / B stops / A restarts / metrics:
-8 FM + 8 PCM16: sound / B stops / A restarts / metrics:
-8 FM + 8 PCM8: sound / B stops / A restarts / metrics:
-Normal restart / power-off restart:
-Error text or status (if any):
+Firmware: 2.6 / HYB1 r2
+選んだJSON名:
+起動 / Aを押す前は無音:
+PCのWAVと同じ旋律・テンポに聞こえる:
+左右 / PCMの打楽器・サンプル音（FMのみの曲は対象外）:
+約1分の再生 / 音切れ・プチプチ音・テンポの乱れ:
+B停止 / Aで最初から再生:
+停止後 Render max / Feed max / Queue minimum:
+エラーや気になった表示:
+
+全曲の確認後、PCMありの1曲で:
+通常再起動 / 電源OFF後の起動・再生:
 ```
 
-Do not infer hardware success from the CPU simulation or a fitted bitstream.
-In particular, the CPU experiment has ideal AXI memories and a modeled peripheral
-delay; it does not include SDRAM/video/OS interrupt contention. Inherited shell
-external-pin constraints also remain incomplete. The new HYB1 internal timing,
-48 Gray-pointer crossing bits and later control synchronization stages were
-audited separately; that does not establish whole-platform sign-off.
+## 検証範囲と再生成
 
-## Reproduction inputs
+比較用WAVはMDXPlayer由来のPC参照エンジンの出力で、Pocketの録音ではありません。
+Pocket側のFMはFPGAで生成するため、音色・音量・波形の完全一致を保証するものではありません。
+旋律、テンポ、PCMの有無などを聴き比べます。冒頭のPC比較に合格しても、
+全曲を最後まで再生できることや実機の処理時間は、まだ保証されません。
+FPGA内部の検証とは別に、既存基盤の外部端子のタイミング制約には未完了部分があります。
 
-Use the pinned checkouts and tool images recorded in the
-[compatibility evidence](../research/mdxplayer-compatibility.md#cpu-renderer-and-actual-shell).
-`tools/hybrid_renderer_build.py` prepares and builds the reference-backed renderer
-and SDK app under `out/build/hybrid-cpu-20260921`. Run
-`tools/hybrid_renderer_verify.py` against the independently captured split streams,
-and `tools/hybrid-renderer-tidy.ps1` against the generated header.
+開発時は `tools/pocket_hybrid_package.py` に `--shell`、`--cpu`、`--firmware`、
+`--tracks`、`--output` を指定します。`--tracks` は準備済み曲のJSON配列で、各要素に
+`id`、`title`、`mdx`、`pdx`、`reference` を指定します。ファイル名はこのJSONのある
+ディレクトリを基準にし、FMのみの場合の `pdx` は `null` にします。
+MDX/PDXは参照エンジン用のヘッダーを付けた準備済みデータ、`reference` は
+48kHz・16bit・ステレオの比較用WAVです。生のMDXをそのまま指定する形式ではありません。
 
-Prepare ROM/OS using `tools/pocket_hybrid_firmware_prepare.py`. In its
-`src/firmware/os`, build with `make -j4 TARGET=pocket CROSS=riscv-none-elf-
-EXTRA_CFLAGS=-march=rv32imafc_zicsr_zifencei` in the pinned firmware image.
-The upstream recipe does not fail when `hexdump` is absent; do not use its empty
-MIF. `tools/pocket_hybrid_images.py` converts `boot.bin` and requires the resulting
-MIF and OS image to match the linked ELF before shell preparation.
-
-`tools/pocket_hybrid_prepare.py` creates the no-GPU HYB1 shell and a Windows
-Quartus project. Supply that verified MIF, firmware ELF and OS image together.
-Compile the generated `hybrid-fit/ap_core`, then run
-`quartus_sta -t <repo>/tools/hybrid_cdc_audit.tcl` in that project directory.
-Run `tools/rtl-hybrid-verify.ps1 -PreparedTree <prepared-shell>` as well as the
-relevant host/tooling checks. `tools/pocket_hybrid_package.py` checks the matched
-artifacts and writes a fresh package with complete directory/ZIP readback.
-
-Component notices are retained in the local package. Public redistribution
-still requires the component-specific review described in the reference
-evidence; the application README's BSD badge is not a license for the complete
-MXDRV/PCM8/FMGEN dependency set.
+生成時にROM/OSの組み合わせ、FPGAの検証記録、アプリ容量、曲ごとの入力とZIPを検査します。
+ZIPと各ファイルのハッシュは隣の `.evidence.json` に記録します。
+曲名・曲データ・比較用音声・個別の検証記録はローカルの `out/` に置き、Gitには登録しません。

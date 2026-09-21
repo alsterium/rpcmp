@@ -370,6 +370,8 @@ if(BUILD_TESTING)
       $<TARGET_FILE:rpcmp_album_pack> $<TARGET_FILE:rpcmp_player_preflight>)
   add_test(NAME player_package
     COMMAND ${Python3_EXECUTABLE} -B ${CMAKE_SOURCE_DIR}/tests/pocket/player_package_tests.py)
+  add_test(NAME hybrid_package
+    COMMAND ${Python3_EXECUTABLE} -B ${CMAKE_SOURCE_DIR}/tests/pocket/hybrid_package_tests.py)
   add_test(NAME mdx_admission_cli
     COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/pocket/mdx_admission_tests.py
       $<TARGET_FILE:rpcmp_mdx_admission>
