@@ -82,8 +82,10 @@ table is consolidated. Q10 selects elapsed time only, frozen during pause.
 Q11 scrolls the selected overlong name after a brief dwell and elides other rows.
 Q12 fixes the lower information as playback title, playback playlist name,
 entry number / count, elapsed time and transport state, with the repeat setting
-on its control icon. Layout and placement-dependent focus navigation remain to
-be settled; r5 is unchanged.
+on its control icon. Q13 places previous/play-pause/next above stop/repeat in two
+rows at the lower right. Q14 makes either L or R toggle panels while retaining
+their focus. The main behavioral choices are recorded; a layout mock for the
+visual/focus details and error presentation is next. r5 is unchanged.
 This closes the compatibility investigation, not M6 as a whole. Inherited shell
 external timing constraints and the remaining player integration stay separate.
 The original objective, adopted contracts and results

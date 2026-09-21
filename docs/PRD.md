@@ -88,9 +88,12 @@ pages; B returns to playlists. The operation table is consolidated. Q10 selects
 elapsed time only, frozen during pause. Q11 scrolls the selected overlong name
 after a brief dwell and elides other rows. Q12 keeps the playback title, playback
 playlist name, entry number / count, elapsed time and transport state in the
-lower information area, with the repeat setting on its control icon. Layout
-and placement-dependent focus navigation remain to be settled. These
-requirements have not yet been implemented in r5.
+lower information area, with the repeat setting on its control icon. Q13 places
+previous/play-pause/next above stop/repeat in two rows at the lower right.
+Q14 makes either L or R toggle between panels while retaining their focus.
+The main behavioral choices are recorded; the next step is a layout mock for
+the visual/focus details and error presentation. These requirements have not
+yet been implemented in r5.
 
 ## 1. Product vision
 

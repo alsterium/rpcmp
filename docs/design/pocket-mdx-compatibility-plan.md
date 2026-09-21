@@ -557,6 +557,38 @@ playback information, with controls to its right. Next lay out these values
 and the focus indicators together so browsing selection, playback identity,
 control focus and disabled actions remain distinguishable.
 
+#### Layout and focus requirements
+
+**Q13 — decided:** Put the five control icons in two rows at the lower right,
+leaving more horizontal space for the playback information to their left.
+
+| Row | Icons, left to right |
+| --- | --- |
+| Top | Previous, play/pause, next |
+| Bottom | Stop, repeat count |
+
+**Q14 — decided:** Either L or R toggles between the list and control panels.
+Do not bind L to a fixed list destination or R to a fixed control destination.
+Each fresh press toggles once; holding the button does not repeatedly switch
+panels. Q8 restores the destination's previous icon or list position. Switching
+focus does not start, stop or otherwise change playback.
+
+Working visual defaults for the layout mock, not additional user decisions:
+
+- Distinguish the active panel with a clear outline; emphasize its selected
+  row/icon. Retain a subdued selection indicator in the inactive panel.
+- Keep the playing marker separate from the browsing highlight, so a highlighted
+  row does not imply that its track is playing. Disabled actions remain visibly
+  unavailable even if focus is restored to them.
+- Show a short Japanese error description and the relevant next action in a
+  status area without opening a modal over the list. Preserve the existing
+  recoverable-skip versus fatal-error distinction and playback behavior.
+
+Colors, spacing and exact D-pad adjacency between the two icon rows are layout
+details to make concrete in the mock, not additional playback features. The
+main behavioral choices are now recorded; check these visual defaults together
+with Japanese text, long names and the retained focus state.
+
 #### Consolidated operation table
 
 The table describes the next UI, not the installed r5 controls. Top-level B
@@ -570,7 +602,7 @@ audio timing remain independent of focus and rendering.
 | D-pad left/right | Change page | Change page | Select an icon according to its placement |
 | A | Open selected list without changing playback | Start selected track from its beginning and use its playlist | Activate selected icon |
 | B | No action | Return to playlist list without changing playback | Stop playback and cancel automatic advance |
-| L/R | Switch panels without changing playback | Switch panels without changing playback | Switch panels without changing playback |
+| L or R | Toggle to controls without changing playback | Toggle to controls without changing playback | Toggle to list without changing playback |
 | X/Y | Unassigned | Unassigned | Unassigned |
 
 | Control icon | Action |
@@ -586,15 +618,16 @@ those icons cannot start music. Browsing, returning and switching panels do not
 alter playback, and automatic advance does not move the browsing cursor.
 Remember control-icon focus and list positions for the session only. Launch
 still starts silently at the playlist list with two loops; no setting or focus
-persistence is added. Exact icon placement, D-pad adjacency and the directional
-L/R mapping belong to the next layout pass, not new playback features.
+persistence is added. Q13 fixes the two-row icon order and Q14 fixes either
+L/R button as a panel toggle. Exact D-pad adjacency remains a layout detail.
 
 The working layout proposal reuses the earlier preference for a large main
 area, track information below it and control icons to the right of that
 information. First organize the list, information and playback controls;
-Tracker/keyboard reintroduction is not approved by Q1–Q12. The operation table
-and information grouping are consolidated. Next settle layout and
-placement-dependent focus navigation before implementation.
+Tracker/keyboard reintroduction is not approved by Q1–Q14. The operation table,
+information grouping, two-row controls and panel switching are consolidated.
+Next make a layout mock to inspect visual presentation and D-pad adjacency
+before implementing the Pocket UI.
 
 These are prospective product requirements, not a hardware candidate or a
 claim of implemented behavior. No runtime, package, test/generator input or

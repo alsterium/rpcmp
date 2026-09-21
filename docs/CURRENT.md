@@ -4,10 +4,10 @@ Active milestone: [M6 — Album Player](milestones/M6-album-player.md)
 
 The current task is **organizing UI layout from the decided controls and information** after
 accepting the [Firmware 2.6 / Minimal Player r5 hardware report](milestones/M6-album-player.md#minimal-player-r5-hardware-result--2026-09-22).
-The user selected this scope and settled [UI Q1–Q12](design/pocket-mdx-compatibility-plan.md#ui-interaction-requirements):
+The user selected this scope and settled [UI Q1–Q14](design/pocket-mdx-compatibility-plan.md#ui-interaction-requirements):
 B returns from tracks to playlists without stopping playback when the list has
 focus, and stops playback when the controls have focus. B never changes panels.
-L/R switches panels; the D-pad stays within the focused panel. In lists,
+Either L or R toggles panels; the D-pad stays within the focused panel. In lists,
 up/down selects entries and left/right retains page navigation. X/Y are unassigned;
 control icons act through A. The play/pause icon pauses/resumes the playback track
 or restarts the last-played track from its beginning after stop, independently
@@ -25,8 +25,13 @@ now specify elapsed time only, frozen during pause, and delayed horizontal
 scrolling of the selected overlong name, with ellipsis in other rows. Q12 fixes
 the lower area's fields as playback title, playback playlist name, entry number /
 count, elapsed time and transport state, independent of the browsing selection.
-The repeat setting belongs with its control icon. Next arrange these fields and
-placement-dependent focus navigation within this UI requirements task; r5 is unchanged.
+The repeat setting belongs with its control icon. Q13 uses
+[two control rows](design/pocket-mdx-compatibility-plan.md#layout-and-focus-requirements):
+previous/play-pause/next above stop/repeat, at the lower right of the information.
+Q14 makes either L or R toggle panels, retaining each panel's focus. The main
+behavioral choices are recorded. Next make a layout mock for Japanese text,
+focus/playing/disabled indicators and non-modal error status, with explicit
+D-pad adjacency. The visual defaults remain a mock proposal; r5 is unchanged.
 r5 is the accepted hardware baseline. The normal three-list/42-entry collection
 passes browsing during playback, original-list automatic advance, track selection
 changing the playback list, list-end stop, per-list position restoration,
