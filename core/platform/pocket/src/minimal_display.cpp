@@ -49,6 +49,14 @@ bool MinimalDisplay::pump(std::uint8_t* surface, const std::size_t bytes) {
     std::fill_n(out, 640, std::uint8_t{0});
     if (row_ >= 16 && row_ < 32)
       text_row(out, "RPCMP  MDX / PCM", row_ - 16, 3);
+    if (row_ >= 32 && row_ < 48) {
+      using contracts::minimal::RepeatMode;
+      const char* mode = view_.playback.repeat == RepeatMode::Two     ? "Y:ループ 2周"
+                         : view_.playback.repeat == RepeatMode::Three ? "Y:ループ 3周"
+                         : view_.playback.repeat == RepeatMode::Five  ? "Y:ループ 5周"
+                                                                      : "Y:無限 / 1曲リピート";
+      text_row(out, mode, row_ - 32, 3);
+    }
     if (row_ >= 48 && row_ < 64)
       text_row(out, "上下:選曲 左右:ページ A:再生 B:停止 X:一時停止/再開", row_ - 48, 1);
     if (row_ >= 80 && row_ < 80 + ui::minimal::kRows * 24) {

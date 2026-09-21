@@ -3,11 +3,11 @@ project_open ap_core
 create_timing_netlist -model slow -temperature 85 -voltage 1100
 read_sdc
 set evidence [open hybrid-cdc-paths.txt w]
-set sync_pairs {{cpu_reset_pipe[0]} {cpu_reset_pipe[1]} {audio_reset_pipe[0]} {audio_reset_pipe[1]} {clear_sync[0]} {clear_sync[1]} {start_sync[0]} {start_sync[1]} {pause_sync[0]} {pause_sync[1]} {ack_sync[0]} {ack_sync[1]}}
+set sync_pairs {{cpu_reset_pipe[0]} {cpu_reset_pipe[1]} {audio_reset_pipe[0]} {audio_reset_pipe[1]} {clear_sync[0]} {clear_sync[1]} {start_sync[0]} {start_sync[1]} {pause_sync[0]} {pause_sync[1]} {repeat_sync[0]} {repeat_sync[1]} {ack_sync[0]} {ack_sync[1]}}
 # Inspect each status bit, including any fitter-created copy of its second
 # stage. A whole-bus count would reject valid replication, while simply
 # increasing that count could hide a missing bit.
-for {set bit 0} {$bit < 7} {incr bit} {
+for {set bit 0} {$bit < 8} {incr bit} {
     lappend sync_pairs [format {status_meta[%d]} $bit] [format {status_sync[%d]} $bit]
 }
 foreach corner {{slow 85} {slow 0} {fast 85} {fast 0}} {
@@ -66,4 +66,4 @@ report_metastability -nchains 1000 -file hybrid-cdc-metastability.rpt
 close $evidence
 delete_timing_netlist
 project_close
-puts "PASS HYB3 pause/status synchronizers and all 48 Gray-pointer bits in four corners"
+puts "PASS HYB4 repeat/pause/status synchronizers and all 48 Gray-pointer bits in four corners"

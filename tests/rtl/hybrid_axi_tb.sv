@@ -75,11 +75,11 @@ module hybrid_axi_tb;
         repeat(10) @(negedge clk_cpu); reset_n=1;
         repeat(20) @(negedge clk_cpu);
         // In particular this precedes any write: AXI has no read WSTRB.
-        rd(BASE,value); if(value!='h48594233) $fatal(1,"wrong HYB3 binding");
+        rd(BASE,value); if(value!='h48594234) $fatal(1,"wrong HYB4 binding");
         ready(); wr(BASE+8,2,2); wr(BASE+'h14,1,2);
         for(integer n=0;n<15;n=n+1) begin
             wr(BASE+'h10,99,2,4'(n)); wr(BASE+'h14,1,2);
-            rd(BASE,value); if(value!='h48594233) $fatal(1,"read inherited bad WSTRB");
+            rd(BASE,value); if(value!='h48594234) $fatal(1,"read inherited bad WSTRB");
         end
         for(integer n=1;n<4;n=n+1) begin wr(BASE+'h10+n,99,2); rd(BASE+n,value,2); end
         wr(BASE+'h110,99,2); rd(BASE+'h100,value,2);
@@ -122,6 +122,11 @@ module hybrid_axi_tb;
         begin
             integer held_count;
             held_count=consumed;
+            for (integer i=0; i<4; i=i+1) begin
+                wr(BASE+8,16);
+                do rd(BASE+4,value); while(value[9] != (i%2==0));
+                if(rpcmp_sound.audio.envelope.mode != ((i+1)%4)) $fatal(1,"AXI mode/ack mismatch");
+            end
             repeat(1024) @(negedge clk_core_12288);
             if(consumed!=held_count) $fatal(1,"AXI pause consumed PCM");
         end

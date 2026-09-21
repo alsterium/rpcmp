@@ -17,6 +17,20 @@ bool Player::initialize() {
 void Player::submit(const api::PlayerCommand command) {
   if (!initialized_ || snapshot_.error == api::Error::Reset)
     return;
+  if (command.kind == api::CommandKind::CycleRepeat) {
+    const auto mode =
+        static_cast<api::RepeatMode>((static_cast<unsigned>(snapshot_.repeat) + 1) % 4);
+    if (snapshot_.state == api::State::Playing || snapshot_.state == api::State::Paused) {
+      const auto error = playback_.set_repeat(mode);
+      if (error != api::Error::None) {
+        finish(error);
+        return;
+      }
+    }
+    snapshot_.repeat = mode;
+    ++snapshot_.sequence;
+    return;
+  }
   if (command.kind == api::CommandKind::TogglePause) {
     if (snapshot_.state != api::State::Playing && snapshot_.state != api::State::Paused)
       return;
@@ -48,7 +62,9 @@ void Player::submit(const api::PlayerCommand command) {
 }
 void Player::start(const contracts::TrackId track) {
   snapshot_.track = track;
-  const auto error = playback_.open(track);
+  auto error = playback_.open(track);
+  if (error == api::Error::None)
+    error = playback_.set_repeat(snapshot_.repeat);
   if (error != api::Error::None)
     finish(error);
   else
@@ -66,15 +82,23 @@ void Player::finish(api::Error error) {
     snapshot_.skipped_error = error;
     ++snapshot_.skipped_count;
   }
-  publish(snapshot_.track.value < list_.count() ? api::State::Advancing
-          : error == api::Error::None           ? api::State::Ended
-                                                : api::State::Error,
+  publish(snapshot_.track.value < list_.count() ||
+                  (error == api::Error::None && snapshot_.repeat == api::RepeatMode::One)
+              ? api::State::Advancing
+          : error == api::Error::None ? api::State::Ended
+                                      : api::State::Error,
           error);
 }
 void Player::service() {
   if (snapshot_.state == api::State::Advancing) {
     // One attempt per call: input can cancel between consecutive bad entries.
-    start({snapshot_.track.value + 1});
+    const auto next =
+        snapshot_.track.value +
+        (snapshot_.error == api::Error::None && snapshot_.repeat == api::RepeatMode::One ? 0U : 1U);
+    if (next > list_.count())
+      publish(api::State::Ended);
+    else
+      start({next});
     return;
   }
   if (snapshot_.state != api::State::Playing)

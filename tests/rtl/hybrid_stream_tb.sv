@@ -167,6 +167,12 @@ module hybrid_stream_tb;
         if (status[7:4]!=0) $fatal(1,"pause fault %h",status);
         held_source=dut.audio.source_count; held_writes=dut.audio.write_count;
         before_frames=pause_frames;
+        // Cycle all modes while paused; returning to two retains the exact
+        // fade position because no audio samples were consumed in between.
+        for(integer n=0;n<4;n=n+1) begin
+            wr(8,16); wr(8,16,1); // Cannot overtake an unacknowledged request.
+            do rd(4,status); while(status[9] != (n%2==0));
+        end
         repeat(cycles) @(negedge clk_audio);
         if (serial_left !== 0 || serial_right !== 0 || pause_frames != before_frames ||
             dut.audio.source_count != held_source || dut.audio.write_count != held_writes)
@@ -188,7 +194,7 @@ module hybrid_stream_tb;
             end
         end
         for (int ch=0;ch<8;ch=ch+1) fm(0,'h0878 | ch);
-        fm(200,'h10001);
+        fm(100,'h10001); fm(200,'h10001);
         fm(1000,'h10000);
         for (int i=0;i<1000;i=i+1) pcm(1000+i);
         wr(8,2);
@@ -222,12 +228,34 @@ module hybrid_stream_tb;
         end else wr(8,1);
         ready();
     endtask
+    task automatic autonomous_end;
+        logic [31:0] status, held_source;
+        wr(8,1); ready();
+        // No input EOF. The envelope's full 312500-sample duration is checked
+        // independently in hybrid_envelope_tb; inject only its completion here
+        // to check drain/control/late CPU writes through the actual audio path.
+        for(integer i=0;i<125;i=i+1) pcm(2000+i);
+        wr(8,2);
+        wait(dut.audio.source_count >= 20);
+        force dut.audio.fade_done=1'b1;
+        do rd(4,status); while(!status[3] && status[7:4]==0);
+        release dut.audio.fade_done;
+        if(status[7:4]!=0) $fatal(1,"autonomous end fault");
+        held_source=dut.audio.source_count;
+        pcm(3000); fm(100,'h1b00); // Already admitted block tail may finish writing.
+        wr(8,16); do rd(4,status); while(!status[9]);
+        repeat(768) @(negedge clk_audio);
+        if(serial_left!==0 || serial_right!==0 || dut.audio.source_count!=held_source)
+            $fatal(1,"autonomous end resumed/played its unused tail");
+        wr(8,1); ready();
+        normal(125,0);
+    endtask
     initial begin
         logic [31:0] value;
         logic [15:0] stop_left, stop_right;
         integer stopped_frame;
         repeat(10) @(negedge clk_cpu); reset_n=1;
-        ready(); rd(0,value); if (value != 'h48594233) $fatal(1,"wrong ID");
+        ready(); rd(0,value); if (value != 'h48594234) $fatal(1,"wrong ID");
         if ($test$plusargs("PAUSE")) begin
             wr(8,4,1); wr(8,8,1); // No stream exists yet.
             paused_stream(0);
@@ -240,7 +268,8 @@ module hybrid_stream_tb;
             normal(125,0);
             cancel_active_pause(1);
             normal(126,0);
-            $display("hybrid_stream_tb: PAUSE PASS phase=%0d frames=768 holds=10 active_cancels=2",phase);
+            autonomous_end();
+            $display("hybrid_stream_tb: PAUSE PASS phase=%0d frames=768 holds=10 active_cancels=2 repeat_ack=40 autonomous_end=1",phase);
             $finish;
         end
         if ($test$plusargs("VOICE")) begin
@@ -281,9 +310,7 @@ module hybrid_stream_tb;
         if (value[7:4] != 0 || checked != 768) $fatal(1,"I2S signed boundaries failed");
         $display("hybrid_stream_tb: I2S BOUNDARIES PASS frames=768");
         limits_mode=0; compare_audio=0; wr(8,1); ready();
-        wr('h20,32'hfffb3b4c); wr('h24,'h10001,1); // start+312500 must fit u32
-        fm(5,'h10001);
-        wr('h20,5); wr('h24,'h10001,1); // one fade per stream, rejected stage retained
+        fm(2,'h10001); fm(5,'h10001); // Two completed loops; envelope starts at sample 5.
         fm(1000,'h10000);
         checked=0; expected_frames=768; compare_audio=1; fade_mode=1;
         for (int i=0;i<1000;i=i+1) pcm(1000+i);

@@ -30,7 +30,7 @@ for path in prepare_jt51_paused(sys.argv[2], sys.argv[3]):
 '@
 $sources = @(& python -B -c $prepare $PSScriptRoot $native (Join-Path $output 'jt51-wide'))
 if ($LASTEXITCODE) { throw 'Pinned JT51 preparation failed' }
-$sources += @('rpcmp_hybrid_mixer','rpcmp_hybrid_audio','rpcmp_hybrid_mmio') |
+$sources += @('rpcmp_hybrid_mixer','rpcmp_hybrid_envelope','rpcmp_hybrid_audio','rpcmp_hybrid_mmio') |
     ForEach-Object { Join-Path $repo "core/rtl/pocket/$_.sv" }
 $defines = @()
 if ($PreparedTree) {
@@ -53,7 +53,7 @@ CONTENT BEGIN
 END;
 '@ | Set-Content (Join-Path $output 'firmware.mif')
 } else {
-    $sources += @('hybrid_mixer_tb','hybrid_stream_tb') | ForEach-Object { Join-Path $repo "tests/rtl/$_.sv" }
+    $sources += @('hybrid_mixer_tb','hybrid_envelope_tb','hybrid_stream_tb') | ForEach-Object { Join-Path $repo "tests/rtl/$_.sv" }
 }
 Push-Location $output
 try {
@@ -61,6 +61,7 @@ try {
     & $vlog -quiet -sv -work work @defines @sources
     if ($LASTEXITCODE) { throw 'Hybrid compilation failed' }
     $runs = @(@{ Name='hybrid_mixer_tb'; Arguments=@(); Marker='hybrid_mixer_tb: PASS samples=8' })
+    $runs += @{ Name='hybrid_envelope_tb'; Arguments=@(); Marker='hybrid_envelope_tb: PASS' }
     if ($PreparedTree) { $runs = @() }
     foreach ($phase in $PhasePs) {
         if ($PreparedTree) {

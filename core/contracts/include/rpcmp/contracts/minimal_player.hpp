@@ -4,10 +4,11 @@
 #include "rpcmp/contracts/catalog.hpp"
 
 namespace rpcmp::contracts::minimal {
-inline constexpr std::uint16_t kVersion = 3;
+inline constexpr std::uint16_t kVersion = 4;
 enum class State : std::uint8_t { Stopped, Playing, Paused, Advancing, Ended, Error };
 enum class Error : std::uint8_t { None, Load, Renderer, Audio, Timeout, Reset };
-enum class CommandKind : std::uint8_t { PlayTrack, Stop, TogglePause };
+enum class RepeatMode : std::uint8_t { Two, Three, Five, One };
+enum class CommandKind : std::uint8_t { PlayTrack, Stop, TogglePause, CycleRepeat };
 struct PlayerCommand {
   CommandKind kind{CommandKind::Stop};
   TrackId track{};
@@ -21,6 +22,7 @@ struct PlayerSnapshot {
   TrackId skipped_track{};
   Error skipped_error{Error::None};
   std::uint32_t skipped_count{};
+  RepeatMode repeat{RepeatMode::Two};
 };
 class TrackList {
 public:

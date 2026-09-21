@@ -24,11 +24,11 @@ def song(loop):
 
 
 class RendererTests(unittest.TestCase):
-    def render(self, data):
+    def render(self, data, continuous=False):
         buf = c.create_string_buffer(data + bytes(16))
         self.assertEqual(LIB.rpcmp_hybrid_open(buf, len(data), None, 0), 0)
         frames, events, chunks = 0, [], 0
-        for _ in range(1000):
+        for _ in range(400):
             pointer = LIB.rpcmp_hybrid_render()
             self.assertTrue(pointer)
             block = pointer.contents
@@ -40,26 +40,28 @@ class RendererTests(unittest.TestCase):
             frames += block.frame_count
             chunks += 1
             if block.ended:
+                self.assertFalse(continuous, "loop policy must not truncate the renderer")
                 break
         else:
-            self.fail("bounded song did not terminate")
-        self.assertFalse(LIB.rpcmp_hybrid_render())
+            self.assertTrue(continuous, "bounded song did not terminate")
+        if not continuous:
+            self.assertFalse(LIB.rpcmp_hybrid_render())
         LIB.rpcmp_hybrid_close()
         self.assertEqual(events, sorted(events, key=lambda e: e[0]))
-        self.assertTrue(all(at < frames for at, _ in events))
+        self.assertTrue(all(at <= frames for at, _ in events))
         return frames, events, chunks
 
-    def test_two_bodies_after_one_intro_and_exact_five_seconds(self):
-        frames, events, _ = self.render(song(True))
+    def test_each_complete_body_is_marked_without_an_automatic_fade_or_end(self):
+        frames, events, _ = self.render(song(True), continuous=True)
         intro = [at for at, op in events if op == 0x1b11]
         bodies = [at for at, op in events if op == 0x1b22]
-        fades = [at for at, op in events if op == 0x10001]
+        loops = [at for at, op in events if op == 0x10001]
         self.assertEqual(len(intro), 1)
-        self.assertGreaterEqual(len(bodies), 3)
-        self.assertEqual(fades, [bodies[2]])  # Third body starts after exactly two complete bodies.
+        self.assertGreaterEqual(len(bodies), 8)
+        self.assertEqual(loops, bodies[1:])  # Each following body starts after a complete loop.
         self.assertGreater(bodies[0], intro[0])
         self.assertGreater(bodies[1], bodies[0])
-        self.assertEqual(frames, fades[0] + 5 * 62500)
+        self.assertGreater(frames, loops[1] + 5 * 62500)
 
     def test_natural_end_once_without_fade(self):
         frames, events, _ = self.render(song(False))
@@ -68,10 +70,10 @@ class RendererTests(unittest.TestCase):
         self.assertNotIn(0x10001, [op for _, op in events])
         self.assertLess(frames, 62500)
 
-    def test_reopening_clears_fade_and_completed_state(self):
-        before = self.render(song(True))
+    def test_reopening_clears_loop_and_completed_state(self):
+        before = self.render(song(True), continuous=True)
         self.render(song(False))
-        self.assertEqual(self.render(song(True)), before)
+        self.assertEqual(self.render(song(True), continuous=True), before)
 
 
 if __name__ == "__main__":

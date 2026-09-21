@@ -4,6 +4,7 @@
 #include "test_support.hpp"
 
 #include <algorithm>
+#include <cstring>
 #include <fstream>
 #include <memory>
 #include <vector>
@@ -72,6 +73,7 @@ public:
 };
 std::uint32_t tick{}, status{1}, fm_free{1024}, pcm_free{4096}, opened{}, rendered{};
 bool reject_open{}, reject_render{}, end_block{}, empty_end{}, reset_stuck{}, pause_stuck{};
+bool repeat_stuck{};
 std::vector<std::pair<unsigned, std::uint32_t>> writes;
 RpcmpHybridBlock block;
 void reset_model() {
@@ -80,6 +82,7 @@ void reset_model() {
   fm_free = 1024;
   pcm_free = 4096;
   reject_open = reject_render = end_block = empty_end = reset_stuck = pause_stuck = false;
+  repeat_stuck = false;
   writes.clear();
   block = {};
 }
@@ -170,6 +173,8 @@ std::vector<std::pair<unsigned, std::uint32_t>> playback_case(rpcmp::test::Suite
   display.begin(controller.view());
   Bytes pixels(640 * 480 + 2, 0xee);
   for (unsigned i = 0; i < 180; ++i) {
+    if (i == 10 || i == 30 || i == 60 || i == 90)
+      player.submit({api::CommandKind::CycleRepeat, {}});
     player.service();
     if (draw && i % 3 == 0)
       RPCMP_CHECK(suite, display.pump(pixels.data() + 1, pixels.size() - 2));
@@ -258,6 +263,7 @@ public:
   }
   bool stop() override { return reset_ok; }
   api::Error set_paused(bool) override { return api::Error::None; }
+  api::Error set_repeat(api::RepeatMode) override { return api::Error::None; }
   api::Error service(bool& ended) override {
     ended = end;
     return track == bad_service ? api::Error::Audio : api::Error::None;
@@ -301,7 +307,9 @@ void sequence_cases(rpcmp::test::Suite& suite) {
   player.service();
   RPCMP_CHECK(suite, player.snapshot().state == api::State::Stopped);
 
-  port.fail_all = true;
+  for (unsigned i = 0; i < 3; ++i)
+    player.submit({api::CommandKind::CycleRepeat, {}});
+  port.fail_all = true; // Even repeat-one must terminate an all-error list.
   port.attempts.clear();
   player.submit({api::CommandKind::PlayTrack, {1}});
   for (unsigned i = 1; i < 300; ++i) {
@@ -337,6 +345,90 @@ void navigation(rpcmp::test::Suite& suite) {
   controller.input(0x10, false, 4000000);
   controller.input(0x10, true, 4000001);
   RPCMP_CHECK(suite, sink.calls == 0);
+}
+void repeat_cases(rpcmp::test::Suite& suite) {
+  reset_model();
+  Source source;
+  lib::PreparedPlaylist catalog;
+  RPCMP_CHECK(suite, catalog.open(source));
+  pocket::HybridPlayback backend{catalog};
+  rpcmp::player::minimal::Player player{catalog, backend};
+  RPCMP_CHECK(suite, player.initialize());
+  ui::Controller controller{catalog, player};
+  controller.input(0x80, true, 0);
+  RPCMP_CHECK(suite, player.snapshot().repeat == api::RepeatMode::Two);
+  controller.input(0, true, 1);
+  controller.input(0x80, true, 2);
+  controller.input(0x80, true, 1'000'002); // Y is edge-triggered.
+  RPCMP_CHECK(suite, player.snapshot().repeat == api::RepeatMode::Three && opened == 0);
+  controller.input(0x10, true, 1'000'003);
+  RPCMP_CHECK(suite, opened == 11 && player.snapshot().repeat == api::RepeatMode::Three);
+  player.service();
+  const auto calls = rendered;
+  player.submit({api::CommandKind::TogglePause, {}});
+  controller.input(0x80, true, 1'000'004);
+  controller.update(player.snapshot());
+  RPCMP_CHECK(suite, controller.view().playback.repeat == api::RepeatMode::Five &&
+                         player.snapshot().state == api::State::Paused && rendered == calls);
+  player.submit({api::CommandKind::CycleRepeat, {}});
+  RPCMP_CHECK(suite, player.snapshot().repeat == api::RepeatMode::One);
+  player.submit({api::CommandKind::Stop, {}});
+  RPCMP_CHECK(suite, player.snapshot().repeat == api::RepeatMode::One && status == 1);
+  player.submit({api::CommandKind::PlayTrack, {2}});
+  player.service();
+  status |= 8; // A finite song ends at the last entry: repeat that entry.
+  player.service();
+  RPCMP_CHECK(suite, player.snapshot().state == api::State::Advancing);
+  player.service();
+  RPCMP_CHECK(suite, player.snapshot().track.value == 2 && opened == 22 && rendered == 0);
+  player.service();
+  status |= 8;
+  player.service();
+  player.submit({api::CommandKind::CycleRepeat, {}}); // Cancel a pending repeat.
+  player.service();
+  RPCMP_CHECK(suite, player.snapshot().state == api::State::Ended &&
+                         player.snapshot().repeat == api::RepeatMode::Two);
+  for (unsigned i = 0; i < 3; ++i)
+    player.submit({api::CommandKind::CycleRepeat, {}});
+  player.submit({api::CommandKind::PlayTrack, {1}});
+  source.data[288] ^= 1; // A repeated entry that fails to reload must be skipped.
+  player.service();
+  status |= 8;
+  player.service();
+  player.service();
+  RPCMP_CHECK(suite,
+              player.snapshot().skipped_count == 1 && player.snapshot().skipped_track.value == 1);
+  player.service();
+  RPCMP_CHECK(suite,
+              player.snapshot().track.value == 2 && player.snapshot().state == api::State::Playing);
+  controller.input(0, true, 1'000'005);
+  controller.input(0xf0, true, 1'000'006); // B wins, including over Y.
+  RPCMP_CHECK(suite, player.snapshot().state == api::State::Stopped &&
+                         player.snapshot().repeat == api::RepeatMode::One);
+  player.submit({api::CommandKind::PlayTrack, {2}});
+  repeat_stuck = true;
+  player.submit({api::CommandKind::CycleRepeat, {}});
+  RPCMP_CHECK(suite, player.snapshot().state == api::State::Error &&
+                         player.snapshot().error == api::Error::Timeout && status == 1);
+  repeat_stuck = false;
+  // Malformed representation, following the other enum-boundary fixtures.
+  const std::uint8_t invalid_byte = 4;
+  api::RepeatMode invalid_mode{};
+  std::memcpy(&invalid_mode, &invalid_byte, sizeof(invalid_byte));
+  RPCMP_CHECK(suite, backend.set_repeat(invalid_mode) == api::Error::Renderer);
+  rpcmp::player::minimal::Player restarted{catalog, backend};
+  RPCMP_CHECK(suite, restarted.initialize() && restarted.snapshot().repeat == api::RepeatMode::Two);
+  ui::Bindings bindings;
+  bindings.repeat = 0x100;
+  ui::Controller remapped{catalog, restarted, bindings};
+  remapped.input(0, true, 0);
+  remapped.input(0x80, true, 1);
+  RPCMP_CHECK(suite, restarted.snapshot().repeat == api::RepeatMode::Two);
+  remapped.input(0x100, true, 2);
+  RPCMP_CHECK(suite, restarted.snapshot().repeat == api::RepeatMode::Three);
+  remapped.input(0, false, 3);
+  remapped.input(0x100, true, 4);
+  RPCMP_CHECK(suite, restarted.snapshot().repeat == api::RepeatMode::Three);
 }
 void backpressure(rpcmp::test::Suite& suite) {
   reset_model();
@@ -421,6 +513,7 @@ void pause_cases(rpcmp::test::Suite& suite) {
   // Change only the UI binding; commands and backend behavior stay the same.
   ui::Bindings bindings;
   bindings.pause = 0x80;
+  bindings.repeat = 0x100;
   ui::Controller remapped{catalog, player, bindings};
   remapped.input(0, true, 0);
   remapped.input(0x10, true, 1);
@@ -524,7 +617,9 @@ void preview(rpcmp::test::Suite& suite, const char* path) {
     for (unsigned x = 0; x < 8; ++x)
       RPCMP_CHECK(suite,
                   pixels[(16 + y) * 640 + 16 + x] == ((glyph.rows[y] & (128U >> x)) ? 3 : 0));
-  controller.update({api::kVersion, 2, api::State::Paused, {2}, api::Error::None});
+  api::PlayerSnapshot paused{api::kVersion, 2, api::State::Paused, {2}, api::Error::None};
+  paused.repeat = api::RepeatMode::One;
+  controller.update(paused);
   display.begin(controller.view());
   while (!display.complete())
     RPCMP_CHECK(suite, display.pump(pixels.data(), pixels.size()));
@@ -566,11 +661,13 @@ extern "C" void rpcmp_player_mmio_write(std::uintptr_t address, std::uint32_t va
   if (word_index == 2 && value == 1 && !reset_stuck)
     status = 1;
   if (word_index == 2 && value == 2)
-    status = 7;
+    status = (status & 0x200U) | 7;
   if (word_index == 2 && value == 4 && !pause_stuck)
     status |= 0x100;
   if (word_index == 2 && value == 8 && !pause_stuck)
     status &= ~0x100U;
+  if (word_index == 2 && value == 16 && !repeat_stuck)
+    status ^= 0x200U;
 }
 extern "C" int rpcmp_hybrid_open(const void* mdx, std::uint32_t, const void*, std::uint32_t) {
   opened = static_cast<const std::uint8_t*>(mdx)[10];
@@ -605,6 +702,7 @@ int main(int argc, char** argv) {
   navigation(suite);
   backpressure(suite);
   pause_cases(suite);
+  repeat_cases(suite);
   preview(suite, argc == 2 ? argv[1] : nullptr);
   const auto headless = playback_case(suite, false), delayed = playback_case(suite, true);
   RPCMP_CHECK(suite, headless == delayed);

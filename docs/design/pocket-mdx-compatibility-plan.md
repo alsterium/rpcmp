@@ -44,7 +44,9 @@ small slice, with provisional X input. Minimal Player r3 implements it; see the
 The subsequent [Firmware 2.6 / r3 report](../milestones/M6-album-player.md#minimal-player-r3-hardware-result--2026-09-22)
 passes pause/resume, browsing and transport controls, fade/automatic advance,
 audio continuity and restart/power-cycle recovery. r3 is now the accepted
-hardware baseline. The next small requirement remains to be selected.
+hardware baseline. The user then approved [loop/repeat switching](#loop-and-repeat-switching-boundary)
+with provisional Y input. The [r4 candidate](../development/pocket-minimal-player.md)
+passes its local verification gates; its Pocket acceptance is pending.
 Tracker/keyboard expansion, shuffle and persistent settings remain deferred.
 Keep relevant input bounds, focused regressions and integration checks; do not
 restart a broad compatibility campaign as a prerequisite for this next step.
@@ -239,6 +241,52 @@ submission. Requirements approval alone does not establish this behavior.
    ホストでは描画遅延/無効化と入力割り当て変更を確認し、Coreの動作が変わらないことを確かめる。
 5. 実機でFM・PCM・左右、再開時の音切れ・ノイズ・テンポ、入力反映、通常再起動・
    電源OFF後を確認する。ホスト/RTLの結果と実機報告は区別して記録する。
+
+### Loop and repeat switching boundary
+
+Approved on 2026-09-22 after r3 acceptance: Y cycles **2 -> 3 -> 5 -> repeat
+one -> 2**. The existing small bindings keep Y replaceable; A/B/X retain their
+r3 meanings. Simultaneous-input priority is B, A, X, then Y. A held Y at
+startup/reconnect or during normal input does not repeat the action. Display
+the Core-owned setting. Each application launch starts silently with two loops;
+stop, manual track selection and automatic advance retain the session setting.
+
+Counted modes play one intro and the chosen number of loop bodies, then fade
+FM and PCM together for five seconds and continue in M3U order. Natural endings
+play once in counted modes. Repeat one lets looping music continue without a
+fade and restarts naturally ending music from its beginning, including the last
+entry. Recoverable errors still skip forward, even in repeat one; never retry a
+failed entry automatically or wrap the list. B cancels all automatic continuation.
+
+Changes apply to the current song without restarting or moving its position.
+Loop counts are measured since this song started, not since the setting changed.
+If the new count has already been reached, begin a five-second fade now. If an
+existing fade is still required, retain its progress. If increasing the count
+or choosing repeat one removes the end condition, cancel the fade and restore
+gain smoothly over at most 20 ms. Paused changes retain silence and position;
+the new condition takes effect on resume. A completed audio end cannot be undone;
+the current setting chooses repeat/advance at the next Core service boundary.
+
+Implementation boundary: snapshot version 4 adds RepeatMode and CycleRepeat.
+The existing playback port accepts a logical repeat mode; the renderer reports
+each completed loop rather than hard-coding a two-loop fade/EOF. HYB4
+(`0x48594234`) gives event `0x10001` the meaning "one completed loop". Natural
+EOF remains `0x10000`. The audio owner counts loops (saturating at five) and
+owns the live fade/end, independent of rendering and CPU read-ahead. A single
+bit request/acknowledgement crosses the clock boundary for command 16 (cycle
+mode); status bit 9 is its acknowledgement toggle. Clear resets mode to two and
+both toggles to zero; the CPU reapplies the session mode before starting a song.
+This avoids crossing a mutable multi-bit setting. Commands are acknowledged
+within a bounded CPU wait, including while paused. On autonomous fade completion,
+already-admitted FIFO writes may finish; no further audio is played, and Core
+clears queued data before the next song. FPGA/boot/application update together.
+M3U/HPL1 and the reference sequencer/PCM synthesis remain unchanged.
+
+The Full checkpoint is **Y -> current-song loop/fade change -> counted advance
+or natural-end repeat -> stop**, including paused/fading changes and errors.
+Run focused host/native/RTL checks and Fast, then Full, RV32 link/budget,
+affected RTL/CDC/synthesis and package readback before hardware submission.
+Pocket acceptance still requires the user's Japanese hardware report.
 
 ### M3U import boundary
 

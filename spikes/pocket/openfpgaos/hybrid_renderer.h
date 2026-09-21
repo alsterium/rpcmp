@@ -25,8 +25,8 @@ extern "C" {
 int rpcmp_hybrid_open(const void* mdx, uint32_t mdx_size, const void* pdx, uint32_t pdx_size);
 int rpcmp_hybrid_authored(unsigned pcm_kind);
 // The copied block remains unchanged until the next call. NULL means failure
-// or a completed/closed stream. EOF may have zero frames. Event 0x10001 starts
-// the HYB2 five-second envelope; other events are YM register/value pairs.
+// or a completed/closed stream. EOF may have zero frames. Event 0x10001 marks
+// a completed loop for HYB4; other events are YM register/value pairs.
 const RpcmpHybridBlock* rpcmp_hybrid_render(void);
 void rpcmp_hybrid_close(void);
 #ifdef __cplusplus

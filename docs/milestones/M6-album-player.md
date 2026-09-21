@@ -49,8 +49,10 @@ exercised on hardware because no errors occurred. The subsequent approved slice 
 [pause/resume with provisional X input](../design/pocket-mdx-compatibility-plan.md#pause-and-resume-boundary);
 the [r3 implementation](#pause-and-resume-implementation--2026-09-22) now passes
 its [Firmware 2.6 hardware report](#minimal-player-r3-hardware-result--2026-09-22).
-r3 is the accepted hardware baseline. The next small requirement remains to be
-selected; no further feature implementation is authorized by this acceptance alone.
+r3 is the accepted hardware baseline. The user subsequently approved
+[loop/repeat switching with provisional Y input](../design/pocket-mdx-compatibility-plan.md#loop-and-repeat-switching-boundary).
+r4 passes Full 90/90 and its affected integration gates; its candidate is ready
+for hardware verification, with r3 remaining the accepted hardware baseline.
 This closes the compatibility investigation, not M6 as a whole. Inherited shell
 external timing constraints and the remaining player integration stay separate.
 The original objective, adopted contracts and results
@@ -3910,3 +3912,86 @@ r2からの性能改善率や全27曲の最大負荷を示す値とは扱いま�
 `python -B out/harness/continuous-document-links.py`（変更したリンク/アンカー5件）、
 `git diff --check` はPASSです。Full・RTL・クロスビルド・合成は入力が変わらないため
 再実行しません。実機結果はユーザーの報告であり、エージェントによる再測定ではありません。
+
+## Loop and repeat implementation — 2026-09-22
+
+ユーザーが承認した [ループ・リピート切り替え](../design/pocket-mdx-compatibility-plan.md#loop-and-repeat-switching-boundary)
+をMinimal Player r4に実装しました。Yで2周→3周→5周→無限を切り替え、画面上部に
+現在の設定を表示します。曲・停止をまたいで設定を維持し、毎起動2周・無音に戻します。
+回数指定では自然終了曲を1回だけ再生し、無限では自然終了曲も先頭から繰り返します。
+再生中・一時停止中に変更でき、回数到達済みならフェード、不要になったフェードは
+最大20 msで音量を戻して取り消します。終了条件が続く変更では残りのフェードを維持します。
+エラー曲は無限設定でも再試行せず次へ送り、Bは自動送り・リピートを取り消します。
+
+Coreのsnapshot version 4にRepeatModeとCycleRepeatを追加しました。UIの既存Bindingsに
+Yを加え、Core/音源側に物理ボタンを渡していません。CPUは各周回を通知し、音声側の
+小さなenvelopeが再生済みの周回・フェード・終了を判断します。HYB4は`0x10001`を
+周回通知に変更し、command 16の1ビット往復でモードを巡回します。Clear後は2周に戻し、
+次曲のStart前にCoreの設定を再適用します。読み込み済みの音声を捨てて設定変更する
+処理や互換経路は追加していません。M3U/HPL1、参照エンジンの音源生成、新規依存は変更なしです。
+
+実行した検証（ログと生成物はignoredの`out/`）:
+
+- LLVM 22.1.8で `pwsh -File tools/host-verify.ps1 -CheckSetupOnly` はPASS。
+  `-Mode Fast` は89/89、26.89秒。最初のFullは不正enumの直接castを作るテストで
+  静的解析が失敗しました。既存の境界試験と同じく不正なバイト表現をmemcpyで作る形にし、
+  不正値の拒否確認は維持しました。対象テストの個別clang-tidyはPASS。
+  修正後の `pwsh -File tools/host-verify.ps1 -Mode Full` は **90/90 PASS**、
+  564.05秒（tidy 542.41秒）。`out/harness/repeat-full-final.log`に記録しました。
+  書式・静的解析・Core/UI依存境界の検査も含みます。
+- Dockerの `rpcmp-cpu-budget-sim:20260921`、network none、`/repo`マウントで
+  `python3 -B out/harness/minimal-player-native.py` はASAN/UBSAN込みでPASS。
+  Yの押下/長押し/再接続/割り当て変更、停止・選曲後の設定、末尾曲リピート、
+  リピート解除、再読込失敗時のスキップ、300曲全件失敗の終了、応答タイムアウト、
+  描画なし/遅延描画の音声制御列一致を確認しました。PC生成→native読込は2曲/300曲、
+  パッケージ試験6件もPASS（0.099秒）。
+- `tests/pocket/hybrid_renderer_tests.py --library out/build/minimal-player-cpu-r4/renderer.so`
+  は自作MDXの3試験PASS。曲中の独立したイントロ/本体マーカーと各周回通知の位置が
+  一致し、CPUが固定2周で打ち切らないこと、自然終了と再ロード初期化を確認しました。
+  `tools/hybrid_renderer_verify.py` は既存参照データと自作3ケース・実曲6曲でPASS。
+  実曲は各冒頭20.48秒でFMイベント位置/順序とPCMが一致。新しい周回通知は独立した
+  上記試験で検証し、参照比較は従来のFM操作を比較します。期待音声・FM traceは再生成していません。
+  最終バイナリのログは`repeat-renderer-final.log`、`repeat-reference-final.log`です。
+- `pwsh -File tools/hybrid-renderer-tidy.ps1 -PreparedRenderer out/build/minimal-player-cpu-r4`
+  はPASS。`tests/pocket/hybrid_tool_tests.py` は5件PASS（9.297秒）。対応ROM・MIFと
+  HYB3不一致時の拒否、固定済みJT51生成/ライセンス記録を確認しました。
+- `pwsh -File tools/rtl-hybrid-verify.ps1` は3位相（0/5555/81379 ps）でPASS。
+  新しい`hybrid_envelope_tb`は2・3・5周それぞれ312,500サンプル全点のゲインと終了を
+  独立の整数式で確認し、無限・回数到達後変更・フェード維持/解除/音量復帰・一時停止を検証。
+  `out/harness/repeat-final-rtl.ps1`で追加した試験と実AXI・baseline・JT51を逐次実行してPASS。
+  768ステレオフレームは10回の停止/再開・40回の設定応答を挟んでも連続再生と一致しました。
+  自動終了後のdrain・無音・遅れて到着したCPU書込はenvelope完了信号を注入して確認しました。
+  これは上記の全期間カウンター検証と組み合わせた境界試験であり、実音源を5秒間流した
+  通しシミュレーションではありません。実AXIは3位相とも125 PCMフレーム、301書込でPASS。
+- Dockerの `tools/hybrid_renderer_build.py --output out/build/minimal-player-cpu-r4` はPASS。
+  RV32はtext 459,280、data 79,020、BSS 169,344、static合計707,644 bytes。
+  保守的stack上限13,600、最大frame 4,976 bytes、動的stack・未解決symbolなし。
+  ELF SHA-256: `87114f67f474c9c131a6865abb6dd406a9843e25a3682a6ed0d9822f743b8416`。
+- `tools/pocket_hybrid_firmware_prepare.py`と`out/harness/repeat-firmware-build.py`で
+  `repeat-firmware-r4`を生成。boot 15,524 bytes、ROM/MIF/OSの対応確認はPASS、OSはr3と同一。
+  `tools/pocket_hybrid_prepare.py`で`repeat-candidate-r4`を準備しました。
+  `hybrid-fit`の `quartus_sh --flow compile ap_core` は9分25秒、0 errorsで成功。
+  ALM 10,993/18,480（59%）、DSP 12/66、最小setup 0.749 ns・hold 0.087 ns。
+  `quartus_sta -t F:/source/rpcmp/tools/hybrid_cdc_audit.tcl` は4条件のrepeat/pause/status同期段と
+  全48 Gray-pointer bitでPASS。既存の外部I/O制約の未検証事項を解決した結果ではありません。
+- [日本語手順](../development/pocket-minimal-player.md)の生成コマンドでパッケージ化し、
+  `out/harness/repeat-package-readback.py`で全体29/更新21ファイルの完全一致、実行ファイル・OS・
+  bit反転RBF・Y定義・framework.version_required=2.2・slot 1〜4を確認しました。
+  HPL1はr3の6曲と同一で、更新ZIPにはHPL1・WAV・曲目一覧を含みません。
+  これは生成したZIPの検査で、ユーザーのSD上の27曲を再測定したものではありません。
+  描画コードから生成した`repeat-preview.png`も確認し、無限表示・一時停止・選択と再生印の
+  分離・日本語表示に欠けや重なりはありませんでした。
+
+候補は `out/build/minimal-player-r4-update.zip`（1,185,340 bytes、SHA-256
+`dde4c77bbb36bc78b42fb74abf8e0270689e30352d09a6d5811a7f0ea4de126a`）。
+6曲入り全体ZIPは `out/build/minimal-player-r4.zip`（16,831,818 bytes、SHA-256
+`b5e6239b8c48e88a341c314fabc8c350b40bb614f3020310c6eb87a3f0b317ee`）です。
+core `0.16.0-player-r4`、HYB4のFPGA/起動ROM/アプリを組み合わせて更新します。
+私有楽曲・曲名・波形はコミットしません。実機でのr4確認は未実施で、r3が受入済みの基準です。
+次は手順に沿ったループ回数・無限・一時停止/フェード中変更・音・再起動の実機確認です。
+広範な互換性再調査、変更していないJT51 hold変換の専用回帰は再実行していません。
+
+最終結果の進捗反映後、`python -B tools/check_harness.py --root .`、
+`python -B out/harness/continuous-document-links.py`（HEADとの差分のリンク/アンカー7件）、
+`git diff --check` はPASSです。この追記は結果・進捗だけで、仕様・確認手順・コード・
+配布物は変えていません。入力が同一のFull・RTL・クロスビルド・合成は再実行しません。

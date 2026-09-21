@@ -58,7 +58,12 @@ def main():
             assert 0 < block.frame_count <= 1536 and block.event_count <= 1024
             # 125/96 native-to-output ratio with carried fractional phase.
             assert block.first_frame + block.frame_count == (index + 1) * 1024 * 125 // 96
-            events += [(e.sample, e.operation >> 8, e.operation & 255) for e in block.events[:block.event_count]]
+            # HYB4 adds loop notifications; compare unchanged FM operations
+            # against the independently captured reference register trace.
+            assert all(e.operation <= 0xffff or e.operation == 0x10001
+                       for e in block.events[:block.event_count])
+            events += [(e.sample, e.operation >> 8, e.operation & 255)
+                       for e in block.events[:block.event_count] if e.operation <= 0xffff]
             assert all(block.first_frame <= e.sample <= block.first_frame + block.frame_count
                        for e in block.events[:block.event_count])
             pcm.extend(bytes(block.pcm)[:block.frame_count * 8])

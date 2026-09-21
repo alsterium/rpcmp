@@ -117,6 +117,7 @@ def find_violations(root: Path) -> list[str]:
         Path("core/rtl/pocket/rpcmp_sound_mailbox.sv"),
         Path("core/rtl/pocket/rpcmp_sound_mmio.sv"),
         Path("core/rtl/pocket/rpcmp_hybrid_mixer.sv"),
+        Path("core/rtl/pocket/rpcmp_hybrid_envelope.sv"),
         Path("core/rtl/pocket/rpcmp_hybrid_audio.sv"),
         Path("core/rtl/pocket/rpcmp_hybrid_mmio.sv"),
         Path("core/rtl/pocket/rpcmp_output_journal.sv"),

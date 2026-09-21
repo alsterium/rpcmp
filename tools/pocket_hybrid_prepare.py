@@ -80,7 +80,7 @@ def prepare(args):
     lines = [line for line in qsf.read_text(encoding="utf-8").splitlines() if not any(
         marker in line for marker in ("core/rtl/pocket/", "rpcmp-jt51-hold/", "jt51.qip", "player-sound.sdc"))]
     sources = [("SYSTEMVERILOG_FILE", repo / f"core/rtl/pocket/rpcmp_hybrid_{name}.sv")
-               for name in ("mixer", "audio", "mmio")]
+               for name in ("mixer", "envelope", "audio", "mmio")]
     sources.extend(("VERILOG_FILE", path) for path in native)
     sources.append(("SDC_FILE", repo / "overlays/openfpgaos/hybrid-sound.sdc"))
     for kind, path in sources:

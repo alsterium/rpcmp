@@ -1,6 +1,8 @@
 // HYB1 audio owner. FIFO heads are show-ahead values in this clock domain.
 module rpcmp_hybrid_audio (
     input logic clk_audio, reset_n, clear, start, pause_request,
+    input logic repeat_request,
+    output logic repeat_ack,
     input logic pcm_empty,
     input logic [63:0] pcm_data,
     output logic pcm_pop,
@@ -37,18 +39,18 @@ module rpcmp_hybrid_audio (
     wire source_valid = rendering && !hold_audio && !clear && faults == 0 && jt_sample && !pcm_empty;
     wire event_due = rendering && !hold_audio && !clear && faults == 0 && !fm_empty &&
                      fm_data[48:17] <= source_count;
-    wire finish_source = event_due && fm_data[16:0] == 17'h10000 && bus_state == IDLE;
-    wire begin_fade = event_due && fm_data[16:0] == 17'h10001 && bus_state == IDLE;
-    logic fading;
-    logic [31:0] fade_at;
-    wire [31:0] fade_offset = source_count - (begin_fade ? fm_data[48:17] : fade_at);
-    wire [18:0] fade_remaining = !(fading || begin_fade) ? 19'd312500 :
-                                fade_offset >= 312500 ? 19'd0 : 19'd312500 - fade_offset[18:0];
-    always_ff @(posedge clk_audio or negedge reset_n) begin
-        if (!reset_n) begin fading<=0; fade_at<=0; end
-        else if (clear) begin fading<=0; fade_at<=0; end
-        else if (begin_fade) begin fading<=1; fade_at<=fm_data[48:17]; end
-    end
+    wire loop_event = event_due && fm_data[16:0] == 17'h10001 && bus_state == IDLE;
+    wire fading, fade_done;
+    wire [18:0] fade_remaining;
+    rpcmp_hybrid_envelope envelope (
+        .clk(clk_audio), .reset_n(reset_n), .clear(clear),
+        .cycle_request(repeat_request), .cycle_ack(repeat_ack),
+        .sample_step(pcm_pop), .loop_event(loop_event),
+        .fading(fading), .finished(fade_done), .remaining(fade_remaining)
+    );
+    wire finish_source = rendering && !hold_audio && bus_state == IDLE &&
+                         ((event_due && fm_data[16:0] == 17'h10000) ||
+                          fade_done);
     assign pcm_pop = source_valid && !finish_source;
     assign fm_pop = event_due && bus_state == IDLE;
     assign running = rendering || draining;

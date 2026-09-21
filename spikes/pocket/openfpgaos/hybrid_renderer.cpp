@@ -16,7 +16,8 @@ namespace {
 RpcmpHybridBlock block;
 std::uint32_t scalars;
 bool failed, initialized, first_block, file_loaded;
-bool fading, complete;
+bool complete;
+std::uint16_t loops;
 std::uint32_t stop_frame;
 std::int16_t discarded[2048];
 unsigned char authored_pcm[65536];
@@ -28,7 +29,8 @@ int initialize(std::uint32_t mdx_size, std::uint32_t pdx_size) {
   failed = false;
   first_block = true;
   file_loaded = false;
-  fading = complete = false;
+  complete = false;
+  loops = 0;
   stop_frame = UINT32_MAX;
   if (MXDRVG_Start(48000, 0, static_cast<int>(mdx_size), static_cast<int>(pdx_size)) != 0) {
     MXDRVG_End();
@@ -66,13 +68,8 @@ static void hybrid_progress() {
   if (MXDRVG_GetTerminated()) {
     if (frame < stop_frame)
       stop_frame = frame;
-  } else if (!fading && G.L002246 >= 2) {
-    if (frame > UINT32_MAX - 312500U) {
-      failed = true;
-      return;
-    }
-    fading = true;
-    stop_frame = frame + 312500U;
+  } else if (G.L002246 != loops) {
+    loops = G.L002246;
     hybrid_event(0x10001);
   }
 }
@@ -108,7 +105,7 @@ extern "C" int rpcmp_hybrid_open(const void* mdx, std::uint32_t mdx_size, const 
     return -1;
   }
   file_loaded = true;
-  MXDRVG_PlayAt(0, 65534, 0); // HYB2 owns the fixed two-loop/five-second envelope.
+  MXDRVG_PlayAt(0, 65534, 0); // HYB4 owns the live loop/fade envelope.
   if (failed || G.FATALERROR) {
     rpcmp_hybrid_close();
     return -1;

@@ -9,6 +9,7 @@ inline constexpr std::uint32_t kRows = 13;
 struct Bindings {
   std::uint32_t up{1}, down{2}, left{4}, right{8}, play{0x10}, stop{0x20};
   std::uint32_t pause{0x40};
+  std::uint32_t repeat{0x80};
 };
 struct View {
   std::uint64_t revision{};

@@ -1,4 +1,4 @@
-"""Package a local HYB3 candidate and a runtime-only update preserving the user's collection."""
+"""Package a local HYB4 candidate and a runtime-only update preserving the user's collection."""
 import argparse
 import hashlib
 import io
@@ -32,7 +32,7 @@ def track_files(manifest):
              P("Assets") / PLATFORM / CORE / "Playlist.json": shared.json_bytes(
                  dict(instance=dict(magic=shared.MAGIC, data_slots=slots)))}
     catalog = ["# 曲目一覧", "", "Pocketで Playlist.json を選ぶと、全曲を一覧から選べます。",
-               "上下で選曲、左右でページ移動、Aで先頭から再生、Bで停止、Xで一時停止・再開します。", "",
+               "上下で選曲、左右でページ移動、Aで先頭から再生、Bで停止、Xで一時停止・再開、Yでループ設定を切り替えます。", "",
                "| 番号 | 曲名 | 音源 | PC比較音声 |", "| --- | --- | --- | --- |"]
     for number, track in enumerate(tracks, 1):
         reference = "なし"
@@ -77,7 +77,7 @@ def package(args):
             raise ValueError("mapped ROM is not the paired ROM")
         reports[suffix] = shared.sha256(path)
     audit = fit / "hybrid-cdc-audit.log"
-    if "PASS HYB3 pause/status synchronizers and all 48 Gray-pointer bits in four corners" not in audit.read_text(encoding="utf-8"):
+    if "PASS HYB4 repeat/pause/status synchronizers and all 48 Gray-pointer bits in four corners" not in audit.read_text(encoding="utf-8"):
         raise ValueError("candidate CDC audit missing")
     elf = cpu / "hybrid-player.elf"
     sections, _ = pair.elf_sections(elf.read_bytes())
@@ -92,7 +92,7 @@ def package(args):
         raise ValueError("application budget does not match this ELF")
     values = player_definitions()
     values["core.json"]["core"]["metadata"].update(platform_ids=[PLATFORM], shortname="MinimalPlayer",
-        description="RPCMP MDX player with pause", version="0.15.0-player-r3", date_release="2026-09-22")
+        description="RPCMP MDX player with repeat", version="0.16.0-player-r4", date_release="2026-09-22")
     slots = values["data.json"]["data"]["data_slots"]
     slots[0]["name"] = "MDX Player"
     slots[4:] = [dict(id=4, name="Playlist", required=True, parameters=8, extensions=["hpl"],
@@ -100,7 +100,7 @@ def package(args):
     values["input.json"]["input"]["controllers"] = [dict(type="default", mappings=[
         dict(id=i, name=name, **{key: True}) for i, name, key in
         ((0, "Play selected", "pad_btn_a"), (1, "Stop", "pad_btn_b"),
-         (2, "Pause / Resume", "pad_btn_x"))])]
+         (2, "Pause / Resume", "pad_btn_x"), (3, "Loop / Repeat", "pad_btn_y"))])]
     sdk = ROOT / "out/research/openfpgaSDK-a408ddc"
     manifest = shared.parse_manifest(sdk / "runtime/MANIFEST")
     loader = shared.verify_runtime_file(sdk / "runtime", manifest, "pocket/loader.bin")

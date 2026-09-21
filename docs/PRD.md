@@ -50,6 +50,12 @@ passes the user's [Firmware 2.6 hardware report](milestones/M6-album-player.md#m
 It is now the accepted hardware baseline for the next small slice. See the
 [implementation evidence](milestones/M6-album-player.md#pause-and-resume-implementation--2026-09-22).
 
+The next approved small slice is [loop/repeat switching](design/pocket-mdx-compatibility-plan.md#loop-and-repeat-switching-boundary):
+Y cycles two, three, five loops and repeat one. Changes affect the current song;
+the setting is shown and retained during the session, resetting to two at launch.
+Counted modes retain five-second fades and M3U advancement; repeat one repeats
+the same song. This supersedes the configurable-loop deferral below for this slice.
+
 ## 1. Product vision
 
 RPCMP is a portable music player that preserves the character of retro-computer music by sequencing original music data against reconstructed sound hardware. It presents a browsable music library and rich visualization without allowing presentation concerns to alter playback correctness.

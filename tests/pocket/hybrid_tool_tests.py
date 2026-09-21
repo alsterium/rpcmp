@@ -70,7 +70,7 @@ class HybridTools(unittest.TestCase):
             with patch.object(firmware.player, "prepare", side_effect=baseline):
                 firmware.prepare(root, root, root, output)
             data = json.loads((output / "rpcmp-firmware-inputs.json").read_text())
-            self.assertEqual(data["profile"], "hybrid-hyb3")
+            self.assertEqual(data["profile"], "hybrid-hyb4")
             self.assertEqual(data["source_revision"], "verified")
             self.assertEqual(data["prepared_caps_sha256"], "caps")
             self.assertNotIn("m6_sound_source", data)
@@ -106,7 +106,7 @@ class HybridTools(unittest.TestCase):
             source.write_text(r'''
 #include <stdint.h>
 #include <assert.h>
-static uint32_t id=0x48594233, polls, writes, before=3, after=5, bad;
+static uint32_t id=0x48594234, polls, writes, before=3, after=5, bad;
 static uint32_t rpcmp_boot_read32(uint32_t address) {
     if(address==0x40000400) return id;
     assert(address==0x40000404); ++polls;
@@ -126,7 +126,7 @@ int main(void) {
     assert(rpcmp_boot_reset_sound(4)==0 && writes==1 && polls==6);
     polls=writes=0; before=after=0; bad=16;
     assert(rpcmp_boot_reset_sound(4)==0 && writes==1);
-    id=0; polls=writes=0;
+    id=0x48594233; polls=writes=0;
     assert(rpcmp_boot_reset_sound(4)==0 && polls==0 && writes==0);
     return 0;
 }

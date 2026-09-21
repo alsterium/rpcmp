@@ -25,6 +25,7 @@ bool ready() {
 bool HybridPlayback::stop() {
   pending_ = nullptr;
   started_ = eof_ = paused_ = false;
+  repeat_ = contracts::minimal::RepeatMode::Two;
   const bool ok = ready();
   if (ok)
     write(2, 1);
@@ -55,6 +56,29 @@ contracts::minimal::Error HybridPlayback::set_paused(const bool paused) {
   else
     wait_started_ += rpcmp_pocket_time_us() - pause_started_;
   paused_ = paused;
+  return Error::None;
+}
+contracts::minimal::Error HybridPlayback::set_repeat(const contracts::minimal::RepeatMode mode) {
+  using contracts::minimal::Error;
+  if (static_cast<unsigned>(mode) > 3)
+    return Error::Renderer;
+  while (repeat_ != mode) {
+    if (!ready() || (read(1) & 0xf0U) != 0)
+      return Error::Audio;
+    const auto previous_ack = read(1) & 0x200U;
+    const auto begin = rpcmp_pocket_time_us();
+    write(2, 16);
+    for (;;) {
+      const auto status = read(1);
+      if ((status & 0xf0U) != 0)
+        return Error::Audio;
+      if ((status & 0x200U) != previous_ack)
+        break;
+      if (rpcmp_pocket_time_us() - begin > 5000)
+        return Error::Timeout;
+    }
+    repeat_ = static_cast<contracts::minimal::RepeatMode>((static_cast<unsigned>(repeat_) + 1) % 4);
+  }
   return Error::None;
 }
 contracts::minimal::Error HybridPlayback::open(const contracts::TrackId id) {
