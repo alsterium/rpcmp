@@ -24,9 +24,9 @@ stop using the accepted audio path. The user's Firmware 2.6 / Minimal Player r1
 [hardware report](../milestones/M6-album-player.md#minimal-player-r1-hardware-result--2026-09-21)
 confirms these controls, startup silence, six-song FM/PCM stereo playback,
 responsive browsing during playback and restart/power-cycle recovery.
-The prepared-input player below is the working baseline. Next define the
-practical library workflow from M3U8/raw MDX/PDX; M3U8 remains the proposed
-library direction below, not an already implemented storage contract.
+The prepared-input player below is the working baseline. The user approved
+M3U as the PC-side authoring input: resolve MDX/PDX on the PC and generate the
+Pocket-specific collection, as defined below. Pocket continues reading HPL1.
 Tracker/keyboard expansion, shuffle and persistent settings remain deferred.
 Keep relevant input bounds, focused regressions and integration checks; do not
 restart a broad compatibility campaign as a prerequisite for this next step.
@@ -36,9 +36,9 @@ restart a broad compatibility campaign as a prerequisite for this next step.
 Implement the existing prepared-track workflow first: package 1–300 prepared
 MDX/PDX pairs into one deferred APF slot, retain only its catalog in memory,
 and read only the chosen pair while audio is stopped. This removes the need
-to exit the core between songs. Raw M3U8/MDX loading is a subsequent storage
-adapter; it is not required to expose the already accepted engine through a
-usable list. The prepared inputs retain the tested driver wrappers and LZX
+to exit the core between songs. The PC M3U import boundary below now feeds this
+same prepared format; Pocket does not need a direct M3U/raw-file adapter.
+The prepared inputs retain the tested driver wrappers and LZX
 preparation. Do not accept arbitrary raw MDX as this prepared format.
 
 The small HPL1 file is little-endian: a 32-byte header contains magic `HPL1`,
@@ -76,6 +76,53 @@ link/memory/stack, and package readback. Reuse the unchanged r3 FPGA/ROM/OS;
 rerun affected transport integration checks, without resynthesizing identical
 RTL. Provide a Japanese procedure and the same six private songs locally.
 
+### M3U import boundary
+
+The approved connected behavior is **M3U -> prepared MDX/PDX -> HPL1 -> the
+existing Pocket reader**. Implement a Python standard-library CLI; no Pocket,
+engine, firmware or RTL change is required. Full is due when that round trip
+works. Check authored malformed/boundary cases and byte equality with the same
+six already accepted prepared pairs; do not reopen the compatibility campaign.
+
+Accept UTF-8 (optional BOM) `.m3u`/`.m3u8`, with explicit CP932 input selection
+for legacy lists. Ignore blank/comment lines, including EXTINF; preserve MDX
+entry order and duplicates. Limit the list to 1 MiB and 300 entries. Resolve
+local paths relative to the playlist; `--root` defaults to its directory and
+confines all music reads, including symlinks. An explicit wider root permits
+parent-relative or absolute paths within it. Reject network URLs and devices.
+Treat slash/backslash as separators and reject ambiguous case-insensitive
+matches instead of selecting an arbitrary file.
+
+Decode the MDX outer title and PDX name as CP932. Normalize title whitespace;
+use the filename when the title is empty or undecodable. PDX is a dependency,
+not a separate playlist entry. Search the MDX directory first, then explicitly
+supplied PDX directories under the root, with case-insensitive names and the
+optional `.pdx` suffix. Missing/ambiguous dependencies exclude that track.
+Bound raw reads and LZX expansion; validate MDX header/offset structure and PDX
+sample ranges before wrapping. This structural import check is not a proof of
+all sequence commands or every possible runtime behavior.
+
+Use the unchanged ten-byte driver wrappers and HPL1 limits (16 MiB per pair,
+512 MiB collection, 96 UTF-8 title bytes). The PC decoder handles the reference
+LZX token format with explicit read, back-reference and output bounds; it adds
+no native runtime dependency. Format provenance is the pinned MDXPlayer
+`4076b91c7ced57bf6047f69b87c12a34bd99a438` `classes/objc/lzx042.c` and
+`Player.m` loader already used by the accepted preparation. This Python
+implementation does not vendor or link that C decoder. Hand-encoded literal,
+short/long match, overlap and terminator cases provide independent expected
+bytes; compare accepted real inputs with the earlier native-decoder output.
+
+Write a fresh output directory containing an SD-layout `playlist.hpl`, Japanese
+copy instructions and a per-entry import/exclusion report. A data-only ZIP is
+convenient for the same copy operation. A partial import succeeds with visible
+exclusions; an empty result writes its report, returns failure and creates no
+installable collection. Invalid whole-list encoding/count/size is a fatal error.
+Existing outputs and source music are never overwritten. The user copies the
+generated Assets directory over the installed r1 collection while the core is
+closed, then opens the existing Playlist.json. The original six-song package
+remains available for recovery. This slice manages one installed collection;
+album navigation and multiple named collections are subsequent work.
+
 ## Recommendation
 
 Use the MDXPlayer-derived MXDRV interpreter and PCM8 behavior on a CPU, a
@@ -102,7 +149,8 @@ that deleting FM buys enough CPU throughput.
 ## Proposed boundaries
 
 ```text
-M3U8/folder catalog -> bounded MDX + resolved PDX -> reference interpreter
+PC: M3U -> bounded MDX + resolved PDX -> HPL1 collection
+Pocket: HPL1 -> selected prepared MDX/PDX -> reference interpreter
                                                    |             |
                                       timed FM register writes   PCM8 software
                                                    |             |
@@ -115,7 +163,7 @@ M3U8/folder catalog -> bounded MDX + resolved PDX -> reference interpreter
 input -> replaceable mapping -> PlayerCommand -> Core -> snapshots -> small UI
 ```
 
-The catalog line is a proposed storage adapter, not an adopted M3U contract.
+The catalog line uses the adopted PC-side M3U importer and existing HPL1 reader.
 IDs and logical blobs remain the consumer boundary. Core never depends on
 UI, and delaying or disabling rendering must leave the audio event sequence
 unchanged. Avoid connecting snapshots, input interpretation or drawing to
@@ -165,23 +213,22 @@ bounded dirty-region list UI. SDL by itself does not change the synthesis
 cycle budget. A platform rewrite is justified by a measured residual cost,
 not needed before the first complete audio comparison.
 
-Recommend UTF-8 M3U8 plus unchanged MDX/PDX files as the user-facing library
-direction: albums can be generated from folders, entries preserve order, and
-only a selected song and its dependency need loading. Keep titles/selection
-metadata separate from audio blobs. The current 179.7 MiB loose collection
-does not fit the old all-in-memory 32 MiB library profile.
+Use UTF-8 M3U8 plus unchanged source MDX/PDX files on the PC. The user confirmed
+that this playlist generates Pocket-specific data, rather than requiring the
+Pocket to parse M3U or scan raw music folders. The [import boundary](#m3u-import-boundary)
+preserves entry order, resolves dependencies and writes HPL1. Only the selected
+prepared pair is loaded on Pocket. Album navigation is not added by this step.
 
 The user's [HarpMudd example](https://github.com/harpmudd/HarpMudd.mp3player#playlists)
 supports a plain line-per-track list with paths relative to the playlist.
 That is useful workflow evidence, not a reason to inherit its 256-track /
 12 KB limits or assume its MP3/FLAC decoder budget applies to FM synthesis.
 
-Before adoption, define relative-path rules, Japanese encoding handling,
-MDX-title fallback, missing/ambiguous PDX reporting, LZX bounds and optional
-explicit dependency mapping. M3U lists tracks; it does not resolve PDX by
-itself. Keep generic IDs/blob interfaces where useful; the current charter
-does not require preserving `.rpcmlib` v1. Do not build an index format or
-general database merely to begin the audio prototype.
+Relative paths, Japanese encoding, MDX-title fallback, missing/ambiguous PDX
+reporting and LZX bounds are defined in the import boundary. Explicit shared
+PDX directories are supported; per-track dependency overrides are deferred.
+M3U lists MDX tracks, and the PC importer resolves their PDX. HPL1 and the
+Pocket consumer boundary stay unchanged; no new database or container is added.
 
 ## Next prototype and decision gates
 

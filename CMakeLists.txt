@@ -395,6 +395,9 @@ if(BUILD_TESTING)
   add_test(NAME hybrid_package
     COMMAND ${Python3_EXECUTABLE} -B ${CMAKE_SOURCE_DIR}/tests/pocket/hybrid_package_tests.py
       --checker $<TARGET_FILE:rpcmp_minimal_player_tests>)
+  add_test(NAME m3u_import
+    COMMAND ${Python3_EXECUTABLE} -B ${CMAKE_SOURCE_DIR}/tests/utility/m3u_import_tests.py
+      --checker $<TARGET_FILE:rpcmp_minimal_player_tests>)
   add_test(NAME mdx_admission_cli
     COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/pocket/mdx_admission_tests.py
       $<TARGET_FILE:rpcmp_mdx_admission>

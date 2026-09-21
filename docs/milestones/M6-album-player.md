@@ -35,8 +35,9 @@ The planned exhaustive comparison is no longer a prerequisite; handle newly
 encountered playback defects with focused diagnosis and engine fixes.
 The [minimal selection/play/stop player](#minimal-player-implementation--2026-09-21)
 now passes its [Firmware 2.6 / r1 hardware check](#minimal-player-r1-hardware-result--2026-09-21).
-Next define the proposed [M3U8/raw-file library workflow](../design/pocket-mdx-compatibility-plan.md#platform-and-library)
-over that working baseline.
+The user subsequently approved the [PC-side M3U import workflow](#m3u-library-import--2026-09-21)
+over that working baseline: M3U defines MDX order and the PC creates the
+Pocket-specific collection with required PDX dependencies.
 This closes the compatibility investigation, not M6 as a whole. Inherited shell
 external timing constraints and the remaining player integration stay separate.
 The original objective, adopted contracts and results
@@ -3521,3 +3522,70 @@ anchors, and `git diff --check`. No C++/RTL, contract, build, package input or
 verification procedure changed; Full, cross-build, synthesis/STA and RTL
 simulation are not repeated for this report. The existing Japanese procedure
 and the six-song ZIP remain unchanged.
+
+## M3U library import — 2026-09-21
+
+The user confirmed and authorized **M3U on the PC -> resolve MDX/PDX -> generate
+Pocket-specific data**. `tools/m3u_import.py` implements that boundary using
+Python's standard library and the existing HPL1 writer. It does not change the
+accepted Minimal Player r1 binary or require direct M3U parsing on Pocket.
+The [Japanese guide](../development/m3u-library.md) explains authoring, conversion,
+copying the Assets directory, exclusions and focused playback confirmation.
+
+The importer preserves order and duplicates; supports UTF-8/BOM and explicit
+CP932 lists, 9/16-track MDX layouts, MDX-title/filename fallback, local or
+explicitly shared PDX directories and bounded LZX expansion. It validates
+outer structure and offsets, confines music reads to the chosen root, rejects
+case-ambiguous dependencies and lists every excluded entry with its M3U line.
+Output I/O errors abort instead of being treated as invalid songs. A fresh
+directory and data-only ZIP contain the generated collection, import reports
+and Japanese instructions. No successful tracks means reports only and a
+nonzero exit, without an installable asset or ZIP.
+
+Validation executed:
+
+- `python -B tests/utility/m3u_import_tests.py --checker
+  out/build/host-msvc/rpcmp_minimal_player_tests.exe`: **17 tests**, 16 pass and
+  one Linux-specific case/symlink test skipped on Windows. Coverage includes
+  authored literal/short/long/overlapping LZX tokens, corrupt inputs, compressed
+  MDX plus PDX, title fallback, partial/all-failed imports, size/count/root
+  bounds, shared/local PDX precedence, CLI failure, output failure and 300-track
+  native reader validation. The wire assertions independently read CRCs,
+  offsets, titles and exact driver-header/payload bytes.
+- `pwsh -File tools/host-verify.ps1 -Mode Fast`: **89/89 PASS**, 20.44 s.
+  The final compressed-input integration case was added afterward and is
+  included in the final focused, Linux and Full runs. Fast is not Full.
+- Network-disabled `rpcmp-cpu-budget-sim:20260921`,
+  `python3 -B tests/utility/m3u_import_tests.py --checker
+  /repo/out/harness/minimal-player-sanitized`: **17/17 PASS** on Linux, including
+  case collisions and a symlink outside the root. The unchanged native reader
+  binary uses ASan/UBSan with leak detection and halt-on-error. No sanitizer
+  diagnostic was reported. Log: `out/harness/m3u-import-linux.log`.
+- `python -B tools/m3u_import.py out/build/m3u-input-r1/accepted-six.m3u8
+  --root <local music root> --output out/build/m3u-library-r1-cli`: **6 imported,
+  0 excluded**, using only the previously accepted real songs. Two source blobs
+  are LZX-compressed. Each prepared MDX/PDX and title equals the earlier native
+  reference preparation; the **entire HPL1 file is byte-identical** to accepted
+  Minimal Player r1. ZIP/directory contents and the bundled Japanese guide were
+  read back byte-for-byte, and `rpcmp_minimal_player_tests.exe --playlist` reads
+  all six final payloads successfully. The root argument is redacted here;
+  source identities and generated files remain under ignored local output.
+
+The local deliverable is `out/build/m3u-library-r1-cli.zip` (collection update,
+not a new core). ZIP SHA-256:
+`0c9ca19d52b7416cae3e52785f1dd75ccce87752aea4f451131f5a461a43ffbd`.
+HPL1 SHA-256:
+`c37fd15bcff36a9c1d18373ed631a5ede236565fb3c1a51aa3a8e420e55e7ee4`.
+
+Final `pwsh -File tools/host-verify.ps1 -Mode Full` with LLVM 22.1.8:
+**90/90 PASS**, 546.61 s (tidy 526.82 s), including formatting, static analysis,
+architecture/dependency guards and the new import test. Log:
+`out/harness/m3u-import-full.log`. `python -B tools/check_harness.py --root .`,
+five changed local links/anchors and `git diff --check` also pass.
+C++/RTL, firmware, memory placement and runtime audio behavior are unchanged,
+so target rebuilding, RTL simulation and synthesis/STA are not applicable to
+this import slice. No new hardware result is claimed. The byte-identical six-song
+asset does not need another compatibility campaign; the next useful check is
+the user's own playlist and its reported exclusions. This does not certify
+all sequence commands or all files in the collection. M6's remaining substrate
+gates and optional album/visualization features remain separate.
