@@ -18,14 +18,21 @@ now passes reference stream comparisons, three-phase actual-AXI tests, the SDK
 link/budget, whole-shell fit and scoped HYB1 timing/CDC audit, and Full host
 verification (87/87). CPU RTL plus a modeled FIFO shows no starvation in three
 authored PCM formats and one short real-input run; it is not real SDRAM/OS timing.
-The next task is the [HYB1 r2 real-song hardware check](development/pocket-hybrid-hardware.md)
-on Firmware 2.6. The local ZIP now selects six real songs via separate instance
-JSONs (two FM-only, four with PCM), with Japanese instructions and 20.48-second
-PC reference WAVs. Their timed FM/PCM prefixes match the reference. Check actual
-sound, stop/restart, noise and measured render/feed time before expanding UI or
-M3U support. The renderer, app, ROM/OS and FPGA remain the checked r1 binaries.
-The packaging slice passes Full host verification (88/88), including the new
-multi-song package checks; hardware listening is still pending.
+The Firmware 2.6/r2 user report confirms six real songs' melody/tempo, stereo,
+stop/restart and PCM playback, plus restart/power-cycle recovery. Four songs
+have no reported noise; two have clicks/buzz only on Pocket. Observed maxima
+are 14.539 ms rendering and 0.460 ms feeding, with sampled queue minimum 808.
+The HYB1 serializer omitted the official one-SCLK I2S delay, and its test receiver
+made the same mistake. An independent protocol correction reproduces doubled
+values; large peaks cross the sign boundary. The next task is the
+[HYB1 r3 output-fix hardware check](development/pocket-hybrid-hardware.md),
+prioritizing those two songs. The r3 package keeps the CPU renderer, OS and six
+prepared inputs unchanged. Correct signed output, three-phase HYB1/AXI tests,
+baseline RTL, full-shell fit/scoped CDC and package readback pass; final Full
+host verification passes 88/88. See the
+[r3 evidence](research/mdxplayer-compatibility.md#hyb1-r3の出力配置パッケージ検証).
+This is a concrete output defect, not evidence against the CPU PCM8/FPGA FM
+split. Symptom resolution and whole-corpus acceptance are pending.
 Inherited shell external constraints and full hardware acceptance remain open.
 The user selected [asaday/MDXPlayer](https://github.com/asaday/MDXPlayer) as the
 reference: support every locally supplied file that played there, including

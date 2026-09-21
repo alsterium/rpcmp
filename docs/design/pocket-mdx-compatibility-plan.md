@@ -209,6 +209,15 @@ The audio clock owns 4 MHz FM, the 62.5 kHz PCM cursor, gain/limiting and fixed
 PCM and FM sample indices share that start. The source selection must implement
 the reference's `floor(output_index * 125 / 96)` sequence, with a fixed output
 latency, rather than reusing a converter with a different initial phase.
+The external serializer must send the signed word's MSB one SCLK (four MCLK
+cycles) after each LRCK transition, as required by
+[APF AUDIO](https://www.analogue.co/developer/docs/bus-communication).
+The r2 serializer and its test receiver incorrectly used zero delay. Correct
+the receiver from the external protocol before changing the sender, and cover
+both signs around 16384, full scale and the low bit. Correct signed PCM decoded
+at the external pins is this fix's connected Full checkpoint; rerun the HYB1
+RTL, full-shell fit/timing/CDC and matched-package checks before hardware handoff.
+Keep the CPU renderer and musical data unchanged to isolate the output fix.
 
 Use the existing native model and offline captures to verify the composed
 audio stream, independent CPU/audio phases, full/backpressure, clear during

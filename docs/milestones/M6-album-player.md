@@ -16,12 +16,15 @@ also passes authored CPU-side-write to audio-pin simulation. The subsequent
 [CPU/actual-AXI connection](../research/mdxplayer-compatibility.md#cpu-renderer-and-actual-shell)
 passes nine reference-stream comparisons, the SDK link/budget, three-phase AXI
 simulation, whole-shell fit/scoped CDC audit and Full host checks (87/87).
-Short CPU RTL/modelled-FIFO experiments have no underflows; real SDRAM/OS
-contention and listening remain unverified. The next boundary is the
-[HYB1 r2 real-song hardware check](../development/pocket-hybrid-hardware.md), with
-six real songs, Japanese instructions and short PC reference WAVs. Selection uses
-separate instance JSONs with the unchanged r1 application and no autoplay. This
-does not complete M6.
+The Firmware 2.6/r2 report confirms real stereo/PCM playback and stop/restart
+for six songs, with peak-specific noise on two. The omitted I2S one-bit delay
+was reproduced after correcting the test receiver from the official protocol.
+The next boundary is the [HYB1 r3 hardware check](../development/pocket-hybrid-hardware.md)
+for that output fix, keeping the CPU renderer and prepared songs unchanged.
+The r3 candidate passes three-phase HYB1/AXI and baseline RTL, fitted timing/scoped
+CDC, package readback and final Full host verification (88/88); see the
+[output-fix evidence](../research/mdxplayer-compatibility.md#hyb1-r3の出力配置パッケージ検証).
+Whole-corpus playback, symptom resolution and full M6 acceptance remain open.
 The original objective, adopted contracts and results
 below remain historical evidence; they do not override this new scope or turn
 the existing FM subset into full MDX compatibility.

@@ -805,6 +805,97 @@ r1との実行バイナリ一致、全メンバーの長さ・ハッシュを確
 RTLシミュレーション、合成は再実行していない。既存バイナリの組み合わせと検証記録を
 パッケージ生成時に再確認した。実機の音・処理時間・全曲全区間の互換性は未確認で、M6は継続中。
 
+## HYB1 r2実機報告とI2S出力の不具合
+
+2026-09-21、ユーザーがFirmware 2.6で実曲6曲を確認した。6曲とも旋律・テンポ、
+左右、B停止とAでの先頭からの再生はOK。PCMありの曲でもサンプル音を確認できた。
+通常再起動と電源OFF後の再生もOK（確認に使った曲の番号は未指定）。
+曲01・02は準備時にPDX参照がなく、PCM出力ゼロだったためFMのみの確認である。
+曲04の「起動／A前は無音」欄にはファイル名が入り、この項目の明示的結果は未記入。
+他の5曲では起動とA前の無音もOKだった。
+
+| 曲番号 | Render max (us) | Feed max (us) | Queue minimum (frames) | 約1分の試聴結果 |
+| --- | ---: | ---: | ---: | --- |
+| 01 | 7643 | 460 | 1030 | 問題なし |
+| 02 | 7763 | 403 | 1030 | 問題なし |
+| 03 | 7587 | 435 | 1028 | 問題なし |
+| 04 | 11669 | 452 | 808 | 問題なし |
+| 05 | 14539 | 451 | 945 | 一部のサンプル末尾でプチプチ音 |
+| 06 | 12666 | 448 | 960 | アタックのピークでびりびり音。音切れやテンポ乱れはなし |
+
+いずれもエラー表示なし。1ブロック約21.33msに対し観測最大renderは14.539ms、
+観測最小キュー808フレームは62.5kHz換算で約12.93msであり、この報告は単純な
+供給不足を示していない。ただしキューは定期観測で、全区間の最小値保証ではない。
+ユーザーは追加確認で「05・06のノイズはPocketだけで聞こえる」と回答した。
+元データ側の問題として処理せず、実機固有の不具合として調査した。
+
+[公式APF AUDIO](https://www.analogue.co/developer/docs/bus-communication) はLRCK切り替えから
+1 SCLK後にMSBを出すI2Sを要求する。r2の `rpcmp_hybrid_audio.sv` は待ち時間がなく、
+テスト側も同じ位置から読んでいた。受信側だけを公式タイミングに直した
+`pwsh -File tools/rtl-hybrid-verify.ps1 -PhasePs 0` は、送信値16383と1を32766と2として
+受信して失敗した（`out/harness/hybrid-i2s-red.log`）。期待する音声値は変更していない。
+この1ビット左ずれは、正側16384以上・負側-16384未満で符号を反転させる。
+
+`python -B out/harness/hybrid-i2s-reference-peaks.py` で比較WAVの冒頭20.48秒を調べた。
+曲01〜04の最大絶対値は2817／2670／15345／15786で、この符号反転域に入らない。
+曲05は最大20073で36チャンネルサンプル（最初は約3.677秒）、曲06は最大32768で
+9063チャンネルサンプル（最初は約0.066秒）が該当した。これはPC参照波形の計数で、
+Pocket録音との一致証明ではないが、報告された曲と症状を説明する具体的な根拠となる。
+
+修正はDACのビット出力を4 MCLK遅らせるだけで、CPUレンダラー・PCMの音量・曲データ・
+48kHzフレーム周期は変更しない。テストは外部ピンから受信し、両符号の16384付近、
+フルスケール、最下位ビット、飽和を含む768フレームを追加した。
+修正版の実機でノイズが消えることを確認するまでは、症状の解消を確定しない。
+
+### HYB1 r3の出力・配置・パッケージ検証
+
+`pwsh -File tools/rtl-hybrid-verify.ps1` は3位相（0／5555／81379ps）で合格した。
+各位相で符号境界768フレーム、通常動作5569フレーム、停止・EOF・飢餓検出、
+native FM＋wide PCMの768フレーム／216書き込みを確認した。ミキサー8条件も合格した。
+ログは `out/harness/hybrid-i2s-green.log`。さらに
+`pwsh -File tools/rtl-hybrid-verify.ps1 -PreparedTree out/build/hybrid-candidate-r3` で
+実際のCPU AXI接続を3位相、各125フレーム／295書き込みで確認した
+（`out/harness/hybrid-r3-axi.log`）。いずれもシミュレーターのErrors／Warningsは0。
+`pwsh -File tools/rtl-verify.ps1`、続けて `pwsh -File tools/rtl-jt51-verify.ps1` も合格した。
+ログは `out/harness/hybrid-r3-baseline-rtl.log` と `hybrid-r3-baseline-jt51.log`。
+
+`tools/pocket_hybrid_prepare.py` で同じ固定済みopenfpgaOS／JT51／CPU netlistと
+既存ROM/OSから `out/build/hybrid-candidate-r3` を作成した。その `hybrid-fit` で
+Quartus 25.1stdの `quartus_sh --flow compile ap_core` が合格した（7分6秒、
+0 errors／968 warnings）。使用量は10,064/18,480 ALMs、15,398 registers、
+1,190,249 memory bits、10 DSP blocks。4条件の最小setup slackは0.689ns、
+holdは0.130nsだった。既存基盤の外部入力6端子・出力28端子は未制約のままで、
+プラットフォーム全体のタイミング完了を意味しない。
+
+`quartus_sta -t F:/source/rpcmp/tools/hybrid_cdc_audit.tcl` は最初、
+配置ツールが `status_sync[4]` を複製したため、旧スクリプトの最大6レジスタ条件で停止した。
+配置後の経路を調べ、6つの論理ビットと追加の複製先1つを確認した。監査を各ビット単位にし、
+元の経路と複製先のsetup／holdをすべて要求するよう修正した。総数の上限だけを広げず、
+欠落ビットを検出する条件を保っている。この監査修正に伴う音声回路やSDCの例外指定の変更はない。
+`python -B out/harness/hybrid-cdc-negative.py` でビット欠落と複製先の負slackを注入し、
+両方の拒否を確認した。再度実回路を監査し、4条件で同期経路と全48 Gray-pointer bitが
+合格した。Gray経路の最大遅延は2.482ns（上限11.111ns）。実記録は
+`out/build/hybrid-candidate-r3/hybrid-fit/hybrid-cdc-audit.log` と `hybrid-cdc-paths.txt`。
+
+`python -B tools/pocket_hybrid_package.py --shell out/build/hybrid-candidate-r3
+--cpu out/build/hybrid-cpu-20260921
+--firmware out/build/hybrid-firmware-20260921/src/firmware/os/bld/pocket
+--tracks out/build/hybrid-real-inputs-r2/prepared/tracks.json
+--output out/build/hybrid-real-mdx-r3` でr3を生成した。
+`python -B out/harness/hybrid-real-r3-readback.py` は全メンバーとハッシュを読み戻し、
+新しいRBFのビット反転、6曲の入力・比較WAV、framework最低版2.2、日本語手順を確認した。
+r2との違いはFPGA画像・core版番号・手順だけで、r2 ZIPも保存時のハッシュと一致した。
+CPUアプリ・ROM/OS・準備済み曲は変更せず、クロスビルドやnative参照生成は再実行していない。
+ROM/OSの対応とアプリ容量はパッケージ生成時に再確認した。実機のノイズ解消は未確認。
+
+固定LLVM 22.1.8をプロセス内PATHで選び、
+`pwsh -File tools/host-verify.ps1 -Mode Fast` は87/87、33.54秒で合格した。
+監査スクリプト修正後の最終 `pwsh -File tools/host-verify.ps1 -Mode Full` は
+88/88、534.89秒（静的解析517.14秒）で合格した。整形とCore/UI依存境界の
+正負チェックも含む。ログは `out/harness/hybrid-r3-fast.log` と
+`out/harness/hybrid-r3-final-full.log`。その後の結果・進行リンクだけの更新には
+`python -B tools/check_harness.py` と `git diff --check` を用いる。
+
 ## Dependency conditions
 
 The [MDXPlayer README](https://github.com/asaday/MDXPlayer/blob/4076b91c7ced57bf6047f69b87c12a34bd99a438/README.md)

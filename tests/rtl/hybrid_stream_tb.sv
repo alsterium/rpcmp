@@ -10,10 +10,28 @@ module hybrid_stream_tb;
     integer phase=0, checked=0, expected_frames=0, observed=0, native_writes=0;
     integer bit_cycle=0;
     logic channel=0, synchronized=0, compare_audio=0, compare_fm=0;
-    logic voice_mode=0;
+    logic voice_mode=0, limits_mode=0;
     integer voice_left[0:999], voice_right[0:999], wide_peak=0;
     logic [15:0] serial_left=0, serial_right=0;
     rpcmp_hybrid_mmio dut(.*);
+    // Literal signed boundary values, including the +/-16384 bit-shift failure.
+    function automatic integer limit_input(input integer index);
+        case (index % 16)
+            0: limit_input=16383; 1: limit_input=16384; 2: limit_input=16385;
+            3: limit_input=32767; 4: limit_input=-16384; 5: limit_input=-16385;
+            6: limit_input=-32768; 7: limit_input=1; 8: limit_input=-1;
+            9: limit_input=0; 10: limit_input=20000; 11: limit_input=-20000;
+            12: limit_input=32768; 13: limit_input=-32769;
+            14: limit_input=2147483647; 15: limit_input=-2147483648;
+        endcase
+    endfunction
+    function automatic integer limit_output(input integer index);
+        case (index % 16)
+            12,14: limit_output=32767;
+            13,15: limit_output=-32768;
+            default: limit_output=limit_input(index);
+        endcase
+    endfunction
     function automatic integer reference_mix(input integer f, p);
         longint value;
         begin
@@ -47,7 +65,8 @@ module hybrid_stream_tb;
         #(phase);
         forever #40690 clk_audio=~clk_audio;
     end
-    // Decode external pins, including all padding bits and channel order.
+    // APF I2S: skip the first SCLK after LRCK, then latch 16 bits.
+    // This receiver uses only external pins, not the DUT's serial phase.
     always @(negedge clk_audio) if (reset_n) begin
         if (audio_lrck !== channel) begin
             if (synchronized && bit_cycle != 128) $fatal(1,"noncontinuous LRCK");
@@ -55,17 +74,19 @@ module hybrid_stream_tb;
             if (!channel) synchronized=1;
         end
         if (synchronized) begin
-            if (bit_cycle < 64 && bit_cycle % 4 == 1) begin
+            if (bit_cycle >= 4 && bit_cycle < 68 && bit_cycle % 4 == 1) begin
                 if (!channel) serial_left={serial_left[14:0],audio_dac};
                 else serial_right={serial_right[14:0],audio_dac};
             end
-            if (bit_cycle >= 64 && audio_dac !== 0) $fatal(1,"nonzero padding");
+            if (bit_cycle >= 68 && audio_dac !== 0) $fatal(1,"nonzero padding");
             if (channel && bit_cycle == 127) begin
                 observed=observed+1;
                 if (compare_audio && (checked != 0 || serial_left !== 0 || serial_right !== 0)) begin
                     if (checked < expected_frames) begin
-                        if ($signed(serial_left) !== (voice_mode ? voice_left[checked*125/96] : 1000 + checked*125/96) ||
-                            $signed(serial_right) !== (voice_mode ? voice_right[checked*125/96] : -1000 - checked*125/96))
+                        if ($signed(serial_left) !== (voice_mode ? voice_left[checked*125/96] :
+                                limits_mode ? limit_output(checked*125/96) : 1000 + checked*125/96) ||
+                            $signed(serial_right) !== (voice_mode ? voice_right[checked*125/96] :
+                                limits_mode ? limit_output(checked*125/96+7) : -1000 - checked*125/96))
                             $fatal(1,"frame %0d got %0d,%0d expected source %0d",checked,
                                    $signed(serial_left),$signed(serial_right),checked*125/96);
                         checked=checked+1;
@@ -149,6 +170,17 @@ module hybrid_stream_tb;
         wr('h20,10); wr('h24,'h10001,1); wr('h24,'h20000,1); wr('h24,0);
         wr('h20,9); wr('h24,0,1); // nonmonotonic, staged value retained
         wr(8,1); ready(); wr('h14,7,1); wr('h24,7,1);
+        limits_mode=1; checked=0; expected_frames=768; compare_audio=1;
+        fm(1000,'h10000);
+        for (int i=0;i<1000;i=i+1) begin
+            wr('h10,limit_input(i)); wr('h14,limit_input(i+7));
+        end
+        wr(8,2);
+        do begin repeat(128) @(negedge clk_cpu); rd(4,value); end while (!value[3] && value[7:4]==0);
+        repeat(768) @(negedge clk_audio);
+        if (value[7:4] != 0 || checked != 768) $fatal(1,"I2S signed boundaries failed");
+        $display("hybrid_stream_tb: I2S BOUNDARIES PASS frames=768");
+        limits_mode=0; compare_audio=0; wr(8,1); ready();
         normal(1000,200);
         wr(8,2,1); wr(8,1); ready();
 

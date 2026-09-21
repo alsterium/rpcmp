@@ -120,7 +120,7 @@ def package(args):
         raise ValueError("application budget does not match this ELF")
     values = player_definitions()
     values["core.json"]["core"]["metadata"].update(platform_ids=[PLATFORM], shortname="HybridProbe",
-        description="RPCMP HYB1 real-song probe", version="0.12.0-hybrid-r2", date_release="2026-09-21")
+        description="RPCMP HYB1 real-song probe", version="0.12.0-hybrid-r3", date_release="2026-09-21")
     slots = values["data.json"]["data"]["data_slots"]
     slots[0]["name"] = "Hybrid Probe"
     slots[4:] = [dict(id=i, name=name, required=False, parameters=8, extensions=["bin"],

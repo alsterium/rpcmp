@@ -3,15 +3,22 @@ project_open ap_core
 create_timing_netlist -model slow -temperature 85 -voltage 1100
 read_sdc
 set evidence [open hybrid-cdc-paths.txt w]
+set sync_pairs {{cpu_reset_pipe[0]} {cpu_reset_pipe[1]} {audio_reset_pipe[0]} {audio_reset_pipe[1]} {clear_sync[0]} {clear_sync[1]} {start_sync[0]} {start_sync[1]} {ack_sync[0]} {ack_sync[1]}}
+# Inspect each status bit, including any fitter-created copy of its second
+# stage. A whole-bus count of six would reject valid replication, while simply
+# increasing that count could hide a missing bit.
+for {set bit 0} {$bit < 6} {incr bit} {
+    lappend sync_pairs [format {status_meta[%d]} $bit] [format {status_sync[%d]} $bit]
+}
 foreach corner {{slow 85} {slow 0} {fast 85} {fast 0}} {
     lassign $corner model temperature
     set_operating_conditions -model $model -temperature $temperature -voltage 1100
     update_timing_netlist
     # Only the intended one-bit control and vendor Gray-pointer crossings may
     # be cut. Subsequent synchronizer stages must retain setup AND hold timing.
-    foreach {first second} {{cpu_reset_pipe[0]} {cpu_reset_pipe[1]} {audio_reset_pipe[0]} {audio_reset_pipe[1]} {clear_sync[0]} {clear_sync[1]} {start_sync[0]} {start_sync[1]} {ack_sync[0]} {ack_sync[1]} {status_meta[*]} {status_sync[*]}} {
-        set a [rpcmp_hybrid_required "*rpcmp_sound*|$first" 1 6]
-        set b [rpcmp_hybrid_required "*rpcmp_sound*|$second" 1 6]
+    foreach {first second} $sync_pairs {
+        set a [rpcmp_hybrid_required "*rpcmp_sound*|$first" 1 1]
+        set b [rpcmp_hybrid_required "*rpcmp_sound*|$second" 1 2]
         foreach analysis {setup hold} {
             set paths [get_timing_paths -$analysis -from $a -to $b -npaths 20 -nworst 1]
             if {[get_collection_size $paths] != [get_collection_size $b]} {error "incomplete sync timing $first -> $second"}

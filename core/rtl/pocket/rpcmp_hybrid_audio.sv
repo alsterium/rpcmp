@@ -152,12 +152,15 @@ module rpcmp_hybrid_audio (
         end
     end
 
+    // APF I2S requires one SCLK (four MCLKs) between LRCK and the MSB.
     // Stop never truncates a serialized word. Silence starts at the next frame.
     assign audio_mclk = clk_audio;
     always_comb begin
         audio_lrck=serial_phase[7]; audio_dac=0;
-        if (!serial_phase[7] && serial_phase[6:2]<16) audio_dac=frame_left[15-serial_phase[6:2]];
-        if (serial_phase[7] && serial_phase[6:2]<16) audio_dac=frame_right[15-serial_phase[6:2]];
+        if (serial_phase[6:2]>=1 && serial_phase[6:2]<=16) begin
+            if (!serial_phase[7]) audio_dac=frame_left[16-serial_phase[6:2]];
+            else audio_dac=frame_right[16-serial_phase[6:2]];
+        end
     end
     always_ff @(posedge clk_audio or negedge reset_n) begin
         if (!reset_n) begin serial_phase<=0; frame_left<=0; frame_right<=0; end
