@@ -69,8 +69,12 @@ The user selected [UI interaction requirements](../design/pocket-mdx-compatibili
 as the next task. Q1 assigns B by focus: return from tracks to playlists without
 stopping playback, or stop when the controls have focus. B does not move between
 panels. Q2 uses L/R for panel switching and the D-pad within a panel, retaining
-up/down entry selection and left/right pages in lists. Other bindings remain
-under discussion; r5 is unchanged.
+up/down entry selection and left/right pages in lists. Q3 leaves X/Y unassigned,
+with A activating control icons. Q4 makes the play/pause icon pause/resume the
+playback track or restart the last-played track after stop; initial playback
+starts from the track list. Q5 adds previous/next within the playback playlist
+to the play/pause, stop and repeat-count icons. Their state/boundary behavior
+and the remaining focus rules are under discussion; r5 is unchanged.
 This closes the compatibility investigation, not M6 as a whole. Inherited shell
 external timing constraints and the remaining player integration stay separate.
 The original objective, adopted contracts and results

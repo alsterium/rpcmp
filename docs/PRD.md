@@ -76,8 +76,12 @@ The user selected this scope and settled Q1: B returns from tracks to playlists
 without stopping playback when the list has focus, and stops when the controls
 have focus. B does not change panels. Q2 uses L/R for panel switching; the D-pad
 operates within a panel, with up/down entry selection and left/right pages in
-lists. Other bindings remain under discussion; these requirements have not yet
-been implemented in r5.
+lists. Q3 leaves X/Y unassigned and uses A on control icons. Q4 makes the
+play/pause icon act on the playback track: pause/resume, or restart the
+last-played track after stop. Initial playback starts from the track list.
+Q5 adds previous/next within the playback playlist to play/pause, stop and
+repeat-count icons. Their state/boundary behavior and the remaining focus rules
+are under discussion; these requirements have not yet been implemented in r5.
 
 ## 1. Product vision
 

@@ -475,13 +475,32 @@ music. This supersedes the earlier D-pad-between-panels preference for this UI.
 The specific icon arrangement/navigation and focus restoration remain to be
 defined; L/R is not a previous/next-track shortcut in this UI.
 
+**Q3 — decided:** Do not assign X/Y shortcuts. Select playback/repeat control
+icons with the D-pad and activate them with A. Q1's contextual B stop/return
+remains available; this decision does not remove that stop action or track-list
+A playback. The next UI replaces r5's X pause/resume and Y repeat bindings.
+
+**Q4 — decided:** The play/pause icon acts on the playback track, independently
+of the browsing cursor. While playing it pauses; while paused it resumes at
+the same position. While stopped it starts the last-played track from its
+beginning, retaining that track's playback playlist. It does not start the
+track currently being browsed in another list. Before the first playback,
+start a track with A in the track list; the control icon cannot start music
+without a last-played track. This does not change startup silence or the
+session's repeat setting.
+
+**Q5 — decided:** Provide five control icons: play/pause, stop, repeat count,
+previous track and next track. Previous/next operates within the playback
+playlist, independently of the list currently being browsed. The exact layout,
+previous/next behavior while paused or stopped and list-boundary behavior remain
+to be settled; adding these icons does not authorize cross-playlist navigation.
+
 The working layout proposal reuses the earlier preference for a large main
 area, track information below it and control icons to the right of that
 information. First organize the list, information and playback controls;
-Tracker/keyboard reintroduction is not approved by Q1–Q2.
-A/icon actions and the provisional X/Y bindings
-also need a consistent operation table before implementation. Do not infer new
-playback features from this requirements discussion.
+Tracker/keyboard reintroduction is not approved by Q1–Q5.
+Complete the operation table and focus behavior before
+implementation; do not infer new playback features from this discussion.
 
 These are prospective product requirements, not a hardware candidate or a
 claim of implemented behavior. No runtime, package, test/generator input or

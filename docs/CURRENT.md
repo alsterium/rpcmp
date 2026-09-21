@@ -4,12 +4,17 @@ Active milestone: [M6 — Album Player](milestones/M6-album-player.md)
 
 The current task is **organizing the UI interaction requirements** after
 accepting the [Firmware 2.6 / Minimal Player r5 hardware report](milestones/M6-album-player.md#minimal-player-r5-hardware-result--2026-09-22).
-The user selected this scope and settled [UI Q1–Q2](design/pocket-mdx-compatibility-plan.md#ui-interaction-requirements):
+The user selected this scope and settled [UI Q1–Q5](design/pocket-mdx-compatibility-plan.md#ui-interaction-requirements):
 B returns from tracks to playlists without stopping playback when the list has
 focus, and stops playback when the controls have focus. B never changes panels.
 L/R switches panels; the D-pad stays within the focused panel. In lists,
-up/down selects entries and left/right retains page navigation. The remaining
-bindings are still being decided; this is not behavior already implemented in r5.
+up/down selects entries and left/right retains page navigation. X/Y are unassigned;
+control icons act through A. The play/pause icon pauses/resumes the playback track
+or restarts the last-played track from its beginning after stop, independently
+of the browsing cursor. Initial playback starts from the track list. The five
+icons are play/pause, stop, repeat count, previous track and next track, with
+previous/next targeting the playback playlist. Their state/boundary behavior
+and the remaining focus rules are still being decided; r5 is unchanged.
 r5 is the accepted hardware baseline. The normal three-list/42-entry collection
 passes browsing during playback, original-list automatic advance, track selection
 changing the playback list, list-end stop, per-list position restoration,
