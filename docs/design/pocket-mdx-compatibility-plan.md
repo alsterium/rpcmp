@@ -57,7 +57,9 @@ The [r5 implementation](../milestones/M6-album-player.md#multiple-playlist-imple
 passes the subsequent [Firmware 2.6 / r5 hardware report](../milestones/M6-album-player.md#minimal-player-r5-hardware-result--2026-09-22).
 r5 established the preceding hardware baseline. The user settled UI Q1–Q14 and
 authorized the [r6 UI implementation](#ui-implementation-boundary), now accepted
-on hardware. The current approved slice is the [r7 UI follow-up](#r7-ui-follow-up).
+on hardware. The subsequent [r7 UI follow-up](#r7-ui-follow-up) now passes the
+user's [Firmware 2.6 hardware report](../milestones/M6-album-player.md#minimal-player-r7-hardware-result--2026-09-22).
+r7 is the accepted hardware baseline; choose the next requirement before implementation.
 Tracker/keyboard expansion, shuffle and persistent settings remain deferred.
 Keep relevant input bounds, focused regressions and integration checks; do not
 restart a broad compatibility campaign as a prerequisite for this next step.

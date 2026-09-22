@@ -97,11 +97,14 @@ adds version 6 commands/snapshots, audio-consumption elapsed seconds and the
 actual bounded renderer, retaining HPL2/HYB4. The
 [r6 implementation](milestones/M6-album-player.md#minimal-player-r6-ui-implementation--2026-09-22)
 passes its local gates and the user's [Firmware 2.6 / r6 hardware report](milestones/M6-album-player.md#minimal-player-r6-hardware-result--2026-09-22).
-r6 is the accepted hardware baseline. The approved [r7 follow-up](design/pocket-mdx-compatibility-plan.md#r7-ui-follow-up)
+r6 established the preceding hardware baseline. The approved [r7 follow-up](design/pocket-mdx-compatibility-plan.md#r7-ui-follow-up)
 replaces L/R panel switching with X (L/R/Y unassigned), scrolls overflowing
 playback title/playlist fields, and redraws the loop icon as two opposing bent
 arrows following the user's reference. Other playback and UI behavior stays
 as accepted; HPL2 collections remain usable without reimport.
+The subsequent [Firmware 2.6 / r7 hardware report](milestones/M6-album-player.md#minimal-player-r7-hardware-result--2026-09-22)
+passes the UI follow-up and playback/restart checks, with no reported issues.
+r7 is now the accepted hardware baseline; the next requirement is not yet selected.
 
 ## 1. Product vision
 

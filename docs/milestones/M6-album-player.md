@@ -88,8 +88,10 @@ their focus. The user authorized implementation as Minimal Player r6 using the
 [UI boundary](../design/pocket-mdx-compatibility-plan.md#ui-implementation-boundary).
 The [r6 implementation](#minimal-player-r6-ui-implementation--2026-09-22) passes
 its local gates and the user's [Firmware 2.6 hardware report](#minimal-player-r6-hardware-result--2026-09-22).
-r6 is the accepted baseline. The current slice is the [r7 UI follow-up](../design/pocket-mdx-compatibility-plan.md#r7-ui-follow-up):
+r6 established the preceding baseline. The [r7 UI follow-up](../design/pocket-mdx-compatibility-plan.md#r7-ui-follow-up) adds
 X panel switching, scrolling playback information and a two-arrow loop icon.
+It now passes the user's [Firmware 2.6 hardware report](#minimal-player-r7-hardware-result--2026-09-22).
+r7 is the accepted hardware baseline; the next requirement has not been selected.
 These UI slices do not complete M6. Inherited shell external timing constraints
 and the remaining player integration stay separate. The original objective,
 adopted contracts and results below remain historical evidence; they do not
@@ -4390,3 +4392,34 @@ only. Document links and `git diff --check` are checked before committing.
 
 The connected r7 UI slice is ready for hardware verification. r7 Pocket audio
 continuity, input feel and scrolling legibility are not yet hardware-accepted.
+
+## Minimal Player r7 hardware result — 2026-09-22
+
+ユーザーの **Firmware 2.6 / Minimal Player r7** 実機報告を受領しました。
+使用曲集は規模確認用データです。今回の報告にはプレイリスト数・曲数の数値はなく、
+追加の長い名前用データを使用したかも明示されていません。以下はユーザーの報告であり、
+エージェントによる再測定や、全楽曲の網羅的な互換性検証ではありません。
+
+- 起動時の無音・2周設定・日本語表示はOK。
+- Xでのパネル往復、長押し、行・ページ・アイコンの保持、L/R/Yの無操作はOK。
+- A/B/十字キー、再生・一時停止・再開・停止・前後曲への移動はOK。
+- 下部の長い曲名・リスト名は末尾まで読め、枠外にはみ出さずスクロールすることを確認。
+  閲覧中・操作パネル中・一時停止中も継続し、別曲で先頭へ戻り、短い名前は静止する動作もOK。
+- 一覧の選択行スクロール、カーソル・再生印はOK。
+- ループアイコンの形・読みやすさ、2→3→5→無限、フェード・自動送り・末尾停止はOK。
+- FM/PCM・左右・約1分の再生はOK。音切れ・ノイズ・入力遅延の問題は報告されていません。
+- 通常再起動・電源OFF後の無音・2周設定・位置リセットはOK。エラーや気になる点はなし。
+
+停止後の報告値は **R 5,256 / F 403 / D 2,712 / V 633 us、Q 971 frames、I 6,633 ms**。
+Iは起動時のインデックス読み込み・検査時間で、起動全体の所要時間ではありません。
+エラー曲のスキップは今回の確認項目に含まれず、その既存ホスト検証とは区別します。
+
+この報告でr7のUI変更スライスを実機合格とし、受入済み基準をr6からr7へ更新します。
+上記のr7実装記録にあるFull 90/90・サニタイザー・RV32・パッケージ検証と、今回の実機報告を
+合わせた受入です。既存のM6全体・production substrate・外部I/Oタイミングの残件は別です。
+次はユーザーと次の要件を選びます。未選択の機能を今回の報告から実装開始扱いにはしません。
+
+今回の変更は受入記録と現在位置・参照リンクのみで、コード・契約・検証手順・配布物は変更しません。
+`python -B tools/check_harness.py`、`python -B out/harness/continuous-document-links.py`
+（変更リンク・アンカー8件）、`git diff --check` はPASS。
+入力が変わらないFull・クロスビルド・RTL/合成は再実行していません。

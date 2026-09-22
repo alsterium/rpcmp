@@ -2,13 +2,15 @@
 
 Active milestone: [M6 — Album Player](milestones/M6-album-player.md)
 
-The current task is **Firmware 2.6 hardware verification of Minimal Player r7 UI follow-up**.
-The user accepted the [Firmware 2.6 / r6 hardware report](milestones/M6-album-player.md#minimal-player-r6-hardware-result--2026-09-22)
-using the scale collection: panel controls, elapsed time, list scrolling, playback,
-restarts and audio/input behavior all pass. r6 is the accepted hardware baseline.
-Measured maxima: R 5,337 / F 404 / D 2,874 / V 627 us; Q 987 frames; I 6,535 ms
-for index load/validation, not total boot time. Scale data repeats six songs;
-this does not establish compatibility with 30,000 distinct songs or complete M6.
+The current task is **choose the next M6 requirement after Minimal Player r7 acceptance**.
+The user's [Firmware 2.6 / r7 hardware report](milestones/M6-album-player.md#minimal-player-r7-hardware-result--2026-09-22)
+passes all reported checks using the scale collection: X panel switching,
+information/list scrolling, loop icon and controls, FM/PCM stereo playback,
+restarts and audio/input behavior. r7 is the accepted hardware baseline.
+Reported maxima: R 5,256 / F 403 / D 2,712 / V 633 us; Q 971 frames; I 6,633 ms
+for index load/validation, not total boot time. Numeric list/track counts were
+not supplied in this report. This does not establish compatibility with 30,000
+distinct songs or complete M6. No new implementation slice is selected yet.
 
 The approved [r7 boundary](design/pocket-mdx-compatibility-plan.md#r7-ui-follow-up)
 changes panel switching to X, leaves L/R/Y unassigned, scrolls overlong playback
@@ -16,12 +18,12 @@ title/playlist fields independently of browsing, and draws the loop icon as two
 opposing bent arrows following the user's reference. A/B/D-pad, playback policy,
 version 6 commands/snapshots, HPL2 and HYB4 remain unchanged. The
 [r7 implementation evidence](milestones/M6-album-player.md#minimal-player-r7-ui-follow-up--2026-09-22)
-records Full 90/90, native sanitizers/package tests, RV32 resource checks,
-actual-renderer previews and final package readback. Follow the
-[Japanese hardware check](development/pocket-minimal-player.md) with
-`out/build/minimal-player-r7-update.zip`; reuse the existing HPL2 collection
-without reimport. Optional long-name data opens through `LongNames.json` without
-overwriting the default collection. r7 hardware acceptance remains pending.
+records the preceding Full 90/90, native sanitizers/package tests, RV32 resource
+checks, actual-renderer previews and final package readback. The
+[Japanese hardware procedure](development/pocket-minimal-player.md) remains the
+reproduction guide for the accepted `out/build/minimal-player-r7-update.zip`;
+existing HPL2 collections remain usable without reimport. Optional long-name
+data opens through `LongNames.json` without overwriting the default collection.
 
 Minimal Player r4 was the preceding accepted hardware baseline. It passes the
 [loop/repeat boundary](design/pocket-mdx-compatibility-plan.md#loop-and-repeat-switching-boundary):
