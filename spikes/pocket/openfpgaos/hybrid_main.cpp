@@ -45,19 +45,21 @@ int main() {
   static pocket::MinimalDisplay display;
   std::uint8_t* surface = nullptr;
   std::uint64_t shown{};
-  std::uint32_t shown_scroll{};
+  std::uint32_t animation_at{};
   std::uint32_t max_draw{}, max_flip{};
   bool drawing = false;
   for (;;) {
     const auto key = rpcmp_player_mmio_read(0x40000050);
     const auto type = key >> 28U;
-    ui.input(key & 0xffffU, type >= 1 && type <= 3, rpcmp_pocket_time_us());
+    const auto now = rpcmp_pocket_time_us();
+    ui.input(key & 0xffffU, type >= 1 && type <= 3, now);
     player.service();
     ui.update(player.snapshot());
     const auto view = ui.view();
     bool animate = false;
-    if (!drawing && shown_scroll != view.scroll_tick) {
-      shown_scroll = view.scroll_tick;
+    // The independent text clocks share one redraw cadence, even when out of phase.
+    if (!drawing && now - animation_at >= 50'000) {
+      animation_at = now;
       animate = pocket::MinimalDisplay::marquee_needed(view);
     }
     if (!drawing && (shown != view.revision || animate)) {
@@ -65,6 +67,7 @@ int main() {
       display.begin(view, {timings.render_us, timings.feed_us, max_draw, max_flip,
                            timings.minimum_queued, catalog_load});
       shown = view.revision;
+      animation_at = now;
       surface = rpcmp_player_video_surface();
       drawing = true;
     }

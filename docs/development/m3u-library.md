@@ -1,8 +1,8 @@
 # 複数M3UからPocket用の曲集を作る
 
 M3Uごとに1プレイリストを作り、PCでMDXと必要なPDXをまとめて専用データに変換します。
-対象は **Minimal Player r5・r6 / HPL2**、Python 3.11以降です。
-r5からr6への更新では、既存HPL2曲集の取り込み直しは不要です。
+対象は **Minimal Player r5〜r7 / HPL2**、Python 3.11以降です。
+r5・r6からr7への更新では、既存HPL2曲集の取り込み直しは不要です。
 r1〜r4のHPL1曲集は読み込めません。元のM3Uから作り直してください。
 元のMDX・PDX・M3Uは変更しません。
 
@@ -62,13 +62,13 @@ M3U自体の文字コード・曲数・サイズの不正は取り込み全体�
 
 ## Pocketへコピーする
 
-1. `minimal-player-r6-update.zip` を展開し、Cores・Assets・PlatformsをSDの同名フォルダーへコピーします。
+1. `minimal-player-r7-update.zip` を展開し、Cores・Assets・PlatformsをSDの同名フォルダーへコピーします。
 2. 作成した `my-playlists.zip` を展開し、AssetsをSDへコピーして `playlist.hpl` を置き換えます。
 3. PocketでRPCMP.MinimalPlayer → Playlist.jsonを開きます。
 4. プレイリストをAで開き、曲をAで決定して再生します。
 
 コピー前にコアを終了してください。曲集ZIPだけにはアプリ・コア・OSは含まれません。
-r6アプリとHPL2曲集を組み合わせます。r4へ戻す場合は、保管したr4パッケージと
+r7アプリとHPL2曲集を組み合わせます。r4へ戻す場合は、保管したr4パッケージと
 そのHPL1曲集を一緒に戻します。
 
 ## 確認する
@@ -78,7 +78,7 @@ Pocketと一致するかを確認します。詳しい操作・実機報告は
 [最小プレイヤーの確認手順](pocket-minimal-player.md)を参照してください。
 
 ```text
-Firmware: 2.6 / Minimal Player r6 / M3U取り込み
+Firmware: 2.6 / Minimal Player r7 / M3U取り込み
 取り込み方法（個別指定／一括／併用）:
 プレイリスト数 / 曲数 / 除外数:
 プレイリスト名・順番 / 各M3Uの曲順 / 日本語表示:

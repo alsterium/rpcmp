@@ -70,7 +70,7 @@ passes the normal three-list/42-entry flow and reports the 100 × 300 entry chec
 as OK. Index load/validation takes 20 ms normally and 6,598 ms for the scale
 collection; total boot time and Q were not separately reported. See the
 [implementation evidence](milestones/M6-album-player.md#multiple-playlist-implementation--2026-09-22).
-r5 is now the accepted hardware baseline for
+r5 established the hardware baseline for
 [UI interaction requirements](design/pocket-mdx-compatibility-plan.md#ui-interaction-requirements).
 The user selected this scope and settled Q1: B returns from tracks to playlists
 without stopping playback when the list has focus, and stops when the controls
@@ -96,8 +96,12 @@ The user authorized implementation as Minimal Player r6. The
 adds version 6 commands/snapshots, audio-consumption elapsed seconds and the
 actual bounded renderer, retaining HPL2/HYB4. The
 [r6 implementation](milestones/M6-album-player.md#minimal-player-r6-ui-implementation--2026-09-22)
-passes its local gates. r6 hardware acceptance is pending; r5 remains the
-accepted hardware baseline.
+passes its local gates and the user's [Firmware 2.6 / r6 hardware report](milestones/M6-album-player.md#minimal-player-r6-hardware-result--2026-09-22).
+r6 is the accepted hardware baseline. The approved [r7 follow-up](design/pocket-mdx-compatibility-plan.md#r7-ui-follow-up)
+replaces L/R panel switching with X (L/R/Y unassigned), scrolls overflowing
+playback title/playlist fields, and redraws the loop icon as two opposing bent
+arrows following the user's reference. Other playback and UI behavior stays
+as accepted; HPL2 collections remain usable without reimport.
 
 ## 1. Product vision
 

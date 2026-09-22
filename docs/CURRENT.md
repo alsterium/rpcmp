@@ -2,56 +2,27 @@
 
 Active milestone: [M6 — Album Player](milestones/M6-album-player.md)
 
-The current task is **Firmware 2.6 hardware verification of Minimal Player r6 UI** after
-accepting the [Firmware 2.6 / Minimal Player r5 hardware report](milestones/M6-album-player.md#minimal-player-r5-hardware-result--2026-09-22).
-The user selected this scope and settled [UI Q1–Q14](design/pocket-mdx-compatibility-plan.md#ui-interaction-requirements):
-B returns from tracks to playlists without stopping playback when the list has
-focus, and stops playback when the controls have focus. B never changes panels.
-Either L or R toggles panels; the D-pad stays within the focused panel. In lists,
-up/down selects entries and left/right retains page navigation. X/Y are unassigned;
-control icons act through A. The play/pause icon pauses/resumes the playback track
-or restarts the last-played track from its beginning after stop, independently
-of the browsing cursor. Initial playback starts from the track list. The five
-icons are play/pause, stop, repeat count, previous track and next track, with
-previous/next targeting the playback playlist. Valid previous/next actions start
-the target from its beginning, including from pause/stop. At the first/last entry,
-the unavailable direction is disabled and does nothing; there is no wrapping.
-Control focus restores the previously selected icon during the session, initially
-play/pause. List cursor/page positions are retained. The back row is removed;
-B returns from tracks, and does nothing at the playlist root. The
-[operation table](design/pocket-mdx-compatibility-plan.md#consolidated-operation-table)
-is consolidated. [Information requirements](design/pocket-mdx-compatibility-plan.md#information-display-requirements)
-now specify elapsed time only, frozen during pause, and delayed horizontal
-scrolling of the selected overlong name, with ellipsis in other rows. Q12 fixes
-the lower area's fields as playback title, playback playlist name, entry number /
-count, elapsed time and transport state, independent of the browsing selection.
-The repeat setting belongs with its control icon. Q13 uses
-[two control rows](design/pocket-mdx-compatibility-plan.md#layout-and-focus-requirements):
-previous/play-pause/next above stop/repeat, at the lower right of the information.
-Q14 makes either L or R toggle panels, retaining each panel's focus. The main
-behavioral choices are recorded and the user authorized implementation. The
-[r6 boundary](design/pocket-mdx-compatibility-plan.md#ui-implementation-boundary)
-uses version 6 commands/snapshots, 13 track rows, audio-consumption elapsed time,
-selected-name scrolling and the two-row controls. The
-[r6 implementation and evidence](milestones/M6-album-player.md#minimal-player-r6-ui-implementation--2026-09-22)
-pass Full 90/90, native sanitizers, RV32 resource checks, renderer/reference
-comparison and package readback. Use the runtime-only update with the existing
-HPL2 collection and follow the [Japanese hardware check](development/pocket-minimal-player.md).
-r6 hardware acceptance remains pending.
-r5 is the accepted hardware baseline. The normal three-list/42-entry collection
-passes browsing during playback, original-list automatic advance, track selection
-changing the playback list, list-end stop, per-list position restoration,
-transport/repeat controls, FM/PCM stereo playback and restart defaults. No input
-delay, dropout or noise was reported. The 100 × 300 entry check is also reported
-as OK, with index load/validation I 6,598 ms; normal I is 20 ms. These are not
-total boot times. Reported timings are R 12,691 / F 473 / D 1,594 / V 669 us;
-Q and failed-track skipping were not reported. The scale data repeats the same
-six songs, rather than testing 30,000 distinct songs.
-This completes the [multiple-playlist slice](design/pocket-mdx-compatibility-plan.md#multiple-playlist-requirements),
-not M6 or production-substrate acceptance. The [implementation evidence](milestones/M6-album-player.md#multiple-playlist-implementation--2026-09-22)
-records Full 90/90, native/reference, RV32 resource and package checks.
-Keep the r5 package as the baseline during UI requirements work; existing M3Us
-need a [newly imported HPL2 collection](development/m3u-library.md).
+The current task is **Firmware 2.6 hardware verification of Minimal Player r7 UI follow-up**.
+The user accepted the [Firmware 2.6 / r6 hardware report](milestones/M6-album-player.md#minimal-player-r6-hardware-result--2026-09-22)
+using the scale collection: panel controls, elapsed time, list scrolling, playback,
+restarts and audio/input behavior all pass. r6 is the accepted hardware baseline.
+Measured maxima: R 5,337 / F 404 / D 2,874 / V 627 us; Q 987 frames; I 6,535 ms
+for index load/validation, not total boot time. Scale data repeats six songs;
+this does not establish compatibility with 30,000 distinct songs or complete M6.
+
+The approved [r7 boundary](design/pocket-mdx-compatibility-plan.md#r7-ui-follow-up)
+changes panel switching to X, leaves L/R/Y unassigned, scrolls overlong playback
+title/playlist fields independently of browsing, and draws the loop icon as two
+opposing bent arrows following the user's reference. A/B/D-pad, playback policy,
+version 6 commands/snapshots, HPL2 and HYB4 remain unchanged. The
+[r7 implementation evidence](milestones/M6-album-player.md#minimal-player-r7-ui-follow-up--2026-09-22)
+records Full 90/90, native sanitizers/package tests, RV32 resource checks,
+actual-renderer previews and final package readback. Follow the
+[Japanese hardware check](development/pocket-minimal-player.md) with
+`out/build/minimal-player-r7-update.zip`; reuse the existing HPL2 collection
+without reimport. Optional long-name data opens through `LongNames.json` without
+overwriting the default collection. r7 hardware acceptance remains pending.
+
 Minimal Player r4 was the preceding accepted hardware baseline. It passes the
 [loop/repeat boundary](design/pocket-mdx-compatibility-plan.md#loop-and-repeat-switching-boundary):
 Y cycles 2, 3, 5 loops and repeat one, including changes during playback, pause

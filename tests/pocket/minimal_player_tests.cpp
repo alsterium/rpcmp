@@ -226,9 +226,14 @@ std::vector<std::pair<unsigned, std::uint32_t>> playback_case(rpcmp::test::Suite
   RPCMP_CHECK(suite, opened == 22 && player.snapshot().state == api::State::Playing);
   controller.update(player.snapshot());
   pocket::MinimalDisplay display;
-  display.begin(controller.view());
+  auto animated = controller.view();
+  animated.playing_title.length = animated.playing_list.length = 90;
+  std::fill_n(animated.playing_title.bytes.data(), 90, 'W');
+  std::fill_n(animated.playing_list.bytes.data(), 90, 'M');
+  animated.info_scroll_tick = 40;
+  display.begin(animated);
   Bytes pixels(640 * 480 + 2, 0xee);
-  for (unsigned i = 0; i < 180; ++i) {
+  for (unsigned i = 0; i < 420; ++i) {
     if (i == 10 || i == 30 || i == 60 || i == 90)
       player.submit({api::CommandKind::CycleRepeat, {}});
     player.service();
@@ -239,13 +244,14 @@ std::vector<std::pair<unsigned, std::uint32_t>> playback_case(rpcmp::test::Suite
       RPCMP_CHECK(suite, player.snapshot().track.value == 2 && opened == 22);
     }
   }
+  RPCMP_CHECK(suite, !draw || display.complete());
   RPCMP_CHECK(suite, pixels.front() == 0xee && pixels.back() == 0xee);
   const auto trace = writes;
-  controller.input(0x100, true, 5);
+  controller.input(0x40, true, 5);
   controller.input(0x30, true, 6); // In controls, simultaneous A/B stops only.
   RPCMP_CHECK(suite, player.snapshot().state == api::State::Stopped && opened == 22);
   controller.input(0, true, 7);
-  controller.input(0x200, true, 8);
+  controller.input(0x40, true, 8);
   controller.input(0x10, true, 9);
   RPCMP_CHECK(suite, opened == 11 && player.snapshot().track.value == 1);
   source.fail = true;
@@ -421,9 +427,9 @@ void multiple_playlists(rpcmp::test::Suite& suite) {
   press(0x10);
   RPCMP_CHECK(suite,
               player.snapshot().track.value == 3914 && player.snapshot().playlist.value == 14);
-  press(0x100);
+  press(0x40);
   press(0x10); // Play/pause icon.
-  press(0x200);
+  press(0x40);
   const auto attempts = port.attempts;
   press(0x20); // B returns without stopping.
   RPCMP_CHECK(suite, controller.view().playlist.value == 0 && controller.view().selected == 13 &&
@@ -435,9 +441,9 @@ void multiple_playlists(rpcmp::test::Suite& suite) {
   RPCMP_CHECK(suite, controller.view().playlist.value == 27 && controller.view().selected == 39 &&
                          port.attempts == attempts &&
                          player.snapshot().state == api::State::Paused);
-  press(0x100);
+  press(0x40);
   press(0x10);
-  press(0x100);
+  press(0x40);
   port.end = true;
   player.service();
   player.service();
@@ -598,8 +604,8 @@ void repeat_cases(rpcmp::test::Suite& suite) {
   RPCMP_CHECK(suite,
               player.snapshot().track.value == 2 && player.snapshot().state == api::State::Playing);
   controller.input(0, true, 1'000'005);
-  controller.input(0x100, true, 1'000'006);
-  controller.input(0xf0, true, 1'000'007); // B wins in controls; X/Y are unassigned.
+  controller.input(0x40, true, 1'000'006);
+  controller.input(0xf0, true, 1'000'007); // B wins over A and X in controls.
   RPCMP_CHECK(suite, player.snapshot().state == api::State::Stopped &&
                          player.snapshot().repeat == api::RepeatMode::One);
   player.submit({api::CommandKind::PlayTrack, {2}});
@@ -661,7 +667,7 @@ void pause_cases(rpcmp::test::Suite& suite) {
   rpcmp::player::minimal::Player player{catalog, backend};
   RPCMP_CHECK(suite, player.initialize());
   ui::Controller controller{catalog, player};
-  controller.input(0x100, true, 0); // Held at boot must not switch panels.
+  controller.input(0x40, true, 0); // Held at boot must not switch panels.
   controller.input(0, true, 1);
   controller.input(0x10, true, 2);
   controller.input(0, true, 2);
@@ -669,7 +675,7 @@ void pause_cases(rpcmp::test::Suite& suite) {
   player.service();
   const auto before = rendered;
   controller.update(player.snapshot());
-  controller.input(0x100, true, 3);
+  controller.input(0x40, true, 3);
   controller.input(0x10, true, 4); // A on the play/pause icon.
   RPCMP_CHECK(suite, player.snapshot().state == api::State::Paused && status == 0x107);
   const auto held_writes = writes;
@@ -678,19 +684,19 @@ void pause_cases(rpcmp::test::Suite& suite) {
   tick += 10'000'000;
   controller.input(0x10, true, 10'000'004);
   RPCMP_CHECK(suite, rendered == before && writes == held_writes);
-  controller.input(0x200, true, 10'000'005);
+  controller.input(0x40, true, 10'000'005);
   controller.input(2, true, 10'000'006);
   controller.update(player.snapshot());
   RPCMP_CHECK(suite,
               controller.view().selected == 1 && controller.view().playback.track.value == 1);
-  controller.input(0x100, true, 10'000'007);
+  controller.input(0x40, true, 10'000'007);
   controller.input(0x10, true, 10'000'008);
   RPCMP_CHECK(suite, player.snapshot().state == api::State::Playing && opened == 11);
   player.service();
   RPCMP_CHECK(suite, rendered == before + 1 && status == 7);
   player.submit({api::CommandKind::PlayPause, {}});
-  controller.input(0x100, true, 10'000'009);
-  controller.input(0x50, true, 10'000'010); // X is unassigned; A plays selected PCM.
+  controller.input(0x40, true, 10'000'009);
+  controller.input(0x90, true, 10'000'010); // Y is unassigned; A plays selected PCM.
   RPCMP_CHECK(suite, player.snapshot().state == api::State::Playing && opened == 22);
   player.submit({api::CommandKind::PlayPause, {}});
   player.service();
@@ -699,7 +705,7 @@ void pause_cases(rpcmp::test::Suite& suite) {
   player.service();
   RPCMP_CHECK(suite, rendered == 1 && status == 7);
   player.submit({api::CommandKind::PlayPause, {}});
-  controller.input(0x100, true, 10'000'011);
+  controller.input(0x40, true, 10'000'011);
   controller.input(0x30, true, 10'000'012); // B wins over A in controls.
   RPCMP_CHECK(suite, player.snapshot().state == api::State::Stopped && status == 1);
   player.submit({api::CommandKind::PlayPause, {}}); // Restart last successfully played PCM.
@@ -807,6 +813,54 @@ int check_packed_file(const char* path) {
   std::cout << "playlist payloads: PASS tracks=" << catalog->count() << '\n';
   return 0;
 }
+void panel_x(rpcmp::test::Suite& suite) {
+  Many lists{2};
+  Sink sink;
+  ui::Controller controller{lists, sink};
+  controller.input(0, true, 0);
+  controller.input(0x40, true, 1);
+  RPCMP_CHECK(suite, controller.view().panel == ui::Panel::Controls);
+  controller.input(0x40, true, 1'000'001);
+  RPCMP_CHECK(suite, controller.view().panel == ui::Panel::Controls);
+  controller.input(0, true, 1'000'002);
+  controller.input(0x40, true, 1'000'003);
+  RPCMP_CHECK(suite, controller.view().panel == ui::Panel::List);
+}
+void info_clock(rpcmp::test::Suite& suite) {
+  Many lists{2};
+  Sink sink;
+  ui::Controller controller{lists, sink};
+  controller.input(0, true, 0);
+  api::PlayerSnapshot snapshot{api::kVersion, 1, api::State::Playing, {1}, api::Error::None};
+  snapshot.last_played = {1};
+  controller.update(snapshot);
+  controller.input(0, true, 1'200'000);
+  RPCMP_CHECK(suite, controller.view().info_scroll_tick == 24);
+  snapshot.sequence++;
+  snapshot.elapsed_seconds = 1;
+  controller.update(snapshot);
+  RPCMP_CHECK(suite, controller.view().info_scroll_tick == 24);
+  controller.input(0x40, true, 1'250'000);
+  snapshot.sequence++;
+  snapshot.state = api::State::Paused;
+  controller.update(snapshot);
+  RPCMP_CHECK(suite, controller.view().info_scroll_tick == 25);
+  controller.input(0, true, 61'250'000);
+  RPCMP_CHECK(suite, controller.view().info_scroll_tick == 1225);
+  snapshot.sequence++;
+  snapshot.state = api::State::Stopped;
+  controller.update(snapshot);
+  RPCMP_CHECK(suite, controller.view().info_scroll_tick == 1225);
+  controller.input(0x40, true, 61'250'001);
+  controller.input(2, true, 61'250'002); // Browsing must not restart information scrolling.
+  RPCMP_CHECK(suite, controller.view().info_scroll_tick == 1225);
+  snapshot.sequence++;
+  snapshot.last_played = {301};
+  controller.update(snapshot);
+  RPCMP_CHECK(suite, controller.view().info_scroll_tick == 0);
+  controller.input(0, true, 61'750'002);
+  RPCMP_CHECK(suite, controller.view().info_scroll_tick == 10);
+}
 void controls_and_time(rpcmp::test::Suite& suite) {
   Many lists{2};
   SequencePort port;
@@ -825,20 +879,21 @@ void controls_and_time(rpcmp::test::Suite& suite) {
   player.submit({api::CommandKind::Previous, {}});
   player.submit({api::CommandKind::Next, {}});
   press(0x20); // Root B has no effect.
-  press(0x100);
+  press(0x40);
   RPCMP_CHECK(suite, controller.view().icon == ui::Icon::PlayPause);
   press(0x10);
   RPCMP_CHECK(suite, port.attempts.empty());
-  press(0x200);
+  press(0x40);
   press(0x10); // Open first list, then play first track.
   RPCMP_CHECK(suite, port.attempts.empty());
   press(0x10);
-  press(0xc0); // X and Y have no default actions.
+  press(0x380); // L, R and Y have no default actions.
+  RPCMP_CHECK(suite, controller.view().panel == ui::Panel::List);
   RPCMP_CHECK(suite, player.snapshot().state == api::State::Playing &&
                          player.snapshot().repeat == api::RepeatMode::Two);
-  press(0x100);
+  press(0x40);
   now += 1'000'000;
-  controller.input(0x100, true, now); // Holding L does not toggle again.
+  controller.input(0x40, true, now); // Holding X does not toggle again.
   RPCMP_CHECK(suite, controller.view().panel == ui::Panel::Controls);
   press(4);
   RPCMP_CHECK(suite, !controller.view().enabled[0]);
@@ -855,14 +910,14 @@ void controls_and_time(rpcmp::test::Suite& suite) {
   player.service();
   RPCMP_CHECK(suite, player.snapshot().sequence == paused.sequence &&
                          player.snapshot().elapsed_seconds == 83);
-  press(0x200);
+  press(0x40);
   press(0x20);
   press(2);
   press(0x10);
   press(8); // Browse track 14 in the other list, without changing playback.
   RPCMP_CHECK(suite, controller.view().playlist.value == 2 && controller.view().selected == 13 &&
                          controller.view().playing_number == 1);
-  press(0x100);
+  press(0x40);
   RPCMP_CHECK(suite, controller.view().icon == ui::Icon::PlayPause);
   press(8);
   press(0x10); // Next starts track 2 of the playback list, even while paused.
@@ -880,9 +935,9 @@ void controls_and_time(rpcmp::test::Suite& suite) {
   now += 1'000'000;
   controller.input(0x10, true, now);
   RPCMP_CHECK(suite, player.snapshot().repeat == api::RepeatMode::Three);
-  press(0x300); // Simultaneous L/R is one toggle, not two.
+  press(0x140); // X with unassigned L still toggles once.
   RPCMP_CHECK(suite, controller.view().panel == ui::Panel::List);
-  press(0x200);
+  press(0x40);
   RPCMP_CHECK(suite, controller.view().icon == ui::Icon::Repeat);
   press(4);
   press(0x10);
@@ -909,7 +964,7 @@ void controls_and_time(rpcmp::test::Suite& suite) {
   player.service();
   RPCMP_CHECK(suite, clock.elapsed_seconds == 2 && player.snapshot().sequence == clock.sequence);
   ui::Bindings remapped;
-  remapped.panel_l = 0x400;
+  remapped.panel = 0x400;
   remapped.confirm = 0x80;
   ui::Controller custom{lists, player, remapped};
   custom.update(player.snapshot());
@@ -1015,7 +1070,7 @@ void preview(rpcmp::test::Suite& suite, const char* path) {
   paused.state = api::State::Paused;
   paused.repeat = api::RepeatMode::One;
   controller.update(paused);
-  controller.input(0x100, true, 2);
+  controller.input(0x40, true, 2);
   display.begin(controller.view());
   while (!display.complete())
     RPCMP_CHECK(suite, display.pump(pixels, std::size_t{640} * 480));
@@ -1057,6 +1112,49 @@ void preview(rpcmp::test::Suite& suite, const char* path) {
                                second[static_cast<std::size_t>(y) * 640 + x]);
   long_view.panel = ui::Panel::Controls;
   RPCMP_CHECK(suite, !pocket::MinimalDisplay::marquee_needed(long_view));
+  long_view.playing_title.length = 60; // 480 pixels in a 400-pixel field.
+  long_view.playing_list.length = 70;  // 560 pixels, with a different end dwell.
+  std::fill_n(long_view.playing_title.bytes.data(), 60, 'W');
+  std::fill_n(long_view.playing_list.bytes.data(), 70, 'M');
+  long_view.playing_title.bytes[0] = 'I';
+  long_view.playing_list.bytes[0] = 'I';
+  RPCMP_CHECK(suite, pocket::MinimalDisplay::marquee_needed(long_view));
+  const auto render = [&](std::uint32_t tick_value, Bytes& target) {
+    long_view.info_scroll_tick = tick_value;
+    display.begin(long_view);
+    while (!display.complete())
+      RPCMP_CHECK(suite, display.pump(target.data(), target.size()));
+  };
+  render(0, first);
+  render(19, second);
+  RPCMP_CHECK(suite, first == second);
+  render(40, second); // One second of motion after the dwell: exactly 32 pixels.
+  RPCMP_CHECK(suite, first != second);
+  for (unsigned y = 0; y < 480; ++y)
+    for (unsigned x = 0; x < 640; ++x) {
+      const bool info = ((y >= 378 && y < 394) || (y >= 402 && y < 418)) && x >= 20 && x < 420;
+      const auto pos = static_cast<std::size_t>(y) * 640 + x;
+      if (!info)
+        RPCMP_CHECK(suite, first[pos] == second[pos]);
+      else if (x < 388)
+        RPCMP_CHECK(suite, first[pos + 32] == second[pos]);
+    }
+  render(70, first); // Title has reached its 80-pixel end; list continues moving.
+  render(89, second);
+  constexpr auto info_begin = std::ptrdiff_t{378} * 640;
+  constexpr auto info_end = std::ptrdiff_t{394} * 640;
+  RPCMP_CHECK(suite, std::equal(first.begin() + info_begin, first.begin() + info_end,
+                                second.begin() + info_begin));
+  render(90, first); // Title cycle restarts independently of the longer playlist.
+  render(0, second);
+  RPCMP_CHECK(suite, std::equal(first.begin() + info_begin, first.begin() + info_end,
+                                second.begin() + info_begin));
+  RPCMP_CHECK(suite, first != second);
+  long_view.playing_title.length = long_view.playing_list.length = 50; // Exactly 400 pixels.
+  RPCMP_CHECK(suite, !pocket::MinimalDisplay::marquee_needed(long_view));
+  render(0, first);
+  render(40, second);
+  RPCMP_CHECK(suite, first == second);
   if (path) {
     std::ofstream file(path, std::ios::binary);
     file << "P6\n640 480\n255\n";
@@ -1134,6 +1232,8 @@ int main(int argc, char** argv) {
   backpressure(suite);
   pause_cases(suite);
   repeat_cases(suite);
+  panel_x(suite);
+  info_clock(suite);
   controls_and_time(suite);
   consumed_time(suite);
   preview(suite, argc == 2 ? argv[1] : nullptr);

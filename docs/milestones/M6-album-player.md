@@ -87,14 +87,13 @@ rows at the lower right. Q14 makes either L or R toggle panels while retaining
 their focus. The user authorized implementation as Minimal Player r6 using the
 [UI boundary](../design/pocket-mdx-compatibility-plan.md#ui-implementation-boundary).
 The [r6 implementation](#minimal-player-r6-ui-implementation--2026-09-22) passes
-Full 90/90, actual-renderer checks, native sanitizers, RV32 resource checks and
-package readback. Its Japanese hardware verification is next; r5 remains the
-accepted hardware baseline.
-This closes the compatibility investigation, not M6 as a whole. Inherited shell
-external timing constraints and the remaining player integration stay separate.
-The original objective, adopted contracts and results
-below remain historical evidence; they do not override this new scope or turn
-the existing FM subset into full MDX compatibility.
+its local gates and the user's [Firmware 2.6 hardware report](#minimal-player-r6-hardware-result--2026-09-22).
+r6 is the accepted baseline. The current slice is the [r7 UI follow-up](../design/pocket-mdx-compatibility-plan.md#r7-ui-follow-up):
+X panel switching, scrolling playback information and a two-arrow loop icon.
+These UI slices do not complete M6. Inherited shell external timing constraints
+and the remaining player integration stay separate. The original objective,
+adopted contracts and results below remain historical evidence; they do not
+override this scope or turn the existing FM subset into full MDX compatibility.
 
 ## Objective and adoption
 
@@ -4261,3 +4260,133 @@ FPGA・loader・OS・audio/video定義は合格済み組み合わせとbyte単�
 [日本語確認手順](../development/pocket-minimal-player.md)で確認します。**r6実機受入は未実施**です。
 最終ゲート後の変更は進捗・リンク・検証記録のみです。文書参照と`git diff --check`を確認し、
 入力が変わらないC++・RTL・クロスビルドは繰り返しません。
+
+## Minimal Player r6 hardware result — 2026-09-22
+
+The user reports all r6 procedure checks passing on Firmware 2.6 using the
+scale collection. Numeric list/track counts were not repeated in this report;
+the generated scale collection contains 100 lists × 300 entries repeating six
+accepted songs, not 30,000 distinct songs.
+
+- Silent/two-loop launch, Japanese text and initially disabled controls pass.
+- Thirteen-row browsing, page changes, contextual B, per-list position retention,
+  both L/R panel toggles, held-button behavior, icon memory and inactive X/Y pass.
+- Playback metadata remains independent of browsing; elapsed time freezes through
+  a roughly one-minute pause, resumes and resets on stop/selection as specified.
+- Play/pause/restart, contextual stop, previous/next in the playback list and
+  disabled endpoints pass, including while browsing another list or paused/stopped.
+- Repeat switching, fade, infinite repeat, automatic advance, list-end stop,
+  retained browsing cursor and playing marker pass.
+- Selected-name scrolling stays inside its field. FM/PCM, stereo and approximately
+  one minute of playback pass, with no reported dropout, noise or input delay.
+- Normal restart and power-cycle silence/two-loop/position-reset defaults pass.
+
+Reported R 5,337 / F 404 / D 2,874 / V 627 us, Q 987 frames, I 6,535 ms.
+I is index load/validation, not total boot time. Failed-track skipping was not
+reported in this check; its existing host evidence remains separate.
+
+This accepts the r6 UI slice and makes r6 the hardware baseline, without closing
+all M6/production-substrate gates. The user's requested follow-up changes are X
+instead of L/R for panel switching, scrolling of overflowing lower information
+fields, and a loop icon resembling the supplied two-arrow silhouette. These are
+recorded in the [r7 boundary](../design/pocket-mdx-compatibility-plan.md#r7-ui-follow-up).
+
+## Minimal Player r7 UI follow-up — 2026-09-22
+
+Implements the user's three r6 follow-up requests within UI/platform: X toggles
+panels (L/R/Y unassigned), overflowing playback title/list fields scroll, and
+the loop icon uses two opposing bent arrows. Update on-screen help, APF Controls
+and the Japanese package guide together. No new dependency or source image is
+embedded. Commands/snapshots remain version 6; HPL2, HYB4 and playback/audio
+implementation remain unchanged.
+
+Information fields use the existing one-second dwell, 32 pixels/second and
+one-second end dwell, independently of browsing/focus and pause/stop. Reset
+their presentation clock on a changed last-played track ID. Each field uses its
+own width; fitting fields remain stationary. Both text clocks share one animation
+redraw interval of at least 50 ms; continue rendering four scanlines between
+audio-service turns. This avoids doubling redraw requests when their phases differ.
+
+Verification performed for this slice:
+
+- An added X-toggle test fails against r6 at its two expected panel assertions
+  (`out/harness/ui-r7-red.log`), then passes after the binding change. Existing
+  transport/browsing tests use the newly approved input mapping; audio/status
+  register expectations are unchanged.
+- `pwsh -File tools/host-verify.ps1 -Mode Fast`: PASS 89/89 (29.97 s, tidy omitted),
+  before the final common-cadence adjustment. Final Full evidence follows below.
+- `docker run --rm --network none -v F:/source/rpcmp:/repo -w /repo
+  rpcmp-cpu-budget-sim:20260921 python3 -B out/harness/minimal-player-native.py`:
+  ASan/UBSan PASS and package tests 7/7. Tests cover X hold/rebinding/chords,
+  unassigned L/R/Y, independent information clocks through pause/stop/browsing,
+  400-pixel fitting bounds, exact 32-pixel motion after the dwell, separate end
+  dwells and clipping to both information fields. The headless versus delayed
+  rendering trace remains identical; it now renders through the information
+  area, not just the upper list. See `out/harness/ui-r7-native.log`; the final
+  integer-type correction below is also checked in `ui-r7-native-final.log`.
+- Actual-renderer short/Japanese and long/Japanese+ASCII previews were inspected:
+  `out/harness/ui-r7-preview.png`, `ui-r7-long-0.png`, `ui-r7-long-40.png`.
+  These are generated mock views, not Pocket screenshots. The loop silhouette,
+  adjacent setting, clipping and independent metadata are visible.
+- RV32 build command: `docker run --rm --network none
+  -v F:/source/rpcmp:/repo -w /repo rpcmp-cpu-budget-sim:20260921
+  python3 -B tools/hybrid_renderer_build.py --output out/build/minimal-player-cpu-r7`.
+  Final build/resources and package results are recorded below.
+
+The first Full run was intentionally stopped when the common animation cadence
+was corrected during review; it is not acceptance evidence. The next Full
+(`ui-r7-full-final.log`) passed functional checks but failed six implicit
+multiplication-widening diagnostics in the new test's iterator offsets. These
+were corrected with explicit `std::ptrdiff_t` arithmetic without changing pixel
+expectations or suppressions. Focused `clang-tidy -p out/build/host-msvc
+--config-file .clang-tidy tests/pocket/minimal_player_tests.cpp` then passed
+(`ui-r7-tidy-focused.log`). The correction affects tests only, not the packaged
+application; its RV32 build/package evidence remains valid. Final Full evidence
+is recorded below. Do not treat Fast or build success as Pocket acceptance.
+
+The optional `minimal-player-r7-scroll-data.zip` contains two lists/four entries
+with long Japanese/ASCII and short display names, reusing accepted audio payloads.
+It adds `LongNames.json` and `longnames.hpl` without replacing the user's default
+collection. Its independent header/index/CRC/name/payload/ZIP readback passes;
+the actual sanitized reader also accepts all four payloads. Private audio and
+generated artifacts remain under ignored `out/`, not committed fixtures.
+
+RTL simulation, synthesis/fit and broad MDX reference comparisons are not rerun:
+their inputs and playback behavior are unchanged. Package readback checks the
+accepted FPGA/boot ROM/OS and existing HPL2 bytes directly. Existing M6 hardware
+and external-I/O timing limitations remain; this slice introduces no claim that
+they are resolved. r6 remains the accepted hardware baseline until the user
+checks r7 using the [Japanese procedure](../development/pocket-minimal-player.md).
+
+Final RV32 build passes (`out/harness/ui-r7-cross-final.log`): 4,490,924 static
+bytes (288 more than r6), data 79,300 / text 466,680 / BSS 3,944,944 bytes.
+The largest stack frame is 4,720 bytes, conservative bound 14,128 bytes, with
+no dynamic frames. Existing third-party host pointer-size warnings and the
+serial-LTO note remain; no warning suppression was added.
+
+Package command uses `tools/pocket_hybrid_package.py` with shell
+`out/build/repeat-candidate-r4`, CPU `out/build/minimal-player-cpu-r7`, firmware
+`out/build/repeat-firmware-r4/src/firmware/os/bld/pocket`, the accepted local
+three-list manifest and output `out/build/minimal-player-r7`. Final readback via
+`python -B out/harness/ui-r7-readback.py` passes: exact final ELF and Japanese
+guide, APF A/B/X keys, core `0.19.0-player-r7`, framework minimum 2.2, identical
+accepted FPGA/loader/OS/audio/video and identical r5 HPL2 payload/index/order.
+The full collection is three lists/42 entries/10 shared blobs. The update has
+no HPL and all of its members match the full archive. See
+`out/harness/ui-r7-package-final.log` and `ui-r7-readback-final.log`.
+
+| Local artifact | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `out/build/minimal-player-r7.zip` | 16,839,403 | `6d32d83d1194df425fcfddcf499d183f1c46234aa4127bb1f9ed80221783eb94` |
+| `out/build/minimal-player-r7-update.zip` | 1,192,389 | `fcc604172eafd289d173588a797caf1f5ec71f7b7c144cbe9a467c3c44e91f4f` |
+| `out/build/minimal-player-r7-scroll-data.zip` | 22,772 | `11d5303104e064fa97e3eaea8e71d02e7c52e8a5d0df657be8fc96b5e99acf00` |
+
+Final `pwsh -File tools/host-verify.ps1` passes **90/90**, including format, tidy,
+headless/mock and positive/negative architecture checks (636.97 s total, tidy
+598.88 s; `out/harness/ui-r7-full-accepted.log`). Final native ASan/UBSan and
+package tests also pass, 7/7 (`ui-r7-native-final.log`). No production source or
+test changed after these passes; the remaining edits record progress/navigation
+only. Document links and `git diff --check` are checked before committing.
+
+The connected r7 UI slice is ready for hardware verification. r7 Pocket audio
+continuity, input feel and scrolling legibility are not yet hardware-accepted.

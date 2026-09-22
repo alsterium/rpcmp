@@ -31,6 +31,16 @@ std::uint32_t width(const std::string_view text) {
     result += next_glyph(text, pos).width;
   return result;
 }
+std::uint32_t scroll_offset(const std::string_view text, const unsigned available,
+                            const std::uint32_t tick) {
+  const auto pixels = width(text);
+  if (pixels <= available)
+    return 0;
+  const auto distance = pixels - available;
+  const auto travel_ticks = (distance * 5 + 7) / 8;
+  const auto phase = tick % (40 + travel_ticks);
+  return phase < 20 ? 0 : std::min(distance, (phase - 20) * 8 / 5);
+}
 void text_row(std::uint8_t* out, const std::string_view text, const unsigned row,
               const unsigned left, const unsigned right, const std::uint8_t color,
               const unsigned offset = 0, const bool elide = true) {
@@ -76,6 +86,22 @@ void triangle(std::uint8_t* out, unsigned row, unsigned x, unsigned y, bool righ
   const auto start = right ? x : x + 7 - half;
   std::fill_n(out + start, half + 1, color);
 }
+void loop_row(std::uint8_t* out, unsigned row, unsigned x, unsigned y, std::uint8_t color) {
+  if (row < y || row >= y + 24)
+    return;
+  const auto local = row - y;
+  const bool bottom = local >= 12;
+  const auto r = bottom ? 23 - local : local;
+  if (r > 10)
+    return;
+  for (unsigned p = 0; p < 24; ++p) {
+    const bool head = p >= 17 && p < 17 + (r < 6 ? r + 1 : 11 - r);
+    const bool stem = r >= 4 && r <= 6 && p >= 3 && p < 18;
+    const bool bend = (r == 5 && p >= 1 && p < 3) || (r >= 6 && p < 3);
+    if (head || stem || bend)
+      out[x + (bottom ? 23 - p : p)] = color;
+  }
+}
 void icon_row(std::uint8_t* out, unsigned row, const ui::View& view, unsigned index) {
   const auto icon = static_cast<ui::Icon>(index);
   const unsigned x = 450 + (index < 3 ? index : index - 3) * 58;
@@ -85,6 +111,10 @@ void icon_row(std::uint8_t* out, unsigned row, const ui::View& view, unsigned in
   const bool selected = view.icon == icon;
   const auto color = static_cast<std::uint8_t>(view.enabled[index] ? 1 : 5);
   frame(out, row, x, y, w, 28, selected && active ? 3 : 5, selected ? (active ? 2 : 6) : 0);
+  if (icon == ui::Icon::Repeat) {
+    loop_row(out, row, x + 10, y + 2, color);
+    return;
+  }
   if (row < y + 7 || row >= y + 21)
     return;
   if (icon == ui::Icon::Previous || icon == ui::Icon::Next) {
@@ -100,35 +130,27 @@ void icon_row(std::uint8_t* out, unsigned row, const ui::View& view, unsigned in
     }
   } else if (icon == ui::Icon::Stop) {
     std::fill_n(out + x + 19, 12, color);
-  } else {
-    // Compact loop outline and a legible setting, independent of font symbol coverage.
-    if (row == y + 8 || row == y + 18)
-      std::fill_n(out + x + 12, 14, color);
-    else {
-      out[x + 12] = color;
-      out[x + 25] = color;
-    }
-    if (row >= y + 8 && row <= y + 11)
-      std::fill_n(out + x + 24 - (row - y - 8), row - y - 7, color);
   }
 }
 } // namespace
 bool MinimalDisplay::marquee_needed(const ui::View& view) {
-  return view.panel == ui::Panel::List && view.selected_row < view.rows &&
-         view.selected_row < view.titles.size() &&
-         width(title(view.titles[view.selected_row])) > 536;
+  return (view.panel == ui::Panel::List && view.selected_row < view.rows &&
+          view.selected_row < view.titles.size() &&
+          width(title(view.titles[view.selected_row])) > 536) ||
+         (view.playing_number != 0 && width(title(view.playing_title)) > 400) ||
+         width(title(view.playing_list)) > 400;
 }
 void MinimalDisplay::begin(const ui::View view, const MinimalTimings timings) {
   view_ = view;
   timings_ = timings;
   row_ = scroll_pixels_ = 0;
-  if (marquee_needed(view_)) {
-    const auto distance = width(title(view_.titles[view_.selected_row])) - 536;
-    const auto travel_ticks = (distance * 5 + 7) / 8;
-    const auto phase = view_.scroll_tick % (40 + travel_ticks);
-    if (phase >= 20)
-      scroll_pixels_ = std::min(distance, (phase - 20) * 8 / 5);
-  }
+  if (view_.panel == ui::Panel::List && view_.selected_row < view_.rows &&
+      view_.selected_row < view_.titles.size())
+    scroll_pixels_ = scroll_offset(title(view_.titles[view_.selected_row]), 536, view_.scroll_tick);
+  title_scroll_ = view_.playing_number != 0
+                      ? scroll_offset(title(view_.playing_title), 400, view_.info_scroll_tick)
+                      : 0;
+  list_scroll_ = scroll_offset(title(view_.playing_list), 400, view_.info_scroll_tick);
 }
 bool MinimalDisplay::pump(std::uint8_t* surface, const std::size_t bytes) {
   if (!surface || bytes < std::size_t{640} * 480)
@@ -142,8 +164,8 @@ bool MinimalDisplay::pump(std::uint8_t* surface, const std::size_t bytes) {
     frame(out, row_, 440, 370, 192, 76, list_focus ? 5 : 3);
     if (row_ >= 16 && row_ < 32) {
       text_row(out, "RPCMP", row_ - 16, 16, 120, 3);
-      text_row(out, list_focus ? "L/R:パネル  A:決定  B:戻る" : "L/R:パネル  A:操作  B:停止",
-               row_ - 16, 200, 624, 1);
+      text_row(out, list_focus ? "X:パネル  A:決定  B:戻る" : "X:パネル  A:操作  B:停止", row_ - 16,
+               200, 624, 1);
     }
     if (row_ >= 48 && row_ < 64) {
       text_row(out, title(view_.list_title), row_ - 48, 20, 424, 3);
@@ -182,9 +204,9 @@ bool MinimalDisplay::pump(std::uint8_t* surface, const std::size_t bytes) {
     }
     if (row_ >= 378 && row_ < 394)
       text_row(out, view_.playing_number ? title(view_.playing_title) : "曲を選択してください",
-               row_ - 378, 20, 420, 1);
+               row_ - 378, 20, 420, 1, title_scroll_, false);
     if (row_ >= 402 && row_ < 418)
-      text_row(out, title(view_.playing_list), row_ - 402, 20, 420, 5);
+      text_row(out, title(view_.playing_list), row_ - 402, 20, 420, 5, list_scroll_, false);
     if (row_ >= 426 && row_ < 442) {
       const auto state = view_.playback.state;
       const char* status = state == State::Playing     ? "再生中"

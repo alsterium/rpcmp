@@ -49,6 +49,10 @@ void Controller::titles() {
 void Controller::update(const api::PlayerSnapshot snapshot) {
   if (snapshot.version != api::kVersion || snapshot.sequence == view_.playback.sequence)
     return;
+  if (snapshot.last_played.value != view_.playback.last_played.value) {
+    info_at_ = now_;
+    view_.info_scroll_tick = 0;
+  }
   view_.playback = snapshot;
   view_.playing_title = tracks_.title(snapshot.last_played);
   const auto list = tracks_.playlist(tracks_.playlist_for(snapshot.last_played));
@@ -150,6 +154,7 @@ void Controller::move(const std::uint32_t direction) {
 }
 void Controller::input(std::uint32_t buttons, const bool connected, const std::uint32_t now_us) {
   now_ = now_us;
+  view_.info_scroll_tick = (now_us - info_at_) / 50'000;
   if (!connected || !connected_) {
     previous_ = buttons;
     blocked_ = buttons;
@@ -165,8 +170,7 @@ void Controller::input(std::uint32_t buttons, const bool connected, const std::u
   const auto directions = bindings_.up | bindings_.down | bindings_.left | bindings_.right;
   const auto direction = buttons & directions;
   // A single action per observation. Suppress held directions after action/panel changes.
-  if ((pressed & (bindings_.back | bindings_.confirm | bindings_.panel_l | bindings_.panel_r)) !=
-      0) {
+  if ((pressed & (bindings_.back | bindings_.confirm | bindings_.panel)) != 0) {
     blocked_ |= direction;
     navigation_ = 0;
     if ((pressed & bindings_.back) != 0)

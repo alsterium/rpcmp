@@ -8,7 +8,7 @@ namespace api = contracts::minimal;
 inline constexpr std::uint32_t kRows = 13;
 struct Bindings {
   std::uint32_t up{1}, down{2}, left{4}, right{8}, confirm{0x10}, back{0x20};
-  std::uint32_t panel_l{0x100}, panel_r{0x200};
+  std::uint32_t panel{0x40};
 };
 enum class Panel : std::uint8_t { List, Controls };
 enum class Icon : std::uint8_t { Previous, PlayPause, Next, Stop, Repeat };
@@ -23,7 +23,7 @@ struct View {
   Panel panel{Panel::List};
   Icon icon{Icon::PlayPause};
   std::array<bool, 5> enabled{false, false, false, false, true};
-  std::uint32_t scroll_tick{};
+  std::uint32_t scroll_tick{}, info_scroll_tick{};
   contracts::CatalogText list_title{}, playing_list{};
   contracts::CatalogText playing_title{};
 };
@@ -47,7 +47,7 @@ private:
   std::array<std::uint32_t, api::kMaxPlaylists> positions_{};
   std::uint32_t list_position_{};
   std::uint32_t previous_{}, navigation_{}, repeated_at_{}, blocked_{};
-  std::uint32_t now_{}, selected_at_{};
+  std::uint32_t now_{}, selected_at_{}, info_at_{};
   bool connected_{}, repeating_{};
 };
 } // namespace rpcmp::ui::minimal

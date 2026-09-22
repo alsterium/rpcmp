@@ -33,8 +33,8 @@ def track_files(manifest):
                  dict(instance=dict(magic=shared.MAGIC, data_slots=slots)))}
     catalog = ["# 曲目一覧", "", "Pocketで Playlist.json を開き、プレイリストをAで選びます。",
                "一覧では上下で選曲、左右でページ移動、Aで先頭から再生、Bでプレイリスト一覧へ戻ります。",
-               "L/Rのどちらでも一覧と操作パネルを切り替えます。操作パネルでは十字キーでアイコンを選び、Aで操作、Bで停止します。",
-               "操作アイコンは前の曲・再生／一時停止・次の曲・停止・ループ回数です。X/Yには操作を割り当てていません。", "",
+               "Xで一覧と操作パネルを切り替えます。操作パネルでは十字キーでアイコンを選び、Aで操作、Bで停止します。",
+               "操作アイコンは前の曲・再生／一時停止・次の曲・停止・ループ回数です。L/R/Yには操作を割り当てていません。", "",
                "| 番号 | プレイリスト | 曲名 | 音源 | PC比較音声 |", "| --- | --- | --- | --- | --- |"]
     for number, track in enumerate(tracks, 1):
         reference = "なし"
@@ -95,7 +95,7 @@ def package(args):
         raise ValueError("application budget does not match this ELF")
     values = player_definitions()
     values["core.json"]["core"]["metadata"].update(platform_ids=[PLATFORM], shortname="MinimalPlayer",
-        description="RPCMP MDX playlists", version="0.18.0-player-r6", date_release="2026-09-22")
+        description="RPCMP MDX playlists", version="0.19.0-player-r7", date_release="2026-09-22")
     slots = values["data.json"]["data"]["data_slots"]
     slots[0]["name"] = "MDX Player"
     slots[4:] = [dict(id=4, name="Playlist", required=True, parameters=8, extensions=["hpl"],
@@ -103,7 +103,7 @@ def package(args):
     values["input.json"]["input"]["controllers"] = [dict(type="default", mappings=[
         dict(id=i, name=name, key=key) for i, name, key in
         ((0, "Confirm / Play", "pad_btn_a"), (1, "Back / Stop", "pad_btn_b"),
-         (4, "Switch panel", "pad_trig_l"), (5, "Switch panel", "pad_trig_r"))])]
+         (4, "Switch panel", "pad_btn_x"))])]
     sdk = ROOT / "out/research/openfpgaSDK-a408ddc"
     manifest = shared.parse_manifest(sdk / "runtime/MANIFEST")
     loader = shared.verify_runtime_file(sdk / "runtime", manifest, "pocket/loader.bin")

@@ -22,7 +22,7 @@ private:
   ui::minimal::View view_{};
   MinimalTimings timings_{};
   std::uint32_t row_{};
-  std::uint32_t scroll_pixels_{};
+  std::uint32_t scroll_pixels_{}, title_scroll_{}, list_scroll_{};
 };
 } // namespace rpcmp::platform::pocket
 #endif

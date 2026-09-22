@@ -55,8 +55,9 @@ and settled its Q1–Q6 requirements. The subsequent instruction to continue unt
 hardware verification is needed authorizes implementation and its handoff.
 The [r5 implementation](../milestones/M6-album-player.md#multiple-playlist-implementation--2026-09-22)
 passes the subsequent [Firmware 2.6 / r5 hardware report](../milestones/M6-album-player.md#minimal-player-r5-hardware-result--2026-09-22).
-r5 is now the accepted hardware baseline. The user settled UI Q1–Q14 and
-authorized the [r6 UI implementation](#ui-implementation-boundary).
+r5 established the preceding hardware baseline. The user settled UI Q1–Q14 and
+authorized the [r6 UI implementation](#ui-implementation-boundary), now accepted
+on hardware. The current approved slice is the [r7 UI follow-up](#r7-ui-follow-up).
 Tracker/keyboard expansion, shuffle and persistent settings remain deferred.
 Keep relevant input bounds, focused regressions and integration checks; do not
 restart a broad compatibility campaign as a prerequisite for this next step.
@@ -456,6 +457,10 @@ moving the cursor. Copy all of these display values into the UI view.
 
 ### UI interaction requirements
 
+The r6 behavior below passed the user's Firmware 2.6 hardware check. The
+[r7 follow-up](#r7-ui-follow-up) supersedes its L/R and X/Y bindings and extends
+scrolling to the playback information. Other r6 choices remain unchanged.
+
 On 2026-09-22, after accepting r5, the user selected UI interaction organization
 as the next requirements task. Settle the remaining choices through numbered
 questions. Keep the accepted playback behavior as the baseline and keep physical
@@ -591,7 +596,7 @@ retained focus state; Pocket legibility and response remain hardware checks.
 
 #### Consolidated operation table
 
-The table describes r6. Top-level B
+The table describes the current r7 bindings. Top-level B
 being a no-op follows from having no parent and Q1's panel-specific stop action.
 Physical bindings remain replaceable in UI/platform; playback commands and
 audio timing remain independent of focus and rendering.
@@ -602,8 +607,8 @@ audio timing remain independent of focus and rendering.
 | D-pad left/right | Change page | Change page | Select an icon according to its placement |
 | A | Open selected list without changing playback | Start selected track from its beginning and use its playlist | Activate selected icon |
 | B | No action | Return to playlist list without changing playback | Stop playback and cancel automatic advance |
-| L or R | Toggle to controls without changing playback | Toggle to controls without changing playback | Toggle to list without changing playback |
-| X/Y | Unassigned | Unassigned | Unassigned |
+| X | Toggle to controls without changing playback | Toggle to controls without changing playback | Toggle to list without changing playback |
+| L/R/Y | Unassigned | Unassigned | Unassigned |
 
 | Control icon | Action |
 | --- | --- |
@@ -619,7 +624,8 @@ alter playback, and automatic advance does not move the browsing cursor.
 Remember control-icon focus and list positions for the session only. Launch
 still starts silently at the playlist list with two loops; no setting or focus
 persistence is added. Q13 fixes the two-row icon order and Q14 fixes either
-L/R button as a panel toggle. Exact D-pad adjacency is recorded below.
+L/R button as a panel toggle in r6; r7 replaces that binding with X. Exact
+D-pad adjacency is recorded below.
 
 The working layout proposal reuses the earlier preference for a large main
 area, track information below it and control icons to the right of that
@@ -668,6 +674,33 @@ Verify UI/command/audio independence, rendering and the host integration gates
 before handing off the hardware candidate. The [r6 implementation evidence](../milestones/M6-album-player.md#minimal-player-r6-ui-implementation--2026-09-22)
 records passing local gates. These do not establish Pocket audio continuity or
 input response; those remain in the Japanese r6 procedure.
+
+#### r7 UI follow-up
+
+After the r6 hardware pass on 2026-09-22, the user requested these bounded UI
+changes. This is the current implementation slice; no playback-policy change.
+
+- Replace the two panel bindings with one X binding (`0x40`). Each fresh press
+  toggles once, holding does not repeat, and remembered focus is retained.
+  L/R/Y are unassigned. Keep A/B priority, held-direction suppression and
+  reconnect behavior; update on-screen help and APF Controls metadata together.
+- Scroll overflowing playback title and playlist name within their existing
+  400-pixel information fields, regardless of panel focus or transport state.
+  Reuse the list's 1-second dwell, 32 pixels/second and 1-second end dwell.
+  Use a separate UI-local clock reset when the last-played track ID changes;
+  browsing, focus, elapsed-second updates, pause and stop do not restart it.
+  Each field uses its own text width; fitting text remains stationary. Keep
+  rendering at most 20 animation updates/second in four-scanline slices.
+- Draw a compact loop icon using two opposing bent arrows (top points right,
+  bottom points left), following the user's reference silhouette. Implement
+  it directly in the existing indexed renderer; do not add an image dependency.
+  Keep the adjacent 2/3/5/infinite setting and disabled/focus colors.
+- Keep commands/snapshots at version 6, HPL2, HYB4 and audio implementation
+  unchanged. Full checkpoint: X navigation, independently scrolling information
+  and loop controls render together while the delayed-rendering audio trace
+  remains unchanged. Run focused/Fast/Full, native sanitizers, RV32 build and
+  package readback before handing off r7. Reuse byte-identical accepted FPGA/OS;
+  RTL/fit are unaffected. Pocket response/audio remain a hardware check.
 
 ## Recommendation
 
